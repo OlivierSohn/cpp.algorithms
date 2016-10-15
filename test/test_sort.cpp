@@ -31,14 +31,14 @@ namespace imj {
                 
             test_small_containers();
             
-            for(auto size = 0; size <= 8; ++size) {
+            for(auto size = 0; size <= 4; ++size) {
                 test_permutations(size);
             }
 
-            for(auto multiple = 1; multiple < 1000; multiple *= 3) {
+            for(auto multiple = 1; multiple < 100; multiple *= 3) {
                 auto size = 100 * multiple;
                 
-                test_n_permutations( size, 100 );
+                test_n_permutations( size, 10 );
             }
         }
     
@@ -46,8 +46,6 @@ namespace imj {
             performance_test(100);
             performance_test(10000);
             performance_test(1000000);
-            //performance_test(10000000);
-            //performance_test(100000000);
         }
     
     private:
@@ -87,6 +85,15 @@ namespace imj {
             return c;
         }
         
+        auto make_container_many_repeats(int size, int number_different_values = 3) 
+        {
+            Container c(size);
+            for(auto & v : c) {
+                v = std::rand() % number_different_values;
+            }
+            return c;
+        }
+        
         void check_sort(Container const & unsorted_const) {
             auto unsorted = unsorted_const;
             bool was_sorted = IsSorted(unsorted);
@@ -123,13 +130,20 @@ namespace imj {
                 test_permutations(move(c));
             }
                     
-            printf(" [with repeats] ");
+            printf(" [with one repeated value] ");
                     
             for(int index_repeat = 0; index_repeat < size; index_repeat++) { 
                 for(int n_repeats = 2; n_repeats <= size; ++n_repeats) {
                     auto c = make_container_with_repeats(size, n_repeats, index_repeat);        
                     test_permutations(move(c));
                 }
+            }
+
+            printf(" [with several repeated values] ");
+            std::srand(0);
+            for(int i=0; i<100; i++) {
+                auto c = make_container_many_repeats(size, 2);
+                test_permutations(move(c));
             }
             
             printf("\n");
@@ -140,6 +154,8 @@ namespace imj {
             auto v = make_container_no_repeat(size);
             printf("sort containers of size %d [%d permutation(s)]", size, n_permutations);
             
+            std::srand(0);
+
             for(int i=0; i<n_permutations; ++i) {
                 Shuffle(v);
                 check_sort(v);
@@ -149,7 +165,6 @@ namespace imj {
 
         void test_small_containers() {
             Containers containers{
-                {1,2,3,0,4,5},
                 {},
                 {0},
                 {0,0},
@@ -158,7 +173,8 @@ namespace imj {
                 {0,1,2},
                 {2,1,0},
                 {0,2,1},
-                {1,2,0}
+                {1,2,0},
+                {1,2,3,0,4,5},
             };
             
             for(auto & c : containers) {
@@ -241,7 +257,6 @@ TEST(Algorithm, MergeSort) {
         
     test< vector<int> >();
     //test< vector<float> >();
-    //                bool done = false;
     test< list<int> >();
     //test< list<float> >();
 }

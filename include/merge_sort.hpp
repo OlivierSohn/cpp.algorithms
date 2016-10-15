@@ -39,12 +39,17 @@ namespace imj {
         using range = imj::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
+        enum Type {
+            RECURSIVE,
+            SEQUENTIAL
+        };
+         
         mergesort(WorkContainer & work) :
             work(work)
         {
         }
         
-        void operator ()(range r) {
+        void operator ()(range r, Type t = SEQUENTIAL) {
             static_assert( 
                 std::is_same<
                     typename WorkContainer::value_type,
@@ -56,12 +61,68 @@ namespace imj {
             auto d = r.distance();
             if(d > 1) {
                 work.resize(d);
-                this->sort(r);
+                if(t==SEQUENTIAL) {
+                    this->sort_seq(r);                
+                } else {
+                    this->sort(r);
+                }
             }
         }
         
     private:
         WorkContainer & work;
+        
+        void sort_seq(range r) {
+            //log(r.begin(), r.end());
+            auto distance = r.distance();
+            auto cell_size = 0;
+            do {
+                if(cell_size == 0) {
+                    cell_size = 1;
+                } else {
+                    cell_size *= 2;
+                }
+                sort_seq_level(r, distance, cell_size);                
+                //log(r.begin(), r.end());
+            } while(2*cell_size < distance);
+        }
+        
+        void sort_seq_level(const range & r, int remaining_distance, int cell_size) {
+        
+            auto it1 = r.begin();                
+
+            auto two_cells = 2 * cell_size;
+            while(remaining_distance >= two_cells) {
+                //std::cout << "full" << std::endl;
+                auto it2 = it1;
+                std::advance(it2, cell_size);
+                auto it3 = it2;                
+                std::advance(it3, cell_size);
+
+                join(std::pair<range, range>{{it1, it2}, {it2, it3}}, work.begin());
+                
+                remaining_distance -= two_cells;
+                std::advance(it1, two_cells);
+            }
+            
+            if(remaining_distance > 1) {
+                while(cell_size > remaining_distance)
+                {
+                    cell_size /= 2;
+                }
+                auto it2 = it1;
+                std::advance(it2,cell_size);
+                auto it3 = r.end();
+                if(it3 == it2) {
+                    //std::cout << "no partial (would be redundant)" << std::endl;
+                    return;
+                }
+                //std::cout << "partial" << std::endl;
+                join(std::pair<range, range>{{it1, it2}, {it2, it3}}, work.begin());
+            }
+            
+            //log(r.begin(), r.end());
+        }
         
         std::pair<range, range> split(range r, int distance) {
             assert(r.distance() >= 2);
@@ -104,10 +165,10 @@ namespace imj {
         }
 
         template <typename work_iterator>
-        void join(std::pair<range, range> & ranges, work_iterator work_begin) {
+        void join(std::pair<range, range> const & ranges, work_iterator work_begin) {
             auto & r1 = ranges.first;
             auto & r2 = ranges.second;
-            
+            //std::cout<< "join " << r1.distance() << " " << r2.distance() << std::endl;
             assert(r1.distance() >= 1);
             assert(r2.distance() >= 1);
             
@@ -137,6 +198,11 @@ namespace imj {
                     ++not_sorted_begin;
                     ++it2;               
                     if(it2 == r2_end) {
+                        auto r1it = not_sorted_begin;
+                        while( r1it != r1_end ) {
+                            unsorted_r1.push_back(*r1it);
+                            ++r1it;
+                        }
                         std::copy(unsorted_r1.begin(), unsorted_r1.end(), not_sorted_begin);
                         return;
                     }

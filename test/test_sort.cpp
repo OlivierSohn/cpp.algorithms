@@ -48,6 +48,13 @@ namespace imj {
             performance_test(1000000);
         }
     
+        void setAlgoType(AlgoType t) { 
+            algo_type = t;
+            std::cout << "mode " << ((t==RECURSIVE)? "RECURSIVE" : "SEQUENTIAL") << std::endl;
+        }
+        
+        AlgoType getAlgoType() const { return algo_type; }
+        
     private:
         using Containers = vector<Container>;
                 
@@ -94,13 +101,15 @@ namespace imj {
             return c;
         }
         
+        AlgoType algo_type = RECURSIVE;
+        
         void check_sort(Container const & unsorted_const) {
             auto unsorted = unsorted_const;
             bool was_sorted = IsSorted(unsorted);
             Container unsorted_copy = unsorted;
             ASSERT_EQ(unsorted_copy, unsorted);
            
-            imj::merge_sort(unsorted.begin(), unsorted.end());
+            imj::merge_sort(unsorted.begin(), unsorted.end(), algo_type);
             if(!was_sorted) {
                 ASSERT_NE( unsorted_copy, unsorted);
             }
@@ -219,7 +228,7 @@ namespace imj {
                 {
                     auto copy = c;
                     clock_t t = clock();                    
-                    merge_sort(copy.begin(), copy.end());
+                    merge_sort(copy.begin(), copy.end(), algo_type);
                     imj_time += (float)(clock() - t)/CLOCKS_PER_SEC;
                 }
 
@@ -244,6 +253,13 @@ namespace imj {
         cout << "---" << endl;
         
         Test<Container> test;
+        test.setAlgoType(RECURSIVE);
+        
+        test.run_performance();
+        test.run_logic();
+
+        test.setAlgoType(SEQUENTIAL);
+
         test.run_performance();
         test.run_logic();
     }

@@ -34,22 +34,23 @@ namespace imj {
         log(container.begin(), container.end());
     }
 
+    enum AlgoType {
+        RECURSIVE,
+        SEQUENTIAL
+    };
+     
+
     template< typename iterator, typename WorkContainer = std::vector<typename std::iterator_traits<iterator>::value_type> >
     struct mergesort {
         using range = imj::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
-        enum Type {
-            RECURSIVE,
-            SEQUENTIAL
-        };
-         
         mergesort(WorkContainer & work) :
             work(work)
         {
         }
         
-        void operator ()(range r, Type t = SEQUENTIAL) {
+        void operator ()(range r, AlgoType t = SEQUENTIAL) {
             static_assert( 
                 std::is_same<
                     typename WorkContainer::value_type,
@@ -262,18 +263,18 @@ namespace imj {
     };
 
     template< typename iterator, typename WorkContainer > 
-    void merge_sort_work(iterator begin, iterator end, WorkContainer & work_vector) {
+    void merge_sort_work(iterator begin, iterator end, WorkContainer & work_vector, AlgoType type) {
         mergesort<iterator, WorkContainer> sort_functor(work_vector);
-        sort_functor({begin, end});
+        sort_functor({begin, end}, type);
     }
 
     template< typename iterator > 
-    void merge_sort(iterator begin, iterator end) {
+    void merge_sort(iterator begin, iterator end, AlgoType type) {
         // to optimize things, we reuse the same work vector 
         // todo make thread safe
         static std::vector<typename std::iterator_traits<iterator>::value_type> work_vector; 
         
-        merge_sort_work(begin, end, work_vector);
+        merge_sort_work(begin, end, work_vector, type);
     }
 
 } // NS imj

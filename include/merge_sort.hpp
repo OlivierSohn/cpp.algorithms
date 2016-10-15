@@ -10,21 +10,36 @@
 namespace imj {
 
     template< typename iterator>
-    void log(iterator begin, iterator end) {
-        printf("\n{ ");    
-        std::for_each(begin, end, [](typename std::iterator_traits<iterator>::value_type const & e) {
-            auto str = std::to_string(e);
-            printf("%s,", str.c_str());
+    std::string logstr(iterator begin, iterator end) {
+        std::string str = "\n{ ";    
+        std::for_each(begin, end, [&str](typename std::iterator_traits<iterator>::value_type const & e) {
+            str += std::to_string(e) + " ";
         });
-        printf(" }\n");    
+        str += (" }\n");
+        return str;
+    }
+
+    template< typename T>
+    std::string logstr(T const & container) {
+        logstr(container.begin(), container.end());
+    }
+    
+    template< typename iterator>
+    void log(iterator begin, iterator end) {
+        std::cout << logstr(begin, end);    
+    }
+ 
+    template< typename T>
+    void log(T const & container) {
+        log(container.begin(), container.end());
     }
 
     template< typename iterator, typename WorkContainer = std::vector<typename std::iterator_traits<iterator>::value_type> >
-    struct quicksort {
+    struct mergesort {
         using range = imj::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
-        quicksort(WorkContainer & work) :
+        mergesort(WorkContainer & work) :
             work(work)
         {
         }
@@ -181,18 +196,18 @@ namespace imj {
     };
 
     template< typename iterator, typename WorkContainer > 
-    void quick_sort_work(iterator begin, iterator end, WorkContainer & work_vector) {
-        quicksort<iterator, WorkContainer> sort_functor(work_vector);
+    void merge_sort_work(iterator begin, iterator end, WorkContainer & work_vector) {
+        mergesort<iterator, WorkContainer> sort_functor(work_vector);
         sort_functor({begin, end});
     }
 
     template< typename iterator > 
-    void quick_sort(iterator begin, iterator end) {
+    void merge_sort(iterator begin, iterator end) {
         // to optimize things, we reuse the same work vector 
         // todo make thread safe
         static std::vector<typename std::iterator_traits<iterator>::value_type> work_vector; 
         
-        quick_sort_work(begin, end, work_vector);
+        merge_sort_work(begin, end, work_vector);
     }
 
 } // NS imj

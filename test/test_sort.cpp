@@ -1,19 +1,20 @@
 /*
-* Tests of imj::quick_sort
+* Tests of imj::merge_sort
 */
 
 #include <stdio.h>
 
 #include <algorithm>
-#include <cassert>
 #include <vector>
 #include <list>
 #include <ctime>
 
+#include "gtest/gtest.h"
+
 #include "sort_utils.hpp"
 #include "print_type.hpp"
 
-#include "quick_sort.hpp"
+#include "merge_sort.hpp"
 
 
 using namespace std;
@@ -30,7 +31,7 @@ namespace imj {
                 
             test_small_containers();
             
-            for(auto size = 0; size <= 16; ++size) {
+            for(auto size = 0; size <= 8; ++size) {
                 test_permutations(size);
             }
 
@@ -51,27 +52,7 @@ namespace imj {
     
     private:
         using Containers = vector<Container>;
-        
-        void ASSERT_EQ(Container const & c1, Container const & c2, Container const & origin) {
-            if(c1 == c2) {
-                return;
-            }
-            log(origin.begin(), origin.end());
-            log(c1.begin(), c1.end());
-            log(c2.begin(), c2.end());
-            assert(0);
-        }
-
-        void ASSERT_NE(Container const & c1, Container const & c2, Container const & origin) {
-            if(c1 != c2) {
-                return;
-            }
-            log(origin.begin(), origin.end());
-            log(c1.begin(), c1.end());
-            log(c2.begin(), c2.end());
-            assert(0);
-        }
-        
+                
         auto make_container_with_repeats(int size, int n_repeats, int index_repeat) 
         {
             auto c = make_container_no_repeat(size);
@@ -110,15 +91,15 @@ namespace imj {
             auto unsorted = unsorted_const;
             bool was_sorted = IsSorted(unsorted);
             Container unsorted_copy = unsorted;
-            ASSERT_EQ(unsorted_copy, unsorted, unsorted_const);
+            ASSERT_EQ(unsorted_copy, unsorted);
            
-            imj::quick_sort(unsorted.begin(), unsorted.end());
+            imj::merge_sort(unsorted.begin(), unsorted.end());
             if(!was_sorted) {
-                ASSERT_NE( unsorted_copy, unsorted, unsorted_const);
+                ASSERT_NE( unsorted_copy, unsorted);
             }
             
             StdSort(unsorted_copy);
-            ASSERT_EQ(unsorted_copy, unsorted, unsorted_const);
+            ASSERT_EQ(unsorted_copy, unsorted) << logstr(unsorted_const);
         }
 
         void test_permutations(Container && v) {
@@ -204,10 +185,10 @@ namespace imj {
             };
             
             for(auto & c : sorted) {
-                assert( IsSorted(c) );    
+                ASSERT_TRUE( IsSorted(c) );    
             }
             for(auto & c : not_sorted) {
-                assert( ! IsSorted(c) );    
+                ASSERT_FALSE( IsSorted(c) );    
             }
         }        
             
@@ -215,14 +196,14 @@ namespace imj {
             auto imj_time = 0.f;
             auto std_time = 0.f;
 
-            for(auto i=0; i<20; i++) {
+            for(auto i=0; i<3; i++) {
                 auto c = make_container_no_repeat(size);
                 Shuffle(c);
                 
                 {
                     auto copy = c;
                     clock_t t = clock();                    
-                    quick_sort(copy.begin(), copy.end());
+                    merge_sort(copy.begin(), copy.end());
                     imj_time += (float)(clock() - t)/CLOCKS_PER_SEC;
                 }
 
@@ -254,7 +235,7 @@ namespace imj {
     
 } // NS imj
 
-int main() {
+TEST(Algorithm, MergeSort) {
     // disable printf buffering
     setbuf(stdout, NULL);
         
@@ -263,7 +244,5 @@ int main() {
     //                bool done = false;
     test< list<int> >();
     //test< list<float> >();
-        
-    return 0;
 }
 

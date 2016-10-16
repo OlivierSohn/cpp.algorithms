@@ -41,12 +41,14 @@ namespace imj {
     };
      
 
-    template< typename iterator, typename WorkContainer = std::vector<typename std::iterator_traits<iterator>::value_type> >
-    struct mergesort {
+    template< typename iterator
+              , typename WorkContainer = std::vector<typename std::iterator_traits<iterator>::value_type>
+              , int insertion_sort_below_size = 4>
+    struct MergeSort {
         using range = imj::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
-        mergesort(WorkContainer & work) :
+        MergeSort(WorkContainer & work) :
             work(work)
         {
         }
@@ -337,7 +339,7 @@ namespace imj {
 
     template< typename iterator, typename WorkContainer > 
     void merge_sort_work(iterator begin, iterator end, WorkContainer & work_vector, AlgoType type) {
-        mergesort<iterator, WorkContainer> sort_functor(work_vector);
+        MergeSort<iterator, WorkContainer> sort_functor(work_vector);
         sort_functor({begin, end}, type);
     }
 

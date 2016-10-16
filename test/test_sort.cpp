@@ -15,7 +15,7 @@
 #include "print_type.hpp"
 
 #include "merge_sort.hpp"
-
+#include "insertion_sort.hpp"
 
 using namespace std;
 using namespace imj;
@@ -25,6 +25,14 @@ namespace imj {
     template< typename Container >
     struct Test {
 
+        int length_power = 0;
+        int length_power_performance = 0;
+        
+        void run() {
+            run_performance();
+            run_logic();
+        }
+        
         void run_logic()
         {
             test_is_sorted();
@@ -35,27 +43,27 @@ namespace imj {
                 test_permutations(size);
             }
 
-            for(auto multiple = 1; multiple < 100; multiple *= 3) {
-                auto size = 100 * multiple;
-                
-                test_n_permutations( size, 10 );
+            auto length = 1;
+            for(int i=0; i<=length_power; i++) {
+                test_n_permutations( length, 10 );
+                length *= 10;
             }
         }
     
         void run_performance() {
-            performance_test(100);
-            performance_test(10000);
-            performance_test(1000000);
-        }
-    
-        void setAlgoType(AlgoType t) { 
-            algo_type = t;
-            std::cout << "mode " << ((t==RECURSIVE)? "RECURSIVE" : ((t==SEQUENTIAL)?"SEQUENTIAL":"SEQUENTIAL_CACHE_OPTIMIZED")) << std::endl;
+            auto length = 1;
+            for(int i=0; i<=length_power_performance; i++) {
+                performance_test(length);
+                length *= 10;
+            }
         }
         
-        AlgoType getAlgoType() const { return algo_type; }
-        
+        void setSorter(std::function<void(Container&)> f) {
+            sorter = f;
+        }
     private:
+        std::function<void(Container &)> sorter;
+        
         using Containers = vector<Container>;
                 
         auto make_container_with_repeats(int size, int n_repeats, int index_repeat) 
@@ -101,15 +109,13 @@ namespace imj {
             return c;
         }
         
-        AlgoType algo_type = RECURSIVE;
-        
         void check_sort(Container const & unsorted_const) {
             auto unsorted = unsorted_const;
             bool was_sorted = IsSorted(unsorted);
             Container unsorted_copy = unsorted;
             ASSERT_EQ(unsorted_copy, unsorted);
            
-            imj::merge_sort(unsorted.begin(), unsorted.end(), algo_type);
+            sorter(unsorted);
             if(!was_sorted) {
                 ASSERT_NE( unsorted_copy, unsorted);
             }
@@ -230,7 +236,7 @@ namespace imj {
                 {
                     auto copy = c;
                     clock_t t = clock();                    
-                    merge_sort(copy.begin(), copy.end(), algo_type);
+                    sorter(copy);
                     imj_time += (float)(clock() - t)/CLOCKS_PER_SEC;
                 }
 
@@ -252,12 +258,12 @@ namespace imj {
     };
     
     template< typename Container >
-    void test() {
+    void testMergeSort() {
+        
         cout << "---" << endl;
+        cout << "test MergeSort for" << endl;
         PRINT_TYPE(Container);
         cout << "---" << endl;
-        
-        Test<Container> test;
         
         std::vector<AlgoType> algo_types{
             RECURSIVE,
@@ -266,11 +272,37 @@ namespace imj {
         };
         
         for(auto t : algo_types) {
-            test.setAlgoType(t);
+            Test<Container> test;
             
-            test.run_performance();
-            test.run_logic();
+            test.length_power = 4;
+            test.length_power_performance = 4;
+            
+            std::cout << "mode " << ((t==RECURSIVE)? "RECURSIVE" : ((t==SEQUENTIAL)?"SEQUENTIAL":"SEQUENTIAL_CACHE_OPTIMIZED")) << std::endl;
+            
+            test.setSorter([t](Container & c) {
+                merge_sort(c.begin(), c.end(), t);
+            });
+            
+            test.run();
         }
+    }
+    
+    template< typename Container >
+    void testInsertionSort() {
+        cout << "---" << endl;
+        cout << "test InsertionSort for" << endl;
+        PRINT_TYPE(Container);
+        cout << "---" << endl;
+        
+        Test<Container> test;
+        test.length_power = 2;
+        test.length_power_performance = 2;
+        
+        test.setSorter([](Container & c) {
+            insertion_sort(c.begin(), c.end());
+        });
+        
+        test.run();
     }
     
     
@@ -282,8 +314,8 @@ TEST(Algorithm, MergeSort) {
     // disable printf buffering
     setbuf(stdout, NULL);
     
-    test< vector<int> >();
-    test< list<int> >();
+    testMergeSort< vector<int> >();
+    testMergeSort< list<int> >();
 }
 
 /*
@@ -296,3 +328,12 @@ TEST(Algorithm, MergeSort_profile) {
     test.performance_test(1000000, 100, false);
 }
 */
+
+
+TEST(Algorithm, InsertionSort) {
+    // disable printf buffering
+    setbuf(stdout, NULL);
+    
+    testInsertionSort< vector<int> >();
+    testInsertionSort< list<int> >();
+}

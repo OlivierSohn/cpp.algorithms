@@ -27,6 +27,11 @@ namespace imj {
 
         int length_power = 0;
         int length_power_performance = 0;
+
+        Test() {
+            // flush logs at each print
+            setbuf(stdout, NULL);
+        }
         
         void run() {
             run_performance();
@@ -53,7 +58,14 @@ namespace imj {
         void run_performance() {
             auto length = 1;
             for(int i=0; i<=length_power_performance; i++) {
-                performance_test(length);
+                if(i < length_power_performance - 1) {
+                    length *= 10;
+                    continue;
+                }
+                Container ref;
+                for(int j=0; j<2; j++) {
+                    ref = performance_test(length, 3, true, j==0?0:&ref);
+                }
                 length *= 10;
             }
         }
@@ -169,7 +181,7 @@ namespace imj {
             auto v = make_container_no_repeat(size);
             printf("sort containers of size %d [%d permutation(s)]", size, n_permutations);
             
-            std::srand(0);
+            ShuffleSeed(0);
 
             for(int i=0; i<n_permutations; ++i) {
                 Shuffle(v);
@@ -224,85 +236,98 @@ namespace imj {
         }        
         
     public:
-        void performance_test(int size, int n=3, bool compare = true) {
+        auto performance_test(int size, int n=3, bool compare = true, Container * ref = 0) {
             auto imj_time = 0.f;
             auto std_time = 0.f;
 
             auto c = make_container_no_repeat(size);
-
+            
+            ShuffleSeed(0);
             for(auto i=0; i<n; i++) {
                 Shuffle(c);
                 
+                // to reduce measure error
+                for(auto repeats = 0; repeats < 10; repeats ++)
                 {
-                    auto copy = c;
-                    clock_t t = clock();                    
-                    sorter(copy);
-                    imj_time += (float)(clock() - t)/CLOCKS_PER_SEC;
+                    {
+                        auto copy = c;
+                        clock_t t = clock();
+                        sorter(copy);
+                        imj_time += (float)(clock() - t)/CLOCKS_PER_SEC;
+                    }
+                    
+                    if(compare)
+                    {
+                        auto copy = c;
+                        clock_t t = clock();
+                        StdSort(copy);
+                        std_time += (float)(clock() - t)/CLOCKS_PER_SEC;
+                    }
                 }
-
-                if(compare)
-                {
-                    auto copy = c;
-                    clock_t t = clock();
-                    StdSort(copy);
-                    std_time += (float)(clock() - t)/CLOCKS_PER_SEC;          
-                }
-            }            
+            }
             
             if(compare) {
-                printf("\nimj: %.4fs\n", imj_time);
-                printf("\nstd: %.4fs\n", std_time);                
+                printf("  %d:\t %.4f (%.4f / %.4f)\n", size, imj_time/std_time, imj_time, std_time);
             }
+            
+            // to test that seed actually works as intended
+            if(ref) {
+                if(*ref != c) {
+                    std::cout << "!!! ref doesn't match" << std::endl;
+                }
+            }
+            
+            return c;
         }
         
     };
     
-    template< typename Container >
-    void testMergeSort() {
+    template< typename Container, int insertion_sort_below_size >
+    void testMergeSort(std::vector<AlgoType> const & algo_types, bool perf_only = false) {
+        using iterator = typename Container::iterator;
         
         cout << "---" << endl;
-        cout << "test MergeSort for" << endl;
+        cout << "MergeSort (" << insertion_sort_below_size << ")" << endl;
         PRINT_TYPE(Container);
         cout << "---" << endl;
-        
-        std::vector<AlgoType> algo_types{
-            RECURSIVE,
-            SEQUENTIAL,
-            SEQUENTIAL_CACHE_OPTIMIZED
-        };
         
         for(auto t : algo_types) {
             Test<Container> test;
             
-            test.length_power = 4;
-            test.length_power_performance = 4;
+            test.length_power = 2;
+            test.length_power_performance = 6;
             
-            std::cout << "mode " << ((t==RECURSIVE)? "RECURSIVE" : ((t==SEQUENTIAL)?"SEQUENTIAL":"SEQUENTIAL_CACHE_OPTIMIZED")) << std::endl;
+            std::cout << ((t==RECURSIVE)? "RECURSIVE" : ((t==SEQUENTIAL)?"SEQUENTIAL":"SEQUENTIAL_CACHE_OPTIMIZED")) << std::endl;
             
             test.setSorter([t](Container & c) {
-                merge_sort(c.begin(), c.end(), t);
+                merge_sort<iterator, insertion_sort_below_size>(c.begin(), c.end(), t);
             });
             
-            test.run();
+            if(perf_only) {
+                test.run_performance();
+            }
+            else {
+                test.run_logic();
+            }
         }
+        
     }
     
     template< typename Container >
     void testInsertionSort() {
         cout << "---" << endl;
-        cout << "test InsertionSort for" << endl;
+        cout << "InsertionSort" << endl;
         PRINT_TYPE(Container);
         cout << "---" << endl;
         
         Test<Container> test;
         test.length_power = 2;
-        test.length_power_performance = 2;
         
         test.setSorter([](Container & c) {
-            insertion_sort(c.begin(), c.end());
+            insertion_sort( c.begin(), c.end() );
         });
         
-        test.run();
+        test.run_logic();
     }
     
     
@@ -311,29 +336,42 @@ namespace imj {
 using namespace imj;
 
 TEST(Algorithm, MergeSort) {
-    // disable printf buffering
-    setbuf(stdout, NULL);
+    std::vector<AlgoType> algo_types{
+        RECURSIVE,
+        SEQUENTIAL,
+        SEQUENTIAL_CACHE_OPTIMIZED
+    };
     
-    testMergeSort< vector<int> >();
-    testMergeSort< list<int> >();
+    testMergeSort< vector<int>, 0 >(algo_types);
+    testMergeSort< vector<int>, 2 >(algo_types);
+    testMergeSort< vector<int>, 4 >(algo_types);
+    testMergeSort< list<int>, 0>(algo_types);
+    testMergeSort< list<int>, 2>(algo_types);
+    testMergeSort< list<int>, 4>(algo_types);
 }
 
-/*
+
+// disable when unit testing
+#if 0
 TEST(Algorithm, MergeSort_profile) {
-    // disable printf buffering
-    setbuf(stdout, NULL);
-    
-    imj::Test<vector<int>> test;
-    test.setAlgoType(SEQUENTIAL);
-    test.performance_test(1000000, 100, false);
+    std::vector<AlgoType> algo_types{
+        SEQUENTIAL
+    };
+
+    testMergeSort< vector<int>, 0 >(algo_types, true);
+    testMergeSort< vector<int>, 2 >(algo_types, true);
+    testMergeSort< vector<int>, 4 >(algo_types, true);
+    testMergeSort< vector<int>, 8 >(algo_types, true);
+    testMergeSort< vector<int>, 16 >(algo_types, true);
+    testMergeSort< vector<int>, 32 >(algo_types, true); // best (for my data)
+    testMergeSort< vector<int>, 64 >(algo_types, true); // good (for my data)
+    testMergeSort< vector<int>, 128 >(algo_types, true);
+    testMergeSort< vector<int>, 256 >(algo_types, true);
 }
-*/
+#endif
 
 
 TEST(Algorithm, InsertionSort) {
-    // disable printf buffering
-    setbuf(stdout, NULL);
-    
     testInsertionSort< vector<int> >();
     testInsertionSort< list<int> >();
 }

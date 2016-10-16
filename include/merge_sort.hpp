@@ -5,10 +5,14 @@
 
 #include "range.hpp"
 #include "bounded_lifo.hpp"
-
+#include "insertion_sort.hpp"
 
 namespace imj {
 
+    constexpr bool zero_or_powOf2(int x) {
+        return (x & (x-1)) == 0;
+    }
+    
     template< typename iterator>
     std::string logstr(iterator begin, iterator end) {
         std::string str = "\n{ ";    
@@ -21,7 +25,7 @@ namespace imj {
 
     template< typename T>
     std::string logstr(T const & container) {
-        logstr(container.begin(), container.end());
+        return logstr(container.begin(), container.end());
     }
     
     template< typename iterator>
@@ -42,8 +46,8 @@ namespace imj {
      
 
     template< typename iterator
-              , typename WorkContainer = std::vector<typename std::iterator_traits<iterator>::value_type>
-              , int insertion_sort_below_size = 4>
+              , typename WorkContainer
+              , int insertion_sort_below_size >
     struct MergeSort {
         using range = imj::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
@@ -54,7 +58,8 @@ namespace imj {
         }
         
         void operator ()(range r, AlgoType t = SEQUENTIAL) {
-            static_assert( 
+            
+            static_assert(
                 std::is_same<
                     typename WorkContainer::value_type,
                     value_type 
@@ -63,25 +68,28 @@ namespace imj {
                 );
 
             auto d = r.distance();
-            if(d > 1) {
-                work.resize(d);
-                
-                // It doesn't seem to optimize, I need to profile to see why
-                if(t==SEQUENTIAL_CACHE_OPTIMIZED) {
-                    this->sort_seq_cache(r);
-                }
-                else if(t==SEQUENTIAL) {
-                    this->sort_seq(r);                
-                }
-                else {
-                    this->sort(r);
-                }
+            if(d <= 1) {
+                return;
+            }
+            
+            work.resize(d);
+            
+            // It doesn't seem to optimize, I need to profile to see why
+            if(t==SEQUENTIAL_CACHE_OPTIMIZED) {
+                this->sort_seq_cache(r);
+            }
+            else if(t==SEQUENTIAL) {
+                this->sort_seq(r);
+            }
+            else {
+                this->sort(r);
             }
         }
         
     private:
         WorkContainer & work;
         
+        // not very usefull for performances...
         void sort_seq_cache(range r) {
             enum { max_distance = 4 };
             
@@ -137,32 +145,47 @@ namespace imj {
         
         void sort_seq(range r, int cell_size = 1) {
             auto distance = r.distance();
+            
+            if( cell_size * 2 <= insertion_sort_below_size) {
+                sort_by_insertion(r, distance);
+                
+                static_assert( zero_or_powOf2(insertion_sort_below_size)
+                              , "template parameter 'insertion_sort_below_size' must be a power of 2, or zero");
+                cell_size = insertion_sort_below_size;
+                if(cell_size >= distance) {
+                    return;
+                }
+            }
+            
             do {
                 sort_seq_level(r, distance, cell_size);                
                 cell_size *= 2;
             } while(cell_size < distance);
         }
         
-        void sort_seq_level(const range & r, int remaining_distance, int cell_size) {
         
-            // this optimizes a litte bit
+        void sort_by_insertion(const range & r, int remaining_distance) {
             
-            if(cell_size == 1) {
-                auto it1 = r.begin();
+            auto it1 = r.begin();
+            
+            while(remaining_distance >= insertion_sort_below_size) {
                 auto it2 = it1;
-                std::advance(it2, 1);
-                while(remaining_distance > 1) {
-                    auto & v1 = *it1;
-                    auto & v2 = *it2;
-                    if( v1 > v2 ) {
-                        std::swap(v1, v2);
-                    }
-                    remaining_distance -= 2;
-                    std::advance(it1, 2);
-                    std::advance(it2, 2);
-                }
-                return;
+                std::advance(it2, insertion_sort_below_size);
+                
+                insertion_sort(it1, std::move(it2));
+                
+                remaining_distance -= insertion_sort_below_size;
+                std::advance(it1, insertion_sort_below_size);
             }
+            
+            if(remaining_distance > 1) {
+                auto it2 = it1;
+                std::advance(it2, remaining_distance);
+                insertion_sort(it1, std::move(it2));
+            }
+        }
+
+        void sort_seq_level(const range & r, int remaining_distance, int cell_size) {
             
             auto it1 = r.begin();                
 
@@ -208,7 +231,12 @@ namespace imj {
         }
         
         void sort(range r) {     
-            auto size = r.distance();       
+            auto size = r.distance();
+            if(size <= insertion_sort_below_size) {
+                insertion_sort(r.begin(), r.end());
+                return;
+            }
+            
             auto ranges = split(std::move(r), size);
 
             if(ranges.first.distance() != 1) {
@@ -219,13 +247,8 @@ namespace imj {
                 this->sort(ranges.second);
             }
             
-            if(size == 2) {
-                auto & v1 = *(ranges.first.begin());
-                auto & v2 = *(ranges.second.begin());
-                if( v1 > v2 ) {
-                    std::swap(v1, v2);
-                }
-            } else if(size < 7 ) { // 7 is optimal on my Ubuntu
+            // redundant now that we have insertion sort?
+            if(size < 7 ) { // 7 is optimal on my Ubuntu
                 std::array<value_type, 7> small_work;
                 join(ranges, small_work.begin());
             }
@@ -245,20 +268,17 @@ namespace imj {
             assert(r1 < r2);
             assert(r2.follows( r1 ));    
             
-            auto not_sorted_begin = r1.begin();
-            // throughout this function, items from 'r1.begin()'
-            // to 'not_sorted_begin' (excluded) are sorted
-
-            auto it2 = r2.begin(); // the next unsorted item in r2
-            
-            // work is supposed to have a size >= the number 
-            // of push_back calls that can be made on unsorted_r1
-            assert(work.size() >= r1.distance() + r2.distance());
             
             bounded_lifo<value_type, work_iterator> unsorted_r1(work_begin);
             
-            auto r1_end = r1.end();
+            auto not_sorted_begin = r1.begin();
+            // throughout this function, items from 'r1.begin()'
+            // to 'not_sorted_begin' (excluded) are sorted
             
+            auto it2 = r2.begin(); // the next unsorted item in r2
+            
+            
+            auto r1_end = r1.end();
             auto r2_end = r2.end();
             
             do {
@@ -337,19 +357,20 @@ namespace imj {
         }
     };
 
-    template< typename iterator, typename WorkContainer > 
+    template< typename iterator, typename WorkContainer, int insertion_sort_below_size >
     void merge_sort_work(iterator begin, iterator end, WorkContainer & work_vector, AlgoType type) {
-        MergeSort<iterator, WorkContainer> sort_functor(work_vector);
+        MergeSort<iterator, WorkContainer, insertion_sort_below_size> sort_functor(work_vector);
         sort_functor({begin, end}, type);
     }
 
-    template< typename iterator > 
+    template< typename iterator, int insertion_sort_below_size >
     void merge_sort(iterator begin, iterator end, AlgoType type) {
         // to optimize things, we reuse the same work vector 
         // todo make thread safe
-        static std::vector<typename std::iterator_traits<iterator>::value_type> work_vector; 
+        using Container = std::vector<typename std::iterator_traits<iterator>::value_type>;
+        static Container work_vector;
         
-        merge_sort_work(begin, end, work_vector, type);
+        merge_sort_work<iterator, Container, insertion_sort_below_size>(begin, end, work_vector, type);
     }
 
 } // NS imj

@@ -1,5 +1,8 @@
+#pragma once
+
 #include <list>
-#include <random>
+
+#include "rng.hpp"
 
 namespace imj {
     
@@ -37,8 +40,7 @@ namespace imj {
         template< typename Container >
         struct Shuffle_ { 
             void operator()(Container & ref) {
-                static auto engine = std::default_random_engine{};
-                std::shuffle(ref.begin(), ref.end(), engine);
+                std::shuffle(ref.begin(), ref.end(), RNG::instance().engine());
             }
         };
         
@@ -56,6 +58,10 @@ namespace imj {
     void Shuffle( Container & c ) {
         Shuffle_<Container> shuffle_;
         shuffle_(c);
+    }
+    
+    void ShuffleSeed(int s) {
+        RNG::instance().engine().seed(s);
     }
     
 

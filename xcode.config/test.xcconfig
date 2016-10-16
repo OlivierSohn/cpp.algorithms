@@ -1,0 +1,9 @@
+
+#include "../../Shared/xcode.config/tp.qu.googletest.xcconfig"
+#include "../../Shared/xcode.config/tp.qu.googletest.xc.bundle.xcconfig"
+
+LOCAL__HEADER_SEARCH_PATHS = "../glsl.composer/include" "../managers/include"
+
+HEADER_SEARCH_PATHS = $(inherited) $(GOOGLETEST__HEADER_SEARCH_PATHS) $(LOCAL__HEADER_SEARCH_PATHS)
+
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(GOOGLETESTXC__GCC_PREPROCESSOR_DEFINITIONS)

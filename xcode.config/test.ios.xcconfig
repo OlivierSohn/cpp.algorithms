@@ -1,0 +1,6 @@
+
+#include "test.xcconfig"
+#include "../../Shared/xcode.config/ios.xcconfig"
+
+
+LIBRARY_SEARCH_PATHS = $(inherited) /usr/local/Cellar/libpng/1.6.18/lib

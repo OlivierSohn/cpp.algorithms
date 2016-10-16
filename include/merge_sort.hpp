@@ -260,9 +260,10 @@ namespace imj {
             auto r2_end = r2.end();
             
             do {
-                if(*not_sorted_begin >= *it2) {
+                auto v2 = *it2;
+                if(*not_sorted_begin >= v2) {
                     unsorted_r1.push_back(*not_sorted_begin);
-                    *not_sorted_begin = *it2;
+                    *not_sorted_begin = v2;
                     ++not_sorted_begin;
                     ++it2;               
                     if(it2 == r2_end) {
@@ -274,6 +275,7 @@ namespace imj {
                         std::copy(unsorted_r1.begin(), unsorted_r1.end(), not_sorted_begin);
                         return;
                     }
+                    v2 = *it2;
                 }
                 else {
                     ++not_sorted_begin;
@@ -288,7 +290,7 @@ namespace imj {
                 }
             
                 bool done = false;
-                while(unsorted_r1.front() <= *it2) {
+                while(unsorted_r1.front() <= v2) {
                     unsorted_r1.push_back(*not_sorted_begin);
                     *not_sorted_begin = unsorted_r1.pop_front();
                     ++not_sorted_begin;
@@ -307,8 +309,9 @@ namespace imj {
                 return;
             }
 
-            while(it2 != r2_end) {
-                while(unsorted_r1.front() <= *it2) {
+            do {
+                auto v2 = *it2;
+                while(unsorted_r1.front() <= v2) {
                     *not_sorted_begin = unsorted_r1.pop_front();
                     ++not_sorted_begin;
                     if(not_sorted_begin == it2) {
@@ -320,10 +323,13 @@ namespace imj {
                 // that are not yet sorted are in unsorted_r1. However 
                 // we know that if unsorted_r1 is non empty, all elements
                 // are smaller that *it2
-                *not_sorted_begin = *it2;   
+                *not_sorted_begin = v2;
                 ++not_sorted_begin;
-                ++it2;             
-            }
+                ++it2;
+                if(it2 == r2_end) {
+                    break;
+                }
+            } while(it2 != r2_end);
 
             std::copy(unsorted_r1.begin(), unsorted_r1.end(), not_sorted_begin);
         }

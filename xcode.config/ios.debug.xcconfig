@@ -1,0 +1,3 @@
+
+#include "../../Shared/xcode.config/ios.debug.xcconfig"
+#include "ios.xcconfig"

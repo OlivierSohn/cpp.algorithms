@@ -1,0 +1,8 @@
+
+#include "test.xcconfig"
+#include "../../Shared/xcode.config/osx.xcconfig"
+
+
+// usr/local/lib for portaudio
+
+LIBRARY_SEARCH_PATHS = $(inherited) "$(PROJECT_DIR)/../tp.leap/lib" /usr/local/Cellar/libpng/1.6.18/lib /usr/local/lib/

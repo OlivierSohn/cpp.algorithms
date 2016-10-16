@@ -1,0 +1,3 @@
+
+#include "../../Shared/xcode.config/ios.release.xcconfig"
+#include "ios.xcconfig"

@@ -216,13 +216,15 @@ namespace imj {
                 ASSERT_FALSE( IsSorted(c) );    
             }
         }        
-            
-        void performance_test(int size) {
+        
+    public:
+        void performance_test(int size, int n=3, bool compare = true) {
             auto imj_time = 0.f;
             auto std_time = 0.f;
 
-            for(auto i=0; i<3; i++) {
-                auto c = make_container_no_repeat(size);
+            auto c = make_container_no_repeat(size);
+
+            for(auto i=0; i<n; i++) {
                 Shuffle(c);
                 
                 {
@@ -232,6 +234,7 @@ namespace imj {
                     imj_time += (float)(clock() - t)/CLOCKS_PER_SEC;
                 }
 
+                if(compare)
                 {
                     auto copy = c;
                     clock_t t = clock();
@@ -240,8 +243,10 @@ namespace imj {
                 }
             }            
             
-            printf("\nimj: %.4fs\n", imj_time);
-            printf("\nstd: %.4fs\n", std_time);
+            if(compare) {
+                printf("\nimj: %.4fs\n", imj_time);
+                printf("\nstd: %.4fs\n", std_time);                
+            }
         }
         
     };
@@ -257,7 +262,7 @@ namespace imj {
         std::vector<AlgoType> algo_types{
             RECURSIVE,
             SEQUENTIAL,
-            SEQUENTIAL_CACHE_OPTIMIZED 
+            SEQUENTIAL_CACHE_OPTIMIZED
         };
         
         for(auto t : algo_types) {
@@ -271,13 +276,23 @@ namespace imj {
     
 } // NS imj
 
+using namespace imj;
+
 TEST(Algorithm, MergeSort) {
     // disable printf buffering
     setbuf(stdout, NULL);
-        
+    
     test< vector<int> >();
-    //test< vector<float> >();
     test< list<int> >();
-    //test< list<float> >();
 }
 
+/*
+TEST(Algorithm, MergeSort_profile) {
+    // disable printf buffering
+    setbuf(stdout, NULL);
+    
+    imj::Test<vector<int>> test;
+    test.setAlgoType(SEQUENTIAL);
+    test.performance_test(1000000, 100, false);
+}
+*/

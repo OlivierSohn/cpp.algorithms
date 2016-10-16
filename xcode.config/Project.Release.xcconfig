@@ -1,0 +1,10 @@
+
+#include "../../Shared/xcode.config/project.release.xcconfig"
+
+#include "Project.Shared.xcconfig"
+
+// Preprocessor Macros
+// 
+// Space-separated list of preprocessor macros of the form "foo" or "foo=bar". [-D]
+
+GCC_PREPROCESSOR_DEFINITIONS = $(PROJECT_RELEASE__GCC_PREPROCESSOR_DEFINITIONS)

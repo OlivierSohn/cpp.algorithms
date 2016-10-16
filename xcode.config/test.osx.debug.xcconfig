@@ -1,0 +1,4 @@
+
+#include "test.osx.xcconfig"
+
+#include "osx.debug.xcconfig"

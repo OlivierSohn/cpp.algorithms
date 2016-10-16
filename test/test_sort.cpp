@@ -50,7 +50,7 @@ namespace imj {
     
         void setAlgoType(AlgoType t) { 
             algo_type = t;
-            std::cout << "mode " << ((t==RECURSIVE)? "RECURSIVE" : "SEQUENTIAL") << std::endl;
+            std::cout << "mode " << ((t==RECURSIVE)? "RECURSIVE" : ((t==SEQUENTIAL)?"SEQUENTIAL":"SEQUENTIAL_CACHE_OPTIMIZED")) << std::endl;
         }
         
         AlgoType getAlgoType() const { return algo_type; }
@@ -253,15 +253,19 @@ namespace imj {
         cout << "---" << endl;
         
         Test<Container> test;
-        test.setAlgoType(RECURSIVE);
         
-        test.run_performance();
-        test.run_logic();
-
-        test.setAlgoType(SEQUENTIAL);
-
-        test.run_performance();
-        test.run_logic();
+        std::vector<AlgoType> algo_types{
+            RECURSIVE,
+            SEQUENTIAL,
+            SEQUENTIAL_CACHE_OPTIMIZED 
+        };
+        
+        for(auto t : algo_types) {
+            test.setAlgoType(t);
+            
+            test.run_performance();
+            test.run_logic();
+        }
     }
     
     

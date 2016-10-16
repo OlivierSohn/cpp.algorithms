@@ -36,7 +36,8 @@ namespace imj {
 
     enum AlgoType {
         RECURSIVE,
-        SEQUENTIAL
+        SEQUENTIAL,
+        SEQUENTIAL_CACHE_OPTIMIZED
     };
      
 
@@ -62,9 +63,15 @@ namespace imj {
             auto d = r.distance();
             if(d > 1) {
                 work.resize(d);
-                if(t==SEQUENTIAL) {
+                
+                // It doesn't seem to optimize, I need to profile to see why
+                if(t==SEQUENTIAL_CACHE_OPTIMIZED) {
+                    this->sort_seq_cache(r);
+                }
+                else if(t==SEQUENTIAL) {
                     this->sort_seq(r);                
-                } else {
+                }
+                else {
                     this->sort(r);
                 }
             }
@@ -73,28 +80,92 @@ namespace imj {
     private:
         WorkContainer & work;
         
-        void sort_seq(range r) {
-            //log(r.begin(), r.end());
-            auto distance = r.distance();
-            auto cell_size = 0;
-            do {
-                if(cell_size == 0) {
-                    cell_size = 1;
-                } else {
-                    cell_size *= 2;
+        void sort_seq_cache(range r) {
+            enum { max_distance = 4 };
+            
+            struct RangeSplit {
+                RangeSplit(range const & range_) :
+                    end(range_.begin()),
+                    remaining_distance(range_.distance()) 
+                {}
+                
+                bool next() {
+                    if(remaining_distance == 0) {
+                        return false;
+                    }
+                    
+                    it = end;
+                    advance_end();                    
+                    return true;
                 }
+                
+                auto result() const {
+                    return range{it, end};
+                }                
+            
+            private : 
+                iterator it, end;             
+                int remaining_distance;
+
+                void advance_end() {
+                    if(remaining_distance >= max_distance) {
+                        std::advance(end, max_distance);
+                        remaining_distance -= max_distance;
+                    }
+                    else
+                    {
+                        std::advance(end, remaining_distance);
+                        remaining_distance = 0;
+                    }
+                    assert(remaining_distance >= 0);
+                }
+            };
+            
+            RangeSplit splitter(r);
+            int count_splits=0;
+            while(splitter.next()) {
+                sort_seq(splitter.result());
+                count_splits++;
+            }
+
+            if(count_splits >= 2) {
+                sort_seq(r, max_distance);                
+            }
+        }
+        
+        void sort_seq(range r, int cell_size = 1) {
+            auto distance = r.distance();
+            do {
                 sort_seq_level(r, distance, cell_size);                
-                //log(r.begin(), r.end());
-            } while(2*cell_size < distance);
+                cell_size *= 2;
+            } while(cell_size < distance);
         }
         
         void sort_seq_level(const range & r, int remaining_distance, int cell_size) {
         
+            // this optimizes a litte bit
+            
+            if(cell_size == 1) {
+                auto it1 = r.begin();
+                auto it2 = it1;
+                std::advance(it2, 1);
+                while(remaining_distance > 1) {
+                    auto & v1 = *it1;
+                    auto & v2 = *it2;
+                    if( v1 > v2 ) {
+                        std::swap(v1, v2);
+                    }
+                    remaining_distance -= 2;
+                    std::advance(it1, 2);
+                    std::advance(it2, 2);
+                }
+                return;
+            }
+            
             auto it1 = r.begin();                
 
             auto two_cells = 2 * cell_size;
             while(remaining_distance >= two_cells) {
-                //std::cout << "full" << std::endl;
                 auto it2 = it1;
                 std::advance(it2, cell_size);
                 auto it3 = it2;                
@@ -115,14 +186,10 @@ namespace imj {
                 std::advance(it2,cell_size);
                 auto it3 = r.end();
                 if(it3 == it2) {
-                    //std::cout << "no partial (would be redundant)" << std::endl;
                     return;
                 }
-                //std::cout << "partial" << std::endl;
                 join(std::pair<range, range>{{it1, it2}, {it2, it3}}, work.begin());
             }
-            
-            //log(r.begin(), r.end());
         }
         
         std::pair<range, range> split(range r, int distance) {
@@ -169,7 +236,7 @@ namespace imj {
         void join(std::pair<range, range> const & ranges, work_iterator work_begin) {
             auto & r1 = ranges.first;
             auto & r2 = ranges.second;
-            //std::cout<< "join " << r1.distance() << " " << r2.distance() << std::endl;
+
             assert(r1.distance() >= 1);
             assert(r2.distance() >= 1);
             

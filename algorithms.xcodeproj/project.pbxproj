@@ -21,6 +21,7 @@
 		093239C71DB3F3CE003C168E /* gtest-all.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "gtest-all.cc"; path = "../tp.qu.googletest/googletest/src/gtest-all.cc"; sourceTree = "<group>"; };
 		093239CB1DB41B42003C168E /* insertion_sort.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = insertion_sort.hpp; path = include/insertion_sort.hpp; sourceTree = "<group>"; };
 		093239CC1DB438C7003C168E /* rng.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = rng.hpp; path = include/rng.hpp; sourceTree = "<group>"; };
+		093239CD1DB45790003C168E /* heap_sort.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = heap_sort.hpp; path = include/heap_sort.hpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
 		0960BAF11DB3F0F80075CB05 /* Project.Release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Release.xcconfig; path = xcode.config/Project.Release.xcconfig; sourceTree = "<group>"; };
@@ -121,13 +122,14 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				093239CC1DB438C7003C168E /* rng.hpp */,
+				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
+				093239CD1DB45790003C168E /* heap_sort.hpp */,
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
-				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
-				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,
 				09EF8F301DB3E89B00DC7342 /* range.hpp */,
+				093239CC1DB438C7003C168E /* rng.hpp */,
+				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 			);
 			name = include;
 			sourceTree = "<group>";

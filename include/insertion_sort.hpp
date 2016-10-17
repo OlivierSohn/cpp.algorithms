@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iterator>
-#include <array>
 
 #include "range.hpp"
 

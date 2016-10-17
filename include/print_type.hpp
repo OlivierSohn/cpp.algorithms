@@ -1,7 +1,5 @@
 #pragma once
 
-// credit: http://stackoverflow.com/questions/4484982/how-to-convert-typename-t-to-string-in-c
-
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -10,24 +8,27 @@
 
 namespace imj {
 
-    #define PRINT_TYPE(x) do { typedef void(*T)(x); print_type<T>(T(), #x); } while(0)
+#define TYPE_TO_STR(x,y) do { typedef void(*T)(x); auto tts = type_to_string<T>(); y = tts(T(), #x); } while(0)
 
+#define COUT_TYPE(x) std::string str_##x; TYPE_TO_STR(x, str_##x); std::cout << str_##x;
+
+    
     template<typename T>
-    struct print_type
+    struct type_to_string
     {
         template<typename U>
-        print_type(void(*)(U), const std::string& str)
+        std::string operator()(void(*)(U), const std::string& str)
         {
-            std::cout << str << " = ";
+            std::string ret;
             int status;
             auto name = abi::__cxa_demangle(typeid(U).name(), 0, 0, &status);
             if(status == 0) {
-                std::cout << (name ? name : typeid(U).name()) << std::endl;
+                ret = name ? name : typeid(U).name();
             } else {
-                std::cout << "!!! abi::__cxa_demangle error status " << status << std::endl;
+                ret = std::string("!!! abi::__cxa_demangle error status ") + std::to_string(status);
             }
             free(name);
+            return ret;
         }
     };
-
 }

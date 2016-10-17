@@ -1,5 +1,5 @@
 /*
-* Tests of imj::merge_sort
+* Tests of merge_sort, insertion_sort, heap_sort
 */
 
 #include <stdio.h>
@@ -22,8 +22,8 @@
 using namespace std;
 using namespace imj;
 
-namespace imj {
-    
+namespace {
+
     template< typename Container >
     struct Test {
 
@@ -291,8 +291,7 @@ namespace imj {
         using iterator = typename Container::iterator;
         
         cout << "---" << endl;
-        cout << "MergeSort (" << insertion_sort_below_size << ")" << endl;
-        PRINT_TYPE(Container);
+        cout << "MergeSort (" << insertion_sort_below_size << ") "; COUT_TYPE(Container); cout << endl;
         cout << "---" << endl;
         
         for(auto t : algo_types) {
@@ -320,8 +319,7 @@ namespace imj {
     template< typename Container >
     void testInsertionSort(bool perf_only = false) {
         cout << "---" << endl;
-        cout << "InsertionSort" << endl;
-        PRINT_TYPE(Container);
+        cout << "InsertionSort "; COUT_TYPE(Container); cout << endl;
         cout << "---" << endl;
         
         Test<Container> test;
@@ -342,8 +340,7 @@ namespace imj {
     template< typename Container >
     void testHeapSort(bool perf_only = false) {
         cout << "---" << endl;
-        cout << "HeapSort" << endl;
-        PRINT_TYPE(Container);
+        cout << "HeapSort "; COUT_TYPE(Container); cout << endl;
         cout << "---" << endl;
         
         Test<Container> test;
@@ -363,9 +360,7 @@ namespace imj {
     }
     
     
-} // NS imj
-
-using namespace imj;
+} // NS
 
 #define PERFS 0
 

@@ -7,12 +7,9 @@
 #include "bounded_lifo.hpp"
 #include "insertion_sort.hpp"
 #include "heap_sort.hpp"
+#include "math.hpp"
 
 namespace imj {
-
-    constexpr bool zero_or_powOf2(int x) {
-        return (x & (x-1)) == 0;
-    }
     
     template< typename iterator>
     std::string logstr(iterator begin, iterator end) {

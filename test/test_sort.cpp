@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include <list>
+#include <functional>
 #include <ctime>
 
 #include "gtest/gtest.h"
@@ -247,7 +248,7 @@ namespace imj {
                 Shuffle(c);
                 
                 // to reduce measure error
-                for(auto repeats = 0; repeats < 10; repeats ++)
+                for(auto repeats = 0; repeats <10; repeats ++)
                 {
                     {
                         auto copy = c;
@@ -335,6 +336,9 @@ namespace imj {
 
 using namespace imj;
 
+#define PERFS 0
+
+#if 0 == PERFS
 TEST(Algorithm, MergeSort) {
     std::vector<AlgoType> algo_types{
         RECURSIVE,
@@ -350,9 +354,13 @@ TEST(Algorithm, MergeSort) {
     testMergeSort< list<int>, 4>(algo_types);
 }
 
+TEST(Algorithm, InsertionSort) {
+    testInsertionSort< vector<int> >();
+    testInsertionSort< list<int> >();
+}
 
-// disable when unit testing
-#if 0
+#else
+
 TEST(Algorithm, MergeSort_profile) {
     std::vector<AlgoType> algo_types{
         SEQUENTIAL
@@ -363,15 +371,12 @@ TEST(Algorithm, MergeSort_profile) {
     testMergeSort< vector<int>, 4 >(algo_types, true);
     testMergeSort< vector<int>, 8 >(algo_types, true);
     testMergeSort< vector<int>, 16 >(algo_types, true);
-    testMergeSort< vector<int>, 32 >(algo_types, true); // best (for my data)
-    testMergeSort< vector<int>, 64 >(algo_types, true); // good (for my data)
+    testMergeSort< vector<int>, 32 >(algo_types, true); // best (for my data / laptop architectures)
+    testMergeSort< vector<int>, 64 >(algo_types, true);
     testMergeSort< vector<int>, 128 >(algo_types, true);
     testMergeSort< vector<int>, 256 >(algo_types, true);
 }
-#endif
+
+#endif // PERFS
 
 
-TEST(Algorithm, InsertionSort) {
-    testInsertionSort< vector<int> >();
-    testInsertionSort< list<int> >();
-}

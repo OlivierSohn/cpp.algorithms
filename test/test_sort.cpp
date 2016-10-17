@@ -17,6 +17,7 @@
 
 #include "merge_sort.hpp"
 #include "insertion_sort.hpp"
+#include "heap_sort.hpp"
 
 using namespace std;
 using namespace imj;
@@ -125,15 +126,17 @@ namespace imj {
         void check_sort(Container const & unsorted_const) {
             auto unsorted = unsorted_const;
             bool was_sorted = IsSorted(unsorted);
-            Container unsorted_copy = unsorted;
+            auto unsorted_copy = unsorted;
             ASSERT_EQ(unsorted_copy, unsorted);
            
             sorter(unsorted);
             if(!was_sorted) {
+                // this can crash (in XCode integration) if test fails for big containers
                 ASSERT_NE( unsorted_copy, unsorted);
             }
             
             StdSort(unsorted_copy);
+            // this can crash (in XCode integration) if test fails for big containers
             ASSERT_EQ(unsorted_copy, unsorted) << logstr(unsorted_const);
         }
 
@@ -315,7 +318,7 @@ namespace imj {
     }
     
     template< typename Container >
-    void testInsertionSort() {
+    void testInsertionSort(bool perf_only = false) {
         cout << "---" << endl;
         cout << "InsertionSort" << endl;
         PRINT_TYPE(Container);
@@ -328,7 +331,35 @@ namespace imj {
             insertion_sort( c.begin(), c.end() );
         });
         
-        test.run_logic();
+        if(perf_only) {
+            test.run_performance();
+        }
+        else {
+            test.run_logic();
+        }
+    }
+    
+    template< typename Container >
+    void testHeapSort(bool perf_only = false) {
+        cout << "---" << endl;
+        cout << "HeapSort" << endl;
+        PRINT_TYPE(Container);
+        cout << "---" << endl;
+        
+        Test<Container> test;
+        test.length_power = 2;
+        test.length_power_performance = 6;
+        
+        test.setSorter([](Container & c) {
+            heap_sort( c.begin(), c.end() );
+        });
+        
+        if(perf_only) {
+            test.run_performance();
+        }
+        else {
+            test.run_logic();
+        }
     }
     
     
@@ -359,7 +390,16 @@ TEST(Algorithm, InsertionSort) {
     testInsertionSort< list<int> >();
 }
 
+TEST(Algorithm, HeapSort) {
+    testHeapSort< vector<int> >();
+    testHeapSort< list<int> >();
+}
+
 #else
+
+TEST(Algorithm, HeapSort_profile) {
+    testHeapSort< vector<int> >(true);
+}
 
 TEST(Algorithm, MergeSort_profile) {
     std::vector<AlgoType> algo_types{

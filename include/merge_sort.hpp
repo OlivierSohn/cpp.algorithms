@@ -6,6 +6,7 @@
 #include "range.hpp"
 #include "bounded_lifo.hpp"
 #include "insertion_sort.hpp"
+#include "heap_sort.hpp"
 
 namespace imj {
 
@@ -47,7 +48,8 @@ namespace imj {
 
     template< typename iterator
               , typename WorkContainer
-              , int insertion_sort_below_size >
+              , int insertion_sort_below_size
+              , void (*F_SMALL_SORT)(iterator, iterator) = /*heap_sort*/ insertion_sort>
     struct MergeSort {
         using range = imj::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
@@ -172,7 +174,7 @@ namespace imj {
                 auto it2 = it1;
                 std::advance(it2, insertion_sort_below_size);
                 
-                insertion_sort(it1, std::move(it2));
+                F_SMALL_SORT(it1, std::move(it2));
                 
                 remaining_distance -= insertion_sort_below_size;
                 std::advance(it1, insertion_sort_below_size);
@@ -181,7 +183,7 @@ namespace imj {
             if(remaining_distance > 1) {
                 auto it2 = it1;
                 std::advance(it2, remaining_distance);
-                insertion_sort(it1, std::move(it2));
+                F_SMALL_SORT(it1, std::move(it2));
             }
         }
 
@@ -233,7 +235,7 @@ namespace imj {
         void sort(range r) {     
             auto size = r.distance();
             if(size <= insertion_sort_below_size) {
-                insertion_sort(r.begin(), r.end());
+                F_SMALL_SORT(r.begin(), r.end());
                 return;
             }
             

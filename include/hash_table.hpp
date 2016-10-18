@@ -42,7 +42,7 @@ namespace imj {
     
 
     /*
-     * The hash function used in the hash table
+     * The hash function used in the hash table, based on :
      *
      * https://en.wikipedia.org/wiki/Universal_hashing
      *
@@ -80,7 +80,7 @@ namespace imj {
     
     
     /*
-     * The hash table
+     * A hash table using chaining
      *
      */
     
@@ -174,7 +174,7 @@ namespace imj {
         }
         
     private:
-        using chain = std::list<Value>; // store the key to be able to rehash
+        using chain = std::list<Value>;
         using table = std::vector<chain>;
         table table_;
         size_t count = 0;

@@ -6,10 +6,13 @@
 
 namespace imj {
 
+    /*
+     * Allows to view a container as a max heap
+     */
     template< typename iterator>
-    struct Heap {
-        Heap(iterator begin, int size) :
-            size_(size),
+    struct HeapView {
+        HeapView(iterator begin, iterator end) :
+        size_(std::distance(begin, end)),
             begin_(begin)
         {}
         
@@ -17,7 +20,7 @@ namespace imj {
             // iterate starting from the base of the heap to the top
             // (excluding leaves which are already max heaps)
             
-            int index = ( size_ - 1 )/2;
+            auto index = ( size_ - 1 )/2;
 
             while(index != -1) {
                 max_heapify(index);
@@ -26,14 +29,14 @@ namespace imj {
             }
         }
         
-        void remove_last() {
+        void setEnd(iterator end) {
             assert(size_ > 0);
-            size_--;
+            size_ = std::distance(begin_, end);
         }
         
         // assumes, in the subtree rooted at root, that the only location where the max heap property
         // could be violated is at the root itself. This method fixes this violation
-        void max_heapify(int index_root) const {
+        void max_heapify(size_t index_root) const {
             // if the root value is bigger than its two children there is nothing to do
             // because the children are assumed to be max_heaps already
 
@@ -98,7 +101,7 @@ namespace imj {
         }
     private:
         iterator begin_;
-        int size_;
+        size_t size_;
     };
 
     template< typename iterator>
@@ -117,25 +120,25 @@ namespace imj {
         
         void sort(iterator begin, iterator end) {
             assert(begin != end);
-            int distance = static_cast<int>(std::distance(begin, end));
-            if(distance < 2) {
+            auto distance = std::distance(begin, end);
+            if(distance <= 1) {
                 return;
             }
             
             auto last = begin;
             std::advance(last, distance - 1);
             
-            Heap<iterator> h(begin, distance);
+            HeapView<iterator> h(begin, end);
             h.make_max_heap();
             
             while(true) {
                 std::swap(*begin, *last);
-                std::advance(last, - 1);
-                h.remove_last();
+                h.setEnd(last);
                 if(h.empty()) {
                     return;
                 }
                 h.heapify_root();
+                std::advance(last, - 1);
             }
         }
     };

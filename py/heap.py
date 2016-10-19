@@ -1,29 +1,37 @@
 
 class MinHeap(object):
-    """ a Min heap based on a list
+    """ List-based min heap
 
     """
-    def __init__(self):
-        self.array = []
+
+    def __init__(self, elements=None):
+        if elements is None:
+            elements = []
+        self.array = elements
+
+        if len(self) >= 2:
+            self._sort()
 
     def append(self, value):
+        """ Appends a value and maintain the min heap property.
+
+            The value is inserted as a leaf, and "bubbled up" by successive swaps
+            with its immediate parent.
+
+        """
         self.array.append(value)
 
         my_index = len(self.array)
-        parent_index = my_index // 2
-
-        if my_index == 1:
-            return
-
-        parent_value = self.array[parent_index-1]
-        while value < parent_value:
+        while True:
+            if my_index == 1:
+                # 1 is the index of the root : we can't bubble up any more
+                return
+            parent_index = my_index // 2
+            parent_value = self.array[parent_index - 1]
+            if value >= parent_value:
+                return
             self._swap(parent_index-1, my_index-1)
             my_index = parent_index
-            parent_index = my_index // 2
-            if my_index == 1:
-                return
-            parent_value = self.array[parent_index-1]
-
 
     def empty(self):
         return self.size() == 0

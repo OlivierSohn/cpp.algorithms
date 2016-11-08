@@ -31,7 +31,7 @@
 		091E3AF21DB57B9A007A4492 /* traits.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = traits.hpp; path = include/traits.hpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
 		093239C21DB3F394003C168E /* TestBundle-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "TestBundle-Info.plist"; path = "../tp.qu.googletest.xc/Bundle/TestBundle-Info.plist"; sourceTree = "<group>"; };
-		093239C41DB3F3AD003C168E /* GoogleTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = GoogleTests.mm; path = ../tp.qu.googletest.xc/Bundle/GoogleTests.mm; sourceTree = "<group>"; };
+		093239C41DB3F3AD003C168E /* GoogleTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; lineEnding = 0; name = GoogleTests.mm; path = ../tp.qu.googletest.xc/Bundle/GoogleTests.mm; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		093239C61DB3F3CE003C168E /* gtest_main.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gtest_main.cc; path = ../tp.qu.googletest/googletest/src/gtest_main.cc; sourceTree = "<group>"; };
 		093239C71DB3F3CE003C168E /* gtest-all.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "gtest-all.cc"; path = "../tp.qu.googletest/googletest/src/gtest-all.cc"; sourceTree = "<group>"; };
 		093239CB1DB41B42003C168E /* insertion_sort.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = insertion_sort.hpp; path = include/insertion_sort.hpp; sourceTree = "<group>"; };
@@ -59,7 +59,7 @@
 		0960BAFD1DB3F0F80075CB05 /* ios.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = ios.xcconfig; path = xcode.config/ios.xcconfig; sourceTree = "<group>"; };
 		0960BAFE1DB3F0F80075CB05 /* osx.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.xcconfig; path = xcode.config/osx.xcconfig; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; };
+		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = merge_sort.hpp; path = include/merge_sort.hpp; sourceTree = "<group>"; };
 		09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = sort_utils.hpp; path = include/sort_utils.hpp; sourceTree = "<group>"; };
 		09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = bounded_lifo.hpp; path = include/bounded_lifo.hpp; sourceTree = "<group>"; };

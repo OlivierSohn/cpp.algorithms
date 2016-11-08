@@ -32,7 +32,7 @@ namespace {
 
         Test() {
             // flush logs at each print
-            setbuf(stdout, NULL);
+            setbuf(stdout, nullptr);
         }
         
         void run() {

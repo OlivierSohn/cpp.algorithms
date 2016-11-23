@@ -18,7 +18,9 @@
 using namespace std;
 using namespace imj;
 
-namespace {
+namespace imj {
+namespace test {
+namespace hastable {
     
     template< typename Value >
     struct Test {
@@ -79,7 +81,7 @@ namespace {
 
     
     template< typename Value >
-    void testHashTable() {
+    void run() {
         cout << "---" << endl;
         cout << "HashTable< "; COUT_TYPE(Value); cout << " >" << endl;
         cout << "---" << endl;
@@ -89,11 +91,15 @@ namespace {
         test.run_logic();
     }
     
-} // NS
+} // NS hashtable
+} // NS test
+} // NS imj
 
 
 TEST(DataStructure, HashTable) {
-    testHashTable<int>();
+    using namespace imj::test::hastable;
+
+    run<int>();
 }
 
 

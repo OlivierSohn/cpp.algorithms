@@ -22,7 +22,9 @@
 using namespace std;
 using namespace imj;
 
-namespace {
+namespace imj {
+namespace test {
+namespace sort {
 
     template< typename Container >
     struct Test {
@@ -360,7 +362,9 @@ namespace {
     }
     
     
-} // NS
+} // NS sort
+} // NS test
+} // NS imj
 
 #define PERFS 0
 
@@ -371,6 +375,7 @@ TEST(Algorithm, MergeSort) {
         SEQUENTIAL,
         SEQUENTIAL_CACHE_OPTIMIZED
     };
+    using namespace imj::test::sort;
     
     testMergeSort< vector<int>, 0 >(algo_types);
     testMergeSort< vector<int>, 2 >(algo_types);
@@ -381,11 +386,15 @@ TEST(Algorithm, MergeSort) {
 }
 
 TEST(Algorithm, InsertionSort) {
+    using namespace imj::test::sort;
+
     testInsertionSort< vector<int> >();
     testInsertionSort< list<int> >();
 }
 
 TEST(Algorithm, HeapSort) {
+    using namespace imj::test::sort;
+
     testHeapSort< vector<int> >();
     testHeapSort< list<int> >();
 }
@@ -393,10 +402,14 @@ TEST(Algorithm, HeapSort) {
 #else
 
 TEST(Algorithm, HeapSort_profile) {
+    using namespace imj::test::sort;
+
     testHeapSort< vector<int> >(true);
 }
 
 TEST(Algorithm, MergeSort_profile) {
+    using namespace imj::test::sort;
+
     std::vector<AlgoType> algo_types{
         SEQUENTIAL
     };

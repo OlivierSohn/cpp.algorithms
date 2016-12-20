@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0912152B1E0861CB00B860CB /* measure_stl_containers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0912152A1E0861CB00B860CB /* measure_stl_containers.cpp */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
 		093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0912152A1E0861CB00B860CB /* measure_stl_containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = measure_stl_containers.cpp; path = test/measure_stl_containers.cpp; sourceTree = "<group>"; };
 		091E3AF21DB57B9A007A4492 /* traits.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = traits.hpp; path = include/traits.hpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
 		093239C21DB3F394003C168E /* TestBundle-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "TestBundle-Info.plist"; path = "../tp.qu.googletest.xc/Bundle/TestBundle-Info.plist"; sourceTree = "<group>"; };
@@ -153,6 +155,7 @@
 			isa = PBXGroup;
 			children = (
 				093239CA1DB3F3E7003C168E /* extern */,
+				0912152A1E0861CB00B860CB /* measure_stl_containers.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
 			);
@@ -287,6 +290,7 @@
 			files = (
 				093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */,
 				093239D01DB5341F003C168E /* test_hash_table.cpp in Sources */,
+				0912152B1E0861CB00B860CB /* measure_stl_containers.cpp in Sources */,
 				093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */,
 				093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */,
 				09EF8EEE1DB3E7D200DC7342 /* test_sort.cpp in Sources */,

@@ -16,6 +16,7 @@
 		093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
 		093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C71DB3F3CE003C168E /* gtest-all.cc */; };
 		093239E61DB56557003C168E /* libalgorithms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 093239D81DB5651B003C168E /* libalgorithms.a */; };
+		09C645911E09F84700153C61 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -351,6 +352,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				09168FCA1E099C43005DD50F /* algorithms_ios.m in Sources */,
+				09C645911E09F84700153C61 /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -523,6 +525,7 @@
 				09168FCD1E099C43005DD50F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		093239E01DB5651B003C168E /* Build configuration list for PBXNativeTarget "algorithms" */ = {
 			isa = XCConfigurationList;

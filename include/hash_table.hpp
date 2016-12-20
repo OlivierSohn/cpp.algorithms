@@ -10,7 +10,7 @@
 #include "traits.hpp"
 #include "math.hpp"
 
-namespace imj {
+namespace imajuscule {
     
     
     /*
@@ -261,5 +261,5 @@ namespace imj {
     const LoadFactor HashTable<T>::loadfactor;
     
 
-} // NS imj
+} // NS imajuscule
 

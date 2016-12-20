@@ -4,7 +4,7 @@
 
 #include "range.hpp"
 
-namespace imj {
+namespace imajuscule {
 
     /*
      * Allows to view a container as a max heap
@@ -106,7 +106,7 @@ namespace imj {
 
     template< typename iterator>
     struct HeapSort {
-        using range = imj::range<iterator>;
+        using range = imajuscule::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
         void operator ()(iterator begin, iterator end) {
@@ -149,5 +149,5 @@ namespace imj {
         s(std::move(begin), std::move(end));
     }
 
-} // NS imj
+} // NS imajuscule
 

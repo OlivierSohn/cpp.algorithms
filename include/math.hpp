@@ -1,6 +1,6 @@
 #pragma once
 
-namespace imj {
+namespace imajuscule {
 
     constexpr bool zero_or_powOf2(int x) {
         return (x & (x-1)) == 0;
@@ -37,5 +37,5 @@ namespace imj {
         return ans ;
     }
 
-} // NS imj
+} // NS imajuscule
 

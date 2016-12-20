@@ -1,5 +1,5 @@
 
-#include "../../Shared/xcode.config/project.xcconfig"
+#include "../../shared/xcode.config/project.xcconfig"
 
 // Header Search Paths
 // 
@@ -8,4 +8,4 @@
 // delimited by whitespace, so any paths with spaces in them need to be properly quoted.
 // [-I]
 
-HEADER_SEARCH_PATHS = $(PROJECT__HEADER_SEARCH_PATHS) "$(PROJECT_DIR)/../gl.platform/include" "$(PROJECT_DIR)/../gl.model/include" "$(PROJECT_DIR)/../tp.libpngpp" "$(PROJECT_DIR)/../tp.libpng" "$(PROJECT_DIR)/../tp.glm" "$(PROJECT_DIR)/../cg.math/include" "$(PROJECT_DIR)/../gl.program/include" "$(PROJECT_DIR)/../LLV/include" "$(PROJECT_DIR)/../os.storage/include" "$(PROJECT_DIR)/../gl.text/include" "$(PROJECT_DIR)/../WireModeler/include" "$(PROJECT_DIR)/../os.log/include" "$(PROJECT_DIR)/../sim.grid/include" "$(PROJECT_DIR)/../model/include" "$(PROJECT_DIR)/../tp.muparser/include" "$(PROJECT_DIR)/../os.audio/include"
+HEADER_SEARCH_PATHS = $(PROJECT__HEADER_SEARCH_PATHS) "$(PROJECT_DIR)/../tp.libpngpp" "$(PROJECT_DIR)/../tp.libpng" "$(PROJECT_DIR)/../tp.glm" 

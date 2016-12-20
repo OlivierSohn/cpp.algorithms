@@ -4,7 +4,7 @@
 
 #include "rng.hpp"
 
-namespace imj {
+namespace imajuscule {
     
     // StdSort //
     
@@ -83,5 +83,5 @@ namespace imj {
         return true;
     }
 
-} // NS imj
+} // NS imajuscule
 

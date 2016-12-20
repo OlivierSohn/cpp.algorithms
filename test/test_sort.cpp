@@ -2,27 +2,11 @@
 * Tests of merge_sort, insertion_sort, heap_sort
 */
 
-#include <stdio.h>
-
-#include <algorithm>
-#include <vector>
-#include <list>
-#include <functional>
-#include <ctime>
-
-#include "gtest/gtest.h"
-
-#include "sort_utils.hpp"
-#include "print_type.hpp"
-
-#include "merge_sort.hpp"
-#include "insertion_sort.hpp"
-#include "heap_sort.hpp"
 
 using namespace std;
-using namespace imj;
+using namespace imajuscule;
 
-namespace imj {
+namespace imajuscule {
 namespace test {
 namespace sort {
 
@@ -364,7 +348,7 @@ namespace sort {
     
 } // NS sort
 } // NS test
-} // NS imj
+} // NS imajuscule
 
 #define PERFS 0
 
@@ -375,7 +359,7 @@ TEST(Algorithm, MergeSort) {
         SEQUENTIAL,
         SEQUENTIAL_CACHE_OPTIMIZED
     };
-    using namespace imj::test::sort;
+    using namespace imajuscule::test::sort;
     
     testMergeSort< vector<int>, 0 >(algo_types);
     testMergeSort< vector<int>, 2 >(algo_types);
@@ -386,14 +370,14 @@ TEST(Algorithm, MergeSort) {
 }
 
 TEST(Algorithm, InsertionSort) {
-    using namespace imj::test::sort;
+    using namespace imajuscule::test::sort;
 
     testInsertionSort< vector<int> >();
     testInsertionSort< list<int> >();
 }
 
 TEST(Algorithm, HeapSort) {
-    using namespace imj::test::sort;
+    using namespace imajuscule::test::sort;
 
     testHeapSort< vector<int> >();
     testHeapSort< list<int> >();
@@ -402,13 +386,13 @@ TEST(Algorithm, HeapSort) {
 #else
 
 TEST(Algorithm, HeapSort_profile) {
-    using namespace imj::test::sort;
+    using namespace imajuscule::test::sort;
 
     testHeapSort< vector<int> >(true);
 }
 
 TEST(Algorithm, MergeSort_profile) {
-    using namespace imj::test::sort;
+    using namespace imajuscule::test::sort;
 
     std::vector<AlgoType> algo_types{
         SEQUENTIAL

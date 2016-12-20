@@ -6,7 +6,7 @@
 #include <typeinfo>
 #include <cxxabi.h>
 
-namespace imj {
+namespace imajuscule {
 
 #define TYPE_TO_STR(x,y) do { typedef void(*T)(x); auto tts = type_to_string<T>(); y = tts(T(), #x); } while(0)
 

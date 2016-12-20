@@ -1,5 +1,5 @@
 
-#include "../../Shared/xcode.config/project.release.xcconfig"
+#include "../../shared/xcode.config/project.release.xcconfig"
 
 #include "Project.Shared.xcconfig"
 

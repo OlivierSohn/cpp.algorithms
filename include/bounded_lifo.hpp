@@ -2,7 +2,7 @@
 
 #include <vector>
 
-namespace imj {
+namespace imajuscule {
 
     /*
     * Fast "Last-in First-out" queue, with following restrictions:
@@ -59,5 +59,5 @@ namespace imj {
         iterator begin_, end_;
     };
 
-} // NS imj
+} // NS imajuscule
 

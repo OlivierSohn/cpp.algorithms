@@ -1,2 +1,2 @@
 
-#include "../../Shared/xcode.config/osx.xcconfig"
+#include "../../shared/xcode.config/osx.xcconfig"

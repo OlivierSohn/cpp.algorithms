@@ -2,7 +2,7 @@
 
 #include <iterator>
 
-namespace imj {
+namespace imajuscule {
 
 template <typename iterator>
 struct range {
@@ -46,5 +46,5 @@ private:
     iterator begin_, end_;
 };
 
-} // NS imj
+} // NS imajuscule
 

@@ -9,7 +9,7 @@
 #include "heap_sort.hpp"
 #include "math.hpp"
 
-namespace imj {
+namespace imajuscule {
     
     template< typename iterator>
     std::string logstr(iterator begin, iterator end) {
@@ -48,7 +48,7 @@ namespace imj {
               , int insertion_sort_below_size
               , void (*F_SMALL_SORT)(iterator, iterator) = /*heap_sort*/ insertion_sort>
     struct MergeSort {
-        using range = imj::range<iterator>;
+        using range = imajuscule::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
         MergeSort(WorkContainer & work) :
@@ -372,5 +372,5 @@ namespace imj {
         merge_sort_work<iterator, Container, insertion_sort_below_size>(begin, end, work_vector, type);
     }
 
-} // NS imj
+} // NS imajuscule
 

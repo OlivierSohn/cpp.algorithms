@@ -1,6 +1,6 @@
 #include <random>
 
-namespace imj {
+namespace imajuscule {
     
     struct RNG {
 
@@ -22,5 +22,5 @@ namespace imj {
         RNG() = default;
     };
 
-} // NS imj
+} // NS imajuscule
 

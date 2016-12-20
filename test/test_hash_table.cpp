@@ -2,23 +2,10 @@
 * Tests of HashTable
 */
 
-#include <stdio.h>
-
-#include <algorithm>
-#include <vector>
-#include <list>
-#include <functional>
-#include <ctime>
-
-#include "gtest/gtest.h"
-
-#include "hash_table.hpp"
-#include "print_type.hpp"
-
 using namespace std;
-using namespace imj;
+using namespace imajuscule;
 
-namespace imj {
+namespace imajuscule {
 namespace test {
 namespace hastable {
     
@@ -93,11 +80,11 @@ namespace hastable {
     
 } // NS hashtable
 } // NS test
-} // NS imj
+} // NS imajuscule
 
 
 TEST(DataStructure, HashTable) {
-    using namespace imj::test::hastable;
+    using namespace imajuscule::test::hastable;
 
     run<int>();
 }

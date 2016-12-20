@@ -1,6 +1,6 @@
 #include "hash_table.hpp"
 
-namespace imj {
+namespace imajuscule {
 
     // good_primes is made according to
     // http://planetmath.org/goodhashtableprimes :
@@ -44,5 +44,5 @@ namespace imj {
         }
     };
     
-} // NS imj
+} // NS imajuscule
 

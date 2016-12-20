@@ -1,6 +1,6 @@
 #pragma once
 
-namespace imj {
+namespace imajuscule {
     
     template<typename T>
     struct Traits;
@@ -12,5 +12,5 @@ namespace imj {
         }
     };
 
-} // NS imj
+} // NS imajuscule
 

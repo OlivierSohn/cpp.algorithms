@@ -1,6 +1,6 @@
 
-#include "../../Shared/xcode.config/tp.qu.googletest.xcconfig"
-#include "../../Shared/xcode.config/tp.qu.googletest.xc.bundle.xcconfig"
+#include "../../shared/xcode.config/tp.qu.googletest.xcconfig"
+#include "../../shared/xcode.config/tp.qu.googletest.xc.bundle.xcconfig"
 
 LOCAL__HEADER_SEARCH_PATHS = "../glsl.composer/include" "../managers/include"
 

@@ -7,15 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0912152B1E0861CB00B860CB /* measure_stl_containers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0912152A1E0861CB00B860CB /* measure_stl_containers.cpp */; };
+		09168FCA1E099C43005DD50F /* algorithms_ios.m in Sources */ = {isa = PBXBuildFile; fileRef = 09168FC91E099C42005DD50F /* algorithms_ios.m */; };
+		09168FCB1E099C43005DD50F /* algorithms_ios.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 09168FC81E099C42005DD50F /* algorithms_ios.h */; };
+		09168FD21E099D78005DD50F /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09168FD11E099D78005DD50F /* unity.build.cpp */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
 		093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
 		093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
 		093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C71DB3F3CE003C168E /* gtest-all.cc */; };
-		093239D01DB5341F003C168E /* test_hash_table.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 093239CF1DB5341F003C168E /* test_hash_table.cpp */; };
 		093239E61DB56557003C168E /* libalgorithms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 093239D81DB5651B003C168E /* libalgorithms.a */; };
-		09EF8EEE1DB3E7D200DC7342 /* test_sort.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,8 +28,31 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		09168FC41E099C42005DD50F /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "include/$(PRODUCT_NAME)";
+			dstSubfolderSpec = 16;
+			files = (
+				09168FCB1E099C43005DD50F /* algorithms_ios.h in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		0912152A1E0861CB00B860CB /* measure_stl_containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = measure_stl_containers.cpp; path = test/measure_stl_containers.cpp; sourceTree = "<group>"; };
+		0912152A1E0861CB00B860CB /* measure_containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = measure_containers.cpp; path = test/measure_containers.cpp; sourceTree = "<group>"; };
+		0912152C1E096DD900B860CB /* allocator.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = allocator.hpp; path = include/allocator.hpp; sourceTree = "<group>"; };
+		0912152D1E096DD900B860CB /* pool.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = pool.h; path = include/pool.h; sourceTree = "<group>"; };
+		0912152E1E096DD900B860CB /* public.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = public.h; path = include/public.h; sourceTree = "<group>"; };
+		0912152F1E09941800B860CB /* pool.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = pool.cpp; path = source/pool.cpp; sourceTree = "<group>"; };
+		091215301E09941800B860CB /* private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = private.h; path = source/private.h; sourceTree = "<group>"; };
+		09168FC61E099C42005DD50F /* libalgorithms.ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.ios.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		09168FC81E099C42005DD50F /* algorithms_ios.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = algorithms_ios.h; sourceTree = "<group>"; };
+		09168FC91E099C42005DD50F /* algorithms_ios.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = algorithms_ios.m; sourceTree = "<group>"; };
+		09168FD11E099D78005DD50F /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = test/unity.build.cpp; sourceTree = "<group>"; };
+		09168FD31E099DAF005DD50F /* test_pool.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pool.cpp; path = test/test_pool.cpp; sourceTree = "<group>"; };
 		091E3AF21DB57B9A007A4492 /* traits.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = traits.hpp; path = include/traits.hpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
 		093239C21DB3F394003C168E /* TestBundle-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "TestBundle-Info.plist"; path = "../tp.qu.googletest.xc/Bundle/TestBundle-Info.plist"; sourceTree = "<group>"; };
@@ -70,6 +93,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		09168FC31E099C42005DD50F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		093239D51DB5651B003C168E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -88,6 +118,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		09168FC71E099C42005DD50F /* algorithms.ios */ = {
+			isa = PBXGroup;
+			children = (
+				09168FC81E099C42005DD50F /* algorithms_ios.h */,
+				09168FC91E099C42005DD50F /* algorithms_ios.m */,
+			);
+			path = algorithms.ios;
+			sourceTree = "<group>";
+		};
 		093239CA1DB3F3E7003C168E /* extern */ = {
 			isa = PBXGroup;
 			children = (
@@ -102,6 +141,8 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				0912152F1E09941800B860CB /* pool.cpp */,
+				091215301E09941800B860CB /* private.h */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 			);
@@ -137,6 +178,7 @@
 				093239D21DB54D1B003C168E /* source */,
 				0960BB0F1DB3F1060075CB05 /* xcode.config */,
 				09EF8F311DB3E8AD00DC7342 /* include */,
+				09168FC71E099C42005DD50F /* algorithms.ios */,
 				09EF8EE51DB3E7C400DC7342 /* Products */,
 				09EF8F2B1DB3E87E00DC7342 /* test */,
 			);
@@ -147,6 +189,7 @@
 			children = (
 				09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */,
 				093239D81DB5651B003C168E /* libalgorithms.a */,
+				09168FC61E099C42005DD50F /* libalgorithms.ios.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -155,9 +198,11 @@
 			isa = PBXGroup;
 			children = (
 				093239CA1DB3F3E7003C168E /* extern */,
-				0912152A1E0861CB00B860CB /* measure_stl_containers.cpp */,
+				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
+				09168FD31E099DAF005DD50F /* test_pool.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
+				09168FD11E099D78005DD50F /* unity.build.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";
@@ -165,13 +210,16 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				0912152C1E096DD900B860CB /* allocator.hpp */,
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				093239CD1DB45790003C168E /* heap_sort.hpp */,
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
+				0912152D1E096DD900B860CB /* pool.h */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,
+				0912152E1E096DD900B860CB /* public.h */,
 				09EF8F301DB3E89B00DC7342 /* range.hpp */,
 				093239CC1DB438C7003C168E /* rng.hpp */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
@@ -193,6 +241,23 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		09168FC51E099C42005DD50F /* algorithms.ios */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 09168FCE1E099C43005DD50F /* Build configuration list for PBXNativeTarget "algorithms.ios" */;
+			buildPhases = (
+				09168FC21E099C42005DD50F /* Sources */,
+				09168FC31E099C42005DD50F /* Frameworks */,
+				09168FC41E099C42005DD50F /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = algorithms.ios;
+			productName = algorithms.ios;
+			productReference = 09168FC61E099C42005DD50F /* libalgorithms.ios.a */;
+			productType = "com.apple.product-type.library.static";
+		};
 		093239D71DB5651B003C168E /* algorithms */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 093239E01DB5651B003C168E /* Build configuration list for PBXNativeTarget "algorithms" */;
@@ -236,6 +301,10 @@
 			attributes = {
 				LastUpgradeCheck = 0800;
 				TargetAttributes = {
+					09168FC51E099C42005DD50F = {
+						CreatedOnToolsVersion = 8.2;
+						ProvisioningStyle = Automatic;
+					};
 					093239D71DB5651B003C168E = {
 						CreatedOnToolsVersion = 8.0;
 						ProvisioningStyle = Automatic;
@@ -260,6 +329,7 @@
 			targets = (
 				09EF8EE31DB3E7C400DC7342 /* algorithms.test */,
 				093239D71DB5651B003C168E /* algorithms */,
+				09168FC51E099C42005DD50F /* algorithms.ios */,
 			);
 		};
 /* End PBXProject section */
@@ -276,6 +346,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		09168FC21E099C42005DD50F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				09168FCA1E099C43005DD50F /* algorithms_ios.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		093239D41DB5651B003C168E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -289,11 +367,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */,
-				093239D01DB5341F003C168E /* test_hash_table.cpp in Sources */,
-				0912152B1E0861CB00B860CB /* measure_stl_containers.cpp in Sources */,
 				093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */,
 				093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */,
-				09EF8EEE1DB3E7D200DC7342 /* test_sort.cpp in Sources */,
+				09168FD21E099D78005DD50F /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -308,6 +384,20 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		09168FCC1E099C43005DD50F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0960BAF91DB3F0F80075CB05 /* ios.debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		09168FCD1E099C43005DD50F /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0960BAFA1DB3F0F80075CB05 /* ios.release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 		093239E11DB5651B003C168E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAFB1DB3F0F80075CB05 /* osx.debug.xcconfig */;
@@ -426,6 +516,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		09168FCE1E099C43005DD50F /* Build configuration list for PBXNativeTarget "algorithms.ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				09168FCC1E099C43005DD50F /* Debug */,
+				09168FCD1E099C43005DD50F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		093239E01DB5651B003C168E /* Build configuration list for PBXNativeTarget "algorithms" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

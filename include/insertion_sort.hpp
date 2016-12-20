@@ -4,11 +4,11 @@
 
 #include "range.hpp"
 
-namespace imj {
+namespace imajuscule {
 
     template< typename iterator>
     struct InsertionSort {
-        using range = imj::range<iterator>;
+        using range = imajuscule::range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
         void operator ()(iterator begin, iterator end) {
@@ -55,5 +55,5 @@ namespace imj {
         s(std::move(begin), std::move(end));
     }
 
-} // NS imj
+} // NS imajuscule
 

@@ -11,7 +11,7 @@ namespace imajuscule {
     }
     
     void Pool::allocate_overflow() {
-        overflow.reset( new Pool(elems.size()) );
+        overflow.reset( new Pool(buffer.size()) );
     }
     
 } // ns imajuscule

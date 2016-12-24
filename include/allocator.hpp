@@ -56,7 +56,7 @@ namespace imajuscule {
             if ( return_value != 0 ) {
                 return return_value;
             }
-            if(pool.empty()) {
+            if(!pool.used()) {
                 pool.resize(2*size_request);
                 return_value = reinterpret_cast<pointer>( pool.GetNext(alignof(T1), size_request, n) );
                 if ( return_value == 0 ) {

@@ -11,11 +11,17 @@ namespace imajuscule {
         
         void * GetNext(size_t alignment, size_t n_bytes, size_t n_elems ) {
             assert(state == Growing);
-            auto index = elems.size() - space_left;
-            void* ptr = &elems[index];
+            // if the previous assert breaks it means either
+            // - the container using the Pool is reallocating to grow. If we let it happen, there
+            // will be memory fragmentation. To fix it, use std::vector::reserve for example
+            // - or the pool is used by more than one container and they don't respect the '2 phase'
+            // principle : pool is not used, them all allocation happen, then all deallocation happen
+            // to return to the satte where pool is not used
+            auto index = buffer.size() - space_left;
+            void* ptr = &buffer[index];
             if(std::align(alignment, n_bytes, ptr, space_left)) {
                 space_left -= n_bytes;
-                i += n_elems;
+                count_elems += n_elems;
                 return ptr;
             }
             if(index != 0) {
@@ -34,21 +40,21 @@ namespace imajuscule {
         void Free(void * p, size_t n_elems) {
             auto res = doFree(p, n_elems);
             assert(res);
-            if(i != 0) {
+            if(count_elems != 0) {
                 return;
             }
             // resize the vector to fit all the data in our pool next time
             auto npools = countPools();
-            auto new_size = npools * elems.size();
+            auto new_size = npools * buffer.size();
             if(npools > 1) {
                 std::cout << "the pool grows to " << new_size << ", " << npools << " pools were used" << std::endl;
             }
             init(new_size);
         }
 
-        size_t size() const { return elems.size() + (overflow ? overflow->size() : 0); }
-        size_t count() const { return i + (overflow ? overflow->count() : 0); }
-        bool empty() const { return elems.size() == space_left; }
+        size_t size() const { return buffer.size() + (overflow ? overflow->size() : 0); }
+        size_t count() const { return count_elems + (overflow ? overflow->count() : 0); }
+        bool used() const { return buffer.size() != space_left; }
         
         int countPools() const {
             if(overflow) {
@@ -59,7 +65,7 @@ namespace imajuscule {
         
         // not taking into account alignment constraints here...
         size_t maxElemSize() const {
-            return elems.size();
+            return buffer.size();
         }
         
         void resize(size_t sz = N) {
@@ -76,9 +82,9 @@ namespace imajuscule {
         void init(size_t n)
         {
             overflow.release();
-            if(n != elems.size()) {
-                elems.clear();
-                elems.resize(n);
+            if(n != buffer.size()) {
+                buffer.clear();
+                buffer.resize(n);
             }
             space_left = n;
             state = Growing;
@@ -89,14 +95,14 @@ namespace imajuscule {
             if(overflow && overflow->doFree(p, n_elems)) {
                 return true;
             }
-            if(i == 0) {
+            if(count_elems == 0) {
                 return false;
             }
-            i -= n_elems;
-            if(i >= 0) {
+            count_elems -= n_elems;
+            if(count_elems >= 0) {
                 return true;
             }
-            n_elems = -i;
+            n_elems = -count_elems;
             return false;
         }
         
@@ -109,10 +115,10 @@ namespace imajuscule {
         // that handles that : the allocator would have a pointer to the pool given
         // by the pool manager and when Free returns '0' (last element is freed), it
         // would need to tell the pool manager that he can resize it now
-        std::vector<unsigned char> elems;
+        std::vector<unsigned char> buffer;
         enum State { Growing, Shrinking } state : 1;
         size_t space_left;
-        int i = 0;
+        int count_elems = 0;
         std::unique_ptr<Pool> overflow;
     };
 

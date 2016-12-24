@@ -39,10 +39,7 @@ namespace imajuscule {
         Allocator() : pool(Pool::getInstance()) {};
         Allocator( const Allocator& other ) : Allocator() {};
         template <class U1> Allocator(const Allocator<U1>&) : Allocator() {};
-        
-        // Destructor
-        ~Allocator( void ) {};
-        
+                
         // Returns the address of r as a pointer type. This function and the following function are used
         // to convert references to pointers.
         pointer address(reference r) const { return &r; };
@@ -85,30 +82,15 @@ namespace imajuscule {
             return return_value;
         };
         
-        // Construct an object of type T1 at the location of ptr
-        void construct(pointer ptr)
+        template <class Up, class... Args>
+        void construct(Up* p, Args&&... args)
         {
-            ::new (reinterpret_cast<void*>(ptr)) T1;
-        };
-        
-        // Construct an object of type T1 at the location of ptr, using the value of U1 in the call to the
-        // constructor for T1.
-        template <class U1> void construct(pointer ptr, const U1& val)
-        {
-            ::new (reinterpret_cast<void*>(ptr)) T1(val);
-        };
-        
-        // Construct an object of type T1 at the location of ptr, using the value of T1 in the call to the
-        // constructor for T1.
-        void construct(pointer ptr, const T1& val)
-        {
-            ::new (reinterpret_cast<void*>(ptr)) T1(val);
-        };
-        
-        // Call the destructor on the value pointed to by p
+            ::new((void*)p) Up(std::forward<Args>(args)...);
+        }
+
         void destroy(pointer p)
         {
-            p->T1::~T1();
+            p->~T1();
         };
     private:
         Pool & pool;

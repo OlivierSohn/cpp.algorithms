@@ -8,3 +8,10 @@
 
 #include "pool.h"
 #include "allocator.hpp"
+
+namespace imajuscule {
+    
+    template<typename T>
+    using pool_vector = std::vector<T, Allocator<T>>;
+    
+}

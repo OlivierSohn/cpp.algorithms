@@ -3,31 +3,41 @@
 // we should assert that once it decreases, it does so until 0
 
 namespace imajuscule {
-    struct Pool {
+    
+    struct ControlledPoolGrowth;
 
+    struct Pool {
+#ifndef NDEBUG
+        friend struct ControlledPoolGrowth;
+#endif
         static constexpr auto N = 4000;
         
         static Pool & getInstance();
         
         void * GetNext(size_t alignment, size_t n_bytes, size_t n_elems ) {
+#ifndef NDEBUG
             assert(state == Growing);
+#endif
             // if the previous assert breaks it means either
             // - the container using the Pool is reallocating to grow. If we let it happen, there
             // will be memory fragmentation. To fix it, use std::vector::reserve for example
             // - or the pool is used by more than one container and they don't respect the '2 phase'
-            // principle : pool is not used, them all allocation happen, then all deallocation happen
-            // to return to the satte where pool is not used
+            // principle : pool is not used, then all allocation happen, then all deallocation happen
+            // to return to the state where pool is not used
             auto index = buffer.size() - space_left;
-            void* ptr = &buffer[index];
-            if(std::align(alignment, n_bytes, ptr, space_left)) {
-                space_left -= n_bytes;
-                count_elems += n_elems;
-                return ptr;
+            if(space_left) {
+                void* ptr = &buffer[index];
+                if(std::align(alignment, n_bytes, ptr, space_left)) {
+                    space_left -= n_bytes;
+                    count_elems += n_elems;
+                    return ptr;
+                }
             }
             if(index != 0) {
                 // our buffer is fully utilized, we cannot reallocate it because there are allocated
                 // elements in the program. We will delay reallocation at the time when we are the primary pool
                 // and the number of elements is back to 0.
+                space_left = 0;
                 if(!overflow) {
                     allocate_overflow();
                 }
@@ -87,11 +97,15 @@ namespace imajuscule {
                 buffer.resize(n);
             }
             space_left = n;
+#ifndef NDEBUG
             state = Growing;
+#endif
         }
         
         bool doFree(void * p, size_t & n_elems) {
+#ifndef NDEBUG
             state = Shrinking;
+#endif
             if(overflow && overflow->doFree(p, n_elems)) {
                 return true;
             }
@@ -100,9 +114,15 @@ namespace imajuscule {
             }
             count_elems -= n_elems;
             if(count_elems >= 0) {
+#ifndef NDEBUG
+                if(controlled_pool_count > 0 && count_elems == controlled_pool_count) {
+                    state = Growing;
+                }
+#endif
                 return true;
             }
             n_elems = -count_elems;
+            count_elems = 0;
             return false;
         }
         
@@ -116,10 +136,98 @@ namespace imajuscule {
         // by the pool manager and when Free returns '0' (last element is freed), it
         // would need to tell the pool manager that he can resize it now
         std::vector<unsigned char> buffer;
-        enum State { Growing, Shrinking } state : 1;
+#ifndef NDEBUG
+        enum State { Growing, Shrinking };
+        static State state;
+        int controlled_pool_count = -1; // -1 means this pool has no controlled level
+#endif
         size_t space_left;
         int count_elems = 0;
         std::unique_ptr<Pool> overflow;
+
+#ifndef NDEBUG
+        struct ControlPoint {
+            int pool_index = -1, count_elems;
+            bool operator ==(const ControlPoint & o) {
+                return pool_index == o.pool_index && count_elems == o.count_elems;
+            }
+        };
+        
+        struct Control {
+            ControlPoint cur, prev;
+        };
+        
+        void saveCurrentControl(ControlPoint & ctrl_point) {
+            ++ ctrl_point.pool_index;
+            if(controlled_pool_count >= 0) {
+                ctrl_point.count_elems = controlled_pool_count;
+                controlled_pool_count = -1;
+            }
+            else if(overflow) {
+                overflow->saveCurrentControl(ctrl_point);
+            }
+            else {
+                ctrl_point.count_elems = controlled_pool_count;
+            }
+        }
+        
+        void setCurrentControl(ControlPoint & ctrl_point) {
+            ++ ctrl_point.pool_index;
+            if(overflow && overflow->count_elems) {
+                overflow->setCurrentControl(ctrl_point);
+            }
+            else {
+                ctrl_point.count_elems = count_elems;
+                controlled_pool_count = count_elems;
+            }
+        }
+        
+        void applyControl(ControlPoint & ctrl_point) {
+            if( 0 == ctrl_point.pool_index) {
+                controlled_pool_count = ctrl_point.count_elems;
+                assert(controlled_pool_count == count_elems || controlled_pool_count == -1);
+            }
+            else {
+                --ctrl_point.pool_index;
+                assert(overflow);
+                overflow->applyControl(ctrl_point);
+            }
+        }
+        
+        Control pushControl() {
+            Control ctrl;
+            saveCurrentControl(ctrl.prev);
+            setCurrentControl(ctrl.cur);
+            return ctrl;
+        }
+        
+        void popControl(Control sz) {
+            ControlPoint check;
+            saveCurrentControl(check);
+            // verify that current control is the one we set
+            assert( check == sz.cur );
+            applyControl(sz.prev);
+        }
+#endif
     };
+
+    /*
+     * Use when you are using the pool for a container,
+     * you reserved this container fully,
+     * and you want to be able to use the pool for other
+     * containers that have a smaller lifecycle than your
+     * container
+     */
+    struct ControlledPoolGrowth {
+#ifndef NDEBUG
+        ControlledPoolGrowth() : ctrl(Pool::getInstance().pushControl()) {}
+
+        ~ControlledPoolGrowth() {
+            Pool::getInstance().popControl(ctrl);
+        }
+        Pool::Control ctrl;
+#endif
+    };
+    
 
 } // ns imajuscule

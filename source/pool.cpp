@@ -2,7 +2,8 @@
 namespace imajuscule {
     
     Pool * Pool::instance = nullptr;
-
+    Pool::State Pool::state = Pool::Growing;
+    
     Pool & Pool::getInstance() {
         if(!instance) {
             instance = new Pool();

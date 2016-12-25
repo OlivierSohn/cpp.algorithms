@@ -2,7 +2,9 @@
 namespace imajuscule {
     
     Pool * Pool::instance = nullptr;
+#ifndef NDEBUG
     Pool::State Pool::state = Pool::Growing;
+#endif
     
     Pool & Pool::getInstance() {
         if(!instance) {

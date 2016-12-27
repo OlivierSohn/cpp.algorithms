@@ -9,7 +9,7 @@ void test() {
     auto ptr = pool.GetNext(alignof(T), sizeof(T), 1);
     ASSERT_EQ(1, pool.count());
     ASSERT_TRUE(!!ptr);
-    pool.Free(ptr, 1);
+    pool.Free(ptr, sizeof(T), 1);
     ASSERT_EQ(0, pool.count());
     
     ptr = pool.GetNext(alignof(T), sizeof(T), 1);
@@ -20,13 +20,13 @@ void test() {
     v.push_back(new (ptr) T);
     v[0]->~T();
     v.clear();
-    pool.Free(ptr, 1);
+    pool.Free(ptr, sizeof(T), 1);
     ASSERT_EQ(0, pool.count());
 
     auto n_items = 0;
     
+    auto const size = Nalloc * sizeof(T);
     for(int i=0; i<Niter; i++) {
-        auto size = Nalloc * sizeof(T);
         ptr = pool.GetNext(alignof(T), size, Nalloc);
         if(size > pool.maxElemSize()) {
             ASSERT_EQ(nullptr, ptr);
@@ -38,7 +38,7 @@ void test() {
     }
     ASSERT_EQ(n_items, pool.count());
     while(n_items) {
-        pool.Free(nullptr, Nalloc);
+        pool.Free(nullptr, size, Nalloc);
         n_items -= Nalloc;
     }
     ASSERT_EQ(0, pool.count());

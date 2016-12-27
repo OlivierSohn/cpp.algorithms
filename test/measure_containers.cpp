@@ -343,8 +343,7 @@ void testMapSortedVector() {
         imajuscule::myfile << time << ",";
     }
     {
-        std::map<int, uint16_t,
-        std::less<int>, Allocator<std::pair<const int, uint16_t> >> map2;
+        pool::map<int, uint16_t> map2;
         
         auto t = clock();
         testMap(keys, map2, v4);
@@ -353,8 +352,7 @@ void testMapSortedVector() {
     }
     
     {
-        std::multimap<int, uint16_t,
-        std::less<int>, Allocator<std::pair<const int, uint16_t> >> map2;
+        pool::map<int, uint16_t> map2;
         
         auto t = clock();
         testMap(keys, map2, v2);

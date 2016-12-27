@@ -29,7 +29,8 @@ namespace imajuscule {
                 void* ptr = &buffer[index];
                 auto prev = space_left;
                 if(std::align(alignment, n_bytes, ptr, space_left)) {
-                    align_wasted += space_left - prev;
+                    assert(space_left <= prev);
+                    align_wasted += prev - space_left;
                     space_left -= n_bytes;
                     count_elems += n_elems;
                     return ptr;
@@ -158,15 +159,16 @@ namespace imajuscule {
 #ifndef NDEBUG
         enum State { Growing, Shrinking };
         static State state;
-        int controlled_pool_count = -1; // -1 means this pool has no controlled level
+        int32_t controlled_pool_count = -1; // -1 means this pool has no controlled level
 #endif
-        size_t space_left, align_wasted;
-        int count_elems = 0;
+        size_t space_left;
+        int32_t align_wasted = 0;
+        int32_t count_elems = 0;
         std::unique_ptr<Pool> overflow;
 
 #ifndef NDEBUG
         struct ControlPoint {
-            int pool_index = -1, count_elems;
+            int32_t pool_index = -1, count_elems;
             bool operator ==(const ControlPoint & o) {
                 return pool_index == o.pool_index && count_elems == o.count_elems;
             }

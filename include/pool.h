@@ -14,7 +14,7 @@ namespace imajuscule {
         
         static Pool & getInstance();
         
-        void * GetNext(size_t alignment, size_t n_bytes, size_t n_elems ) {
+        void * GetNext(size_t const alignment, size_t const n_bytes, size_t const n_elems ) {
 #ifndef NDEBUG
             assert(state == Growing);
 #endif
@@ -27,7 +27,9 @@ namespace imajuscule {
             auto index = buffer.size() - space_left;
             if(space_left) {
                 void* ptr = &buffer[index];
+                auto prev = space_left;
                 if(std::align(alignment, n_bytes, ptr, space_left)) {
+                    align_wasted += space_left - prev;
                     space_left -= n_bytes;
                     count_elems += n_elems;
                     return ptr;
@@ -37,7 +39,11 @@ namespace imajuscule {
                 // our buffer is fully utilized, we cannot reallocate it because there are allocated
                 // elements in the program. We will delay reallocation at the time when we are the primary pool
                 // and the number of elements is back to 0.
-                space_left = 0;
+                {
+                    // we do that in order to be sure that future allocations will not use this pool
+                    align_wasted += space_left;
+                    space_left = 0;
+                }
                 if(!overflow) {
                     allocate_overflow();
                 }
@@ -47,8 +53,8 @@ namespace imajuscule {
         }
         
         // this method is called only for the primary pool
-        void Free(void * p, size_t n_elems) {
-            auto res = doFree(p, n_elems);
+        void Free(void * p, size_t n_bytes, size_t n_elems) {
+            auto res = doFree(p, n_bytes, n_elems);
             assert(res);
             if(count_elems != 0) {
                 return;
@@ -83,13 +89,13 @@ namespace imajuscule {
         }
     private:
         
-        Pool(size_t sz=N) {
+        Pool(size_t const sz=N) {
             resize(sz);
         }
         
         void allocate_overflow();
         
-        void init(size_t n)
+        void init(size_t const n)
         {
             overflow.release();
             if(n != buffer.size()) {
@@ -97,32 +103,45 @@ namespace imajuscule {
                 buffer.resize(n);
             }
             space_left = n;
+            align_wasted = 0;
 #ifndef NDEBUG
             state = Growing;
 #endif
         }
         
-        bool doFree(void * p, size_t & n_elems) {
+        bool doFree(void * p, size_t & n_bytes, size_t & n_elems) {
 #ifndef NDEBUG
             state = Shrinking;
 #endif
-            if(overflow && overflow->doFree(p, n_elems)) {
+            if(overflow && overflow->doFree(p, n_bytes, n_elems)) {
                 return true;
             }
             if(count_elems == 0) {
                 return false;
             }
             count_elems -= n_elems;
+            space_left += n_bytes;
             if(count_elems >= 0) {
 #ifndef NDEBUG
                 if(controlled_pool_count > 0 && count_elems == controlled_pool_count) {
                     state = Growing;
                 }
 #endif
+                assert(space_left <= buffer.size());
+                if(count_elems == 0) {
+                    assert(space_left + align_wasted == buffer.size());
+                    space_left = buffer.size();
+                }
                 return true;
             }
             n_elems = -count_elems;
+            space_left = buffer.size();
+            assert(space_left > buffer.size());
+            n_bytes = space_left - buffer.size();
             count_elems = 0;
+            align_wasted = 0;
+            assert(0); // are we supposed to have this scenario??
+            // it means the order of allocations and the order of deallocations is not consistent
             return false;
         }
         
@@ -141,7 +160,7 @@ namespace imajuscule {
         static State state;
         int controlled_pool_count = -1; // -1 means this pool has no controlled level
 #endif
-        size_t space_left;
+        size_t space_left, align_wasted;
         int count_elems = 0;
         std::unique_ptr<Pool> overflow;
 
@@ -185,7 +204,6 @@ namespace imajuscule {
         void applyControl(ControlPoint & ctrl_point) {
             if( 0 == ctrl_point.pool_index) {
                 controlled_pool_count = ctrl_point.count_elems;
-                assert(controlled_pool_count == count_elems || controlled_pool_count == -1);
             }
             else {
                 --ctrl_point.pool_index;
@@ -229,5 +247,4 @@ namespace imajuscule {
 #endif
     };
     
-
 } // ns imajuscule

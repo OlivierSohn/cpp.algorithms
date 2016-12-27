@@ -71,7 +71,7 @@ namespace imajuscule {
         // Deallocate storage obtained by a call to allocate.
         void deallocate(pointer p, size_type n)
         {
-            pool.Free(p, n);
+            pool.Free(p, n*sizeof(T1), n);
         };
         
         // Return the largest possible storage available through a call to allocate.

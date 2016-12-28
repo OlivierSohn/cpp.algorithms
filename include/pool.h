@@ -33,6 +33,7 @@ namespace imajuscule {
                     align_wasted += prev - space_left;
                     space_left -= n_bytes;
                     count_elems += n_elems;
+                    max_size_used = std::max(max_size_used, buffer.size() - space_left);
                     return ptr;
                 }
             }
@@ -69,6 +70,9 @@ namespace imajuscule {
             init(new_size);
         }
 
+        size_t get_max_size_used() const { return max_size_used; }
+        void reset_max_size_used() { max_size_used = 0; }
+        
         size_t size() const { return buffer.size() + (overflow ? overflow->size() : 0); }
         size_t count() const { return count_elems + (overflow ? overflow->count() : 0); }
         bool used() const { return buffer.size() != space_left; }
@@ -165,6 +169,7 @@ namespace imajuscule {
         int32_t align_wasted = 0;
         int32_t count_elems = 0;
         std::unique_ptr<Pool> overflow;
+        size_t max_size_used = 0;
 
 #ifndef NDEBUG
         struct ControlPoint {

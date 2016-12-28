@@ -88,7 +88,7 @@ namespace imajuscule {
     struct HashTable {
         
         // 2^min_lg_size is the lower bound for the table size
-        enum { min_lg_size = 3 };
+        static constexpr auto min_lg_size = 3;
         
         HashTable(int lgSize_ = min_lg_size)
         : lgSize(std::max(lgSize_,

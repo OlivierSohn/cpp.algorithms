@@ -90,7 +90,7 @@ namespace imajuscule {
         
         // not very usefull for performances...
         void sort_seq_cache(range r) {
-            enum { max_distance = 4 };
+            static constexpr auto max_distance = 4;
             
             struct RangeSplit {
                 RangeSplit(range const & range_) :

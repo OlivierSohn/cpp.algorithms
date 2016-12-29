@@ -119,6 +119,13 @@ namespace imajuscule {
             state = Shrinking;
 #endif
             if(overflow && overflow->doFree(p, n_bytes, n_elems)) {
+#ifndef NDEBUG
+                if(overflow->count_elems == 0) {
+                    if(controlled_pool_count > 0 && count_elems == controlled_pool_count) {
+                        state = Growing;
+                    }                    
+                }
+#endif
                 return true;
             }
             if(count_elems == 0) {

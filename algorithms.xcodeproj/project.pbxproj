@@ -68,6 +68,7 @@
 		093239D11DB54D18003C168E /* hash_table.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = hash_table.cpp; path = source/hash_table.cpp; sourceTree = "<group>"; };
 		093239D31DB55C1D003C168E /* math.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = math.hpp; path = include/math.hpp; sourceTree = "<group>"; };
 		093239D81DB5651B003C168E /* libalgorithms.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
 		0960BAF11DB3F0F80075CB05 /* Project.Release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Release.xcconfig; path = xcode.config/Project.Release.xcconfig; sourceTree = "<group>"; };
@@ -142,6 +143,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				0912152F1E09941800B860CB /* pool.cpp */,
 				091215301E09941800B860CB /* private.h */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,

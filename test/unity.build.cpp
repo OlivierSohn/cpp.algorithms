@@ -10,7 +10,6 @@
 
 #include "public.h"
 #include "sort_utils.hpp"
-#include "print_type.hpp"
 
 #include "merge_sort.hpp"
 #include "insertion_sort.hpp"

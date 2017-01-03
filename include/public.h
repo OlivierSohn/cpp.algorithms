@@ -8,6 +8,7 @@
 #include <map>
 #include <unordered_map>
 
+#include "safe_cast.hpp"
 #include "print_type.hpp"
 #include "pool.h"
 #include "allocator.hpp"

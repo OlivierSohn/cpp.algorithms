@@ -29,7 +29,7 @@ TEST(Cast, safe_cast) {
 #ifndef NDEBUG
             ASSERT_THROW(auto c_as_D = safe_cast<D&>(c), std::bad_cast);
 #else
-            // in release, safe_cast is a static_cast
+            // in release, safe_cast is a safe_cast
             ASSERT_NO_THROW(auto c_as_D = safe_cast<D&>(c));
 #endif
         }
@@ -40,7 +40,7 @@ TEST(Cast, safe_cast) {
 #ifndef NDEBUG
             EXPECT_DEBUG_ASSERT(safe_cast<C*>(null_c));
 #else
-            // in release, safe_cast is a static_cast
+            // in release, safe_cast is a safe_cast
             auto ptr_c = safe_cast<C*>(null_c);
             ASSERT_EQ(nullptr, ptr_c);
 #endif
@@ -50,7 +50,7 @@ TEST(Cast, safe_cast) {
 #ifndef NDEBUG
             EXPECT_DEBUG_ASSERT(safe_cast<C*>(null_void));
 #else
-            // in release, safe_cast is a static_cast
+            // in release, safe_cast is a safe_cast
             auto ptr_c = safe_cast<C*>(null_void);
             ASSERT_EQ(nullptr, ptr_c);
 #endif
@@ -75,7 +75,7 @@ TEST(Cast, safe_cast) {
 #ifndef NDEBUG
             EXPECT_DEBUG_ASSERT(safe_cast<D*>(&c));
 #else
-            // in release, safe_cast is a static_cast
+            // in release, safe_cast is a safe_cast
             auto ptr_c = safe_cast<D*>(&c);
             ASSERT_NE(nullptr, ptr_c);
 #endif

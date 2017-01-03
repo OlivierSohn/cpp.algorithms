@@ -1,15 +1,14 @@
 
 namespace imajuscule {
-    namespace test {
+    namespace test_universal_ref {
         template<typename I>
-        static void f(I&& i) {
+        static void increment(I&& i) {
             ++i;
         }
     }
 }
 TEST(UniversalReference, pod) {
-    using namespace imajuscule::test;
     int i=0;
-    imajuscule::test::f(i);
+    imajuscule::test_universal_ref::increment(i);
     ASSERT_EQ(1, i);
 }

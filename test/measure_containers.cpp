@@ -42,7 +42,9 @@ namespace imajuscule {
             }
             
             RandomKeys(RandomKeys const & o) : keys(o.keys) {
-                std::shuffle(keys.begin(), keys.end(), mersenne_engine);
+                do {
+                    std::shuffle(keys.begin(), keys.end(), mersenne_engine);
+                } while(keys == o.keys);
             }
             
             bool operator ==(RandomKeys const & o) const {

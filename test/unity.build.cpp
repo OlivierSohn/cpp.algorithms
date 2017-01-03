@@ -17,6 +17,7 @@
 #include "hash_table.hpp"
 
 #include "test_cast.cpp"
+#include "test_cpp.cpp"
 #include "test_pool.cpp"
 #include "test_sort.cpp"
 #include "test_hash_table.cpp"

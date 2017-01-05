@@ -5,6 +5,7 @@
 namespace imajuscule {
     
     struct ControlledPoolGrowth;
+    struct ControlledPoolGrowthObject;
 
     struct Pool {
 #ifndef NDEBUG
@@ -18,13 +19,13 @@ namespace imajuscule {
         void * GetNext(size_t const alignment, size_t const n_bytes, size_t const n_elems ) {
 #ifndef NDEBUG
             assert(state == Growing);
-#endif
             // if the previous assert breaks it means either
             // - the container using the Pool is reallocating to grow. If we let it happen, there
             // will be memory fragmentation. To fix it, use vector::reserve for example
             // - or the pool is used by more than one container and they don't respect the '2 phase'
             // principle : pool is not used, then all allocation happen, then all deallocation happen
             // to return to the state where pool is not used
+#endif
             auto index = buffer.size() - space_left;
             if(space_left) {
                 void* ptr = &buffer[index];

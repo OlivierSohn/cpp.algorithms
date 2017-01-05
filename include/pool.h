@@ -9,6 +9,7 @@ namespace imajuscule {
     struct Pool {
 #ifndef NDEBUG
         friend struct ControlledPoolGrowth;
+        friend struct ControlledPoolGrowthObject;
 #endif
         static constexpr auto N = 4000;
         
@@ -20,7 +21,7 @@ namespace imajuscule {
 #endif
             // if the previous assert breaks it means either
             // - the container using the Pool is reallocating to grow. If we let it happen, there
-            // will be memory fragmentation. To fix it, use std::vector::reserve for example
+            // will be memory fragmentation. To fix it, use vector::reserve for example
             // - or the pool is used by more than one container and they don't respect the '2 phase'
             // principle : pool is not used, then all allocation happen, then all deallocation happen
             // to return to the state where pool is not used
@@ -250,15 +251,50 @@ namespace imajuscule {
      * containers that have a smaller lifecycle than your
      * container
      */
-    struct ControlledPoolGrowth {
+    struct ControlledPoolGrowthObject {
 #ifndef NDEBUG
-        ControlledPoolGrowth() : ctrl(Pool::getInstance().pushControl()) {}
-
-        ~ControlledPoolGrowth() {
-            Pool::getInstance().popControl(ctrl);
+        ControlledPoolGrowthObject()
+        :used(false)
+        {}
+        
+        ~ControlledPoolGrowthObject() {
+            assert(!used);
         }
+#endif
+        void acquire() {
+#ifndef NDEBUG
+            assert(!used);
+            ctrl = Pool::getInstance().pushControl();
+            used = true;
+#endif
+        }
+        
+        void release() {
+#ifndef NDEBUG
+            assert(used);
+            Pool::getInstance().popControl(ctrl);
+            used = false;
+#endif
+        }
+    private:
+#ifndef NDEBUG
+        bool used : 1;
         Pool::Control ctrl;
 #endif
     };
+
     
+    struct ControlledPoolGrowth {
+#ifndef NDEBUG
+        ControlledPoolGrowth() {
+            ControlledPoolGrowthObject.acquire();
+        }
+        
+        ~ControlledPoolGrowth() {
+            ControlledPoolGrowthObject.release();
+        }
+        ControlledPoolGrowthObject
+#endif
+    };
+
 } // ns imajuscule

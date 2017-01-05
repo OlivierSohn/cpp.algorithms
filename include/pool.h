@@ -286,14 +286,10 @@ namespace imajuscule {
     
     struct ControlledPoolGrowth {
 #ifndef NDEBUG
-        ControlledPoolGrowth() {
-            ControlledPoolGrowthObject.acquire();
-        }
-        
-        ~ControlledPoolGrowth() {
-            ControlledPoolGrowthObject.release();
-        }
-        ControlledPoolGrowthObject
+        ControlledPoolGrowth() { cpgo.acquire(); }
+        ~ControlledPoolGrowth() { cpgo.release(); }
+    private:
+        ControlledPoolGrowthObject cpgo;
 #endif
     };
 

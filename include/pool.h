@@ -259,9 +259,28 @@ namespace imajuscule {
         {}
         
         ~ControlledPoolGrowthObject() {
-            assert(!used);
+            if(used) {
+                release();
+            }
+        }
+        
+        // movability added to be able to move StaticVector
+        ControlledPoolGrowthObject(ControlledPoolGrowthObject && o):
+        used(o.used),
+        ctrl(o.ctrl) {
+            o.used = false;
+        }
+        ControlledPoolGrowthObject& operator =(ControlledPoolGrowthObject &&o)  {
+            if(used) {
+                release();
+            }
+            used = o.used;
+            o.used = false;
+            ctrl = o.ctrl;
+            return *this;
         }
 #endif
+        
         void acquire() {
 #ifndef NDEBUG
             assert(!used);
@@ -277,6 +296,7 @@ namespace imajuscule {
             used = false;
 #endif
         }
+        
     private:
 #ifndef NDEBUG
         bool used : 1;

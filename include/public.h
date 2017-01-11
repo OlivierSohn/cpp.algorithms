@@ -12,6 +12,7 @@
 #include "print_type.hpp"
 #include "pool.h"
 #include "allocator.hpp"
+#include "math.hpp"
 
 namespace imajuscule {
     namespace pool {

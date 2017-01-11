@@ -97,7 +97,7 @@ namespace imajuscule {
             assert(lgSize >= 0);
             assert(lgSize >= min_lg_size);
             
-            auto size = pow2(lgSize);
+            auto size = pow2(static_cast<unsigned int>(lgSize));
             table_.resize(size);
             
             hash_function.init(lgSize);

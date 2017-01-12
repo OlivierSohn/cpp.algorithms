@@ -1,22 +1,14 @@
-#include <stdio.h>
-
-#include <algorithm>
-#include <vector>
-#include <list>
-#include <functional>
-#include <ctime>
 
 #include "gtest/gtest.h"
 
-#include "public.h"
-#include "sort_utils.hpp"
+#include "private.h"
+// if markov_utils.hpp is included through public.h or private.h, we have a compilation error
+// but through he.h, it's fine... weird !!!
+#include "he.h"
 
-#include "merge_sort.hpp"
-#include "insertion_sort.hpp"
-#include "heap_sort.hpp"
-#include "hash_table.hpp"
 
 #include "test_cast.cpp"
+#include "test_markov_chain.cpp"
 #include "test_cpp.cpp"
 #include "test_enum.cpp"
 #include "test_pool.cpp"

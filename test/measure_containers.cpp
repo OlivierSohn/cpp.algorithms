@@ -1,16 +1,3 @@
-#include "gtest/gtest.h"
-
-#include <map>
-#include <unordered_map>
-#include <vector>
-#include <random>
-#include <ctime>
-
-#include "print_type.hpp"
-#include <iostream>
-#include <fstream>
-
-using namespace std;
 
 // we measure lookup and insertion for small number of elements
 //
@@ -21,9 +8,7 @@ using namespace std;
 // - unordered map
 
 namespace imajuscule {
-    random_device rnd_device;
-    mt19937 mersenne_engine(rnd_device());
-    ofstream myfile;
+    std::ofstream myfile;
 
     template<typename Key, typename Value>
     struct SortedVector {
@@ -38,12 +23,12 @@ namespace imajuscule {
         struct RandomKeys {
             RandomKeys() : keys(N) {
                 std::iota(keys.begin(), keys.end(), 0);
-                std::shuffle(keys.begin(), keys.end(), mersenne_engine);
+                std::shuffle(keys.begin(), keys.end(), rng::mersenne());
             }
             
             RandomKeys(RandomKeys const & o) : keys(o.keys) {
                 do {
-                    std::shuffle(keys.begin(), keys.end(), mersenne_engine);
+                    std::shuffle(keys.begin(), keys.end(), rng::mersenne());
                 } while(keys == o.keys);
             }
             

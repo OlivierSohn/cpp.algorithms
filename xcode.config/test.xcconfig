@@ -2,7 +2,7 @@
 #include "../../shared/xcode.config/tp.qu.googletest.xcconfig"
 #include "../../shared/xcode.config/tp.qu.googletest.xc.bundle.xcconfig"
 
-LOCAL__HEADER_SEARCH_PATHS = "../glsl.composer/include" "../managers/include"
+LOCAL__HEADER_SEARCH_PATHS =
 
 HEADER_SEARCH_PATHS = $(inherited) $(GOOGLETEST__HEADER_SEARCH_PATHS) $(LOCAL__HEADER_SEARCH_PATHS)
 

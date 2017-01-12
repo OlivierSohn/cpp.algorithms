@@ -1,14 +1,9 @@
-#pragma once
-
-#include <iterator>
-
-#include "range.hpp"
 
 namespace imajuscule {
 
     template< typename iterator>
     struct InsertionSort {
-        using range = imajuscule::range<iterator>;
+        using iter_range = imajuscule::iter_range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
         void operator ()(iterator begin, iterator end) {

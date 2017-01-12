@@ -2,7 +2,6 @@
 * Tests of HashTable
 */
 
-using namespace std;
 using namespace imajuscule;
 
 namespace imajuscule {
@@ -69,6 +68,7 @@ namespace hastable {
     
     template< typename Value >
     void run() {
+        using namespace std;
         cout << "---" << endl;
         cout << "HashTable< "; COUT_TYPE(Value); cout << " >" << endl;
         cout << "---" << endl;

@@ -1,26 +1,11 @@
-#include <random>
 
 namespace imajuscule {
-    
-    struct RNG {
-
-        static RNG & instance() {
-            static RNG instance_;
-            return instance_;
+    struct rng {
+        static std::mt19937 & mersenne() {
+            static std::mt19937 mersenne_engine_(std::random_device{}());
+            return mersenne_engine_;
         }
-        
-        void seed(int s) {
-            engine_.seed(s);
-        }
-        
-        auto & engine() {
-            return engine_;
-        }
-    private:
-        std::default_random_engine engine_;
-
-        RNG() = default;
     };
-
+    
 } // NS imajuscule
 

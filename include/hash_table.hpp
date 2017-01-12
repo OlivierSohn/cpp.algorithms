@@ -1,17 +1,5 @@
-#pragma once
-
-#include <vector>
-#include <list>
-#include <array>
-#include <cassert>
-#include <iostream>
-#include <algorithm>
-
-#include "traits.hpp"
-#include "math.hpp"
 
 namespace imajuscule {
-    
     
     /*
      * Defines the range of acceptable load factors.
@@ -252,7 +240,8 @@ namespace imajuscule {
         }
         
         size_t hash(Value value) const {
-            int pre_hash = Traits<Value>::prehash(value);
+            PreHash p;
+            int pre_hash = p(value);
             return hash_function.exec(pre_hash, table_.size());
         }
     };

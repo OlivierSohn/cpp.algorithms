@@ -1,10 +1,3 @@
-#pragma once
-
-#include <string>
-#include <iostream>
-#include <iomanip>
-#include <typeinfo>
-#include <cxxabi.h>
 
 namespace imajuscule {
 

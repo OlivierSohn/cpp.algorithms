@@ -1,4 +1,3 @@
-#pragma once
 
 #pragma push_macro( "new" )
 #undef new

@@ -1,7 +1,4 @@
 
-
-// we should assert that once it decreases, it does so until 0
-
 namespace imajuscule {
     
     struct ControlledPoolGrowth;

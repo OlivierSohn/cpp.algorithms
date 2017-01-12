@@ -2,8 +2,6 @@
 * Tests of merge_sort, insertion_sort, heap_sort
 */
 
-
-using namespace std;
 using namespace imajuscule;
 
 namespace imajuscule {
@@ -64,7 +62,7 @@ namespace sort {
     private:
         std::function<void(Container &)> sorter;
         
-        using Containers = vector<Container>;
+        using Containers = std::vector<Container>;
                 
         auto make_container_with_repeats(int size, int n_repeats, int index_repeat) 
         {
@@ -171,7 +169,7 @@ namespace sort {
             auto v = make_container_no_repeat(size);
             printf("sort containers of size %d [%d permutation(s)]", size, n_permutations);
             
-            ShuffleSeed(0);
+            shuffle_rng_engine().seed(0); // to have predictable results
 
             for(int i=0; i<n_permutations; ++i) {
                 Shuffle(v);
@@ -232,7 +230,7 @@ namespace sort {
 
             auto c = make_container_no_repeat(size);
             
-            ShuffleSeed(0);
+            shuffle_rng_engine().seed(0);
             for(auto i=0; i<n; i++) {
                 Shuffle(c);
                 
@@ -275,6 +273,7 @@ namespace sort {
     template< typename Container, int insertion_sort_below_size >
     void testMergeSort(std::vector<AlgoType> const & algo_types, bool perf_only = false) {
         using iterator = typename Container::iterator;
+        using namespace std;
         
         cout << "---" << endl;
         cout << "MergeSort (" << insertion_sort_below_size << ") "; COUT_TYPE(Container); cout << endl;
@@ -304,6 +303,7 @@ namespace sort {
     
     template< typename Container >
     void testInsertionSort(bool perf_only = false) {
+        using namespace std;
         cout << "---" << endl;
         cout << "InsertionSort "; COUT_TYPE(Container); cout << endl;
         cout << "---" << endl;
@@ -325,6 +325,7 @@ namespace sort {
     
     template< typename Container >
     void testHeapSort(bool perf_only = false) {
+        using namespace std;
         cout << "---" << endl;
         cout << "HeapSort "; COUT_TYPE(Container); cout << endl;
         cout << "---" << endl;
@@ -360,6 +361,7 @@ TEST(Algorithm, MergeSort) {
         SEQUENTIAL_CACHE_OPTIMIZED
     };
     using namespace imajuscule::test::sort;
+    using namespace std;
     
     testMergeSort< vector<int>, 0 >(algo_types);
     testMergeSort< vector<int>, 2 >(algo_types);
@@ -371,14 +373,16 @@ TEST(Algorithm, MergeSort) {
 
 TEST(Algorithm, InsertionSort) {
     using namespace imajuscule::test::sort;
-
+    using namespace std;
+    
     testInsertionSort< vector<int> >();
     testInsertionSort< list<int> >();
 }
 
 TEST(Algorithm, HeapSort) {
     using namespace imajuscule::test::sort;
-
+    using namespace std;
+    
     testHeapSort< vector<int> >();
     testHeapSort< list<int> >();
 }
@@ -387,13 +391,15 @@ TEST(Algorithm, HeapSort) {
 
 TEST(Algorithm, HeapSort_profile) {
     using namespace imajuscule::test::sort;
-
+    using namespace std;
+    
     testHeapSort< vector<int> >(true);
 }
 
 TEST(Algorithm, MergeSort_profile) {
     using namespace imajuscule::test::sort;
-
+    using namespace std;
+    
     std::vector<AlgoType> algo_types{
         SEQUENTIAL
     };

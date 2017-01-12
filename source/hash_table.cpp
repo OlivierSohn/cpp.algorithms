@@ -1,4 +1,3 @@
-#include "hash_table.hpp"
 
 namespace imajuscule {
 

@@ -1,8 +1,4 @@
 
-#include <list>
-
-#include "rng.hpp"
-
 namespace imajuscule {
     
     // StdSort //
@@ -36,10 +32,19 @@ namespace imajuscule {
     void Shuffle( Container & c );
 
     namespace {
+        static std::minstd_rand & shuffle_rng_engine() {
+            static std::minstd_rand engine;
+            return engine;
+        }
+        
         template< typename Container >
-        struct Shuffle_ { 
+        struct Shuffle_ {
+            
+            // we have a specific engine because we want to reseed it to a given value
+            // in order to make tests repeatable
             void operator()(Container & ref) {
-                std::shuffle(ref.begin(), ref.end(), RNG::instance().engine());
+                
+                std::shuffle(ref.begin(), ref.end(), shuffle_rng_engine());
             }
         };
         
@@ -59,11 +64,6 @@ namespace imajuscule {
         shuffle_(c);
     }
     
-    void ShuffleSeed(int s) {
-        RNG::instance().engine().seed(s);
-    }
-    
-
     // IsSorted //
 
     template< typename Container >

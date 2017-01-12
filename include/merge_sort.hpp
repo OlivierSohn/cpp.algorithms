@@ -1,13 +1,3 @@
-#pragma once
-
-#include <iterator>
-#include <array>
-
-#include "range.hpp"
-#include "bounded_lifo.hpp"
-#include "insertion_sort.hpp"
-#include "heap_sort.hpp"
-#include "math.hpp"
 
 namespace imajuscule {
     
@@ -48,7 +38,7 @@ namespace imajuscule {
               , int insertion_sort_below_size
               , void (*F_SMALL_SORT)(iterator, iterator) = /*heap_sort*/ insertion_sort>
     struct MergeSort {
-        using range = imajuscule::range<iterator>;
+        using iter_range = imajuscule::iter_range<iterator>;
         using value_type = typename std::iterator_traits<iterator>::value_type;
         
         MergeSort(WorkContainer & work) :
@@ -56,7 +46,7 @@ namespace imajuscule {
         {
         }
         
-        void operator ()(range r, AlgoType t = SEQUENTIAL) {
+        void operator ()(iter_range r, AlgoType t = SEQUENTIAL) {
             
             static_assert(
                 std::is_same<
@@ -89,11 +79,11 @@ namespace imajuscule {
         WorkContainer & work;
         
         // not very usefull for performances...
-        void sort_seq_cache(range r) {
+        void sort_seq_cache(iter_range r) {
             static constexpr auto max_distance = 4;
             
             struct RangeSplit {
-                RangeSplit(range const & range_) :
+                RangeSplit(iter_range const & range_) :
                     end(range_.begin()),
                     remaining_distance(range_.distance()) 
                 {}
@@ -108,8 +98,8 @@ namespace imajuscule {
                     return true;
                 }
                 
-                auto result() const {
-                    return range{it, end};
+                iter_range result() const {
+                    return {it, end};
                 }                
             
             private : 
@@ -142,7 +132,7 @@ namespace imajuscule {
             }
         }
         
-        void sort_seq(range r, int cell_size = 1) {
+        void sort_seq(iter_range r, int cell_size = 1) {
             auto distance = r.distance();
             
             if( cell_size * 2 <= insertion_sort_below_size) {
@@ -163,7 +153,7 @@ namespace imajuscule {
         }
         
         
-        void sort_by_insertion(const range & r, int remaining_distance) {
+        void sort_by_insertion(const iter_range & r, int remaining_distance) {
             
             auto it1 = r.begin();
             
@@ -184,7 +174,7 @@ namespace imajuscule {
             }
         }
 
-        void sort_seq_level(const range & r, int remaining_distance, int cell_size) {
+        void sort_seq_level(const iter_range & r, int remaining_distance, int cell_size) {
             
             auto it1 = r.begin();                
 
@@ -195,7 +185,7 @@ namespace imajuscule {
                 auto it3 = it2;                
                 std::advance(it3, cell_size);
 
-                join(std::pair<range, range>{{it1, it2}, {it2, it3}}, work.begin());
+                join(std::pair<iter_range, iter_range>{{it1, it2}, {it2, it3}}, work.begin());
                 
                 remaining_distance -= two_cells;
                 std::advance(it1, two_cells);
@@ -212,11 +202,11 @@ namespace imajuscule {
                 if(it3 == it2) {
                     return;
                 }
-                join(std::pair<range, range>{{it1, it2}, {it2, it3}}, work.begin());
+                join(std::pair<iter_range, iter_range>{{it1, it2}, {it2, it3}}, work.begin());
             }
         }
         
-        std::pair<range, range> split(range r, int distance) {
+        std::pair<iter_range, iter_range> split(iter_range r, int distance) {
             assert(r.distance() >= 2);
             assert(distance == r.distance());
             auto pivot = distance / 2;
@@ -229,7 +219,7 @@ namespace imajuscule {
             };    
         }
         
-        void sort(range r) {     
+        void sort(iter_range r) {     
             auto size = r.distance();
             if(size <= insertion_sort_below_size) {
                 F_SMALL_SORT(r.begin(), r.end());
@@ -257,7 +247,7 @@ namespace imajuscule {
         }
 
         template <typename work_iterator>
-        void join(std::pair<range, range> const & ranges, work_iterator work_begin) {
+        void join(std::pair<iter_range, iter_range> const & ranges, work_iterator work_begin) {
             auto & r1 = ranges.first;
             auto & r2 = ranges.second;
 

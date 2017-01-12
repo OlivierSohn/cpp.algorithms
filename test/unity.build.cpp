@@ -1,7 +1,7 @@
 
 #include "gtest/gtest.h"
 
-#include "private.h"
+#include "public.h"
 // if markov_utils.hpp is included through public.h or private.h, we have a compilation error
 // but through he.h, it's fine... weird !!!
 #include "he.h"

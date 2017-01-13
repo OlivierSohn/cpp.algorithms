@@ -44,6 +44,12 @@ namespace imajuscule {
             reserve(size);
         }
         
+        StaticVector(size_t size, T val)  {
+            reserve(size);
+            resize(size);
+            fill(val);
+        }
+        
         StaticVector( std::initializer_list<T> init ) :
         v(std::move(init)) {
 #ifndef NDEBUG
@@ -114,9 +120,9 @@ namespace imajuscule {
         auto front() -> decltype(v.front()) { return v.front(); }
         auto front() const -> decltype(v.front()) { return v.front(); }
         
-        auto operator[](size_t n) -> decltype(v[n]) { return v[n]; };
+        T & operator[](size_t n) { return v[n]; };
         auto operator[](size_t n) const -> decltype(v[n]) { return v[n]; };
-
+        
         template <class... Args>
         void emplace_back(Args&&... args) {
             assert_unchanged_capacity c(v);
@@ -145,5 +151,10 @@ namespace imajuscule {
 #ifndef NDEBUG
         ControlledPoolGrowthObject cpgo;
 #endif
+        
+        template <class... Args>
+        void fill(Args&&... args) {
+            std::fill(v.begin(), v.end(), std::forward<Args>(args)... );
+        }
     };
 }

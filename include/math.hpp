@@ -1,19 +1,22 @@
 
 namespace imajuscule {
 
+    constexpr unsigned int power_of_two_find_exponent(unsigned int v) {
+        unsigned int r = 0; // r will be lg(v)
+        
+        while (v >>= 1)
+        {
+            r++;
+        }
+        
+        return r;
+    }
+    
     constexpr bool zero_or_powOf2(int x) {
         return (x & (x-1)) == 0;
     }
     
-    static inline bool zero_or_powOf2(size_t x) {
-        while(x) {
-            if( 1 == x % 2 ) {
-                return false;
-            }
-            x /= 2;
-        }
-        return true;
-    }
+    constexpr bool is_power_of_two(size_t n) { return ((n != 0) && !(n & (n - 1))); }
     
     static constexpr size_t pow2(int power) {
         size_t res = (1 << power);

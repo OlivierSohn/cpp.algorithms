@@ -23,6 +23,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "numtraits.h"
+#include "complex.h"
+#include "range.h"
+#include "strplot.h"
 #include "rng.hpp"
 #include "markov_chain.hpp"
 #include "safe_cast.hpp"

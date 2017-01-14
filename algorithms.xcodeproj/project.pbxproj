@@ -60,6 +60,10 @@
 		091AF71D1E27DC58004B554F /* test_markov_chain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_markov_chain.cpp; path = test/test_markov_chain.cpp; sourceTree = "<group>"; };
 		091AF71E1E27F0E1004B554F /* hash.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = hash.hpp; path = include/hash.hpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
+		091F80901E2A615200A0DD2D /* complex.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = complex.h; path = include/complex.h; sourceTree = "<group>"; };
+		092EAA8F1E2A4733006C11E9 /* strplot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = strplot.h; path = include/strplot.h; sourceTree = "<group>"; };
+		092EAAB81E2A4994006C11E9 /* range.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = range.h; path = include/range.h; sourceTree = "<group>"; };
+		092EAAB91E2A49F3006C11E9 /* numtraits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = numtraits.h; path = include/numtraits.h; sourceTree = "<group>"; };
 		093239C21DB3F394003C168E /* TestBundle-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "TestBundle-Info.plist"; path = "../tp.qu.googletest.xc/Bundle/TestBundle-Info.plist"; sourceTree = "<group>"; };
 		093239C41DB3F3AD003C168E /* GoogleTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; lineEnding = 0; name = GoogleTests.mm; path = ../tp.qu.googletest.xc/Bundle/GoogleTests.mm; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		093239C61DB3F3CE003C168E /* gtest_main.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gtest_main.cc; path = ../tp.qu.googletest/googletest/src/gtest_main.cc; sourceTree = "<group>"; };
@@ -227,12 +231,13 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				09C682D11E28190E00C2716D /* he.h */,
 				0912152C1E096DD900B860CB /* allocator.hpp */,
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
+				091F80901E2A615200A0DD2D /* complex.h */,
 				091AF71B1E27A295004B554F /* good_swimmers.h */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				091AF71E1E27F0E1004B554F /* hash.hpp */,
+				09C682D11E28190E00C2716D /* he.h */,
 				093239CD1DB45790003C168E /* heap_sort.hpp */,
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,
 				09EF8F301DB3E89B00DC7342 /* iter_range.hpp */,
@@ -240,13 +245,16 @@
 				09C682D01E28180500C2716D /* markov_utils.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
+				092EAAB91E2A49F3006C11E9 /* numtraits.h */,
 				0912152D1E096DD900B860CB /* pool.h */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,
 				0912152E1E096DD900B860CB /* public.h */,
+				092EAAB81E2A4994006C11E9 /* range.h */,
 				093239CC1DB438C7003C168E /* rng.hpp */,
 				0972718C1E1B325200532772 /* safe_cast.hpp */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 				091AF71A1E27A295004B554F /* static_vector.h */,
+				092EAA8F1E2A4733006C11E9 /* strplot.h */,
 			);
 			name = include;
 			sourceTree = "<group>";
@@ -426,46 +434,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAFB1DB3F0F80075CB05 /* osx.debug.xcconfig */;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_SUSPICIOUS_MOVES = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				EXECUTABLE_PREFIX = lib;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_ENABLE_CPP_EXCEPTIONS = YES;
-				GCC_ENABLE_CPP_RTTI = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
-				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
 		};
@@ -473,39 +441,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAFC1DB3F0F80075CB05 /* osx.release.xcconfig */;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_SUSPICIOUS_MOVES = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				EXECUTABLE_PREFIX = lib;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_ENABLE_CPP_EXCEPTIONS = YES;
-				GCC_ENABLE_CPP_RTTI = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.12;
-				MTL_ENABLE_DEBUG_INFO = NO;
 			};
 			name = Release;
 		};

@@ -261,7 +261,7 @@ namespace imajuscule {
             }
         }
         
-        // movability added to be able to move StaticVector
+        // movability added to be able to move StackVector
         ControlledPoolGrowthObject(ControlledPoolGrowthObject && o):
         used(o.used),
         ctrl(o.ctrl) {

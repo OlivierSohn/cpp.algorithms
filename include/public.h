@@ -13,6 +13,7 @@
 #include <iterator>
 #include <list>
 #include <map>
+#include <new>
 #include <unordered_map>
 #include <utility>
 #include <memory>

@@ -1,60 +1,63 @@
 
-#pragma push_macro( "new" )
-#undef new
-#include <new>
-
 namespace imajuscule {
     
-    template <class T1> class Allocator;
+    template <class T> class StackAllocator;
     
-    // Specialize for void
-    template <> class Allocator<void>
+    template <> class StackAllocator<void>
     {
     public:
         typedef void * pointer;
         typedef const void* const_pointer;
         typedef void value_type;
-        template <class U1> struct rebind { typedef Allocator<U1> other; };
+        template <class U> struct rebind { typedef StackAllocator<U> other; };
     };
     
-    // todo policy : either it uses the global pool, typically for a container
-    // on ths stack, or it uses its own pool, for long lived containers
-    template <class T1> class Allocator
+    template <class T> class StackAllocator
     {
     public:
-        typedef T1 value_type;
+        typedef T value_type;
         typedef size_t size_type;
         typedef ptrdiff_t difference_type;
-        typedef T1* pointer;
-        typedef const T1* const_pointer;
-        typedef T1& reference;
-        typedef const T1& const_reference;
+        typedef T* pointer;
+        typedef const T* const_pointer;
+        typedef T& reference;
+        typedef const T& const_reference;
         
-        // The rebind member allows a container to construct an allocator for some arbitrary type out of
-        // the allocator type provided as a template parameter.
-        template <class U1> struct rebind { typedef Allocator<U1> other; };
+        template <class U> struct rebind { typedef StackAllocator<U> other; };
         
-        // Constructors
-        Allocator() : pool(Pool::getInstance()) {};
-        Allocator( const Allocator& other ) : Allocator() {};
-        template <class U1> Allocator(const Allocator<U1>&) : Allocator() {};
-                
-        // Returns the address of r as a pointer type. This function and the following function are used
-        // to convert references to pointers.
-        pointer address(reference r) const { return &r; };
-        const_pointer address(const_reference r) const { return &r; };
+        StackAllocator() noexcept
+        : pool(Pool::getInstance()) {};
         
-        // Allocate storage for n values of T1.
-        pointer allocate( size_type n, Allocator<void>::const_pointer hint = 0 )
+        StackAllocator( const StackAllocator& other ) noexcept
+        : StackAllocator() {};
+        
+        template <class U>
+        StackAllocator(const StackAllocator<U>&) noexcept
+        : StackAllocator() {};
+        
+        size_type max_size() const noexcept {
+            return size_type(~0) / sizeof(T);
+        };
+        
+        pointer
+        address(reference r) const noexcept
+        { return std::addressof(r); };
+        
+        const_pointer
+        address(const_reference r) const noexcept
+        { return std::addressof(r); };
+        
+        pointer
+        allocate( size_type n, StackAllocator<void>::const_pointer hint = 0 )
         {
-            auto const size_request = n*sizeof(T1);
-            pointer return_value = reinterpret_cast<pointer>( pool.GetNext(alignof(T1), size_request, n) );
+            auto const size_request = n*sizeof(T);
+            pointer return_value = reinterpret_cast<pointer>( pool.GetNext(alignof(T), size_request, n) );
             if ( return_value != 0 ) {
                 return return_value;
             }
             if(!pool.used()) {
                 pool.resize(2*size_request);
-                return_value = reinterpret_cast<pointer>( pool.GetNext(alignof(T1), size_request, n) );
+                return_value = reinterpret_cast<pointer>( pool.GetNext(alignof(T), size_request, n) );
                 if ( return_value == 0 ) {
                     throw std::bad_alloc();
                 }
@@ -67,47 +70,35 @@ namespace imajuscule {
             throw std::bad_alloc();
         };
         
-        // Deallocate storage obtained by a call to allocate.
-        void deallocate(pointer p, size_type n)
+        void
+        deallocate(pointer p, size_type n) noexcept
         {
-            pool.Free(p, n*sizeof(T1), n);
+            pool.Free(p, n*sizeof(T), n);
         };
         
-        // Return the largest possible storage available through a call to allocate.
-        size_type max_size() const
-        {
-            size_type return_value = 0xFFFFFFFF;
-            return_value /= sizeof(T1);
-            return return_value;
-        };
-        
-        template <class Up, class... Args>
-        void construct(Up* p, Args&&... args)
-        {
-            ::new((void*)p) Up(std::forward<Args>(args)...);
-        }
+        template <class U, class... Args>
+        void
+        construct(U* p, Args&&... args)
+        { ::new(reinterpret_cast<void*>(p)) U(std::forward<Args>(args)...); }
 
-        void destroy(pointer p)
-        {
-            p->~T1();
-        };
+        void
+        destroy(pointer p)
+        { p->~T(); };
+        
     private:
         Pool & pool;
     };
     
     // Return true if allocators b and a can be safely interchanged. "Safely interchanged" means that b could be
     // used to deallocate storage obtained through a and vice versa.
-    template <class T1, class T2> bool operator == ( const Allocator<T1>& a, const Allocator<T2>& b)
-    {
-        return true;
-    };
-    // Return false if allocators b and a can be safely interchanged. "Safely interchanged" means that b could be
-    // used to deallocate storage obtained through a and vice versa.
-    template <class T1, class T2> bool operator != ( const Allocator<T1>& a, const Allocator<T2>& b)
-    {
-        return false;
-    };
+    template <class T, class T2>
+    bool
+    operator == ( const StackAllocator<T>& a, const StackAllocator<T2>& b)
+    { return true; }; // because they use the same pool.
+    
+    template <class T, class T2>
+    bool
+    operator != ( const StackAllocator<T>& a, const StackAllocator<T2>& b)
+    { return !(operator==(a,b)); };
 
 } // NS
-
-#pragma pop_macro( "new" )

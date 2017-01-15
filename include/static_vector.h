@@ -25,32 +25,32 @@ namespace imajuscule {
     };
 
     template<typename T>
-    struct StaticVector {
+    struct StackVector {
     private:
         using assert_unchanged_capacity = AssertUnchangedCapacity<pool::vector<T>>;
         pool::vector<T> v;
     public:
         // non copyable
-        StaticVector(const StaticVector &) = delete;
-        StaticVector & operator=(const StaticVector&) = delete;
+        StackVector(const StackVector &) = delete;
+        StackVector & operator=(const StackVector&) = delete;
         
         // movable
-        StaticVector(StaticVector &&) = default;
-        StaticVector& operator =(StaticVector &&) = default;
+        StackVector(StackVector &&) = default;
+        StackVector& operator =(StackVector &&) = default;
 
-        StaticVector() = default;
+        StackVector() = default;
         
-        StaticVector(size_t size)  {
+        StackVector(size_t size)  {
             reserve(size);
         }
         
-        StaticVector(size_t size, T val)  {
+        StackVector(size_t size, T val)  {
             reserve(size);
             resize(size);
             fill(val);
         }
         
-        StaticVector( std::initializer_list<T> init ) :
+        StackVector( std::initializer_list<T> init ) :
         v(std::move(init)) {
 #ifndef NDEBUG
             cpgo.acquire();
@@ -58,15 +58,15 @@ namespace imajuscule {
         }
         
         template<typename Iterator>
-        StaticVector( Iterator first, Iterator last ) :
+        StackVector( Iterator first, Iterator last ) :
         v(std::move(first), std::move(last)) {
 #ifndef NDEBUG
             cpgo.acquire();
 #endif
         }
         
-        ~StaticVector() {
-            // first deallocate children (important for StaticVector<StaticVector<T>>)
+        ~StackVector() {
+            // first deallocate children (important for StackVector<StackVector<T>>)
             {
                 // in this operation we don't want our vector to change its allocation ...
                 // ... unfortunately the standard doesn't guarantee that clear doesnt reallocate.

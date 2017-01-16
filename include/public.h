@@ -20,6 +20,7 @@
 #include <random>
 #include <stdio.h>
 #include <string>
+#include <type_traits>
 #include <typeinfo>
 #include <unordered_map>
 #include <vector>
@@ -32,9 +33,9 @@
 #include "markov_chain.hpp"
 #include "safe_cast.hpp"
 #include "print_type.hpp"
-#include "pool.h"
-#include "allocator.hpp"
-#include "good_swimmers.h"
+#include "pool.adaptive_stack.h"
+#include "allocator.adaptive_stack.hpp"
+#include "allocated_containers.h"
 #include "static_vector.h"
 #include "math.hpp"
 #include "iter_range.hpp"

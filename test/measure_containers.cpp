@@ -330,7 +330,7 @@ void testMapSortedVector() {
         imajuscule::myfile << time << ",";
     }
     {
-        pool::map<int, uint16_t> map2;
+        adaptive_stack_allocated::map<int, uint16_t> map2;
         
         auto t = clock();
         testMap(keys, map2, v4);
@@ -339,7 +339,7 @@ void testMapSortedVector() {
     }
     
     {
-        pool::map<int, uint16_t> map2;
+        adaptive_stack_allocated::map<int, uint16_t> map2;
         
         auto t = clock();
         testMap(keys, map2, v2);

@@ -12,3 +12,4 @@ TEST(UniversalReference, pod) {
     imajuscule::test_universal_ref::increment(i);
     ASSERT_EQ(1, i);
 }
+

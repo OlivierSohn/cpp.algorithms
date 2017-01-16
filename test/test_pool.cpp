@@ -3,8 +3,13 @@ using namespace imajuscule;
 
 template<int Niter, int Nalloc, typename T>
 void test() {
-    
-    auto & pool = Pool::getInstance();
+    struct C{
+        
+    };
+    //    ASSERT_TRUE(std::is_nothrow_move_constructible<StackAllocator<int>>::va‌​lue);
+    //ASSERT_TRUE(std::is_nothrow_move_constructible<C>::va‌​lue);
+
+    auto & pool = AdaptiveStack::getInstance();
     ASSERT_EQ(0, pool.count());
     auto ptr = pool.GetNext(alignof(T), sizeof(T), 1);
     ASSERT_EQ(1, pool.count());
@@ -60,11 +65,34 @@ void test () {
     test<Niter, Nalloc, std::pair<const float, uint16_t>>();
 }
 
-TEST(Pool, basic) {
+TEST(AdaptiveStack, basic) {
     test<10000, 1>();
     test<5000, 2>();
     test<2000, 4>();
     test<200, 41>();
     test<20, 401>();
     test<1, 8001>();
+}
+
+TEST(Alignment, align) {
+    std::aligned_storage_t<64, 256> t;
+    EXPECT_EQ(256, alignof(t));
+    
+    constexpr auto cache_line_n_bytes = 64;
+    static constexpr auto n_frames_per_buffer = cache_line_n_bytes / 4;
+    static constexpr auto buffer_alignment = cache_line_n_bytes;
+    using buffer_placeholder_t = std::aligned_storage_t<n_frames_per_buffer * sizeof(float), buffer_alignment>;
+    struct A {
+        bool:1;
+
+        union {
+            buffer_placeholder_t placeholder; // used to constrain alignment
+            float buffer[n_frames_per_buffer];
+        }u;
+    };
+    A a;
+    EXPECT_EQ(0, reinterpret_cast<unsigned long>(a.u.buffer) % buffer_alignment);
+    EXPECT_EQ(buffer_alignment, alignof(a.u.placeholder));
+    EXPECT_EQ(buffer_alignment, alignof(buffer_placeholder_t));
+
 }

@@ -27,8 +27,8 @@ namespace imajuscule {
     template<typename T>
     struct StackVector {
     private:
-        using assert_unchanged_capacity = AssertUnchangedCapacity<pool::vector<T>>;
-        pool::vector<T> v;
+        using assert_unchanged_capacity = AssertUnchangedCapacity<adaptive_stack_allocated::vector<T>>;
+        adaptive_stack_allocated::vector<T> v;
     public:
         // non copyable
         StackVector(const StackVector &) = delete;
@@ -37,20 +37,20 @@ namespace imajuscule {
         // movable
         StackVector(StackVector &&) = default;
         StackVector& operator =(StackVector &&) = default;
-
+        
         StackVector() = default;
         
-        StackVector(size_t size)  {
+        StackVector(size_t size) noexcept {
             reserve(size);
         }
         
-        StackVector(size_t size, T val)  {
+        StackVector(size_t size, T val) noexcept {
             reserve(size);
             resize(size);
             fill(val);
         }
         
-        StackVector( std::initializer_list<T> init ) :
+        StackVector( std::initializer_list<T> init ) noexcept :
         v(std::move(init)) {
 #ifndef NDEBUG
             cpgo.acquire();
@@ -58,7 +58,7 @@ namespace imajuscule {
         }
         
         template<typename Iterator>
-        StackVector( Iterator first, Iterator last ) :
+        StackVector( Iterator first, Iterator last ) noexcept :
         v(std::move(first), std::move(last)) {
 #ifndef NDEBUG
             cpgo.acquire();
@@ -149,7 +149,7 @@ namespace imajuscule {
         
     private:
 #ifndef NDEBUG
-        ControlledPoolGrowthObject cpgo;
+        StackGrowthControl cpgo;
 #endif
         
         template <class... Args>
@@ -157,4 +157,12 @@ namespace imajuscule {
             std::fill(v.begin(), v.end(), std::forward<Args>(args)... );
         }
     };
+    
+    // todo make this work:
+    //static_assert(std::is_nothrow_move_constructible<StackVector<int>>::va‌​lue, "");
+    //static_assert(std::is_nothrow_move_constructible<StackGrowthControl>::va‌​lue, "");
+    //static_assert(std::is_nothrow_move_constructible<adaptive_stack_allocated::vector<int>>::va‌​lue, "");
+//    static_assert(std::is_nothrow_move_constructible<std::vector<int>>::va‌​lue, "");
+    //static_assert(std::is_nothrow_move_constructible<int>::va‌​lue, "");
+    
 }

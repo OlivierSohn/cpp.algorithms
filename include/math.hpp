@@ -1,15 +1,21 @@
 
 namespace imajuscule {
 
-    constexpr unsigned int power_of_two_find_exponent(unsigned int v) {
-        unsigned int r = 0; // r will be lg(v)
-        
-        while (v >>= 1)
-        {
-            r++;
+    constexpr unsigned int relevantBits(unsigned int v) {
+        unsigned int n = 0;
+        while(v) {
+            ++n;
+            v >>= 1;
         }
-        
-        return r;
+        return n;
+    }
+    
+    constexpr unsigned int power_of_two_exponent(unsigned int v) {
+        unsigned int n = 0;
+        while (v >>= 1) {
+            ++n;
+        }
+        return n;
     }
     
     constexpr bool zero_or_powOf2(int x) {

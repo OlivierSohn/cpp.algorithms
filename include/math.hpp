@@ -22,6 +22,28 @@ namespace imajuscule {
         return (x & (x-1)) == 0;
     }
     
+    constexpr unsigned int ceil_power_of_two(unsigned int v)
+    {
+        --v;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v++;
+        return v;
+    }
+
+    template <typename E>
+    constexpr typename std::underlying_type<E>::type to_underlying(E e) {
+        return static_cast<typename std::underlying_type<E>::type>(e);
+    }
+    
+    template <typename E>
+    constexpr int min_bits() {
+        return ceil_power_of_two(to_underlying(E::SIZE_ENUM));
+    }
+    
     constexpr bool is_power_of_two(size_t n) { return ((n != 0) && !(n & (n - 1))); }
     
     static constexpr size_t pow2(int power) {

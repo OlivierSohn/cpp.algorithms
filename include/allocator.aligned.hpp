@@ -1,6 +1,15 @@
 
 namespace imajuscule {
     
+    constexpr auto cache_line_n_bytes = 64;
+
+    enum class Alignment {
+        Normal = sizeof(void*),
+        SSE    = 16,
+        AVX    = 32,
+        CACHE_LINE = cache_line_n_bytes
+    };
+    
     /*
      * AlignedAlocator allocates aligned memory
      */
@@ -20,11 +29,34 @@ namespace imajuscule {
     };
     
     namespace detail {
-        void* allocate_aligned_memory(size_t align, size_t size);
-        void deallocate_aligned_memory(void* ptr) noexcept;
+        
+        // c++ way to allocate over-aligned memory is wastefull (currently).
+        // so we use platformspecific functions.
+        
+        static inline void* allocate_aligned_memory(size_t align, size_t size) {
+            assert(align >= sizeof(void*));
+            assert(is_power_of_two(align));
+            
+            if (size == 0) {
+                return nullptr;
+            }
+            
+            void* ptr = nullptr;
+            int rc = posix_memalign(&ptr, align, size);
+            
+            if (rc != 0) {
+                return nullptr;
+            }
+            
+            return ptr;
+        }
+
+        static inline void deallocate_aligned_memory(void* ptr) noexcept {
+            return free(ptr);
+        }
     }
     
-    template <typename T, Alignment Align>
+    template <typename T, Alignment Align = Alignment::CACHE_LINE>
     class AlignedAllocator
     {
     public:

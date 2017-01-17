@@ -11,7 +11,7 @@
 #include "test_markov_chain.cpp"
 #include "test_cpp.cpp"
 #include "test_types.cpp"
-#include "test_pool.cpp"
+#include "test_allocators.cpp"
 #include "test_sort.cpp"
 #include "test_hash_table.cpp"
 #include "measure_containers.cpp"

@@ -10,4 +10,9 @@ namespace imajuscule {
         template<typename K, typename V, class Hash = std::hash<K>, class Pred = std::equal_to<K>>
         using unordered_map = std::unordered_map<K, V, Hash, Pred, StackAllocator<std::pair<const K,V>>>;
     }
+    
+    namespace cacheline_aligned_allocated {
+        template<typename T>
+        using vector = std::vector<T, AlignedAllocator<T>>;        
+    }
 }

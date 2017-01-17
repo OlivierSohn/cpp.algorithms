@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "math.hpp"
 #include "numtraits.h"
 #include "complex.h"
 #include "range.h"
@@ -35,9 +36,9 @@
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"
 #include "allocator.adaptive_stack.hpp"
+#include "allocator.aligned.hpp"
 #include "allocated_containers.h"
 #include "static_vector.h"
-#include "math.hpp"
 #include "iter_range.hpp"
 #include "sort_utils.hpp"
 #include "insertion_sort.hpp"

@@ -32,7 +32,7 @@ namespace imajuscule {
     void Shuffle( Container & c );
 
     namespace {
-        static std::minstd_rand & shuffle_rng_engine() {
+        static inline std::minstd_rand & shuffle_rng_engine() {
             static std::minstd_rand engine;
             return engine;
         }

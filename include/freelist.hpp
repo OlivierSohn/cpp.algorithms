@@ -9,10 +9,10 @@ namespace imajuscule {
             static Integral fromIndex(size_t index, T const & elements ) { return index; }
             
             template<typename T, typename VALUE = typename T::value_type>
-            static Integral fromPtr( VALUE * ptr, T const & elements ) { return ptr - &elements[0]; }
+            static Integral fromPtr( VALUE * ptr, T const & elements ) { return ptr - &elements[0].value; }
             
             template<typename T>
-            static auto follow(Integral index, T & elements) { return &elements[index]; }
+            static auto & follow(Integral index, T & elements) { return elements[index].value; }
             
             static constexpr Integral getNull() { return std::numeric_limits<Integral>::max(); }
         };
@@ -23,10 +23,10 @@ namespace imajuscule {
             static auto fromIndex(size_t index, T & elements ) { return &elements[index]; }
             
             template<typename T>
-            static auto fromPtr(typename T::value_type * ptr, T const & elements ) { return ptr; }
+            static auto fromPtr(decltype(std::declval<T>()[0].value) * ptr, T const & elements ) { return ptr; }
             
             template<typename T>
-            static auto follow(void * ptr, T & elements) { return ptr; }
+            static auto & follow(void * ptr, T & elements) { return *reinterpret_cast<decltype(std::declval<T>()[0].value)*>(ptr); }
             
             static constexpr void* getNull() { return nullptr; }
         };
@@ -60,15 +60,14 @@ namespace imajuscule {
             value_type* Take() {
                 static constexpr auto null = null_();
                 auto & head_ = head();
-                if(head_ == null) {
+                if(head_.link == null) {
                     return nullptr;
                 }
-                auto ret = Links<LINK_T>::follow(head_, elements);
-                head_ = *reinterpret_cast<link_type*>(ret);
-                auto ptr = reinterpret_cast<value_type*>(ret);
+                auto & ret = Links<LINK_T>::follow(head_.link, elements);
+                head_.value = ret;
                 
-                assert(isOurs(ptr));
-                return ptr;
+                assert(isOurs(&ret));
+                return &ret;
             }
             
             void Return(T*ptr) {
@@ -76,29 +75,36 @@ namespace imajuscule {
                 
                 auto link = Links<LINK_T>::fromPtr(ptr, elements);
                 auto & head_ = head();
-                *reinterpret_cast<link_type*>(Links<LINK_T>::follow(link, elements)) = head_;
-                head_ = link;
+                auto & val = Links<LINK_T>::follow(link, elements);
+                *reinterpret_cast<link_type*>(&val) = head_.link;
+                head_.link = link;
             }
             
         private:
-            std::array<T, size+1> elements;
+            struct Union {
+                union {
+                    T value;
+                    LINK_T link;
+                };
+            };
+            std::array<Union, size+1> elements;
             
             // I chose the last element as head 
-            link_type & head() { return reinterpret_cast<link_type&>(elements.back()); }
+            auto & head() { return elements.back(); }
             
             void initialize() {
                 static constexpr auto null = null_();
-                head() = Links<LINK_T>::fromIndex(0, elements);
+                head().link = Links<LINK_T>::fromIndex(0, elements);
                 size_t end = elements.size()-1;
                 for(size_t i=1; i<end; ++i) {
                     auto next = Links<LINK_T>::fromIndex(i, elements);
-                    elements[i-1] = reinterpret_cast<value_type&>( next );
+                    elements[i-1].link = next ;
                 }
-                elements[end-1] = reinterpret_cast<value_type const&>( null );
+                elements[end-1].link = null;
             }
             
             bool isOurs(T*ptr) const {
-                return (ptr - &elements[0]) < size;
+                return (ptr - &elements[0].value) < size;
             }
         };
     }

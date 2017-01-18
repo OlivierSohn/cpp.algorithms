@@ -31,9 +31,9 @@ TEST(FreeList, simple) {
 
     constexpr auto size = 4;
     
-    test<FreeList<double, size, Link::Pointer>>();
-    test<FreeList<uint16_t, size, Link::Index16>>();
-    test<FreeList<int, size, Link::Index16>>();
+    test<FreeList<double, size, void*>>();
+    test<FreeList<uint16_t, size, uint16_t>>();
+    test<FreeList<int, size, uint16_t>>();
 }
 
 

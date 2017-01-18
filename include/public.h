@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "meta.hpp"
 #include "math.hpp"
 #include "numtraits.h"
 #include "complex.h"

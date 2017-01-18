@@ -106,6 +106,7 @@
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
+		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		09C682D01E28180500C2716D /* markov_utils.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = markov_utils.hpp; path = include/markov_utils.hpp; sourceTree = "<group>"; };
 		09C682D11E28190E00C2716D /* he.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = he.h; path = include/he.h; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -239,6 +240,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				0996F3E81E2EF3030053B30B /* meta.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -568,6 +570,7 @@
 				09367D701E2E29330095BF20 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		09EF8EA11DB3E6A300DC7342 /* Build configuration list for PBXProject "algorithms" */ = {
 			isa = XCConfigurationList;

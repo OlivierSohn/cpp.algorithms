@@ -90,10 +90,22 @@ TEST(Alignment, align) {
             float buffer[n_frames_per_buffer];
         }u;
     };
+    EXPECT_EQ(buffer_alignment, alignof(buffer_placeholder_t));
+
     A a;
     EXPECT_EQ(0, reinterpret_cast<unsigned long>(a.u.buffer) % buffer_alignment);
     EXPECT_EQ(buffer_alignment, alignof(a.u.placeholder));
-    EXPECT_EQ(buffer_alignment, alignof(buffer_placeholder_t));
+    std::vector<std::unique_ptr<A>> v;
+    for(int i=0; i<100; i++) {
+        auto p = std::make_unique<A>();
+        std::cout << reinterpret_cast<unsigned long>(p->u.buffer) % buffer_alignment << std::endl;
+        v.push_back(std::move(p));
+    }
+    auto p = std::make_unique<A>();
+    EXPECT_EQ(0, reinterpret_cast<unsigned long>(p->u.buffer) % buffer_alignment);
+    EXPECT_EQ(buffer_alignment, alignof(p->u.placeholder));
+    EXPECT_EQ(buffer_alignment, alignof(A));
+    
 }
 
 TEST(AlignedAllocator, alignment) {

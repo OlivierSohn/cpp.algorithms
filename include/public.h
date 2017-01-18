@@ -28,6 +28,7 @@
 #include "meta.hpp"
 #include "math.hpp"
 #include "numtraits.h"
+#include "freelist.hpp"
 #include "complex.h"
 #include "range.h"
 #include "strplot.h"

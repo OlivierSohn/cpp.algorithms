@@ -44,6 +44,11 @@ namespace imajuscule {
         return ceil_power_of_two(to_underlying(E::SIZE_ENUM));
     }
     
+    template<int N>
+    constexpr uintptr_t removeLowBits(uintptr_t p) {
+        return (p >> N) << N;
+    }
+    
     constexpr bool is_power_of_two(size_t n) { return ((n != 0) && !(n & (n - 1))); }
     
     static constexpr size_t pow2(int power) {

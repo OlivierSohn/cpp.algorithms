@@ -1,6 +1,11 @@
 
 #include "gtest/gtest.h"
 
+#ifdef MEASURE_PERFS
+#error "redefinition of MEASURE_PERFS"
+#endif
+#define MEASURE_PERFS 0 // to make non regression tests run faster
+
 #include "public.h"
 // if markov_utils.hpp is included through public.h or private.h, we have a compilation error
 // but through he.h, it's fine... weird !!!
@@ -15,4 +20,7 @@
 #include "test_allocators.cpp"
 #include "test_sort.cpp"
 #include "test_hash_table.cpp"
-#include "measure_containers.cpp"
+
+#if MEASURE_PERFS
+#  include "measure_containers.cpp"
+#endif

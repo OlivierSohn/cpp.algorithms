@@ -98,11 +98,15 @@ TEST(Alignment, align) {
     std::vector<std::unique_ptr<A>> v;
     for(int i=0; i<100; i++) {
         auto p = std::make_unique<A>();
-        std::cout << reinterpret_cast<unsigned long>(p->u.buffer) % buffer_alignment << std::endl;
+        EXPECT_TRUE(&p->u.buffer[0] == p->u.buffer);
+        EXPECT_TRUE(static_cast<void*>(&p->u.placeholder) == static_cast<void*>(p->u.buffer));
+        std::cout << reinterpret_cast<unsigned long>(&p->u.buffer[0]) % buffer_alignment << std::endl;
         v.push_back(std::move(p));
     }
     auto p = std::make_unique<A>();
-    EXPECT_EQ(0, reinterpret_cast<unsigned long>(p->u.buffer) % buffer_alignment);
+    EXPECT_TRUE(&p->u.buffer[0] == p->u.buffer);
+    EXPECT_TRUE(static_cast<void*>(&p->u.placeholder) == static_cast<void*>(p->u.buffer));
+    EXPECT_EQ(0, reinterpret_cast<unsigned long>(&p->u.buffer[0]) % buffer_alignment);
     EXPECT_EQ(buffer_alignment, alignof(p->u.placeholder));
     EXPECT_EQ(buffer_alignment, alignof(A));
     

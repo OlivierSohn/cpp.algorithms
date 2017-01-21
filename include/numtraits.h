@@ -15,6 +15,7 @@ namespace imajuscule
         static constexpr Type zero() { return 0.f; }
         static constexpr Type half() { return .5f; }
         static constexpr Type one() { return 1.f; }
+        static constexpr Type one_and_half() { return 1.5f; }
         static constexpr Type two() { return 2.f; }
         static constexpr Type three() { return 3.f; }
     };
@@ -24,6 +25,7 @@ namespace imajuscule
         static constexpr Type zero() { return 0.; }
         static constexpr Type half() { return .5; }
         static constexpr Type one() { return 1.; }
+        static constexpr Type one_and_half() { return 1.5; }
         static constexpr Type two() { return 2.; }
         static constexpr Type three() { return 3.; }
     };

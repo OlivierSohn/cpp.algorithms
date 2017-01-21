@@ -57,7 +57,7 @@ namespace imajuscule {
             
             cout << bar << endl;
             
-            auto height = p.size() - 1;
+            auto height = 0;
             for(auto const & str : *this) {
                 cout << str;
                 
@@ -65,14 +65,14 @@ namespace imajuscule {
                     cout << " 0";
                 }
                 else if(height == 0 ) {
-                    cout << " " << range_.getMin();
-                }
-                else if(height==p.size()-1) {
                     cout << " " << range_.getMax();
+                }
+                else if(height==Height-1) {
+                    cout << " " << range_.getMin();
                 }
                 cout << endl;
                 
-                height--;
+                height++;
             }
 
             cout << bar << endl;
@@ -84,6 +84,9 @@ namespace imajuscule {
         
         template<typename T>
         int val_to_height(T val) const {
+            if(range_.delta() == 0.f) {
+                return 0;
+            }
             float normalized_val = (val - range_.getMin()) / range_.delta();
             
             // each line should contain an equal interval of the range,

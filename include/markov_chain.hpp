@@ -1,7 +1,9 @@
 
 namespace imajuscule {
     
-    enum Move {
+    enum class Move {
+        CREATE,
+        DELETE,
         ENTER,
         LEAVE
     };
@@ -37,8 +39,8 @@ namespace imajuscule {
                 if(accum < proba) {
                     continue;
                 }
-                current->on_state_change(LEAVE, *current, *dest.second);
-                dest.second->on_state_change(ENTER, *dest.second, *current);
+                current->on_state_change(Move::LEAVE, *current, *dest.second);
+                dest.second->on_state_change(Move::ENTER, *dest.second, *current);
                 current = dest.second;
                 break;
             }
@@ -49,12 +51,11 @@ namespace imajuscule {
             return current;
         }
 
-        // why doesn't this compile??
-        /*template <class... Args>
+        template <class... Args>
         MarkovNode * emplace_(Args&&... args) {
             nodes.push_back(std::make_unique<MarkovNode>(std::forward<Args>(args)...));
             return nodes.back().get();
-        }*/
+        }
         
         template <class... Args>
         MarkovNode * emplace(Args&&... args) {

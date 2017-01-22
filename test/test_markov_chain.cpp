@@ -9,9 +9,9 @@ TEST(MarkovChain_, one_node) {
     int n = 0;
     int balance = 0;
     
-    auto unique_node = emplace(mc, [&](Move const m, MarkovNode&me, MarkovNode&from_to){
+    auto unique_node = mc.emplace_([&](Move const m, MarkovNode&me, MarkovNode&from_to){
         ++n;
-        if(m==ENTER) {
+        if(m==Move::ENTER) {
             balance++;
         }
         else {
@@ -33,15 +33,19 @@ TEST(MarkovChain_, one_node) {
     ASSERT_EQ(0, balance);
 }
 
+void f_markov(MarkovChain m) {
+    std::cout << &m << std::endl;
+}
+
 TEST(MarkovChain_, two_nodes) {
     
     MarkovChain mc;
     
     auto n = 0;
-    auto node1 = emplace(mc, [&](Move const m, MarkovNode&me, MarkovNode&from_to){
+    auto node1 = mc.emplace_([&](Move const m, MarkovNode&me, MarkovNode&from_to){
         ++n;
     });
-    auto node2 = emplace(mc,[&](Move const m, MarkovNode&me, MarkovNode&from_to){
+    auto node2 = mc.emplace_([&](Move const m, MarkovNode&me, MarkovNode&from_to){
     });
 
     constexpr auto transition_p = 0.1f;
@@ -67,6 +71,8 @@ TEST(MarkovChain_, two_nodes) {
     auto expected_count_1 = nSteps/2;
     EXPECT_LT(.75f * expected_count_1, count_1);
     EXPECT_GT(1.25f * expected_count_1, count_1);
+    
+    f_markov(std::move(mc));
 }
 
 

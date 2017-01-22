@@ -109,8 +109,6 @@
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
 		0996F3EC1E2F821A0053B30B /* test_freelist.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freelist.cpp; path = test/test_freelist.cpp; sourceTree = "<group>"; };
-		09C682D01E28180500C2716D /* markov_utils.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = markov_utils.hpp; path = include/markov_utils.hpp; sourceTree = "<group>"; };
-		09C682D11E28190E00C2716D /* he.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = he.h; path = include/he.h; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; lineEnding = 0; name = merge_sort.hpp; path = include/merge_sort.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -251,12 +249,10 @@
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				091AF71E1E27F0E1004B554F /* hash.hpp */,
-				09C682D11E28190E00C2716D /* he.h */,
 				093239CD1DB45790003C168E /* heap_sort.hpp */,
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,
 				09EF8F301DB3E89B00DC7342 /* iter_range.hpp */,
 				091AF71C1E27DC24004B554F /* markov_chain.hpp */,
-				09C682D01E28180500C2716D /* markov_utils.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
 				0996F3E81E2EF3030053B30B /* meta.hpp */,

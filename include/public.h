@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <memory>
 #include <random>
+#include <sstream>
 #include <stdio.h>
 #include <string>
 #include <type_traits>
@@ -25,22 +26,27 @@
 #include <utility>
 #include <vector>
 
+#include "object.h"
+#include "safe_cast.hpp"
+#include "available_indexes.hpp"
+#include "cyclic.h"
+#include "slidingaverage.h"
 #include "meta.hpp"
 #include "math.hpp"
 #include "numtraits.h"
 #include "freelist.hpp"
-#include "complex.h"
+#include "complex.hpp"
 #include "range.h"
 #include "strplot.h"
 #include "rng.hpp"
 #include "markov_chain.hpp"
-#include "safe_cast.hpp"
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"
 #include "allocator.adaptive_stack.hpp"
 #include "allocator.aligned.hpp"
 #include "allocated_containers.h"
 #include "static_vector.h"
+#include "string.manip.h"
 #include "iter_range.hpp"
 #include "sort_utils.hpp"
 #include "insertion_sort.hpp"
@@ -49,4 +55,6 @@
 #include "hash.hpp"
 #include "hash_table.hpp"
 #include "merge_sort.hpp"
-
+#include "dsp.filter.hpp"
+#include "enum.h"
+#include "interpolation.h"

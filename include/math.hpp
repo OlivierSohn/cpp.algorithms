@@ -82,5 +82,8 @@ namespace imajuscule {
         return expt_unsigned(1/p, static_cast<unsigned int>(-q));
     }
     
+    inline bool same_sign_strict(float a, float b) {
+        return (a > 0.f && b > 0.f) || (a < 0.f && b < 0.f);
+    }
 } // NS imajuscule
 

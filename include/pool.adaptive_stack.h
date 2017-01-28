@@ -69,7 +69,7 @@ namespace imajuscule {
             auto npools = countPools();
             auto new_size = npools * buffer.size();
             if(npools > 1) {
-                std::cout << "the pool grows to " << new_size << ", " << npools << " pools were used" << std::endl;
+                //std::cout << "the pool grows to " << new_size << ", " << npools << " pools were used" << std::endl;
             }
             init(new_size);
         }

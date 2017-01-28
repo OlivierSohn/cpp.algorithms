@@ -100,7 +100,7 @@ TEST(Alignment, align) {
         auto p = std::make_unique<A>();
         EXPECT_TRUE(&p->u.buffer[0] == p->u.buffer);
         EXPECT_TRUE(static_cast<void*>(&p->u.placeholder) == static_cast<void*>(p->u.buffer));
-        std::cout << reinterpret_cast<unsigned long>(&p->u.buffer[0]) % buffer_alignment << std::endl;
+        //std::cout << reinterpret_cast<unsigned long>(&p->u.buffer[0]) % buffer_alignment << std::endl;
         v.push_back(std::move(p));
     }
     auto p = std::make_unique<A>();

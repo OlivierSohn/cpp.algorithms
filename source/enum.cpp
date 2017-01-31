@@ -29,11 +29,21 @@ std::string enumTraversal::valToString(int val) const
     return mRealValueDesc(val);
 }
 
+bool enumTraversal::valToRealValueIndex(int val, int & index) const {
+    int i=0;
+    for(auto v : realValues()) {
+        if(val==v) {
+            index = i;
+            return true;
+        }
+        ++i;
+    }
+    return false;
+}
+
 bool enumTraversal::valFromString(const std::string & s, int & i) const
 {
-    const std::vector<int> & vec = realValues();
-    for (auto val : vec)
-    {
+    for(auto val : realValues()) {
         if (iequals(s, std::string(mRealValueDesc(val))))
         {
             i = val;

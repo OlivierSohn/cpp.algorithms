@@ -9,6 +9,7 @@ namespace imajuscule
         
         std::string valToString(int) const;
         bool valFromString(const std::string &, int &) const;
+        bool valToRealValueIndex(int, int &) const;
         const std::vector<int> & realValues() const;
 
         bool valIsReal(int) const;

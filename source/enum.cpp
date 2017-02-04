@@ -14,7 +14,7 @@ enumTraversal::enumTraversal(unsigned int low, unsigned int up, std::function<co
 enumTraversal::enumTraversal(unsigned int low, unsigned int up, std::function<const char*(int)> real_value_desc) :
 mLowerBound(low),
 mUpperBound(up),
-mValueIsReal([this](int v)->bool{return (v>mLowerBound && v<mUpperBound);}),
+mValueIsReal([this](int v)->bool{return (v>=mLowerBound && v<mUpperBound);}),
 mRealValueDesc(real_value_desc),
 mRealValuesComputed(false)
 {
@@ -59,7 +59,7 @@ const std::vector<int> & enumTraversal::realValues() const
     if (!mRealValuesComputed) {
         mRealValuesComputed = true;
 
-        for (int i = mLowerBound + 1; i < mUpperBound; i++)
+        for (int i = mLowerBound; i < mUpperBound; i++)
         {
             if (mValueIsReal(i)) {
                 mRealValues.push_back(i);
@@ -72,13 +72,4 @@ const std::vector<int> & enumTraversal::realValues() const
 bool enumTraversal::valIsReal(int val) const
 {
     return mValueIsReal(val);
-}
-int enumTraversal::low() const
-{
-    return mLowerBound;
-}
-
-int enumTraversal::high() const
-{
-    return mUpperBound;
 }

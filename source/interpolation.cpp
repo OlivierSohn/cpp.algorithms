@@ -51,7 +51,7 @@ bool itp::intIsReal(int val)
     case EASE_INOUT_last_value:
         return false;
     default:
-        return (val > INTERPOLATION_LOWER_BOUND) && (val < INTERPOLATION_UPPER_BOUND);
+        return (val >= INTERPOLATION_LOWER_BOUND) && (val < INTERPOLATION_UPPER_BOUND);
     }
 }
 

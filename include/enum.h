@@ -13,13 +13,11 @@ namespace imajuscule
         const std::vector<int> & realValues() const;
 
         bool valIsReal(int) const;
-        int low() const;
-        int high() const;
 
     private:
         std::function<bool(int)> mValueIsReal;
         std::function<const char*(int)> mRealValueDesc;
-        uint8_t mLowerBound:7, mUpperBound:7; // bounds are excluded
+        uint8_t mLowerBound:7, mUpperBound:7; // lower bound is included, upper bound is excluded
         mutable bool mRealValuesComputed:1;
         mutable std::vector<int> mRealValues;
     };

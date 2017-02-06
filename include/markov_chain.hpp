@@ -22,28 +22,67 @@ namespace imajuscule {
      * and a lambda to let the user program stuff during transitions
      */
     
+    enum Probabilities {
+        NORMALIZE,
+        UNCHANGED
+    };
+    
     struct MarkovChain {
         void initialize(int n) {
+            assert(n < nodes.size());
             current = nodes[n].get();
         }
         
+        template<bool EXEC_TRANSITIONS>
+        MarkovNode * step_normalized() {
+            return do_step<Probabilities::NORMALIZE, EXEC_TRANSITIONS>();
+        }
+        
+        template<bool EXEC_TRANSITIONS>
         MarkovNode * step() {
+            return do_step<Probabilities::UNCHANGED, EXEC_TRANSITIONS>();
+        }
+        
+        template<Probabilities PROBA, bool EXEC_TRANSITIONS>
+        MarkovNode * do_step() {
             assert(current);
             if(current->destinations.empty()) {
                 return current;
             }
-            auto proba = std::uniform_real_distribution<float>{0.f, 1.f}(rng::mersenne());
+            float sum;
+            if(PROBA == NORMALIZE) {
+                sum = 0.f;
+                for(auto const & dest : current->destinations) {
+                    sum += dest.first;
+                }
+            }
+            else {
+                sum = 1.f;
+            }
+            
+            auto proba = std::uniform_real_distribution<float>{0.f, sum}(rng::mersenne());
             auto accum = 0.f;
+            MarkovNode * to(nullptr);
             for(auto const & dest : current->destinations) {
                 accum += dest.first;
-                if(accum < proba) {
-                    continue;
+                if(accum > proba) {
+                    to = dest.second;
+                    break;
                 }
-                current->on_state_change(Move::LEAVE, *current, *dest.second);
-                dest.second->on_state_change(Move::ENTER, *dest.second, *current);
-                current = dest.second;
-                break;
             }
+            if((PROBA == NORMALIZE) && !to) {
+                // handle numerical errors
+                to = current->destinations.back().second;
+            }
+            if((PROBA == UNCHANGED) && !to) {
+                return current;
+            }
+            assert(to);
+            if(EXEC_TRANSITIONS) {
+                current->on_state_change(Move::LEAVE, *current, *to);
+                to->on_state_change(Move::ENTER, *to, *current);
+            }
+            current = to;
             return current;
         }
         

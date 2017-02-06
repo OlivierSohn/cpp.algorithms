@@ -6,3 +6,4 @@
 #include "enum.cpp"
 #include "interpolation.cpp"
 #include "string.cpp"
+#include "markov_chain.cpp"

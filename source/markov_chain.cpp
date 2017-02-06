@@ -1,0 +1,4 @@
+
+namespace imajuscule {
+    
+} // ns imajuscule

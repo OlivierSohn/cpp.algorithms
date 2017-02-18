@@ -30,7 +30,7 @@ namespace imajuscule {
         template <class U> struct rebind { typedef StackAllocator<U> other; };
         
         StackAllocator() noexcept
-        : stack(AdaptiveStack::getInstance()) {};
+        : stack(AdaptiveStack::getThreadLocalInstance()) {};
         
         StackAllocator( const StackAllocator& other ) noexcept
         : StackAllocator() {};

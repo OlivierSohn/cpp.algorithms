@@ -183,6 +183,12 @@ namespace imajuscule
         using Tr = NumTraits<T>;
         static constexpr T zero = Tr::zero();
         
+        NormalizedInterpolation() = default;
+        
+        NormalizedInterpolation(itp::interpolation i) {
+            setInterpolation(i);
+        }
+        
         void setInterpolation(itp::interpolation i) {
             interp = i;
             assert(itp::intIsReal(interp));
@@ -212,6 +218,6 @@ namespace imajuscule
         }
         
     private:
-        itp::interpolation interp;
+        itp::interpolation interp : 5;
     };
 }

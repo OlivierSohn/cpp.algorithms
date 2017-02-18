@@ -58,7 +58,7 @@ namespace imajuscule {
             }
             
             value_type* Take() {
-                static constexpr auto null = null_();
+                constexpr auto null = null_();
                 auto & head_ = head();
                 if(head_.link == null) {
                     return nullptr;
@@ -93,7 +93,7 @@ namespace imajuscule {
             auto & head() { return elements.back(); }
             
             void initialize() {
-                static constexpr auto null = null_();
+                constexpr auto null = null_();
                 head().link = Links<LINK_T>::fromIndex(0, elements);
                 size_t end = elements.size()-1;
                 for(size_t i=1; i<end; ++i) {

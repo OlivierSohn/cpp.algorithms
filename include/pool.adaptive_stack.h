@@ -16,7 +16,10 @@ namespace imajuscule {
 #endif
         static constexpr auto N = 4000;
         
-        static AdaptiveStack & getInstance();
+        static auto & getThreadLocalInstance() {
+            thread_local AdaptiveStack instance;
+            return instance;
+        }
         
         void * GetNext(size_t const alignment, size_t const n_bytes, size_t const n_elems ) noexcept {
 #ifndef NDEBUG
@@ -161,8 +164,6 @@ namespace imajuscule {
             return false;
         }
         
-        static AdaptiveStack * instance;
-
         // we could make that an array instead and leave it as first member so that
         // big elements find a good alignment at the beginning
         // If we do that the pool cannot grow by itself anymore when the last element
@@ -173,7 +174,7 @@ namespace imajuscule {
         std::vector<unsigned char> buffer;
 #ifndef NDEBUG
         enum State { Growing, Shrinking };
-        static State state;
+        static thread_local State state;
         int32_t controlled_pool_count = -1; // -1 means this pool has no controlled level
 #endif
         size_t space_left;
@@ -286,7 +287,7 @@ namespace imajuscule {
         void acquire() noexcept {
 #ifndef NDEBUG
             assert(!used);
-            ctrl = AdaptiveStack::getInstance().pushControl();
+            ctrl = AdaptiveStack::getThreadLocalInstance().pushControl();
             used = true;
 #endif
         }
@@ -294,7 +295,7 @@ namespace imajuscule {
         void release() noexcept {
 #ifndef NDEBUG
             assert(used);
-            AdaptiveStack::getInstance().popControl(ctrl);
+            AdaptiveStack::getThreadLocalInstance().popControl(ctrl);
             used = false;
 #endif
         }

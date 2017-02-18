@@ -7,6 +7,9 @@
 #define MEASURE_PERFS 0 // to make non regression tests run faster
 
 #include "public.h"
+
+#include <thread>
+
 // if markov_utils.hpp is included through public.h or private.h, we have a compilation error
 // but through he.h, it's fine... weird !!!
 

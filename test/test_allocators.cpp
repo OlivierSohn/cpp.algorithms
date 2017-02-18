@@ -9,7 +9,7 @@ void testAdaptiveStack() {
     //    ASSERT_TRUE(std::is_nothrow_move_constructible<StackAllocator<int>>::va‌​lue);
     //ASSERT_TRUE(std::is_nothrow_move_constructible<C>::va‌​lue);
 
-    auto & pool = AdaptiveStack::getInstance();
+    auto & pool = AdaptiveStack::getThreadLocalInstance();
     ASSERT_EQ(0, pool.count());
     auto ptr = pool.GetNext(alignof(T), sizeof(T), 1);
     ASSERT_EQ(1, pool.count());
@@ -65,7 +65,7 @@ void testAdaptiveStack () {
     testAdaptiveStack<Niter, Nalloc, std::pair<const float, uint16_t>>();
 }
 
-TEST(AdaptiveStack, basic) {
+void testAdaptiveStack() {
     testAdaptiveStack<10000, 1>();
     testAdaptiveStack<5000, 2>();
     testAdaptiveStack<2000, 4>();
@@ -74,13 +74,47 @@ TEST(AdaptiveStack, basic) {
     testAdaptiveStack<1, 8001>();
 }
 
+TEST(AdaptiveStack, single_thread) {
+    testAdaptiveStack();
+}
+
+TEST(AdaptiveStack, multi_thread) {
+    std::vector<std::thread> threads;
+    threads.reserve(100);
+    for(int i=0; i<100; ++i) {
+        threads.emplace_back([](){
+            testAdaptiveStack();
+        });
+    }
+    for(auto & t : threads) {
+        t.join();
+    }
+}
+
+TEST(AdaptiveStack, thread_local_stuff) {
+    std::vector<std::thread> threads;
+    std::vector<void*> locations;
+    threads.reserve(100);
+    locations.reserve(100);
+    for(int i=0; i<100; ++i) {
+        threads.emplace_back([i, &locations] () {
+            locations[i] = &AdaptiveStack::getThreadLocalInstance();
+        });
+    }
+    for(auto & t : threads) {
+        t.join();
+    }
+    std::set<void*> s(locations.begin(), locations.end());
+    ASSERT_EQ(locations.size(), s.size()); // unicity of locations
+}
+
 TEST(Alignment, align) {
     std::aligned_storage_t<64, 256> t;
     EXPECT_EQ(256, alignof(t));
     
     constexpr auto cache_line_n_bytes = 64;
-    static constexpr auto n_frames_per_buffer = cache_line_n_bytes / 4;
-    static constexpr auto buffer_alignment = cache_line_n_bytes;
+    constexpr auto n_frames_per_buffer = cache_line_n_bytes / 4;
+    constexpr auto buffer_alignment = cache_line_n_bytes;
     using buffer_placeholder_t = std::aligned_storage_t<n_frames_per_buffer * sizeof(float), buffer_alignment>;
     struct A {
         bool:1;

@@ -51,7 +51,7 @@ namespace imajuscule {
         void log() {
             using namespace std;
             auto zero_height = val_to_height(0.f);
-            make_line(zero_height);
+            make_line(Height-1-zero_height);
             
             auto bar = std::string(Width, delimiter_char);
             

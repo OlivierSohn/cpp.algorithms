@@ -91,14 +91,8 @@ namespace imajuscule {
         }
 
         template <class... Args>
-        MarkovNode * emplace_(Args&&... args) {
-            nodes.push_back(std::make_unique<MarkovNode>(std::forward<Args>(args)...));
-            return nodes.back().get();
-        }
-        
-        template <class... Args>
         MarkovNode * emplace(Args&&... args) {
-            nodes.emplace_back(std::forward<Args>(args)...);
+            nodes.push_back(std::make_unique<MarkovNode>(std::forward<Args>(args)...));
             return nodes.back().get();
         }
         
@@ -115,16 +109,6 @@ namespace imajuscule {
         assert(n1 && n2);
         def_markov_transition(*n1, *n2, p);
     }
-    
-    // why doesn't this compile??
-    /*
-        template <class... Args>
-        static inline MarkovNode * emplace(MarkovChain & mc, Args&&... args) {
-            using namespace std;
-            mc.nodes.push_back(make_unique<MarkovNode>(std::forward<Args>(args)...));
-            return mc.nodes.back().get();
-        }
-    */
 
 } // NS imajuscule
 

@@ -57,8 +57,7 @@ namespace imajuscule
         }
         
         void feed(T raw[NDIMS]) {
-            auto alpha = FilterConstant;
-            
+            float alpha;
             if (ADAPTATIVE)
             {
                 T d = Clamp(fabs(Norm(state.m_cur) - Norm(raw)) / (T)kAccelerometerMinStep - Tr::one(),
@@ -73,8 +72,13 @@ namespace imajuscule
                 {
                     alpha = d * FilterConstant / (T)kAccelerometerNoiseAttenuation + (Tr::one() - d) * FilterConstant;
                 }
+                else {
+                    assert(0);
+                }
             }
-            
+            else {
+                alpha = FilterConstant;
+            }
             state.update(alpha, raw);
         }
         

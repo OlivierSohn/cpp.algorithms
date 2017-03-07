@@ -56,6 +56,19 @@ namespace imajuscule {
         return res;
     }
     
+    static inline uint32_t count_leading_zeroes(uint32_t arg) {
+        if (arg == 0) {
+            return 32;
+        }
+        return __builtin_clz(arg);
+    }
+    
+    // count trailing zeroes
+    static inline uint32_t count_trailing_zeroes(uint32_t x)
+    {
+        return 32 - count_leading_zeroes(~x & (x-1));
+    }
+    
     template <typename T>
     T expt_unsigned(T p, unsigned int q) {
         assert(q < 100000); // else probably a sign error.

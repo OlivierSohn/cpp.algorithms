@@ -367,16 +367,6 @@ namespace imajuscule
         return iequals(std::move(begin), s, size_comparison) ? size_comparison : 0;
     }
     
-    void removeOutterDoubleQuotes(std::string & str) {
-        if(str.size() < 2) {
-            return;
-        }
-        if(str[0] != '"'|| str[str.size()-1] != '"') {
-            return;
-        }
-        str = str.substr(1, str.size()-2);
-    }
-    
     void rtrim(std::string &s) {
         s.erase(std::find_if(s.rbegin(),
                              s.rend(),

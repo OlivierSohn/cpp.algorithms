@@ -88,8 +88,6 @@ namespace imajuscule
     bool findCorrespondantLocation(std::string const & text, const char c1, const int index1, const char c2, Correspondance &, int & index2);
     bool canCorrespond(const char c, char &cCorrespondant, Correspondance & correspondance);
     
-    void removeOutterDoubleQuotes(std::string & s);
-    
     bool before_after(std::string & input_then_before, std::string delimiter, std::string & after);
 
     inline bool isACharName(char c) {

@@ -44,3 +44,9 @@ TEST(RelevantBits, funcs) {
     EXPECT_EQ(3, relevantBits(5));
 }
 
+TEST(Zeroes, LeadTrail) {
+    EXPECT_EQ(0, count_trailing_zeroes(1));
+    EXPECT_EQ(1, count_trailing_zeroes(2));
+    EXPECT_EQ(31, count_leading_zeroes(1));
+    EXPECT_EQ(30, count_leading_zeroes(2));
+}

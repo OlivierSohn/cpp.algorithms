@@ -44,9 +44,9 @@ namespace imajuscule
 
     public:
         void initWithSampleRate(T rate, T cutOffFreq) {
-            
+            // http://www.electronics-tutorials.ws/filter/filter_2.html : cutoff freq is where gain is -3db
             auto dt = Tr::one() / rate;
-            auto RC = Tr::one() / cutOffFreq;
+            auto RC = Tr::one() / (cutOffFreq * (2.f * M_PI));
             
             if(KIND == FilterType::LOW_PASS) {
                 FilterConstant = dt / (dt + RC);

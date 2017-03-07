@@ -22,7 +22,7 @@ namespace imajuscule
      * Works only if :
      * - the container adds its elements at the index resulting of a call to Take
      * - the indexes of removed elements are Returned by calling Return
-     * - THere is no overflow
+     * - There is no overflow
      */
     template<typename T>
     struct AvailableIndexes {

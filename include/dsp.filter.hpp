@@ -28,7 +28,7 @@ namespace imajuscule
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = alpha * (m_cur[i] + raw[i] - m_last[i]);
             }
-            memcpy(m_last,raw,sizeof(m_last));
+            std::memcpy(m_last,raw,sizeof(m_last));
         }
         T m_cur[NDIMS]{};
         T m_last[NDIMS]{};

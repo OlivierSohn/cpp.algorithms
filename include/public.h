@@ -3,6 +3,7 @@
 #include <array>
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <cstddef>
 #include <ctime>
 #include <cxxabi.h>

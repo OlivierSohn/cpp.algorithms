@@ -34,6 +34,7 @@
 #include "slidingaverage.h"
 #include "meta.hpp"
 #include "math.hpp"
+#include "flt_math.hpp"
 #include "numtraits.h"
 #include "freelist.hpp"
 #include "complex.hpp"

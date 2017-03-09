@@ -33,7 +33,17 @@ namespace imajuscule
         T m_cur[NDIMS]{};
         T m_last[NDIMS]{};
     };
-    
+
+    template<FilterType KIND, typename T>
+    T get_inv_square_filter_magnitude(T square_ratio) {
+        if(KIND == FilterType::LOW_PASS) {
+            return 1 + square_ratio;
+        }
+        else if(KIND == FilterType::HIGH_PASS) {
+            return 1 + 1/square_ratio;
+        }
+    }
+
     template <class T, int NDIMS, FilterType KIND, bool ADAPTATIVE=false>
     class Filter
     {
@@ -43,8 +53,16 @@ namespace imajuscule
         static constexpr auto kAccelerometerNoiseAttenuation = 3.0f;
 
     public:
+        
+        T square_magnitude(T rate, T freq) const {
+            auto fcut = freq_from_cst(rate);
+            A(fcut != 0);
+            auto ratio = freq/fcut;
+            return Tr::one() / get_inv_square_filter_magnitude<KIND>(ratio*ratio);
+        }
+        
         void initWithSampleRate(T rate, T cutOffFreq) {
-            // http://www.electronics-tutorials.ws/filter/filter_2.html : cutoff freq is where gain is -3db
+            // cutoff freq is where gain is -3db
             auto dt = Tr::one() / rate;
             auto RC = Tr::one() / (cutOffFreq * (2.f * M_PI));
             
@@ -107,6 +125,15 @@ namespace imajuscule
                 return min;
             else
                 return v;
+        }
+        
+        T freq_from_cst(T rate) const {
+            if(KIND == FilterType::LOW_PASS) {
+                return rate/((2.f * M_PI)*((1/FilterConstant) - 1));
+            }
+            else if(KIND == FilterType::HIGH_PASS) {
+                return (rate/(2.f * M_PI)) * ((1 / FilterConstant) - 1);
+            }
         }
     };
 }

@@ -194,7 +194,7 @@ namespace imajuscule
             assert(itp::intIsReal(interp));
         }
         
-        T get_value(T t_cur, T t_end, T val_start, T val_end) {
+        T get_value(T t_cur, T t_end, T val_start, T val_end) const {
             assert(t_cur >= zero); // else need to return val_start
             assert(itp::intIsReal(interp));
             
@@ -208,7 +208,7 @@ namespace imajuscule
                                         val_end);
         }
         
-        T get_unfiltered_value(T t_cur, T t_end, T val_start, T val_end) {
+        T get_unfiltered_value(T t_cur, T t_end, T val_start, T val_end) const {
             return itp::interpolate(interp,
                                     zero /* t start */,
                                     t_cur,

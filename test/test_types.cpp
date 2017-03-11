@@ -50,3 +50,9 @@ TEST(Zeroes, LeadTrail) {
     EXPECT_EQ(31, count_leading_zeroes(1));
     EXPECT_EQ(30, count_leading_zeroes(2));
 }
+
+TEST(Cast, int) {
+    ASSERT_EQ( std::numeric_limits<int>::max(), static_cast<int>(std::numeric_limits<int>::max()));
+    auto i = static_cast<int>(.5f + std::numeric_limits<int>::max()/2);
+    ASSERT_TRUE( i > 0 );
+}

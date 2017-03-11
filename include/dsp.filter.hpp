@@ -61,16 +61,18 @@ namespace imajuscule
             return Tr::one() / get_inv_square_filter_magnitude<KIND>(ratio*ratio);
         }
         
-        void initWithSampleRate(T rate, T cutOffFreq) {
-            // cutoff freq is where gain is -3db
-            auto dt = Tr::one() / rate;
-            auto RC = Tr::one() / (cutOffFreq * (2.f * M_PI));
+        void initWithFreq(T rate, T cutOffFreq) {
+            initWithAngleIncrement(Tr::two() * cutOffFreq / rate);
+        }
+
+        void initWithAngleIncrement(T inc) {
+            auto im = inc * static_cast<T>(M_PI);
             
             if(KIND == FilterType::LOW_PASS) {
-                FilterConstant = dt / (dt + RC);
+                FilterConstant = im / (im + Tr::one());
             }
             else if(KIND == FilterType::HIGH_PASS) {
-                FilterConstant = RC / (dt + RC);
+                FilterConstant = Tr::one() / (Tr::one() + im);
             }
         }
         

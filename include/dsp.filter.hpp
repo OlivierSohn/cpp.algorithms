@@ -117,13 +117,16 @@ namespace imajuscule
 
         void initWithAngleIncrement(T inc) {
             auto im = inc * static_cast<T>(M_PI);
-            
+            auto denom = im + Tr::one();
+            assert(denom);
+                                      
             if(KIND == FilterType::LOW_PASS) {
-                FilterConstant = im / (im + Tr::one());
+                FilterConstant = im / denom;
             }
             else if(KIND == FilterType::HIGH_PASS) {
-                FilterConstant = Tr::one() / (Tr::one() + im);
+                FilterConstant = Tr::one() / denom;
             }
+            assert(FilterConstant == FilterConstant);
         }
         
         void feed(T raw[NDIMS]) {

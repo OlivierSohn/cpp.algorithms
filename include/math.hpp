@@ -70,7 +70,7 @@ namespace imajuscule {
     }
     
     template <typename T>
-    T expt_unsigned(T p, unsigned int q) {
+    constexpr T expt_unsigned(T p, unsigned int q) {
         assert(q < 100000); // else probably a sign error.
         T r(1);
         
@@ -94,6 +94,21 @@ namespace imajuscule {
         }
         return expt_unsigned(1/p, static_cast<unsigned int>(-q));
     }
-
+    
+    template <int q, typename T>
+    T expt(T p) {
+        static_assert(!std::is_integral<T>(), "use expt_unsigned instead");
+        if(q == 1) {
+            return p;
+        }
+        if(q == 0) {
+            return NumTraits<T>::one();
+        }
+        if(q >= 0) {
+            return expt_unsigned(p, static_cast<unsigned int>(q));
+        }
+        return expt_unsigned(1/p, static_cast<unsigned int>(-q));
+    }
+    
 } // NS imajuscule
 

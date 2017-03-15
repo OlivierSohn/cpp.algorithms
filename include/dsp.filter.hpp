@@ -8,30 +8,46 @@ namespace imajuscule
     };
     
     template<FilterType KIND, int NDIMS, typename T>
-    struct FilterState;
+    struct OrderState;
     
     template<int NDIMS, typename T>
-    struct FilterState<FilterType::LOW_PASS, NDIMS, T> {
+    struct OrderState<FilterType::LOW_PASS, NDIMS, T> {
         using Tr = NumTraits<T>;
-        void update(T alpha, T raw[NDIMS]) {
+        OrderState() {
+            reset();
+        }
+        
+        void reset() {
+            m_cur.fill({});
+        }
+        
+        void update(T const alpha, T raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = raw[i] * alpha + m_cur[i] * (Tr::one() - alpha);
             }
         }
-        T m_cur[NDIMS]{};
+        std::array<T, NDIMS> m_cur;
     };
-
+    
     template<int NDIMS, typename T>
-    struct FilterState<FilterType::HIGH_PASS, NDIMS, T> {
+    struct OrderState<FilterType::HIGH_PASS, NDIMS, T> {
         using Tr = NumTraits<T>;
-        void update(T alpha, T raw[NDIMS]) {
+        OrderState() {
+            reset();
+        }
+ 
+        void reset() {
+            m_cur.fill({});
+            m_last.fill({});
+        }
+        
+        void update(T const alpha, T raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = alpha * (m_cur[i] + raw[i] - m_last[i]);
             }
-            std::memcpy(m_last,raw,sizeof(m_last));
+            std::copy(raw, raw + NDIMS, std::begin(m_last));
         }
-        T m_cur[NDIMS]{};
-        T m_last[NDIMS]{};
+        std::array<T, NDIMS> m_cur, m_last;
     };
 
     template<FilterType KIND, typename T>
@@ -43,22 +59,56 @@ namespace imajuscule
             return 1 + 1/square_ratio;
         }
     }
+    
+    template<typename orderState, int NORDER>
+    struct FixedOrderFilter {
+        static_assert(NORDER >= 1, "");
 
-    template <class T, int NDIMS, FilterType KIND, bool ADAPTATIVE=false>
-    class Filter
+        int getOrder() const {
+            return NORDER;
+        }
+        
+        std::array<orderState, NORDER> m_orders;
+    };
+    
+    template<typename orderState>
+    struct VarOrderFilter_ {
+        void setOrder(int n) {
+            assert(n > 0);
+            m_orders.resize(n);
+        }
+        
+        int getOrder() const {
+            return static_cast<int>(m_orders.size());
+        }
+
+        std::vector<orderState> m_orders;
+    };
+    
+    template <class T, int NDIMS, FilterType KIND, typename Base>
+    class FilterBase : public Base
     {
+        using Base::m_orders;
+        using Base::getOrder;
+        
         using Tr = NumTraits<T>;
-
+        
         static constexpr auto kAccelerometerMinStep	= 0.02f;
         static constexpr auto kAccelerometerNoiseAttenuation = 3.0f;
-
     public:
         
+        // not tested
         T square_magnitude(T rate, T freq) const {
             auto fcut = freq_from_cst(rate);
             A(fcut != 0);
             auto ratio = freq/fcut;
-            return Tr::one() / get_inv_square_filter_magnitude<KIND>(ratio*ratio);
+            return Tr::one() / get_inv_square_filter_magnitude<KIND>(ratio * ratio);
+        }
+        
+        void forgetPastSignals() {
+            for(auto & o : m_orders) {
+                o.reset();
+            }
         }
         
         void initWithFreq(T rate, T cutOffFreq) {
@@ -77,8 +127,9 @@ namespace imajuscule
         }
         
         void feed(T raw[NDIMS]) {
-            float alpha;
-            if (ADAPTATIVE)
+            T alpha;
+            // this template parameter was removed as it was not used
+/*            if (ADAPTATIVE)
             {
                 T d = Clamp(fabs(Norm(state.m_cur) - Norm(raw)) / (T)kAccelerometerMinStep - Tr::one(),
                             Tr::zero(),
@@ -96,17 +147,26 @@ namespace imajuscule
                     assert(0);
                 }
             }
-            else {
+            else */
+            {
                 alpha = FilterConstant;
             }
-            state.update(alpha, raw);
+            
+            {
+                auto array = raw;
+                for(auto & o : m_orders) {
+                    o.update(alpha, array);
+                    array = &o.m_cur[0];
+                }
+            }
         }
         
-        const T * filtered() const {
-            return state.m_cur;
+        const T * filtered(int order = 0) const {
+            int const o = order ? order : (getOrder()-1);
+            return &m_orders[o].m_cur[0];
         }
+        
     private:
-        FilterState<KIND, NDIMS, T> state;
         T FilterConstant;
         
         static T Norm(T v[NDIMS])
@@ -129,6 +189,7 @@ namespace imajuscule
                 return v;
         }
         
+        // not tested
         T freq_from_cst(T rate) const {
             if(KIND == FilterType::LOW_PASS) {
                 return rate/((2.f * M_PI)*((1/FilterConstant) - 1));
@@ -138,4 +199,19 @@ namespace imajuscule
             }
         }
     };
+
+    template <class T, int NDIMS, FilterType KIND, int NORDER>
+    struct FilterSelector {
+        using type = FilterBase<T, NDIMS, KIND, FixedOrderFilter<OrderState<KIND, NDIMS, T>, NORDER>>;
+    };
+    
+    template <class T, int NDIMS, FilterType KIND>
+    struct FilterSelector<T, NDIMS, KIND, 0> {
+        using type = FilterBase<T, NDIMS, KIND, VarOrderFilter_<OrderState<KIND, NDIMS, T>>>;
+    };
+    
+    static constexpr auto VariableOrder = 0;
+
+    template <class T, int NDIMS, FilterType KIND, int NORDER=1>
+    using Filter = typename FilterSelector<T, NDIMS, KIND, NORDER>::type;
 }

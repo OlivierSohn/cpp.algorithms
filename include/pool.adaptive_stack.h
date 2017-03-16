@@ -16,10 +16,7 @@ namespace imajuscule {
 #endif
         static constexpr auto N = 4000;
         
-        static auto & getThreadLocalInstance() {
-            thread_local AdaptiveStack instance;
-            return instance;
-        }
+        static AdaptiveStack & getThreadLocalInstance();
         
         void * GetNext(size_t const alignment, size_t const n_bytes, size_t const n_elems ) noexcept {
 #ifndef NDEBUG

@@ -74,6 +74,14 @@ namespace imajuscule
                 return val - halfSpan_;
             }
         }
+        
+        T getAt(T ratio) const {
+            assert(ratio >= 0.f);
+            assert(ratio <= 1.f);
+            assert(!empty());
+            assert(!std::is_integral<T>());
+            return getMin() + ratio * getSpan();
+        }
 
         bool empty() const {
             if( std::is_integral<T>() ) {

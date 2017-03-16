@@ -8,4 +8,9 @@ namespace imajuscule {
         overflow.reset( new AdaptiveStack(buffer.size()) );
     }
     
+    AdaptiveStack & AdaptiveStack::getThreadLocalInstance() {
+        thread_local AdaptiveStack instance;
+        return instance;
+    }
+    
 } // ns imajuscule

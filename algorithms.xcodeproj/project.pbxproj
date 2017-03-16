@@ -129,6 +129,9 @@
 		09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = bounded_lifo.hpp; path = include/bounded_lifo.hpp; sourceTree = "<group>"; };
 		09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = print_type.hpp; path = include/print_type.hpp; sourceTree = "<group>"; };
 		09EF8F301DB3E89B00DC7342 /* iter_range.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = iter_range.hpp; path = include/iter_range.hpp; sourceTree = "<group>"; };
+		09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sort_utils.cpp; path = source/sort_utils.cpp; sourceTree = "<group>"; };
+		09FD59BE1E7AF3920052B2FD /* string.manip.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string.manip.cpp; path = source/string.manip.cpp; sourceTree = "<group>"; };
+		09FD59C01E7B03950052B2FD /* range.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = range.cpp; path = source/range.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,6 +182,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				09FD59C01E7B03950052B2FD /* range.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
@@ -186,7 +190,9 @@
 				0912152F1E09941800B860CB /* pool.adaptive_stack.cpp */,
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,
+				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
 				09BA14CD1E388C6600A05F83 /* string.cpp */,
+				09FD59BE1E7AF3920052B2FD /* string.manip.cpp */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,
 			);
 			name = source;

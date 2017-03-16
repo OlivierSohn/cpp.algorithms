@@ -31,12 +31,10 @@ namespace imajuscule {
     template< typename Container >
     void Shuffle( Container & c );
 
-    namespace {
-        static inline std::minstd_rand & shuffle_rng_engine() {
-            static std::minstd_rand engine;
-            return engine;
-        }
+    std::minstd_rand & shuffle_rng_engine();
         
+    
+    namespace {
         template< typename Container >
         struct Shuffle_ {
             

@@ -12,7 +12,8 @@ namespace imajuscule {
         for_each(tuple, func, std::make_index_sequence<std::tuple_size<TUPLE>::value>());
     }
     
-    template<int N, typename... Ts> using NthTypeOf = typename std::tuple_element<N, std::tuple<Ts...>>::type;
+    template<int N, typename... Ts>
+    using NthTypeOf = typename std::tuple_element<N, std::tuple<Ts...>>::type;
 
     // http://www.gotw.ca/gotw/071.htm
     template<class D, class B>

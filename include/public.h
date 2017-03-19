@@ -41,6 +41,7 @@
 #include "range.h"
 #include "strplot.h"
 #include "rng.hpp"
+#include "fft.hpp"
 #include "markov_chain.hpp"
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"

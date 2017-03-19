@@ -7,6 +7,7 @@ namespace imajuscule
     
     template<typename T>
     struct complex {
+        using FPT = T;
         using Tr = NumTraits<T>;
         
         explicit complex() = default;
@@ -24,6 +25,12 @@ namespace imajuscule
             return *this;
         }
         
+        complex & operator +=(complex const & z) {
+            re += z.real();
+            im += z.imag();
+            return *this;
+        }
+        
         complex & operator *=(T v) {
             re *= v;
             im *= v;
@@ -38,6 +45,24 @@ namespace imajuscule
     private:
         T re, im;
     };
+    
+    
+    template<typename T>
+    complex<T> operator -(complex<T> const & a, complex<T> const & b) {
+        return {
+            a.real() - b.real(),
+            a.imag() - b.imag()
+        };
+    }
+    
+    
+    template<typename T>
+    complex<T> operator +(complex<T> const & a, complex<T> const & b) {
+        return {
+            a.real() + b.real(),
+            a.imag() + b.imag()
+        };
+    }
     
     template<typename T>
     complex<T> polar(T theta) {

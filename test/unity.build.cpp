@@ -15,6 +15,7 @@
 
 
 #include "test_cast.cpp"
+#include "test_fft.cpp"
 #include "test_markov_chain.cpp"
 #include "test_freelist.cpp"
 #include "test_cpp.cpp"

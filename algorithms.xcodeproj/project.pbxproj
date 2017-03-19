@@ -132,6 +132,8 @@
 		09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sort_utils.cpp; path = source/sort_utils.cpp; sourceTree = "<group>"; };
 		09FD59BE1E7AF3920052B2FD /* string.manip.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string.manip.cpp; path = source/string.manip.cpp; sourceTree = "<group>"; };
 		09FD59C01E7B03950052B2FD /* range.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = range.cpp; path = source/range.cpp; sourceTree = "<group>"; };
+		09FD59E91E7EF5E80052B2FD /* fft.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.hpp; path = include/fft.hpp; sourceTree = "<group>"; };
+		09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft.cpp; path = test/test_fft.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -251,6 +253,7 @@
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
 				0972718D1E1B4AFD00532772 /* test_cast.cpp */,
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
+				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
@@ -264,7 +267,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -274,6 +276,8 @@
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
+				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
+				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				091AF71E1E27F0E1004B554F /* hash.hpp */,

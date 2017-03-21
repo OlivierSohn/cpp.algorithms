@@ -65,6 +65,14 @@ namespace imajuscule
     }
     
     template<typename T>
+    complex<T> operator *(float f, complex<T> const & b) {
+        return {
+            f*b.real(),
+            f*b.imag()
+        };
+    }
+    
+    template<typename T>
     complex<T> polar(T theta) {
         return {
             std::cos(theta),

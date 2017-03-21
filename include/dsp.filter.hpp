@@ -217,4 +217,41 @@ namespace imajuscule
 
     template <class T, int NDIMS, FilterType KIND, int NORDER=1>
     using Filter = typename FilterSelector<T, NDIMS, KIND, NORDER>::type;
+    
+    
+    template<typename T>
+    struct FIRFilter {
+        template<typename U>
+        FIRFilter(std::vector<U> const & c) : past(c.size(), {}) {
+            assert(c.size() == past.size());
+            coefficients.reserve(c.size());
+            coefficients.clear();
+            for(auto coeff : c) {
+                coefficients.push_back(coeff);
+            }
+        }
+        
+        auto size() const { return coefficients.size(); }
+        
+        void step(T val) {
+            past.feed(val);
+        }
+        
+        T get() const {
+            auto res = T{};
+            int index = 0;
+            // when coefficients are symmetrical it doesn't matter
+            // if we are traversing forward or backward
+            past.for_each_bkwd([&res, &index, this](auto val) {
+                res += val * coefficients[index];
+                ++index;
+            });
+            return res;
+        }
+
+    private:
+        std::vector<double> coefficients;
+        cyclic<T> past;
+    };
+    
 }

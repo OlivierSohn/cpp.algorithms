@@ -106,6 +106,7 @@
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
+		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
 		0996F3EC1E2F821A0053B30B /* test_freelist.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freelist.cpp; path = test/test_freelist.cpp; sourceTree = "<group>"; };
@@ -253,6 +254,7 @@
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
 				0972718D1E1B4AFD00532772 /* test_cast.cpp */,
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
+				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,

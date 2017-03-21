@@ -10,11 +10,8 @@
 
 #include <thread>
 
-// if markov_utils.hpp is included through public.h or private.h, we have a compilation error
-// but through he.h, it's fine... weird !!!
-
-
 #include "test_cast.cpp"
+#include "test_cyclic.cpp"
 #include "test_fft.cpp"
 #include "test_markov_chain.cpp"
 #include "test_freelist.cpp"

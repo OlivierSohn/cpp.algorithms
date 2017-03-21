@@ -32,8 +32,8 @@ namespace imajuscule
         }
         
         range(T min, T max) {
-            set(min, max);
             assert(min <= max);
+            set(min, max);
         }
         
         bool operator == ( const range & other ) const {

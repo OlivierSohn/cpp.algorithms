@@ -27,7 +27,7 @@ namespace imajuscule
         auto rend() const { return buf.rend();}
         auto rbegin() { return buf.rbegin();}
         auto rend() { return buf.rend();}
-        auto cycleEnd() const { return it;}
+        const_iterator cycleEnd() const { return it;}
         auto cycleEnd() { return it;}
 
         size_t size() const { return buf.size(); }

@@ -5,11 +5,15 @@ namespace imajuscule {
     static constexpr auto horizontal_line_char = '-';
     static constexpr auto default_curve_char = '+';
     
-    template<int Height, int Width>
     struct StringPlot {
         
         // if range is empty, the first curve drawn defines the range
-        StringPlot(range<float> r = {}) : range_(std::move(r)) {
+        StringPlot(int Height, int Width, range<float> r = {}) :
+        Height(Height),
+        Width(Width),
+        range_(std::move(r)),
+        p(Height)
+        {
             std::fill(p.begin(), p.end(), std::string(Width, background_char));
         }
         
@@ -27,7 +31,7 @@ namespace imajuscule {
             for(auto i=0; i<Width; ++i) {
                 auto fi = static_cast<float>(.5f + (container.size()-1)) / (Width-1);
                 auto v_index = static_cast<size_t>(fi * i);
-                if(container.size() == Width) {
+                if(static_cast<int>(container.size()) == Width) {
                     assert(v_index == i);
                 }
                 
@@ -79,7 +83,9 @@ namespace imajuscule {
         }
         
     private:
-        std::array<std::string, Height> p;
+        int Height;
+        int Width;
+        std::vector<std::string> p;
         range<float> range_;
         
         template<typename T>

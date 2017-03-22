@@ -8,7 +8,7 @@ namespace imajuscule
         {
             INTERPOLATION_LOWER_BOUND = 0,
 
-            LINEAR = 0,
+            LINEAR = INTERPOLATION_LOWER_BOUND,
             PROPORTIONAL_VALUE_DERIVATIVE,
             EASE_IN_first_value,
             EASE_IN_QUAD,

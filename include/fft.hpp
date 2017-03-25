@@ -2,23 +2,6 @@
 namespace imajuscule {
     namespace fft {
         
-        // will be called with those parameters:
-        //
-        // 0     N
-        // 1     N
-        // ...
-        // N/2-1 N
-        //
-        // 0     N/2
-        // 1     N/2
-        // ...
-        // N/4-1 N/2
-        //
-        // and i / M is the same as i*2 / M*2
-        //
-        // we need to compute N/2-1 values
-        
-        
         template<typename T>
         static complex<T> make_root_of_unity(unsigned int index, unsigned int size) {
             return polar(-2. * M_PI * index / size);
@@ -26,6 +9,9 @@ namespace imajuscule {
         
         template<typename T>
         using FFTVec = typename std::vector<complex<T>>;
+
+        template<typename T>
+        using FFTIter = typename FFTVec<T>::iterator;
         
         template<typename T>
         FFTVec<T> compute_roots_of_unity(unsigned int N) {
@@ -88,6 +74,37 @@ namespace imajuscule {
             
         };
         
+        
+        void compute_fft(unsigned int fft_length,
+                         FFTIter<double> signal_it,
+                         FFTIter<double> result_it);
+
+        template<typename Iter>
+        void normalize_fft(unsigned int fft_length,
+                           Iter begin,
+                           Iter end) {
+            assert(fft_length);
+            auto inv_l = 1. / fft_length;
+            
+            std::transform(begin, end,
+                           begin, [inv_l](auto value) { return inv_l * value; });
+        }
+        
+        template<typename ITER>
+        void apply_hann_window(ITER it,
+                               ITER end)
+        {
+            auto NumTaps = std::distance(it, end);
+            auto nyquist = NumTaps / 2;
+
+            int i=0;
+            for(; it != end; ++it) {
+                // W(n) = cos(n/NumTaps · π/2)
+                *it *= cos( std::abs(nyquist-i)/(double)nyquist * M_PI_2);
+                ++i;
+            }
+        }
+
     } // NS fft
 } // NS imajuscule
 

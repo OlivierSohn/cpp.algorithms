@@ -11,7 +11,7 @@ namespace imajuscule
         using Tr = NumTraits<T>;
         
         explicit complex() = default;
-        complex(T re, T im)
+        complex(T const re, T const im)
         : re(re), im(im) {}
         
         T real() const { return re; }
@@ -31,21 +31,15 @@ namespace imajuscule
             return *this;
         }
         
-        complex & operator *=(T v) {
+        complex & operator *=(T const v) {
             re *= v;
             im *= v;
             return *this;
         }
         
-        complex & operator /=(T v) {
-            assert(v != Tr::zero());
-            return operator*=(Tr::one()/v);
-        }
-        
     private:
         T re, im;
     };
-    
     
     template<typename T>
     complex<T> operator -(complex<T> const & a, complex<T> const & b) {
@@ -64,16 +58,20 @@ namespace imajuscule
         };
     }
     
+    /*
+     '/' operator is not provided to encourage the user to replace divisions by multiplications
+     */
+    
     template<typename T>
-    complex<T> operator *(float f, complex<T> const & b) {
-        return {
+    auto operator *(T f, complex<std::remove_const_t<T>> const & b) {
+        return decltype(b) {
             f*b.real(),
             f*b.imag()
         };
     }
     
-    template<typename T>
-    complex<T> polar(T theta) {
+    template<typename T, typename C = complex<std::remove_const_t<T>>>
+    auto polar(T theta) -> C {
         return {
             std::cos(theta),
             std::sin(theta)

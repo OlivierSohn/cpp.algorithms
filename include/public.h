@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "logging.h"
 #include "object.h"
 #include "safe_cast.hpp"
 #include "available_indexes.hpp"

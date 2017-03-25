@@ -106,7 +106,7 @@ namespace imajuscule
     };
     
     template<typename C, typename T = typename C::Type>
-    std::vector<T> to_vector(C & cyclic_) {
+    std::vector<T> to_vector(C const & cyclic_) {
         std::vector<T> vec;
         vec.reserve(cyclic_.size());
         auto cycleStart = cyclic_.cycleEnd();

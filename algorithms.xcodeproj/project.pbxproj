@@ -61,6 +61,7 @@
 		09168FC61E099C42005DD50F /* libalgorithms.ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.ios.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		09168FD11E099D78005DD50F /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = test/unity.build.cpp; sourceTree = "<group>"; };
 		09168FD31E099DAF005DD50F /* test_allocators.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_allocators.cpp; path = test/test_allocators.cpp; sourceTree = "<group>"; };
+		09186B091E8670DE00E5BEC9 /* logging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logging.h; path = include/logging.h; sourceTree = "<group>"; };
 		091AF71A1E27A295004B554F /* static_vector.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = static_vector.h; path = include/static_vector.h; sourceTree = "<group>"; };
 		091AF71B1E27A295004B554F /* allocated_containers.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = allocated_containers.h; path = include/allocated_containers.h; sourceTree = "<group>"; };
 		091AF71C1E27DC24004B554F /* markov_chain.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = markov_chain.hpp; path = include/markov_chain.hpp; sourceTree = "<group>"; };
@@ -106,6 +107,7 @@
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
+		097D56AE1E868B0400018F14 /* fft.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fft.cpp; path = source/fft.cpp; sourceTree = "<group>"; };
 		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
@@ -185,14 +187,15 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
-				09FD59C01E7B03950052B2FD /* range.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
+				097D56AE1E868B0400018F14 /* fft.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
 				09B057241E47C8B9006986F0 /* markov_chain.cpp */,
 				0912152F1E09941800B860CB /* pool.adaptive_stack.cpp */,
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,
+				09FD59C01E7B03950052B2FD /* range.cpp */,
 				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
 				09BA14CD1E388C6600A05F83 /* string.cpp */,
 				09FD59BE1E7AF3920052B2FD /* string.manip.cpp */,
@@ -287,6 +290,7 @@
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,
 				09BA14C51E387E4200A05F83 /* interpolation.h */,
 				09EF8F301DB3E89B00DC7342 /* iter_range.hpp */,
+				09186B091E8670DE00E5BEC9 /* logging.h */,
 				091AF71C1E27DC24004B554F /* markov_chain.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,

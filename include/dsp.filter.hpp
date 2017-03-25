@@ -254,4 +254,70 @@ namespace imajuscule
         cyclic<T> past;
     };
     
+    
+    static void plotMagnitude(fft::FFTVec<double> const & v) {
+        std::vector<double> mags;
+        mags.reserve(v.size());
+        std::transform(v.begin(), v.end(),
+                       std::back_inserter(mags),
+                       [](auto v){return abs(v);});
+        StringPlot plot(30,1024);
+        plot.draw(mags);
+        plot.log();
+    }
+    
+    template<typename Container, typename T, typename F>
+    auto sample_frequencies(Container & res, T nyquist_freq, F getFreq) {
+    
+        auto N = res.size();
+        auto NumTaps = N;
+        auto nyquist = NumTaps/2;
+        
+        double RadPerSample = -M_PI;
+        if(0 == NumTaps % 2) {
+            RadPerSample *= (N - 1.0)/N;
+        }
+        for(int i=0; i<=nyquist; ++i) {
+            auto f = nyquist_freq * i / nyquist;
+            T magnitude = getFreq(f);
+            auto cplx = magnitude * polar(RadPerSample*i);
+            res[i] = cplx;
+            if(i && i != nyquist) {
+                auto conji = N-i;
+                res[conji] = cplx;
+            }
+        }
+
+    }
+    
+    template<typename T, typename F>
+    auto fir_coefficients_by_f_sampling(T nyquist_freq, F getFreq) {
+        ScopedLog l("Compute", "FIR coeffs by freq. sampling");
+        // according to http://iowahills.com/FIRFiltersByFreqSampling.html
+        // with the same number of taps as of fft size (we could try less)
+        
+        using namespace imajuscule::fft;
+        
+        constexpr auto N = 4096;
+        FFTVec<double> res, input;
+        res.resize(N);
+        input.resize(N);
+        
+        sample_frequencies(input, nyquist_freq, getFreq);
+
+        compute_fft(N, input.begin(), res.begin());
+        normalize_fft(N, res.begin(), res.end());
+        apply_hann_window(res.begin(), res.end());
+        
+        //plotMagnitude(res);
+        
+        std::vector<T> v;
+        v.reserve(res.size());
+        std::transform(res.begin(), res.end(),
+                       std::back_inserter(v),
+                       [](auto val) { return val.real(); });
+        return v;
+    }
+    
+    
 }

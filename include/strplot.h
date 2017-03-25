@@ -5,6 +5,7 @@ namespace imajuscule {
     static constexpr auto horizontal_line_char = '-';
     static constexpr auto default_curve_char = '+';
     
+    struct StringPlot;
     struct StringPlot {
         
         // if range is empty, the first curve drawn defines the range
@@ -19,7 +20,10 @@ namespace imajuscule {
         
         template<typename T>
         void draw(T const & container, char c = default_curve_char) {
-            
+            if(container.empty()) {
+                throw "cannot draw empty container";
+                return;
+            }
             auto r = range_;
             if(r.empty()) {
                 auto minmax = std::minmax_element (container.begin(),container.end());
@@ -52,34 +56,39 @@ namespace imajuscule {
         auto begin() const { return p.begin(); }
         auto end() const { return p.end(); }
         
-        void log() {
+        void writeToStream(std::ostream & stream) {
+            
             using namespace std;
             auto zero_height = val_to_height(0.f);
             make_line(Height-1-zero_height);
             
             auto bar = std::string(Width, delimiter_char);
             
-            cout << bar << endl;
+            stream << bar << endl;
             
             auto height = 0;
             for(auto const & str : *this) {
-                cout << str;
+                stream << str;
                 
                 if(height == zero_height) {
-                    cout << " 0";
+                    stream << " 0";
                 }
                 else if(height == 0 ) {
-                    cout << " " << range_.getMax();
+                    stream << " " << range_.getMax();
                 }
                 else if(height==Height-1) {
-                    cout << " " << range_.getMin();
+                    stream << " " << range_.getMin();
                 }
-                cout << endl;
+                stream << endl;
                 
                 height++;
             }
-
-            cout << bar << endl;
+            
+            stream << bar << endl;
+        }
+        
+        void log() {
+            std::cout << *this;
         }
         
     private:
@@ -116,6 +125,14 @@ namespace imajuscule {
         constexpr int invert_height(int h) const {
             return Height - 1 - h;
         }
+
+        friend std::ostream& operator<<(std::ostream& stream, StringPlot& obj)
+        {
+            obj.writeToStream(stream);
+            return stream;
+        }
+
     };
+    
 }
 

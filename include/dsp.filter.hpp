@@ -267,14 +267,14 @@ namespace imajuscule
     }
     
     template<typename Container, typename T, typename F>
-    auto sample_frequencies(Container & res, T nyquist_freq, F getFreq) {
+    auto sample_frequencies(Container & res, bool const even_taps,
+                            T const nyquist_freq, F getFreq) {
     
         auto N = res.size();
-        auto NumTaps = N;
-        auto nyquist = NumTaps/2;
+        auto nyquist = N/2;
         
         double RadPerSample = -M_PI;
-        if(0 == NumTaps % 2) {
+        if(even_taps) {
             RadPerSample *= (N - 1.0)/N;
         }
         for(int i=0; i<=nyquist; ++i) {
@@ -291,31 +291,41 @@ namespace imajuscule
     }
     
     template<typename T, typename F>
-    auto fir_coefficients_by_f_sampling(T nyquist_freq, F getFreq) {
+    auto fir_coefficients_by_f_sampling(T nyquist_freq, F getFreq, unsigned int fft_length, unsigned int NumTaps) {
         ScopedLog l("Compute", "FIR coeffs by freq. sampling");
         // according to http://iowahills.com/FIRFiltersByFreqSampling.html
         // with the same number of taps as of fft size (we could try less)
         
         using namespace imajuscule::fft;
+        assert(is_power_of_two(fft_length));
         
-        constexpr auto N = 4096;
         FFTVec<double> res, input;
-        res.resize(N);
-        input.resize(N);
+        res.resize(fft_length);
+        input.resize(fft_length);
         
-        sample_frequencies(input, nyquist_freq, getFreq);
+        sample_frequencies(input,
+                           (0 == NumTaps%2),
+                           nyquist_freq,
+                           getFreq);
 
-        compute_fft(N, input.begin(), res.begin());
-        normalize_fft(N, res.begin(), res.end());
-        apply_hann_window(res.begin(), res.end());
+        compute_fft(fft_length, input.begin(), res.begin());
         
-        //plotMagnitude(res);
+        auto inv_N = 1. / fft_length;
         
         std::vector<T> v;
-        v.reserve(res.size());
-        std::transform(res.begin(), res.end(),
+        v.reserve(NumTaps);
+
+        // This is where the FIR taps are located in the FFT’s return.
+        auto StartT = fft_length/2 - NumTaps/2;
+        auto fft_cut_begin = res.begin() + StartT;
+        auto fft_cut_end = fft_cut_begin + NumTaps;
+        std::transform(fft_cut_begin, fft_cut_end,
                        std::back_inserter(v),
-                       [](auto val) { return val.real(); });
+                       [inv_N](auto value) { return value.real()*inv_N; } );
+        
+        apply_hann_window(v.begin(), v.end());
+        
+        //plotMagnitude(res);
         return v;
     }
     

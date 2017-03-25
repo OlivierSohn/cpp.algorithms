@@ -58,6 +58,13 @@ namespace imajuscule
         };
     }
     
+    template<typename T>
+    complex<T> operator *(complex<T> const & a, complex<T> const & b) {
+        auto ret = a;
+        ret *= b;
+        return ret;
+    }
+    
     /*
      '/' operator is not provided to encourage the user to replace divisions by multiplications
      */
@@ -86,6 +93,11 @@ namespace imajuscule
     template<typename T>
     T abs(complex<T> const & z) {
         return std::sqrt(norm(z));
+    }
+    
+    template<typename T>
+    auto conj(complex<T> const & z) -> complex<T> {
+        return {z.real(), -z.imag()};
     }
     
     template<typename T>

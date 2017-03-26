@@ -17,7 +17,16 @@ namespace imajuscule {
         {
             std::fill(p.begin(), p.end(), std::string(Width, background_char));
         }
-        
+
+        template<typename T>
+        void drawLog(T container, char c = default_curve_char) {
+            std::transform(container.begin(),
+                           container.end(),
+                           container.begin(),
+                           [](auto v){ return std::log(v); });
+            draw(container, c);
+        }
+
         template<typename T>
         void draw(T const & container, char c = default_curve_char) {
             if(container.empty()) {

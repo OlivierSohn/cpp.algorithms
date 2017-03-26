@@ -131,7 +131,7 @@ namespace imajuscule {
             std::replace( s.begin(), s.end(), ' ', horizontal_line_char);
         }
         
-        constexpr int invert_height(int h) const {
+        int invert_height(int h) const {
             return Height - 1 - h;
         }
 

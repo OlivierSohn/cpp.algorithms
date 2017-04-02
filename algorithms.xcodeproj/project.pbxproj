@@ -112,6 +112,8 @@
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
 		0996F3EC1E2F821A0053B30B /* test_freelist.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freelist.cpp; path = test/test_freelist.cpp; sourceTree = "<group>"; };
+		099FD6221E9188FE0067C18D /* debugging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debugging.h; path = include/debugging.h; sourceTree = "<group>"; };
+		099FD6231E9189F00067C18D /* debugging.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = debugging.cpp; path = source/debugging.cpp; sourceTree = "<group>"; };
 		09B057241E47C8B9006986F0 /* markov_chain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = markov_chain.cpp; path = source/markov_chain.cpp; sourceTree = "<group>"; };
 		09BA149A1E387D1B00A05F83 /* complex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = complex.hpp; path = include/complex.hpp; sourceTree = "<group>"; };
 		09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.hpp; path = include/dsp.filter.hpp; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				099FD6231E9189F00067C18D /* debugging.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
 				097D56AE1E868B0400018F14 /* fft.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
@@ -279,6 +282,7 @@
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,
+				099FD6221E9188FE0067C18D /* debugging.h */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,

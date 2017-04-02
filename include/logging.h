@@ -2,18 +2,29 @@
 namespace imajuscule
 {
     struct ScopedLog {
+        /*
+         * Pass nullptr for action do deactivate logging
+         */
         ScopedLog(const char * action, const char * str) : action(action) {
+            if(!action) {
+                return;
+            }
             std::cout << "--> " << action << " " << str << " ... " << std::endl;
         }
-        ~ScopedLog() {std::cout << "--> " << action << " Done" << std::endl;}
+        ~ScopedLog() {
+            if(!action) {
+                return;
+            }
+            std::cout << "--> " << action << " Done" << std::endl;
+        }
     private:
         const char * action;
     };
     
     struct ScopedFileWrite {
-        ScopedFileWrite(std::string const & str) :
+        ScopedFileWrite(std::string const & str, bool scopedlog = true) :
         file(str.c_str()),
-        log("Writing", str.c_str())
+        log(scopedlog?"Writing":nullptr, str.c_str())
         {}
         
         ~ScopedFileWrite() { file.close(); }

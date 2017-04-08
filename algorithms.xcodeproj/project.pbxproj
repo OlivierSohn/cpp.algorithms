@@ -126,6 +126,8 @@
 		09BA14CB1E38898B00A05F83 /* available_indexes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = available_indexes.hpp; path = include/available_indexes.hpp; sourceTree = "<group>"; };
 		09BA14CC1E388C4400A05F83 /* string.manip.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = string.manip.h; path = include/string.manip.h; sourceTree = "<group>"; };
 		09BA14CD1E388C6600A05F83 /* string.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string.cpp; path = source/string.cpp; sourceTree = "<group>"; };
+		09C02B041E98D09100E570F5 /* scheduler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = scheduler.cpp; path = source/scheduler.cpp; sourceTree = "<group>"; };
+		09C02B051E98D0AD00E570F5 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scheduler.h; path = include/scheduler.h; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; lineEnding = 0; name = merge_sort.hpp; path = include/merge_sort.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -197,6 +199,7 @@
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,
 				09FD59C01E7B03950052B2FD /* range.cpp */,
+				09C02B041E98D09100E570F5 /* scheduler.cpp */,
 				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
 				09BA14CD1E388C6600A05F83 /* string.cpp */,
 				09FD59BE1E7AF3920052B2FD /* string.manip.cpp */,
@@ -305,6 +308,7 @@
 				092EAAB81E2A4994006C11E9 /* range.h */,
 				093239CC1DB438C7003C168E /* rng.hpp */,
 				0972718C1E1B325200532772 /* safe_cast.hpp */,
+				09C02B051E98D0AD00E570F5 /* scheduler.h */,
 				09BA14C91E38840800A05F83 /* slidingaverage.h */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 				091AF71A1E27A295004B554F /* static_vector.h */,

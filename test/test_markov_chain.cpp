@@ -25,7 +25,9 @@ TEST(MarkovChain_, one_node) {
     mc.initialize(0);
     
     for(int i=0; i<100; i++) {
-        EXPECT_EQ(unique_node, mc.step<true>());
+        EXPECT_EQ(unique_node, mc.step<ExecuteLambdas::Yes>(.4f));
+        EXPECT_EQ(unique_node, mc.getCurrent());
+        EXPECT_EQ(unique_node, mc.step<ExecuteLambdas::Yes>(.6f));
         EXPECT_EQ(unique_node, mc.getCurrent());
     }
     
@@ -58,7 +60,7 @@ TEST(MarkovChain_, two_nodes) {
     constexpr auto nSteps = 100000;
     auto count_1 = 0;
     for(int i=0; i<nSteps; i++) {
-        mc.step<true>();
+        mc.step<ExecuteLambdas::Yes>(std::uniform_real_distribution<float>{0.f,1.f}(mersenne<SEEDED::No>()));
         if(mc.getCurrent() == node1) {
             ++count_1;
         }

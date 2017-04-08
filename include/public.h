@@ -70,3 +70,4 @@
 #include "enum.h"
 #include "interpolation.h"
 #include "debugging.h"
+#include "scheduler.h"

@@ -32,40 +32,42 @@ namespace imajuscule {
         UNCHANGED
     };
     
+    enum class ExecuteLambdas {
+        Yes,
+        No
+    };
+    
     struct MarkovChain {
         void initialize(int n) {
             assert(n < nodes.size());
             current = nodes[n].get();
         }
         
-        template<bool EXEC_TRANSITIONS>
-        MarkovNode * step_normalized() {
-            return do_step<Probabilities::NORMALIZE, EXEC_TRANSITIONS>();
+        template<ExecuteLambdas exec>
+        MarkovNode * step_normalized(float p) {
+            return do_step<Probabilities::NORMALIZE, exec>(p);
         }
         
-        template<bool EXEC_TRANSITIONS>
-        MarkovNode * step() {
-            return do_step<Probabilities::UNCHANGED, EXEC_TRANSITIONS>();
+        template<ExecuteLambdas exec>
+        MarkovNode * step(float p) {
+            return do_step<Probabilities::UNCHANGED, exec>(p);
         }
         
-        template<Probabilities PROBA, bool EXEC_TRANSITIONS>
-        MarkovNode * do_step() {
+        template<Probabilities PROBA, ExecuteLambdas exec>
+        MarkovNode * do_step(float proba) {
+            assert(proba >= 0.f);
+            assert(proba <= 1.f);
             assert(current);
             if(current->destinations.empty()) {
                 return current;
             }
-            float sum;
             if(PROBA == NORMALIZE) {
-                sum = 0.f;
+                float sum{};
                 for(auto const & dest : current->destinations) {
                     sum += dest.first;
                 }
+                proba *= sum;
             }
-            else {
-                sum = 1.f;
-            }
-            
-            auto proba = std::uniform_real_distribution<float>{0.f, sum}(rng::mersenne());
             auto accum = 0.f;
             MarkovNode * to(nullptr);
             for(auto const & dest : current->destinations) {
@@ -83,7 +85,7 @@ namespace imajuscule {
                 return current;
             }
             assert(to);
-            if(EXEC_TRANSITIONS) {
+            if(exec == ExecuteLambdas::Yes) {
                 current->on_state_change(Move::LEAVE, *current, *to);
                 to->on_state_change(Move::ENTER, *to, *current);
             }
@@ -101,8 +103,8 @@ namespace imajuscule {
             return nodes.back().get();
         }
         
-        std::vector<std::unique_ptr<MarkovNode>> nodes;
     private:
+        std::vector<std::unique_ptr<MarkovNode>> nodes;
         MarkovNode * current = nullptr;
     };
     

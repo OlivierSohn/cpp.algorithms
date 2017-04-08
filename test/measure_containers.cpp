@@ -23,12 +23,12 @@ namespace imajuscule {
         struct RandomKeys {
             RandomKeys() : keys(N) {
                 std::iota(keys.begin(), keys.end(), 0);
-                std::shuffle(keys.begin(), keys.end(), rng::mersenne());
+                std::shuffle(keys.begin(), keys.end(), mersenne<SEEDED::No>());
             }
             
             RandomKeys(RandomKeys const & o) : keys(o.keys) {
                 do {
-                    std::shuffle(keys.begin(), keys.end(), rng::mersenne());
+                    std::shuffle(keys.begin(), keys.end(), mersenne<SEEDED::No>());
                 } while(keys == o.keys);
             }
             

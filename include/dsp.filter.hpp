@@ -226,19 +226,28 @@ namespace imajuscule
     
     template<typename T>
     struct FIRFilter {
+        FIRFilter() : FIRFilter(0) {}
+        
+        FIRFilter(int size) : past(size, {}) {}
+        
         template<typename U>
-        FIRFilter(std::vector<U> const & c) : past(c.size(), {}) {
+        FIRFilter(std::vector<U> const & c) : FIRFilter(c.size()) {
             assert(c.size() == past.size());
             coefficients.reserve(c.size());
-            coefficients.clear();
             for(auto coeff : c) {
                 coefficients.push_back(coeff);
             }
         }
         
+        void setCoefficients(std::vector<double> v) {
+            past.resize(v.size());
+            coefficients = std::move(v);
+        }
+                
         auto size() const { return coefficients.size(); }
         
         void step(T val) {
+            assert(size() != 0);
             past.feed(val);
         }
         
@@ -247,6 +256,7 @@ namespace imajuscule
             int index = 0;
             // when coefficients are symmetrical it doesn't matter
             // if we are traversing forward or backward
+            // but here we have no assumption:
             past.for_each_bkwd([&res, &index, this](auto val) {
                 res += val * coefficients[index];
                 ++index;
@@ -259,6 +269,18 @@ namespace imajuscule
         cyclic<T> past;
     };
     
+    template<typename T>
+    struct ConvolutionReverb : public FIRFilter<T> {
+        ConvolutionReverb() = default;
+        
+        ConvolutionReverb(std::vector<double> impulseResponse) : FIRFilter<T>(impulseResponse.size()) {
+            setConvolutionCoefficients(std::move(impulseResponse));
+        }
+        
+        void setConvolutionCoefficients(std::vector<double> impulseResponse) {
+            this->setCoefficients(std::move(impulseResponse));
+        }
+    };
     
     static void plotMagnitude(fft::FFTVec<double> const & v) {
         std::vector<double> mags;

@@ -67,6 +67,12 @@ namespace imajuscule
             return *this;
         }
         
+        void resize(int sz) {
+            auto dist = std::distance(buf.begin(), it);
+            buf.resize(sz, initialValue);
+            it = buf.begin() + dist;
+        }
+        
         void feed(ParameterType val) {
             *it = val;
             ++it;

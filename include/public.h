@@ -42,6 +42,7 @@
 #include "slidingaverage.h"
 #include "meta.hpp"
 #include "numtraits.h"
+#include "peaks.hpp"
 #include "math.hpp"
 #include "flt_math.hpp"
 #include "freelist.hpp"

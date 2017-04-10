@@ -87,6 +87,8 @@
 		093239D81DB5651B003C168E /* libalgorithms.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.ios.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		093E6E711E20B0D9004DFED2 /* test_types.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_types.cpp; path = test/test_types.cpp; sourceTree = "<group>"; };
+		093F0A1E1E9AB399004432C2 /* peaks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = peaks.hpp; path = include/peaks.hpp; sourceTree = "<group>"; };
+		093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_peaks.cpp; path = test/test_peaks.cpp; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
@@ -266,6 +268,7 @@
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
+				093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
@@ -302,6 +305,7 @@
 				0996F3E81E2EF3030053B30B /* meta.hpp */,
 				092EAAB91E2A49F3006C11E9 /* numtraits.h */,
 				09BA14CA1E3888C300A05F83 /* object.h */,
+				093F0A1E1E9AB399004432C2 /* peaks.hpp */,
 				0912152D1E096DD900B860CB /* pool.adaptive_stack.h */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,
 				0912152E1E096DD900B860CB /* public.h */,

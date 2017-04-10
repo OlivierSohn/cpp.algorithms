@@ -16,7 +16,7 @@ namespace imajuscule {
         if(v < v1) {
             return v1;
         }
-        if(v> v2) {
+        if(v > v2) {
             return v2;
         }
         return v;

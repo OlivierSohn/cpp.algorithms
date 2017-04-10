@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_peaks.cpp"
 #include "test_cast.cpp"
 #include "test_cyclic.cpp"
 #include "test_fft.cpp"

@@ -42,6 +42,10 @@ namespace imajuscule
             return *this;
         }
         
+        void convert_to_conjugate() {
+            im = -im;
+        }
+        
     private:
         T re, im;
     };

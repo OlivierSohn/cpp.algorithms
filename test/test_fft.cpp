@@ -19,7 +19,7 @@ TEST(FFT, simple) {
     res.resize(N);
     input.resize(N);
     auto roots = compute_roots_of_unity<double>(N);
-    Algo<double> a(roots);
+    Algo<double> a(std::move(roots));
     a.run(input.begin(), res.begin(), N, 1 );
  
     // testing against ref found here : https://rosettacode.org/wiki/Fast_Fourier_transform
@@ -53,7 +53,7 @@ TEST(FFT, big) {
     res.resize(N);
     input.resize(N);
     auto roots = compute_roots_of_unity<double>(N);
-    Algo<double> a(roots);
+    Algo<double> a(std::move(roots));
     a.run(input.begin(), res.begin(), N, 1 );
 }
 

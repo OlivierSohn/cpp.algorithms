@@ -27,7 +27,7 @@ namespace imajuscule {
             for(unsigned int i=0; i<n_roots; ++i) {
                 res.push_back(make_root_of_unity<T>(i,N));
             }
-            return res;
+            return std::move(res);
         }
         
         // https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
@@ -36,9 +36,15 @@ namespace imajuscule {
         struct Algo {
             using ROOTS_OF_UNITY = FFTVec<T>;
             
-            Algo(ROOTS_OF_UNITY const & roots_of_unity) :
-            roots_of_unity(roots_of_unity)
+            Algo() = default;
+            
+            Algo(ROOTS_OF_UNITY roots_of_unity) :
+            roots_of_unity(std::move(roots_of_unity))
             {}
+            
+            void setRootsOfUnity(ROOTS_OF_UNITY roots) {
+                roots_of_unity = std::move(roots);
+            }
             
             template<typename ITER>
             void run(ITER it,
@@ -51,7 +57,7 @@ namespace imajuscule {
             }
             
         private:
-            ROOTS_OF_UNITY const & roots_of_unity;
+            ROOTS_OF_UNITY roots_of_unity;
 
             template<typename ITER>
             void do_run(ITER it,

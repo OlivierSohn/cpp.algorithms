@@ -246,6 +246,8 @@ namespace imajuscule
                 
         auto size() const { return coefficients.size(); }
         
+        bool empty() const { return coefficients.empty(); }
+
         void step(T val) {
             assert(size() != 0);
             past.feed(val);

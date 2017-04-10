@@ -11,7 +11,7 @@ namespace imajuscule {
                          FFTIter<double> signal_it,
                          FFTIter<double> result_it) {
             auto roots = compute_roots_of_unity<double>(fft_length);
-            Algo<double> a(roots);
+            Algo<double> a(std::move(roots));
             a.run(signal_it, result_it, fft_length, 1);
         }
         

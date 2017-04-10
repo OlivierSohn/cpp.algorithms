@@ -68,6 +68,7 @@
 #include "hash_table.hpp"
 #include "merge_sort.hpp"
 #include "dsp.filter.hpp"
+#include "dsp.convolution.hpp"
 #include "enum.h"
 #include "interpolation.h"
 #include "debugging.h"

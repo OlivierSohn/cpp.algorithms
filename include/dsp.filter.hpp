@@ -268,20 +268,7 @@ namespace imajuscule
         std::vector<double> coefficients;
         cyclic<T> past;
     };
-    
-    template<typename T>
-    struct ConvolutionReverb : public FIRFilter<T> {
-        ConvolutionReverb() = default;
         
-        ConvolutionReverb(std::vector<double> impulseResponse) : FIRFilter<T>(impulseResponse.size()) {
-            setConvolutionCoefficients(std::move(impulseResponse));
-        }
-        
-        void setConvolutionCoefficients(std::vector<double> impulseResponse) {
-            this->setCoefficients(std::move(impulseResponse));
-        }
-    };
-    
     static void plotMagnitude(fft::FFTVec<double> const & v) {
         std::vector<double> mags;
         mags.reserve(v.size());

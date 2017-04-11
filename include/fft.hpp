@@ -9,7 +9,8 @@ namespace imajuscule {
         
         template<typename T>
         static complex<T> make_root_of_unity(unsigned int index, unsigned int size) {
-            return polar(-2. * M_PI * index / size);
+            using Tr = NumTraits<T>;
+            return polar(-Tr::two() * static_cast<T>(M_PI) * index / size);
         }
         
         template<typename T>
@@ -85,10 +86,16 @@ namespace imajuscule {
             
         };
         
-        
+        template<typename ITER>
         void compute_fft(unsigned int fft_length,
-                         FFTIter<double> signal_it,
-                         FFTIter<double> result_it);
+                         ITER signal_it,
+                         ITER result_it) {
+            using T = typename ITER::value_type;
+            using FPT = typename T::FPT;
+            auto roots = compute_roots_of_unity<FPT>(fft_length);
+            Algo<FPT> a(std::move(roots));
+            a.run(signal_it, result_it, fft_length, 1);
+        }
 
         template<typename Iter>
         void normalize_fft(unsigned int fft_length,
@@ -105,13 +112,14 @@ namespace imajuscule {
         void apply_hann_window(ITER it,
                                ITER end)
         {
+            using FPT = typename ITER::value_type;
             auto NumTaps = std::distance(it, end);
             auto nyquist = NumTaps / 2;
 
             int i=0;
             for(; it != end; ++it) {
                 // W(n) = cos(n/NumTaps · π/2)
-                *it *= cos( std::abs(nyquist-i)/(double)nyquist * M_PI_2);
+                *it *= std::cos( std::abs(nyquist-i)/static_cast<FPT>(nyquist) * static_cast<FPT>(M_PI_2));
                 ++i;
             }
         }

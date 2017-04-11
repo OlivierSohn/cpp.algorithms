@@ -53,7 +53,7 @@ namespace imajuscule
             
             // compute fft of padded impulse response
             
-            auto roots = fft::compute_roots_of_unity<double>(fft_length);
+            auto roots = fft::compute_roots_of_unity<T>(fft_length);
             fft.setRootsOfUnity(std::move(roots));
             auto coeffs = complexify(std::move(coeffs_));
             fft.run(coeffs.begin(), fft_of_h.begin(), fft_length, 1);
@@ -90,7 +90,7 @@ namespace imajuscule
                 // in theory for inverse fft we should convert_to_conjugate the result
                 // but it is supposed to be real numbers so the conjugation has no effect
 
-                auto factor = 1 / static_cast<double>(fft_of_x.size());
+                auto factor = 1 / static_cast<T>(fft_of_x.size());
                 // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
 
                 // y = mix first part of result with second part of previous result
@@ -132,10 +132,10 @@ namespace imajuscule
         }
         
     private:
-        fft::Algo<double> fft;
+        fft::Algo<T> fft;
         int N;
         
-        std::vector<complex<double>> fft_of_h, x, fft_of_x, y, result; // todo use std::vector<T> when we have optimized real ffts
-        decltype(y)::iterator it;
+        std::vector<complex<T>> fft_of_h, x, fft_of_x, y, result; // todo use std::vector<T> when we have optimized real ffts
+        typename decltype(y)::iterator it;
     };
 }

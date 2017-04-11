@@ -239,7 +239,7 @@ namespace imajuscule
             }
         }
         
-        void setCoefficients(std::vector<double> v) {
+        void setCoefficients(std::vector<T> v) {
             past.resize(v.size());
             coefficients = std::move(v);
         }
@@ -267,12 +267,13 @@ namespace imajuscule
         }
 
     private:
-        std::vector<double> coefficients;
+        std::vector<T> coefficients;
         cyclic<T> past;
     };
-        
-    static void plotMagnitude(fft::FFTVec<double> const & v) {
-        std::vector<double> mags;
+    
+    template<typename T>
+    static void plotMagnitude(fft::FFTVec<T> const & v) {
+        std::vector<T> mags;
         mags.reserve(v.size());
         std::transform(v.begin(), v.end(),
                        std::back_inserter(mags),
@@ -289,7 +290,7 @@ namespace imajuscule
         auto N = res.size();
         auto nyquist = N/2;
         
-        double RadPerSample = -M_PI;
+        T RadPerSample = -M_PI;
         if(even_taps) {
             RadPerSample *= (N - 1.0)/N;
         }
@@ -315,7 +316,7 @@ namespace imajuscule
         using namespace imajuscule::fft;
         assert(is_power_of_two(fft_length));
         
-        FFTVec<double> res, input;
+        FFTVec<T> res, input;
         res.resize(fft_length);
         input.resize(fft_length);
         

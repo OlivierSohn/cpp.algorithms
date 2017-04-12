@@ -226,6 +226,8 @@ namespace imajuscule
     
     template<typename T>
     struct FIRFilter {
+        using FPT = T;
+        
         FIRFilter() : FIRFilter(0) {}
         
         FIRFilter(int size) : past(size, {}) {}

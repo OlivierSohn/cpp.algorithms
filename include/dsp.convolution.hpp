@@ -26,6 +26,8 @@ namespace imajuscule
      */
     template <typename T>
     struct FFTConvolution {
+        using FPT = T;
+        
         FFTConvolution() {
             it = y.end();
         }

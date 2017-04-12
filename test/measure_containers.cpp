@@ -8,7 +8,6 @@
 // - unordered map
 
 namespace imajuscule {
-    std::ofstream myfile;
 
     template<typename Key, typename Value>
     struct SortedVector {
@@ -19,6 +18,8 @@ namespace imajuscule {
     };
     
     namespace stl_msr {
+        std::ofstream myfile;
+
         template<int N, typename Key>
         struct RandomKeys {
             RandomKeys() : keys(N) {
@@ -365,9 +366,9 @@ void testMapSortedVector() {
  * when the number of items don't change (no need to insert in the middle)
  */
 TEST(Comparison, map_sortedvector) {
-    
-    imajuscule::myfile.open ("/Users/Olivier/map_sortedvec.csv");
-    imajuscule::myfile << "N,svec,map,mmap,mapa,mmapa\n";
+    using namespace imajuscule::stl_msr;
+    myfile.open ("/Users/Olivier/map_sortedvec.csv");
+    myfile << "N,svec,map,mmap,mapa,mmapa\n";
 
     testMapSortedVector<10>();
     testMapSortedVector<100>();
@@ -375,6 +376,6 @@ TEST(Comparison, map_sortedvector) {
     testMapSortedVector<10000>();
     testMapSortedVector<100000>();
     
-    imajuscule::myfile.close();
+    myfile.close();
 
 }

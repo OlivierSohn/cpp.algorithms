@@ -24,4 +24,5 @@
 
 #if MEASURE_PERFS
 #  include "measure_containers.cpp"
+#  include "measure_reverbs.cpp"
 #endif

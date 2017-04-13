@@ -47,12 +47,13 @@ namespace imajuscule {
                 roots_of_unity = std::move(roots);
             }
             
-            template<typename ITER>
-            void run(ITER it,
-                     ITER result,
+            template<typename ITER1, typename ITER2>
+            void run(ITER1 it,
+                     ITER2 result,
                      unsigned int N,
-                     unsigned int stride) {
-                static_assert(std::is_same<T,typename ITER::value_type::FPT>::value, "");
+                     unsigned int stride) const {
+                static_assert(std::is_same<T,typename ITER1::value_type::FPT>::value, "");
+                static_assert(std::is_same<T,typename ITER2::value_type::FPT>::value, "");
                 assert(N/2 == roots_of_unity.size());
                 do_run(it, result, N, stride);
             }
@@ -60,11 +61,11 @@ namespace imajuscule {
         private:
             ROOTS_OF_UNITY roots_of_unity;
 
-            template<typename ITER>
-            void do_run(ITER it,
-                        ITER result,
+            template<typename ITER1, typename ITER2>
+            void do_run(ITER1 it,
+                        ITER2 result,
                         unsigned int N,
-                        unsigned int stride) {
+                        unsigned int stride) const {
                 if(N==1) {
                     *result = *it;
                     return;

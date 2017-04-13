@@ -108,6 +108,7 @@
 		0960BAFE1DB3F0F80075CB05 /* osx.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.xcconfig; path = xcode.config/osx.xcconfig; sourceTree = "<group>"; };
 		096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.hpp; path = include/dsp.convolution.hpp; sourceTree = "<group>"; };
 		096C6D401E9D35B800389746 /* measure_reverbs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = measure_reverbs.cpp; path = test/measure_reverbs.cpp; sourceTree = "<group>"; };
+		096C6D411E9ED69200389746 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = include/defines.h; sourceTree = "<group>"; };
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
@@ -280,7 +281,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -289,6 +289,8 @@
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
+				096C6D411E9ED69200389746 /* defines.h */,
+				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,

@@ -37,6 +37,10 @@ namespace imajuscule
 
         size_t size() const { return buf.size(); }
         
+        cyclic() : isFirstFeed(true) {
+            it = buf.begin();
+        }
+        
         cyclic(size_t size, ParameterType initVals)
         : initialValue(initVals), isFirstFeed(true) {
             buf.resize(size, initVals);
@@ -74,18 +78,21 @@ namespace imajuscule
         }
         
         void feed(ParameterType val) {
-            *it = val;
-            ++it;
-            if(it == buf.end())
-                it = buf.begin();
-            
-            if(isFirstFeed)
-            {
-                if(KIND == OVERWRITE_INITIAL_VALUES_WITH_FIRST_FEED)
-                {
+            if(isFirstFeed) {
+                if(KIND == OVERWRITE_INITIAL_VALUES_WITH_FIRST_FEED) {
                     std::fill(buf.begin(), buf.end(), val);
                 }
                 isFirstFeed = false;
+            }
+            
+            *it = std::move(val);
+            advance();
+        }
+        
+        void advance() {
+            ++it;
+            if(it == buf.end()) {
+                it = buf.begin();
             }
         }
         

@@ -37,16 +37,17 @@ namespace imajuscule {
             using FPT = typename ALGO::FPT;
             
             auto N = pow2(exponent);
-            auto n_samples = N; // so that there is one computation only, to avoid cache effects
+            ALGO algo;
+            
+            algo.setCoefficients(std::vector<FPT>(N));
+
+            auto n_samples = algo.getComputationPeriodicity();
             auto in_seconds_mono = n_samples / static_cast<float>(44100);
             
             std::cout << "Measuring " << N << " "; COUT_TYPE(ALGO); std::cout << std::endl;
             
-            ALGO algo;
-            
-            algo.setCoefficients(std::vector<FPT>(N));
             {
-                for(int i=0; i<n_samples-1; ++i) { // measure only last iteration
+                for(int i=0; i<n_samples-1; ++i) { // measure only last iteration, which has the actual compute, to avoid cache effects
                     algo.step(0);
                     algo.get();
                 }
@@ -59,12 +60,13 @@ namespace imajuscule {
                 std::cout << "ratio : " << ratio << std::endl;
                 myfile << ratio << ", ";
                 
-                // compute the min chunk size that the os asks at each computation so that we have no problem:
-                //auto n_iterations = N / chunk_sz;
-                // such that 1/n_iterations == ratio;
-                // because in that case, one step doesn't exceed the corresponding real time of audio.
+                // when using algo FFTConvolution :
+                //   compute the min chunk size that the os asks at each computation so that we have no problem:
+                //     auto n_iterations = N / chunk_sz;
+                //     such that 1/n_iterations == ratio;
+                //   because in that case, one step doesn't exceed the corresponding real time of audio.
                 auto min_chunck_sz = N * ratio;
-                std::cout << "min chunck size for " << N << " : " << min_chunck_sz << std::endl;
+                std::cout << "min chunck size for FFTConvolution (" << N << ") : " << min_chunck_sz << std::endl;
             }
         }
         
@@ -86,6 +88,9 @@ TEST(Benchmark, reverb_algo) {
         //test<FIRFilter<double>>(e);
         test<FFTConvolution<float>>(e);
         test<FFTConvolution<double>>(e);
+        auto constexpr lg_partition_sz = 10;
+        test<PartitionnedFFTConvolution<float, lg_partition_sz>>(e);
+        test<PartitionnedFFTConvolution<double, lg_partition_sz>>(e);
         
         myfile << std::endl;
     }
@@ -113,6 +118,9 @@ TEST(Benchmark, reverb_algo_nocache) {
         //test_nocache<FIRFilter<double>>(e);
         test_nocache<FFTConvolution<float>>(e);
         test_nocache<FFTConvolution<double>>(e);
+        auto constexpr lg_partition_sz = 10;
+        test_nocache<PartitionnedFFTConvolution<float, lg_partition_sz>>(e);
+        test_nocache<PartitionnedFFTConvolution<double, lg_partition_sz>>(e);
         
         myfile << std::endl;
     }

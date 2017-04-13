@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include "defines.h"
 #include "logging.h"
 #include "object.h"
 #include "safe_cast.hpp"

@@ -6,42 +6,42 @@
 
 namespace imajuscule
 {
-    template<typename T>
-    std::vector<complex<T>> complexify(std::vector<T> vec) {
+    template<typename T, typename ITER = typename std::vector<T>::iterator>
+    std::vector<complex<T>> complexify(ITER it, ITER end) {
         std::vector<complex<T>> ret;
-        ret.reserve(vec.size());
-        for(auto s : vec) {
-            ret.push_back({s, 0});
+        ret.reserve(std::distance(it, end));
+        for(; it!=end; ++it) {
+            ret.push_back({*it, 0});
         }
         return ret;
     }
     
     /*
      * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method#math_Eq.1
-     *
-     * http://cnx.org/contents/tS7cr9DP@7/Fast-Convolution-Using-the-FFT
-     *
-     * todo use http://stackoverflow.com/questions/7972952/how-to-interpret-the-result-from-kissffts-kiss-fftr-fft-for-a-real-signal-fun
-     * to optimize real ffts
      */
-    template <typename T>
-    struct FFTConvolution {
+    template <typename Parent>
+    struct FFTConvolutionBase : public Parent {
+        using T = typename Parent::FPT;
         using FPT = T;
+        using FFT = typename Parent::FFT;
+        using FFTAlgo = typename fft::Algo<FPT>;
         
-        FFTConvolution() {
+        using Parent::get_fft_length;
+        using Parent::getComputationPeriodicity;
+        using Parent::doSetCoefficients;
+        using Parent::compute_convolution;
+        
+        FFTConvolutionBase() {
             it = y.end();
         }
         
-        bool empty() const { return fft_of_h.empty(); }
-        
         void setCoefficients(std::vector<T> coeffs_) {
-            N = coeffs_.size();
-            auto N_nonzero_y = 2 * N - 1;
             
-            auto fft_length = ceil_power_of_two(N_nonzero_y);
+            auto N = coeffs_.size();
+            auto fft_length = get_fft_length(N);
+            auto roots = fft::compute_roots_of_unity<T>(fft_length);
+            fft.setRootsOfUnity(std::move(roots));
             
-            fft_of_h.resize(fft_length, {0,0});
-            fft_of_x.resize(fft_length, {0,0});
             result.resize(fft_length, {0,0});
             x.reserve(fft_length);
             {
@@ -49,54 +49,38 @@ namespace imajuscule
                 it = y.begin();
             }
             
-            // pad impulse response with 0
-            
-            coeffs_.resize(fft_length, {});
-            
-            // compute fft of padded impulse response
-            
-            auto roots = fft::compute_roots_of_unity<T>(fft_length);
-            fft.setRootsOfUnity(std::move(roots));
-            auto coeffs = complexify(std::move(coeffs_));
-            fft.run(coeffs.begin(), fft_of_h.begin(), fft_length, 1);
+            doSetCoefficients(fft, std::move(coeffs_));
         }
-
+        
         void step(T val) {
             x.emplace_back(val, 0);
             
-            if(x.size() == N) {
+            auto N = getComputationPeriodicity();
+            if(unlikely(x.size() == N)) {
                 // pad x
                 
-                x.resize(fft_of_x.size(), {0,0});
-
-                // do fft of x
+                x.resize(get_fft_length(), {0,0});
                 
-                fft.run(x.begin(), fft_of_x.begin(), fft_of_x.size(), 1);
+                auto it_ = compute_convolution(fft, x);
                 
-                // multiply fft_of_x by fft_of_h
+                // finish inverse fft
                 
-                auto it_fft_x = fft_of_x.begin();
-                auto end_fft_x = fft_of_x.end();
-
-                auto it_fft_h = fft_of_h.begin();
-                for(; it_fft_x != end_fft_x; ++it_fft_x, ++it_fft_h) {
-                    auto & c = *it_fft_x;
-                    c *= *it_fft_h;
-                    // anticipating an operation required for inverse fft, cf. https://www.dsprelated.com/showarticle/800.php
-                    c.convert_to_conjugate();
-                }
-                
-                // https://www.dsprelated.com/showarticle/800.php
-                fft.run(fft_of_x.begin(), result.begin(), fft_of_x.size(), 1);
+                fft.run(it_, result.begin(), get_fft_length(), 1);
                 
                 // in theory for inverse fft we should convert_to_conjugate the result
-                // but it is supposed to be real numbers so the conjugation has no effect
+                // but it is supposed to be real numbers so the conjugation would have no effect
+                
+#ifndef NDEBUG
+                for(auto const & r : result) {
+                    assert(r.imag() < 0.000001f);
+                }
+#endif
 
-                auto factor = 1 / static_cast<T>(fft_of_x.size());
+                auto factor = 1 / static_cast<T>(get_fft_length());
                 // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
-
+                
                 // y = mix first part of result with second part of previous result
-
+                
                 auto it_res = result.begin();
                 auto it_y = y.begin();
                 auto end_y = it_y + N;
@@ -126,7 +110,7 @@ namespace imajuscule
         }
         
         T get() {
-            assert(it < y.begin() + N);
+            assert(it < y.begin() + getComputationPeriodicity());
             assert(it >= y.begin());
             auto val = it->real();
             assert(std::abs(it->imag()) < 0.0001f);
@@ -134,10 +118,194 @@ namespace imajuscule
         }
         
     private:
-        fft::Algo<T> fft;
-        int N;
-        
-        std::vector<complex<T>> fft_of_h, x, fft_of_x, y, result; // todo use std::vector<T> when we have optimized real ffts
+        FFTAlgo fft;
+        FFT x, y, result;
         typename decltype(y)::iterator it;
     };
+    
+    template <typename T>
+    struct FFTConvolutionCRTP {
+        using FPT = T;
+        using FFT = typename fft::FFTVec<T>;
+
+        auto getComputationPeriodicity() const { return N; }
+        
+        bool empty() const { return fft_of_h.empty(); }
+        
+        auto get_fft_length(int N) {
+            auto N_nonzero_y = 2 * N - 1;
+            return ceil_power_of_two(N_nonzero_y);
+        }
+        
+        auto get_fft_length() {
+            return fft_of_x.size();
+        }
+        
+        void doSetCoefficients(fft::Algo<FPT> const & fft, std::vector<T> coeffs_) {
+            N = coeffs_.size();
+            
+            auto fft_length = get_fft_length(N);
+            
+            fft_of_h.resize(fft_length, {0,0});
+            fft_of_x.resize(fft_length, {0,0});
+            
+            // pad impulse response with 0
+            
+            coeffs_.resize(fft_length, {});
+            
+            // compute fft of padded impulse response
+            
+            auto coeffs = complexify<FPT>(coeffs_.begin(), coeffs_.end());
+            fft.run(coeffs.begin(), fft_of_h.begin(), fft_length, 1);
+        }
+        
+        
+    protected:
+        auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x) {
+            // do fft of x
+            
+            fft.run(x.begin(), fft_of_x.begin(), get_fft_length(), 1);
+            
+            // multiply fft_of_x by fft_of_h
+            
+            auto it_fft_x = fft_of_x.begin();
+            auto end_fft_x = fft_of_x.end();
+            
+            auto it_fft_h = fft_of_h.begin();
+            for(; it_fft_x != end_fft_x; ++it_fft_x, ++it_fft_h) {
+                auto & c = *it_fft_x;
+                c *= *it_fft_h;
+                
+                // start inverse fft (anticipation step here, cf. https://www.dsprelated.com/showarticle/800.php)
+                c.convert_to_conjugate();
+            }
+            
+            return fft_of_x.begin();
+        }
+      
+    private:
+        int N;
+        
+        FFT fft_of_h, fft_of_x; // todo use std::vector<T> when we have optimized real ffts
+    };
+    
+    /*
+     * cf. http://www.ericbattenberg.com/school/partconvDAFx2011.pdf
+     */
+    template <typename T, int LG2_PARTITION_SIZE>
+    struct PartitionnedFFTConvolutionCRTP {
+        using FPT = T;
+        using FFT = typename fft::FFTVec<T>;
+        
+        static_assert(LG2_PARTITION_SIZE >= 0, "");
+        
+        static constexpr auto PARTITION_SIZE = pow2(LG2_PARTITION_SIZE);
+        
+        static constexpr auto fft_length = 2 * PARTITION_SIZE;
+        
+        constexpr auto get_fft_length() { return fft_length; }
+        constexpr auto get_fft_length(int) { return get_fft_length(); }
+        
+        bool empty() const { return ffts_of_partitionned_h.empty(); }
+
+        static auto getComputationPeriodicity() { return PARTITION_SIZE; }
+        
+        void doSetCoefficients(fft::Algo<FPT> const & fft, std::vector<T> coeffs_) {
+            
+            auto N = coeffs_.size();
+            auto n_partitions = N/PARTITION_SIZE;
+            if(n_partitions * PARTITION_SIZE != N) {
+                // one partition is partial...
+                assert(n_partitions * PARTITION_SIZE < N);
+                ++n_partitions;
+                // ... pad it with zeros
+                coeffs_.resize(n_partitions * PARTITION_SIZE, {});
+            }
+            ffts_of_delayed_x.resize(n_partitions);
+            ffts_of_partitionned_h.resize(n_partitions);
+            
+            for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+                fft_of_partitionned_h.resize(fft_length, {0,0});
+            }
+            for(auto & fft_of_delayed_x : ffts_of_delayed_x) {
+                fft_of_delayed_x.resize(fft_length, {0,0});
+            }
+            
+            work.resize(fft_length);
+            
+            // compute fft of padded impulse response
+            
+            auto it_coeffs = coeffs_.begin();
+            for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+                auto end_coeffs = it_coeffs + PARTITION_SIZE;
+                assert(end_coeffs <= coeffs_.end());
+                auto coeffs = complexify<FPT>(it_coeffs, end_coeffs);
+                it_coeffs = end_coeffs;
+
+                // pad partitionned impulse response with 0
+                
+                coeffs.resize(fft_length, {0,0});
+                fft.run(coeffs.begin(), fft_of_partitionned_h.begin(), fft_length, 1);
+            }
+            assert(it_coeffs == coeffs_.end());
+        }
+
+    protected:
+        auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x) {
+            
+            // do fft of x
+            {
+                auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
+                assert(fft_length == oldest_fft_of_delayed_x.size());
+                fft.run(x.begin(), oldest_fft_of_delayed_x.begin(), fft_length, 1);
+                ffts_of_delayed_x.advance();
+            }
+            
+            auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin();
+            
+            std::fill(work.begin(), work.end(), complex<T>(0,0));
+            
+            ffts_of_delayed_x.for_each_bkwd( [this, &it_fft_of_partitionned_h] (auto const & fft_of_delayed_x) {
+                assert(it_fft_of_partitionned_h < ffts_of_partitionned_h.end());
+                
+                auto const & fft_of_partitionned_h = *it_fft_of_partitionned_h;
+                
+                // multiply fft_of_delayed_x by fft_of_partitionned_h
+                
+                auto it_work = work.begin();
+                
+                auto it_fft_x = fft_of_delayed_x.begin();
+                auto end_fft_x = fft_of_delayed_x.end();
+                
+                auto it_fft_h = fft_of_partitionned_h.begin();
+                for(; it_fft_x != end_fft_x; ++it_fft_x, ++it_fft_h, ++it_work) {
+                    assert(it_work < work.end());
+                    *it_work += *it_fft_x * *it_fft_h;
+                }
+                
+                ++ it_fft_of_partitionned_h;
+            });
+            
+            // start inverse fft (https://www.dsprelated.com/showarticle/800.php)
+            
+            for(auto & c : work) {
+                c.convert_to_conjugate();
+            }
+            
+            return work.begin();
+        }
+
+    private:
+        cyclic<FFT> ffts_of_delayed_x;
+        std::vector<FFT> ffts_of_partitionned_h;
+        
+        FFT work;
+    };
+
+    template <typename T>
+    using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T> >;
+
+    template <typename T, int LG2_PARTITION_SIZE>
+    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, LG2_PARTITION_SIZE> >;
+
 }

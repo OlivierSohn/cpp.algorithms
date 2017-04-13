@@ -45,6 +45,11 @@ namespace imajuscule {
     }
     
     template <typename E>
+    constexpr void increment(E & e) {
+        e = static_cast<E>(to_underlying(e) + 1);
+    }
+    
+    template <typename E>
     constexpr int min_bits() {
         return ceil_power_of_two(to_underlying(E::SIZE_ENUM));
     }

@@ -201,10 +201,38 @@ namespace imajuscule
     // provided the "phases" of the different algorithms are well-spaced.
     // So in that mode, we divide the time by n_channels.
     //
-    // when deducing the right partition size, we don't interpolate on number of frames, we take the result for the smaller power of 2
+    // We just need to measure one computation with ffts and time it in worst case, when nothing is in the cache.
+    // To do that we need to explicitely pollute the cache.
+    //
+    // when deducing the right partition size, we don't interpolate on number of frames,
+    // we take the best result between :
+    //    ceil power of 2 in mode "N_Channel * A < PART_L"
+    //    floor power of 2 in normal mode
 
     /*
-     * cf. http://www.ericbattenberg.com/school/partconvDAFx2011.pdf
+     * Partitionned convolution, cf. http://www.ericbattenberg.com/school/partconvDAFx2011.pdf
+     *
+     *                     FFT(h1)
+     *                        |
+     *       +-----+    +-----v-----+  +-----+  +------+
+     * x +---> FFT +-+--> cplx mult +--> Add +--> IFFT +--> y
+     *       +-----+ |  +-----------+  +-^---+  +------+
+     *          +----v---+               |
+     *          |Delay(N)| FFT(h2)       |
+     *          +----+---+    |          |
+     *               |  +-----v-----+    |
+     *               +->+ cplx mult +----+
+     *               |  +-----------+    |
+     *               .         .         .
+     *               .         .         .
+     *               .                   .
+     *               |                   |
+     *          +----v---+               |
+     *          |Delay(N)| FFT(hn)       |
+     *          +----+---+    |          |
+     *               |  +-----v-----+    |
+     *               +->+ cplx mult +----+
+     *                  +-----------+
      */
     template <typename T, int LG2_PARTITION_SIZE>
     struct PartitionnedFFTConvolutionCRTP {

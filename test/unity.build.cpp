@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_gradient_descent.cpp"
 #include "test_peaks.cpp"
 #include "test_cast.cpp"
 #include "test_cyclic.cpp"

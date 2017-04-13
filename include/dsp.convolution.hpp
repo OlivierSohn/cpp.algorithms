@@ -302,10 +302,62 @@ namespace imajuscule
         FFT work;
     };
 
+    /*
+    
+     Notations for complexity:
+     
+     H : length of impulse response
+     
+     A : number of frames computed during one audio callback
+     
+     PART_N : Number of partitions
+     PART_L : Length of one partition
+     ( H == PART_N * PART_L )
+     
+     The computations are based on the fact that an fft of an S-long signal costs S*lg(S)
+     */
+
+    // for convolution reverbs, most of the time we have A << H
+    /*
+     * runtime complexity:
+     *
+     *   every H frames  ............... O( H * lg(H) )
+     *
+     *   every frame  .................. O( lg(H) )       [amortized]
+     *
+     *   when 'H < A':
+     *     worst audio callback call ... O( A * lg(H) )    (= A/H * O( H * lg(H) ))
+     *
+     *   when 'A < H ':
+     *     worst audio callback call ... O( H * lg(H) )
+     *
+     * optimization : H and A are fixed so we cannot optimize this algorithm
+     */
     template <typename T>
     using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T> >;
 
+    /*
+     * runtime complexity:
+     *
+     *   every PART_L frames                :   O( PART_L * (PART_N + lg(PART_L) ) )
+     *
+     *   every frame                        :   O( PART_N + lg(PART_L) )      [amortized]
+     *
+     *   with 'PART_L < A':
+     *     worst audio callback call ... O(     A  * (part_N + lg(PART_L)) )       (= A/PART_L *  O( PART_L * (PART_N + lg(PART_L) ) )
+     *
+     *   with 'A < PART_L ' 
+     *     worst audio callback call ... O( PART_L * (PART_N + lg(PART_L) ) )
+     *                                 = O( PART_L * (H/PART_L + lg(PART_L) ) )
+     *                                 = O( H + PART_L * lg(PART_L) ) )
+     *
+     * optimization : PART_L is not fixed so we can optimize this algorithm by trying different powers of 2
+     *                also we could optimize more globally, taking into account that we have one reverb per channel:
+     *                when N_Channel * A < PART_L we can distribute the computes over the different callbacks calls, provided the "phases"
+     *                of the different algorithms are well-spaced.
+     *
+     */
     template <typename T, int LG2_PARTITION_SIZE>
     using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, LG2_PARTITION_SIZE> >;
-
+    
 }

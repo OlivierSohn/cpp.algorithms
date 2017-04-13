@@ -189,6 +189,20 @@ namespace imajuscule
         FFT fft_of_h, fft_of_x; // todo use std::vector<T> when we have optimized real ffts
     };
     
+    // we compute a table of "best lg2_partition_size" depending on:
+    // - number of channels (1 and 2 for now)
+    // - the number of frames computed per audio callback (32 and up)
+    // - the ceil_power_2(length of impulse)
+    //
+    // we use gradient descent to find the best size.
+    //
+    // we redo the computation in mode "N_Channel * A < PART_L", knowing that in that case,
+    // we have an advantage because we can distribute the various channels across successive callback calls
+    // provided the "phases" of the different algorithms are well-spaced.
+    // So in that mode, we divide the time by n_channels.
+    //
+    // when deducing the right partition size, we don't interpolate on number of frames, we take the result for the smaller power of 2
+
     /*
      * cf. http://www.ericbattenberg.com/school/partconvDAFx2011.pdf
      */

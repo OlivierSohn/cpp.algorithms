@@ -50,7 +50,7 @@ namespace imajuscule
                             throw std::logic_error("the first parameter passed is out of range");
                         }
                         // we want to go away from where we are
-                        decreasing_direction = (first_param > param) ? 1 : -1;
+                        decreasing_direction = (first_param > param) ? 1 : -1;
                         return first_param + decreasing_direction;
                     }
                     return first_param; // we're done, we were decreasing and we found the limit
@@ -67,22 +67,22 @@ namespace imajuscule
                             // we want to continue in this direction
                             min_value = val;
                             min_param = param;
-                            decreasing_direction = (first_param > param) ? -1 : 1;
+                            decreasing_direction = (first_param > param) ? -1 : 1;
                             return param + decreasing_direction;
                         }
                         else {
                             //we need to go the other way
-                            decreasing_direction = (first_param > param) ? 1 : -1;
+                            decreasing_direction = (first_param > param) ? 1 : -1;
                             return first_param + decreasing_direction;
                         }
                     }
                     else {
                         assert(param != first_param);
-                        if(val <= min_value) {
+                        if(val <= min_value) {
                             // we want to continue
                             min_value = val;
                             min_param = param;
-                            assert(decreasing_direction == (first_param > param) ? -1 : 1);
+                            assert(decreasing_direction == (first_param > param) ? -1 : 1);
                             return param + decreasing_direction;
                         }
                         else {

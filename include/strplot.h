@@ -25,26 +25,39 @@ namespace imajuscule {
         }
 
         template<typename T>
-        void drawLog(T container, char c = default_curve_char) {
+        void drawLog(T container, char c = default_curve_char, bool include_zero = true) {
             std::transform(container.begin(),
                            container.end(),
                            container.begin(),
-                           [](auto v){ return std::log(v); });
-            draw(container, c);
+                           [](auto v){
+                               if( std::isnan(v) ) {
+                                   return v;
+                               }
+                               if(v < 0.f) {
+                                   throw std::logic_error("cannot draw log of negative values");
+                               }
+                               return std::log(v);
+                           });
+            draw(container, c, include_zero);
         }
 
         template<typename T>
-        void draw(T const & container, char c = default_curve_char) {
+        void draw(T const & container, char c = default_curve_char, bool include_zero = true) {
             if(container.empty()) {
                 throw "cannot draw empty container";
                 return;
             }
-            auto r = range_;
-            if(r.empty()) {
-                auto minmax = std::minmax_element (container.begin(),container.end());
-                r.set(*minmax.first, *minmax.second);
-                r.extend(0.f);
-                range_ = r;
+
+            if(range_.empty()) {
+                if(include_zero) {
+                    range_.extend(0.f);
+                }
+                for(auto v : container) {
+                    if(v != v) {
+                        continue; // ignore nan values
+                    }
+                    range_.extend(v);
+                }
             }
             
             for(auto i=0; i<Width; ++i) {
@@ -54,7 +67,17 @@ namespace imajuscule {
                     assert(v_index == i);
                 }
                 
-                auto height = val_to_height(container[v_index]);
+                auto val = container[v_index];
+                
+                if(std::isnan(val)) {
+                    constexpr auto margin = 1;
+                    for(int j=margin; j<Height-margin; ++j) {
+                        p[j][i] = 'X';
+                    }
+                    continue;
+                }
+                
+                auto height = val_to_height(val);
                 
                 if(height < 0) {
                     p[0][i] = 'E';
@@ -114,7 +137,7 @@ namespace imajuscule {
         
         template<typename T>
         int val_to_height(T val) const {
-            if(range_.delta() == 0.f) {
+            if(range_.empty() || range_.delta() == 0.f) {
                 return 0;
             }
             float normalized_val = (val - range_.getMin()) / range_.delta();

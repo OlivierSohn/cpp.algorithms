@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_benchmark.cpp"
 #include "test_gradient_descent.cpp"
 #include "test_peaks.cpp"
 #include "test_cast.cpp"
@@ -25,5 +26,4 @@
 
 #if MEASURE_PERFS
 #  include "measure_containers.cpp"
-#  include "measure_reverbs.cpp"
 #endif

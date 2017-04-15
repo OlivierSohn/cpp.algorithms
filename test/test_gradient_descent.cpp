@@ -16,30 +16,37 @@ namespace testGradientDescent {
     void test(std::array<int, 6> values) {
         using namespace imajuscule;
         
-        auto index_min = 0;
-        for(int i=1; i<values.size(); ++i) {
-            if(values[i] < values[index_min]) {
-                index_min = i;
+        auto n_iterations = 1;
+        for(; n_iterations < 4; ++n_iterations) {
+            auto index_min = 0;
+            for(int i=1; i<values.size(); ++i) {
+                if(values[i] < values[index_min]) {
+                    index_min = i;
+                }
+            }
+            
+            int counter;
+            auto f = create_f(values, counter);
+            
+            for(int i=0; i<values.size(); ++i) {
+                counter = 0;
+                float min_;
+                int m = findMinimum(n_iterations, i, f, min_);
+                ASSERT_EQ(values[m], min_);
+                ASSERT_EQ(values[index_min], values[m]);
+#if DEBUG_GRADIENT_DESCENT == 0
+                ASSERT_TRUE(counter <= 3 + std::abs(i - m)); // white box test
+#endif
+            }
+            
+            std::vector<int> invalid_starts {{
+                -1, -2, -3, values.size(), values.size() + 1, values.size() + 2
+            }};
+            for(int i : invalid_starts) {
+                float min_;
+                ASSERT_THROW(findMinimum(n_iterations, i, f, min_), std::logic_error) << i;
             }
         }
-
-        int counter;
-        auto f = create_f(values, counter);
-        
-        for(int i=0; i<values.size(); ++i) {
-            counter = 0;
-            int m = findMinimun(i, f);
-            ASSERT_EQ(values[index_min], values[m]);
-            ASSERT_TRUE(counter <= 3 + std::abs(i - m)); // white box test
-        }
-        
-        std::vector<int> invalid_starts {{
-            -1, -2, -3, values.size(), values.size() + 1, values.size() + 2
-        }};
-        for(int i : invalid_starts) {
-            ASSERT_THROW(findMinimun(i, f), std::logic_error) << i;
-        }
-        
     }
 }
 

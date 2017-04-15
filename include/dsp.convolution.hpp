@@ -37,15 +37,15 @@ namespace imajuscule
         
         void setCoefficients(std::vector<T> coeffs_) {
             
-            auto N = coeffs_.size();
-            auto fft_length = get_fft_length(N);
+            auto const N = coeffs_.size();
+            auto const fft_length = get_fft_length(N);
             auto roots = fft::compute_roots_of_unity<T>(fft_length);
             fft.setRootsOfUnity(std::move(roots));
             
             result.resize(fft_length, {0,0});
             x.reserve(fft_length);
             {
-                y.resize( 2 * N, {0,0});
+                y.resize( fft_length, {0,0});
                 it = y.begin();
             }
             
@@ -72,7 +72,7 @@ namespace imajuscule
                 
 #ifndef NDEBUG
                 for(auto const & r : result) {
-                    assert(r.imag() < 0.000001f);
+                    assert(r.imag() < 0.01f);
                 }
 #endif
 
@@ -159,8 +159,8 @@ namespace imajuscule
             fft.run(coeffs.begin(), fft_of_h.begin(), fft_length, 1);
         }
         
-        
     protected:
+
         auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x) {
             // do fft of x
             
@@ -189,28 +189,10 @@ namespace imajuscule
         FFT fft_of_h, fft_of_x; // todo use std::vector<T> when we have optimized real ffts
     };
     
-    // we compute a table of "best lg2_partition_size" depending on:
-    // - number of channels (1 and 2 for now)
-    // - the number of frames computed per audio callback (32 and up)
-    // - the ceil_power_2(length of impulse)
-    //
-    // we use gradient descent to find the best size.
-    //
-    // we redo the computation in mode "N_Channel * A < PART_L", knowing that in that case,
-    // we have an advantage because we can distribute the various channels across successive callback calls
-    // provided the "phases" of the different algorithms are well-spaced.
-    // So in that mode, we divide the time by n_channels.
-    //
-    // We just need to measure one computation with ffts and time it in worst case, when nothing is in the cache.
-    // To do that we need to explicitely pollute the cache.
-    //
-    // when deducing the right partition size, we don't interpolate on number of frames,
-    // we take the best result between :
-    //    ceil power of 2 in mode "N_Channel * A < PART_L"
-    //    floor power of 2 in normal mode
-
     /*
      * Partitionned convolution, cf. http://www.ericbattenberg.com/school/partconvDAFx2011.pdf
+     *
+     * The impulse response h is split in parts of equal length h1, h2, ... hn
      *
      *                     FFT(h1)
      *                        |
@@ -234,37 +216,81 @@ namespace imajuscule
      *               +->+ cplx mult +----+
      *                  +-----------+
      */
-    template <typename T, int LG2_PARTITION_SIZE>
+    
+    
+    int get_lg2_optimal_partition_size(GradientDescent & gd,
+                                       int n_iterations,
+                                       int n_channels,
+                                       int n_frames,
+                                       int length_impulse,
+                                       bool constraint,
+                                       float & min_val,
+                                       int n_tests);
+    
+    static inline int get_optimal_partition_size(GradientDescent & gd,
+                                                 int n_channels,
+                                                 bool with_spread,
+                                                 int n_audiocb_frames,
+                                                 int length_impulse,
+                                                 float & value )
+    {
+        /* timings have random noise, so iterating helps having a better precision */
+        constexpr auto n_iterations = 30;
+        constexpr auto n_tests = 1;
+        int lg2_part_size = get_lg2_optimal_partition_size(gd,
+                                                           n_iterations,
+                                                           n_channels,
+                                                           n_audiocb_frames,
+                                                           length_impulse,
+                                                           with_spread,
+                                                           value,
+                                                           n_tests);
+        
+        return pow2(lg2_part_size);
+    }
+    
+    enum class Autotune {
+        Yes,
+        No
+    };
+
+    template <typename T>
     struct PartitionnedFFTConvolutionCRTP {
         using FPT = T;
         using FFT = typename fft::FFTVec<T>;
         
-        static_assert(LG2_PARTITION_SIZE >= 0, "");
-        
-        static constexpr auto PARTITION_SIZE = pow2(LG2_PARTITION_SIZE);
-        
-        static constexpr auto fft_length = 2 * PARTITION_SIZE;
-        
-        constexpr auto get_fft_length() { return fft_length; }
-        constexpr auto get_fft_length(int) { return get_fft_length(); }
+        auto get_fft_length() { assert(partition_size > 0); return 2 * partition_size; }
+        auto get_fft_length(int) { return get_fft_length(); }
         
         bool empty() const { return ffts_of_partitionned_h.empty(); }
 
-        static auto getComputationPeriodicity() { return PARTITION_SIZE; }
+        auto getComputationPeriodicity() { return partition_size; }
         
+        void set_partition_size(int sz) {
+            assert(sz > 0);
+            partition_size = sz;
+            assert(is_power_of_two(sz));
+        }
+
         void doSetCoefficients(fft::Algo<FPT> const & fft, std::vector<T> coeffs_) {
             
-            auto N = coeffs_.size();
-            auto n_partitions = N/PARTITION_SIZE;
-            if(n_partitions * PARTITION_SIZE != N) {
-                // one partition is partial...
-                assert(n_partitions * PARTITION_SIZE < N);
-                ++n_partitions;
-                // ... pad it with zeros
-                coeffs_.resize(n_partitions * PARTITION_SIZE, {});
-            }
+            auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
+                auto const N = coeffs_.size();
+                auto n_partitions = N/partition_size;
+                if(n_partitions * partition_size != N) {
+                    // one partition is partial...
+                    assert(n_partitions * partition_size < N);
+                    ++n_partitions;
+                    // ... pad it with zeros
+                    coeffs_.resize(n_partitions * partition_size, {});
+                }
+                return n_partitions;
+            }();
+            
             ffts_of_delayed_x.resize(n_partitions);
             ffts_of_partitionned_h.resize(n_partitions);
+            
+            auto const fft_length = get_fft_length();
             
             for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
                 fft_of_partitionned_h.resize(fft_length, {0,0});
@@ -279,7 +305,7 @@ namespace imajuscule
             
             auto it_coeffs = coeffs_.begin();
             for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                auto end_coeffs = it_coeffs + PARTITION_SIZE;
+                auto end_coeffs = it_coeffs + partition_size;
                 assert(end_coeffs <= coeffs_.end());
                 auto coeffs = complexify<FPT>(it_coeffs, end_coeffs);
                 it_coeffs = end_coeffs;
@@ -293,11 +319,13 @@ namespace imajuscule
         }
 
     protected:
-        auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x) {
-            
+
+        auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x)
+        {
             // do fft of x
             {
                 auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
+                auto const fft_length = get_fft_length();
                 assert(fft_length == oldest_fft_of_delayed_x.size());
                 fft.run(x.begin(), oldest_fft_of_delayed_x.begin(), fft_length, 1);
                 ffts_of_delayed_x.advance();
@@ -338,6 +366,7 @@ namespace imajuscule
         }
 
     private:
+        int partition_size = -1;
         cyclic<FFT> ffts_of_delayed_x;
         std::vector<FFT> ffts_of_partitionned_h;
         
@@ -394,12 +423,59 @@ namespace imajuscule
      *                                 = O( H + PART_L * lg(PART_L) ) )
      *
      * optimization : PART_L is not fixed so we can optimize this algorithm by trying different powers of 2
-     *                also we could optimize more globally, taking into account that we have one reverb per channel:
+     *                also we can optimize more globally, taking into account that we have one reverb per channel:
      *                when N_Channel * A < PART_L we can distribute the computes over the different callbacks calls, provided the "phases"
      *                of the different algorithms are well-spaced.
      *
      */
-    template <typename T, int LG2_PARTITION_SIZE>
-    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, LG2_PARTITION_SIZE> >;
+    template <typename T>
+    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T> >;
+    
+    
+    struct PartitionningSpec {
+        int size =  -1;
+        float avg_time_per_sample = std::numeric_limits<float>::max(); // nano seconds
+        GradientDescent gd;
+    };
+    
+    struct PartitionningSpecs {
+        PartitionningSpec & getWithSpread(bool spread) {
+            if(spread) {
+                return with_spread.avg_time_per_sample < without_spread.avg_time_per_sample ? with_spread : without_spread;
+            }
+            else {
+                return without_spread;
+            }
+        }
+        
+        PartitionningSpec with_spread, without_spread;
+    };
+    
+    template<typename T>
+    struct PartitionAlgo {
+        template<typename ...Args>
+        static PartitionningSpecs run(Args... args) {
+            return {};
+        }
+    };
+    
+    template<typename T>
+    struct PartitionAlgo< PartitionnedFFTConvolution<T> > {
+        static PartitionningSpecs run(int n_channels, int n_audio_cb_frames, int size_impulse_response) {
+            assert(n_channels > 0);
+            PartitionningSpecs res;
+            {
+                auto & spec = res.without_spread;
+                spec.size = get_optimal_partition_size( spec.gd, n_channels, false, n_audio_cb_frames, size_impulse_response, spec.avg_time_per_sample );
+            }
+            
+            if(n_channels > 1) {
+                auto & spec = res.with_spread;
+                spec.size = get_optimal_partition_size( spec.gd, n_channels, true, n_audio_cb_frames, size_impulse_response, spec.avg_time_per_sample );
+            }
+            
+            return std::move(res);
+        }
+    };
     
 }

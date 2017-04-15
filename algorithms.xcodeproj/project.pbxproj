@@ -89,6 +89,7 @@
 		093E6E711E20B0D9004DFED2 /* test_types.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_types.cpp; path = test/test_types.cpp; sourceTree = "<group>"; };
 		093F0A1E1E9AB399004432C2 /* peaks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = peaks.hpp; path = include/peaks.hpp; sourceTree = "<group>"; };
 		093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_peaks.cpp; path = test/test_peaks.cpp; sourceTree = "<group>"; };
+		094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.benchmarks.hpp; path = include/dsp.convolution.benchmarks.hpp; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
@@ -106,11 +107,12 @@
 		0960BAFC1DB3F0F80075CB05 /* osx.release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.release.xcconfig; path = xcode.config/osx.release.xcconfig; sourceTree = "<group>"; };
 		0960BAFD1DB3F0F80075CB05 /* ios.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = ios.xcconfig; path = xcode.config/ios.xcconfig; sourceTree = "<group>"; };
 		0960BAFE1DB3F0F80075CB05 /* osx.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.xcconfig; path = xcode.config/osx.xcconfig; sourceTree = "<group>"; };
+		096807881EA13B60006BB4AD /* dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dsp.convolution.cpp; path = source/dsp.convolution.cpp; sourceTree = "<group>"; };
 		096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.hpp; path = include/dsp.convolution.hpp; sourceTree = "<group>"; };
-		096C6D401E9D35B800389746 /* measure_reverbs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = measure_reverbs.cpp; path = test/measure_reverbs.cpp; sourceTree = "<group>"; };
 		096C6D411E9ED69200389746 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = include/defines.h; sourceTree = "<group>"; };
 		096C6D661EA0129300389746 /* gradient_descent.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = gradient_descent.hpp; path = include/gradient_descent.hpp; sourceTree = "<group>"; };
 		096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = test_gradient_descent.cpp; path = test/test_gradient_descent.cpp; sourceTree = "<group>"; };
+		096C6D691EA0338D00389746 /* test_benchmark.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_benchmark.cpp; path = test/test_benchmark.cpp; sourceTree = "<group>"; };
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
@@ -263,8 +266,8 @@
 			children = (
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
-				096C6D401E9D35B800389746 /* measure_reverbs.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
+				096C6D691EA0338D00389746 /* test_benchmark.cpp */,
 				0972718D1E1B4AFD00532772 /* test_cast.cpp */,
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
 				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
@@ -284,7 +287,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				096C6D661EA0129300389746 /* gradient_descent.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -294,12 +296,14 @@
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
 				096C6D411E9ED69200389746 /* defines.h */,
+				094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
 				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,
+				096C6D661EA0129300389746 /* gradient_descent.hpp */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				091AF71E1E27F0E1004B554F /* hash.hpp */,
 				093239CD1DB45790003C168E /* heap_sort.hpp */,

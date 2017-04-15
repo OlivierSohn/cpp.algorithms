@@ -191,7 +191,7 @@ namespace imajuscule {
             }
             
 //            cout<< "insert: " << time_insert << " get: " << time_get << endl;
-            imajuscule::myfile <<time_insert << ","<<time_get;
+            myfile <<time_insert << ","<<time_get;
 
         }
         
@@ -221,20 +221,23 @@ namespace imajuscule {
 
         template<int N, typename Key = int, typename Value = int>
         void Test() {
-            imajuscule::myfile << N << ",";
+            myfile << N << ",";
             TestSortedVector<N, Key, Value>();
-            imajuscule::myfile << ",";
+            myfile << ",";
             TestVector<N, Key, Value>();
-            imajuscule::myfile << ",";
+            myfile << ",";
             TestMap<N, Key, Value>();
-            imajuscule::myfile << "\n";
+            myfile << "\n";
         }
     }
 }
 
 TEST(Algorithm, stl_measure) {
-    imajuscule::myfile.open ("/Users/Olivier/stl_msr.csv");
-    imajuscule::myfile << "N,svec_i,svec_g,vec_i,vec_g,map_i,map_g,umap_i,umap_g,mmap_i,mmap_g\n";
+    using namespace imajuscule;
+    using namespace imajuscule::stl_msr;
+
+    myfile.open ("/Users/Olivier/stl_msr.csv");
+    myfile << "N,svec_i,svec_g,vec_i,vec_g,map_i,map_g,umap_i,umap_g,mmap_i,mmap_g\n";
 
     imajuscule::stl_msr::Test<5>();
     imajuscule::stl_msr::Test<10>();
@@ -248,7 +251,7 @@ TEST(Algorithm, stl_measure) {
     imajuscule::stl_msr::Test<2640>();
     imajuscule::stl_msr::Test<5280>();
     
-    imajuscule::myfile.close();
+    myfile.close();
 }
 
 
@@ -286,7 +289,7 @@ void testMapSortedVector() {
     using namespace imajuscule;
     using namespace imajuscule::stl_msr;
 
-    imajuscule::myfile << N << ",";
+    myfile << N << ",";
 
     std::vector<uint16_t> v0, v1, v2, v3, v4;
     v0.reserve(N);
@@ -310,7 +313,7 @@ void testMapSortedVector() {
         
         testVector(vec, v0);
         float time = 1000000.f * (float)(clock() - t)/CLOCKS_PER_SEC;
-        imajuscule::myfile << time << ",";
+        myfile << time << ",";
     }
     
     {
@@ -319,7 +322,7 @@ void testMapSortedVector() {
         auto t = clock();
         testMap(keys, map1, v3);
         float time = 1000000.f * (float)(clock() - t)/CLOCKS_PER_SEC;
-        imajuscule::myfile << time << ",";
+        myfile << time << ",";
     }
     
     {
@@ -328,7 +331,7 @@ void testMapSortedVector() {
         auto t = clock();
         testMap(keys, map1, v1);
         float time = 1000000.f * (float)(clock() - t)/CLOCKS_PER_SEC;
-        imajuscule::myfile << time << ",";
+        myfile << time << ",";
     }
     {
         adaptive_stack_allocated::map<int, uint16_t> map2;
@@ -336,7 +339,7 @@ void testMapSortedVector() {
         auto t = clock();
         testMap(keys, map2, v4);
         float time = 1000000.f * (float)(clock() - t)/CLOCKS_PER_SEC;
-        imajuscule::myfile << time << ",";
+        myfile << time << ",";
     }
     
     {
@@ -345,7 +348,7 @@ void testMapSortedVector() {
         auto t = clock();
         testMap(keys, map2, v2);
         float time = 1000000.f * (float)(clock() - t)/CLOCKS_PER_SEC;
-        imajuscule::myfile << time << "\n";
+        myfile << time << "\n";
     }
     
     EXPECT_EQ(v0.size(), v1.size());

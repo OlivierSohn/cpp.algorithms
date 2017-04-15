@@ -6,6 +6,7 @@
 
 #include "private.h"
 
+#include "dsp.convolution.cpp"
 #include "hash_table.cpp"
 #include "pool.adaptive_stack.cpp"
 #include "print_type.cpp"

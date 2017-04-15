@@ -73,6 +73,10 @@ namespace imajuscule {
         return __builtin_clz(arg);
     }
     
+    static inline uint32_t floor_power_of_two(uint32_t arg) {
+        return arg ? ceil_power_of_two(1+arg/2) : 0;
+    }
+    
     // count trailing zeroes
     static inline uint32_t count_trailing_zeroes(uint32_t x)
     {

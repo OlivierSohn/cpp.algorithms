@@ -34,6 +34,14 @@
 #include <utility>
 #include <vector>
 
+#if __APPLE__
+# include <Accelerate/Accelerate.h>
+#endif
+
+#if __APPLE__
+# include "api.accelerate.h"
+#endif
+
 #include "defines.h"
 #include "logging.h"
 #include "object.h"

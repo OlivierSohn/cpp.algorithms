@@ -19,6 +19,7 @@
 		09367D731E2E2A240095BF20 /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
 		09367D741E2E2A240095BF20 /* gtest-all.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C71DB3F3CE003C168E /* gtest-all.cc */; };
 		09367D751E2E2A290095BF20 /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
+		09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09A2EC281EA2C48100D94138 /* Accelerate.framework */; };
 		09C645911E09F84700153C61 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 /* End PBXBuildFile section */
 
@@ -122,6 +123,8 @@
 		0996F3EC1E2F821A0053B30B /* test_freelist.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freelist.cpp; path = test/test_freelist.cpp; sourceTree = "<group>"; };
 		099FD6221E9188FE0067C18D /* debugging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debugging.h; path = include/debugging.h; sourceTree = "<group>"; };
 		099FD6231E9189F00067C18D /* debugging.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = debugging.cpp; path = source/debugging.cpp; sourceTree = "<group>"; };
+		09A2EC281EA2C48100D94138 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		09A2EC2A1EA2E48200D94138 /* api.accelerate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = api.accelerate.h; path = include/api.accelerate.h; sourceTree = "<group>"; };
 		09BA149A1E387D1B00A05F83 /* complex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = complex.hpp; path = include/complex.hpp; sourceTree = "<group>"; };
 		09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.hpp; path = include/dsp.filter.hpp; sourceTree = "<group>"; };
 		09BA14C41E387E4200A05F83 /* enum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = enum.h; path = include/enum.h; sourceTree = "<group>"; };
@@ -177,6 +180,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */,
 				093239E61DB56557003C168E /* libalgorithms.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -239,6 +243,14 @@
 			name = xcode.config;
 			sourceTree = "<group>";
 		};
+		09A2EC271EA2C48000D94138 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				09A2EC281EA2C48100D94138 /* Accelerate.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
@@ -247,6 +259,7 @@
 				09EF8F311DB3E8AD00DC7342 /* include */,
 				09EF8EE51DB3E7C400DC7342 /* Products */,
 				09EF8F2B1DB3E87E00DC7342 /* test */,
+				09A2EC271EA2C48000D94138 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -290,6 +303,7 @@
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
+				09A2EC2A1EA2E48200D94138 /* api.accelerate.h */,
 				09BA14CB1E38898B00A05F83 /* available_indexes.hpp */,
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,

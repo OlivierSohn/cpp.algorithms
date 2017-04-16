@@ -16,7 +16,8 @@ namespace imajuscule {
         /*
          * Space complexity, for forward fft of real input of size N:
          *
-         * input :   N
+         * input  :  N
+         * output :  N
          */
 
         template<typename T>
@@ -59,6 +60,11 @@ namespace imajuscule {
             using RealInput  = typename RealInput_ <accelerate::Tag, T>::type;
             using RealOutput = typename RealOutput_<accelerate::Tag, T>::type;
             using Context    = typename Context_   <accelerate::Tag, T>::type;
+            using Tr = NumTraits<T>;
+
+            // scaling factor of 2 :
+            // https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html#//apple_ref/doc/uid/TP40005147-CH202-16195
+            static constexpr auto scale = Tr::two();
             
             Algo_(Context c) : ctxt(c) {}
             
@@ -87,6 +93,7 @@ namespace imajuscule {
         };
         
         namespace slow_debug {
+            
             template<typename CONTAINER>
             struct Unwrap<accelerate::Tag, CONTAINER> {
                 using T = typename CONTAINER::value_type;
@@ -119,8 +126,8 @@ namespace imajuscule {
                     return std::move(res);
                 }
             };
-        }
-    }
+        } // NS slow_debug
+    }// NS fft
     
     namespace accelerate {
         namespace fft {
@@ -140,7 +147,7 @@ namespace imajuscule {
             
             template<typename T>
             using Algo = Algo_<Tag, T>;
-        }
-    }
-}
+        } // NS fft
+    }// NS accelerate
+}// NS imajuscule
 

@@ -64,6 +64,10 @@ namespace imajuscule {
             using RealOutput = typename RealOutput_<imj::Tag, T>::type;
             using Context    = typename Context_   <imj::Tag, T>::type;
             
+            using Tr = NumTraits<T>;
+            
+            static constexpr auto scale = Tr::one();
+
             Algo_(Context c) : ctxt(c) {}
             
             void run(RealInput const & input,
@@ -80,6 +84,17 @@ namespace imajuscule {
             
             Context ctxt;
         };
+        
+        
+        namespace slow_debug {
+            
+            template<typename CONTAINER>
+            struct Unwrap<imj::Tag, CONTAINER> {
+                static auto run(CONTAINER const & container, int N) {
+                    return container;
+                }
+            };
+        } // NS slow_debug
     } // NS fft
     
     namespace imj {

@@ -16,6 +16,10 @@ namespace imajuscule
         using Tr = NumTraits<T>;
         
         explicit complex() = default;
+        
+        explicit complex(T const re)
+        : re(re), im(0) {}
+
         complex(T const re, T const im)
         : re(re), im(im) {}
         

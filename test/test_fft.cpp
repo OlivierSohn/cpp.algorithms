@@ -5,6 +5,16 @@ namespace imajuscule {
         constexpr auto getFFTEpsilon(int N) {
             return power_of_two_exponent(N) * std::numeric_limits<T>::epsilon(); // worst case error propagation is O(log N)
         }
+        
+        template<typename T>
+        void createRealInput(T & input) {
+            for(int i=0; i<4; ++i) {
+                input.emplace_back(1);
+            }
+            for(int i=0; i<4; ++i) {
+                input.emplace_back(0);
+            }
+        }
     }
 }
 
@@ -37,16 +47,8 @@ void testMyFFT() {
     using namespace imajuscule::testfft;
     
     constexpr auto N = 8;
-    RealInput<T> res, input{{
-        {1,0},
-        {1,0},
-        {1,0},
-        {1,0},
-        {0,0},
-        {0,0},
-        {0,0},
-        {0,0}
-    }};
+    RealInput<T> res, input;
+    createRealInput(input);
     
     res.resize(N);
     input.resize(N);
@@ -96,16 +98,8 @@ void testAccelerateFFT() {
     ScopedContext<T> setup(Log2N);
     
     constexpr int inputStride = 1;
-    RealInput<T> input {{
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0
-    }};
+    RealInput<T> input;
+    createRealInput(input);
     
     std::vector<T> observed_mem( N );
     

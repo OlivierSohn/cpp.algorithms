@@ -63,7 +63,11 @@
 #include "rng.hpp"
 #include "fft.hpp"
 #include "fft.interface.hpp"
-#include "fft.impl.acc.hpp"
+
+#if __APPLE__
+# include "fft.impl.acc.hpp"
+#endif
+
 #include "fft.impl.imj.hpp"
 #include "markov_chain.hpp"
 #include "print_type.hpp"

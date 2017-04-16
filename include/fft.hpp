@@ -72,16 +72,18 @@ namespace imajuscule {
                 }
                 N /= 2;
                 do_run(it, result, N, 2*stride );
-                do_run(it+stride, result + N, N, 2*stride );
+                auto result2 = result + N;
+                do_run(it+stride, result2, N, 2*stride );
                 
-                for(unsigned int i=0; i<N; ++i) {
-                    auto it_result_a = result + i;
-                    auto t = *it_result_a;
-                    auto it_result_b = it_result_a + N;
-                    auto e = roots_of_unity[i * stride];
-                    *it_result_b *= e;
-                    *it_result_a += *it_result_b;
-                    *it_result_b = t - *it_result_b;
+                auto root_it = roots_of_unity.begin();
+                
+                for(unsigned int i=0; i<N; ++i, ++result, ++result2, root_it += stride) {
+                    auto & r1 = *result;
+                    auto & r2 = *result2;
+                    auto t = r1;
+                    r2 *= *root_it;
+                    r1 += r2;
+                    r2 = t - r2;
                 }
             }
             

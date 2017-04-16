@@ -79,6 +79,8 @@ void testMyFFT() {
     ASSERT_NEAR( 2.41421, res[7].imag(), 1e-4);
 }
 
+#if __APPLE__
+
 /*
  * space complexity for real input of size N:
  */
@@ -168,6 +170,8 @@ void testAccelerateFFT() {
     ASSERT_NEAR(scale * 1, res[7].real(), ffteps);
     ASSERT_NEAR(scale * 2.41421, res[7].imag(), 1e-4);
 }
+
+#endif // __APPLE__
 
 TEST(FFT, simple) {
     testMyFFT<float>();

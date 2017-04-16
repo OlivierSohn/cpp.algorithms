@@ -9,6 +9,7 @@
 #include <array>
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstring>
 #include <cstddef>
 #include <ctime>

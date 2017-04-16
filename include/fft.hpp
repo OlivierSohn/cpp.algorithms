@@ -20,19 +20,53 @@ namespace imajuscule {
         using FFTIter = typename FFTVec<T>::iterator;
         
         template<typename T>
-        FFTVec<T> compute_roots_of_unity(unsigned int N) {
+        void compute_roots_of_unity(unsigned int N, FFTVec<T> & res) {
             assert(is_power_of_two(N));
             auto n_roots = N/2;
-            FFTVec<T> res;
             res.reserve(n_roots);
             for(unsigned int i=0; i<n_roots; ++i) {
                 res.push_back(make_root_of_unity<T>(i,N));
             }
+        }
+
+        template<typename T>
+        FFTVec<T> compute_roots_of_unity(unsigned int N) {
+            FFTVec<T> res;
+            compute_roots_of_unity(N, res);
             return std::move(res);
         }
-        
+
         // https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
         
+        template<typename ROOTS_ITER, typename ITER1, typename ITER2>
+        static inline void tukeyCooley(ROOTS_ITER root_it,
+                         ITER1 it,
+                         ITER2 result,
+                         unsigned int N,
+                         unsigned int stride) {
+            if(N==0) {
+                *result = *it;
+                return;
+            }
+            auto double_stride = 2*stride;
+            auto half_N = N/2;
+            tukeyCooley(root_it, it         , result , half_N, double_stride );
+            auto result2 = result + N;
+            tukeyCooley(root_it, it + stride, result2, half_N, double_stride );
+            
+            for(unsigned int i=0;
+                i<N;
+                ++i, ++result, ++result2, root_it += stride)
+            {
+                auto & r1 = *result;
+                auto & r2 = *result2;
+                auto t = r1;
+                r2 *= *root_it;
+                r1 += r2;
+                r2 = t - r2;
+            }
+        }
+
         template<typename T>
         struct Algo {
             using ROOTS_OF_UNITY = FFTVec<T>;
@@ -56,43 +90,15 @@ namespace imajuscule {
                 static_assert(std::is_same<T,typename ITER1::value_type::FPT>::value, "");
                 static_assert(std::is_same<T,typename ITER2::value_type::FPT>::value, "");
                 assert(N/2 == roots_of_unity.size());
-                do_run(roots_of_unity.begin(),
-                       it,
-                       result,
-                       N/2,
-                       stride);
+                tukeyCooley(roots_of_unity.begin(),
+                            it,
+                            result,
+                            N/2,
+                            stride);
             }
             
         private:
             ROOTS_OF_UNITY roots_of_unity;
-
-            template<typename ITER1, typename ITER2>
-            void do_run(ROOTS_ITER root_it,
-                        ITER1 it,
-                        ITER2 result,
-                        unsigned int N,
-                        unsigned int stride) const {
-                if(N==0) {
-                    *result = *it;
-                    return;
-                }
-                do_run(root_it, it         , result , N/2, 2*stride );
-                auto result2 = result + N;
-                do_run(root_it, it + stride, result2, N/2, 2*stride );
-                
-                for(unsigned int i=0;
-                    i<N;
-                    ++i, ++result, ++result2, root_it += stride)
-                {
-                    auto & r1 = *result;
-                    auto & r2 = *result2;
-                    auto t = r1;
-                    r2 *= *root_it;
-                    r1 += r2;
-                    r2 = t - r2;
-                }
-            }
-            
         };
         
         template<typename ITER>

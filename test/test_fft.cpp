@@ -43,22 +43,30 @@ void testMyFFT() {
     using namespace imajuscule::fft;
     using namespace imajuscule::imj::fft;
     using namespace imajuscule::testfft;
-    
+
+    using Algo = imajuscule::imj::fft::Algo<T>;
+
     constexpr auto N = 8;
-    RealInput<T> res, input;
+    ScopedContext<T> setup(N);
+    
+    RealInput<T> input;
+    RealOutput<T> output(N);
+
+    input.reserve(N);
+    
     createRealInput(input);
     
-    res.resize(N);
-    input.resize(N);
-    auto roots = compute_roots_of_unity<T>(N);
-    Algo<T> a(std::move(roots));
-    a.run(input.begin(), res.begin(), N, 1 );
+    Algo fft_algo(setup.get());
     
+    fft_algo.run(input, output, N);
+        
     // testing against ref found here : https://rosettacode.org/wiki/Fast_Fourier_transform
     
     constexpr auto ffteps = getFFTEpsilon<T>(N);
     
     // we use ffteps when we have an exact value to compare with:
+    
+    auto const & res = output;
     
     ASSERT_NEAR(0, res[0].imag(), ffteps);
     ASSERT_NEAR(4, res[0].real(), ffteps);
@@ -90,60 +98,27 @@ void testAccelerateFFT() {
     using namespace imajuscule::accelerate;
     using namespace imajuscule::fft;
     using namespace imajuscule::accelerate::fft;
-    using namespace imajuscule::testfft;
+
+    using Algo = imajuscule::accelerate::fft::Algo<T>;
+    using TAG = imajuscule::accelerate::Tag;
     
-    constexpr auto N = 8;
-    constexpr auto Log2N = power_of_two_exponent(N);
+    constexpr auto N = 8;    
+    ScopedContext<T> setup(N);
     
-    ScopedContext<T> setup(Log2N);
-    
-    constexpr int inputStride = 1;
     RealInput<T> input;
-    createRealInput(input);
+    RealOutput<T> output(N);
     
-    std::vector<T> observed_mem( N );
+    testfft::createRealInput(input);
     
-    SplitComplex<T> observed = { observed_mem.data(), observed_mem.data() + N/2 };
+    Algo fft_algo(setup.get());
     
-    ctoz<T>(reinterpret_cast<Complex<T> *>(input.data()),
-            inputStride * 2,
-            &observed,
-            1,
-            N/2);
-    
-    fft_zrip<T>(setup.get(),
-                &observed,
-                1,
-                Log2N,
-                FFT_FORWARD);
+    fft_algo.run(input, output, N);
     
     // put the result in a complex vector to match the format of the other test
-    
-    FFTVec<T> res(N, {0,0});
-    res[0] = {
-        observed.realp[0],
-        0
-    };
-    for(int i=1; i<N/2; ++i) {
-        res[i] = {
-            observed.realp[i],
-            observed.imagp[i]
-        };
-    }
-    res[N/2] = {
-        observed.imagp[0],
-        0
-    };
-    constexpr auto pivot = N/2;
-    for(int i=1; i<N/2; ++i) {
-        res[pivot + i] = {
-            +res[pivot - i].real(),
-            -res[pivot - i].imag()
-        };
-    }
+  
     // testing against ref found here : https://rosettacode.org/wiki/Fast_Fourier_transform
     
-    constexpr auto ffteps = getFFTEpsilon<T>(N);
+    constexpr auto ffteps = testfft::getFFTEpsilon<T>(N);
     
     // we use ffteps when we have an exact value to compare with:
     
@@ -151,6 +126,8 @@ void testAccelerateFFT() {
     // https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html#//apple_ref/doc/uid/TP40005147-CH202-16195
     
     constexpr auto scale = 2.f;
+    
+    auto res = slow_debug::unwrap<TAG>(output, N);
     
     ASSERT_NEAR(scale * 0, res[0].imag(), ffteps);
     ASSERT_NEAR(scale * 4, res[0].real(), ffteps);

@@ -9,6 +9,9 @@ namespace imajuscule {
         
         template<typename TAG, typename T>
         struct RealInput_;
+
+        template<typename TAG, typename T>
+        struct RealOutput_;
         
         template<typename TAG, typename T>
         struct Context_;
@@ -16,8 +19,8 @@ namespace imajuscule {
         template<typename TAG, typename T>
         struct ScopedContext_ {
             using CTXT = Context_<TAG, T>;
-            ScopedContext_(int lgSize) :
-            ctxt(CTXT::create(lgSize))
+            ScopedContext_(int size) :
+            ctxt(CTXT::create(size) )
             {}
             
             ~ScopedContext_() {
@@ -28,6 +31,19 @@ namespace imajuscule {
             auto get() const { return ctxt; }
         };
 
-    }
-}
+        template<typename TAG, typename T>
+        struct Algo_;
+        
+        namespace slow_debug {
+            template<typename TAG, typename CONTAINER>
+            struct Unwrap;
+            
+            template<typename TAG, typename CONTAINER>
+            auto unwrap(CONTAINER const & c, int size) {
+                Unwrap<TAG, CONTAINER> u;
+                return u.run(c, size);
+            }
+        } // NS slow_debug
+    } // NS fft
+} // NS imajuscule
 

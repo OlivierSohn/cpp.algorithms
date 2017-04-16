@@ -16,6 +16,7 @@ namespace imajuscule {
             constexpr static auto f_destroy_fftsetup = vDSP_destroy_fftsetup;
 
             constexpr static auto f_ctoz     = vDSP_ctoz;
+            constexpr static auto f_ztoc     = vDSP_ztoc;
             constexpr static auto f_fft_zrip = vDSP_fft_zrip;
         };
         
@@ -30,6 +31,7 @@ namespace imajuscule {
             constexpr static auto f_destroy_fftsetup = vDSP_destroy_fftsetupD;
 
             constexpr static auto f_ctoz     = vDSP_ctozD;
+            constexpr static auto f_ztoc     = vDSP_ztocD;
             constexpr static auto f_fft_zrip = vDSP_fft_zripD;
         };
 
@@ -55,6 +57,11 @@ namespace imajuscule {
         template<typename T, typename ...Args>
         auto ctoz(Args&&... args) {
             return API<T>::f_ctoz(std::forward<Args>(args)...);
+        }
+        
+        template<typename T, typename ...Args>
+        auto ztoc(Args&&... args) {
+            return API<T>::f_ztoc(std::forward<Args>(args)...);
         }
         
         template<typename T, typename ...Args>

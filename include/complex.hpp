@@ -119,4 +119,13 @@ namespace imajuscule
     }
     
     
+    template<typename T, typename ITER = typename std::vector<T>::iterator>
+    std::vector<complex<T>> complexify(ITER it, ITER end) {
+        std::vector<complex<T>> ret;
+        ret.reserve(std::distance(it, end));
+        for(; it!=end; ++it) {
+            ret.push_back({*it, 0});
+        }
+        return ret;
+    }
 }

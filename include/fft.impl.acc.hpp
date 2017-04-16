@@ -35,7 +35,8 @@ namespace imajuscule {
             }
             
             accelerate::SplitComplex<T> observed;
-            private:
+            
+        private:
             std::vector<T> observed_mem;
         };
         
@@ -68,26 +69,47 @@ namespace imajuscule {
             
             Algo_(Context c) : ctxt(c) {}
             
-            void run(RealInput const & input,
-                     RealOutput & output,
-                     unsigned int N) const
+            void forward(RealInput const & input,
+                         RealOutput & output,
+                         unsigned int N) const
             {
                 using namespace accelerate;
                 auto & observed = output.observed;
-                {
-                    constexpr auto inputStride = 1;
-                    ctoz<T>(reinterpret_cast<Complex<T> const *>(input.data()),
-                            inputStride * 2,
+                
+                constexpr auto inputStride = 1;
+                ctoz<T>(reinterpret_cast<Complex<T> const *>(input.data()),
+                        inputStride * 2,
+                        &observed,
+                        1,
+                        N/2);
+                
+                fft_zrip<T>(ctxt,
                             &observed,
                             1,
-                            N/2);
-                    
-                    fft_zrip<T>(ctxt,
-                                &observed,
-                                1,
-                                power_of_two_exponent(N),
-                                FFT_FORWARD);
-                }
+                            power_of_two_exponent(N),
+                            FFT_FORWARD);
+            }
+            
+            void inverse(RealOutput const & output,
+                         RealInput & input,
+                         unsigned int N) const
+            {
+                using namespace accelerate;
+                auto & observed = output.observed;
+                
+                fft_zrip<T>(ctxt,
+                            &observed,
+                            1,
+                            power_of_two_exponent(N),
+                            FFT_INVERSE); // todo : try with inverse here and don't conjugate before (measure to see if it's faster)
+
+                constexpr auto inputStride = 1;
+                ztoc<T>(&observed,
+                        1,
+                        reinterpret_cast<Complex<T> *>(input.data()),
+                        inputStride * 2,
+                        N/2);
+                
             }
             Context ctxt;
         };
@@ -95,13 +117,13 @@ namespace imajuscule {
         namespace slow_debug {
             
             template<typename CONTAINER>
-            struct Unwrap<accelerate::Tag, CONTAINER> {
+            struct UnwrapFrequencies<accelerate::Tag, CONTAINER> {
                 using T = typename CONTAINER::value_type;
                 static auto run(CONTAINER const & container, int N) {
                     
                     auto & observed = container.observed;
                     
-                    FFTVec<T> res(N, {0,0});
+                    std::vector<complex<T>> res(N, {0,0});
                     res[0] = {
                         observed.realp[0],
                         0
@@ -124,6 +146,15 @@ namespace imajuscule {
                         };
                     }
                     return std::move(res);
+                }
+            };
+            
+            template<typename CONTAINER>
+            struct UnwrapSignal<accelerate::Tag, CONTAINER> {
+                using T = typename CONTAINER::value_type;
+                static auto run(CONTAINER const & container, int N) {
+                    assert(container.end() == container.begin() + N);
+                    return complexify<T>(container.begin(), container.begin() + N);
                 }
             };
         } // NS slow_debug

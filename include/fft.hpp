@@ -8,65 +8,13 @@ namespace imajuscule {
     namespace fft {
         
         template<typename T>
-        static complex<T> make_root_of_unity(unsigned int index, unsigned int size) {
-            using Tr = NumTraits<T>;
-            return polar(-Tr::two() * static_cast<T>(M_PI) * index / size);
-        }
-        
-        template<typename T>
         using FFTVec = typename std::vector<complex<T>>;
 
         template<typename T>
         using FFTIter = typename FFTVec<T>::iterator;
         
-        template<typename T>
-        void compute_roots_of_unity(unsigned int N, FFTVec<T> & res) {
-            assert(is_power_of_two(N));
-            auto n_roots = N/2;
-            res.reserve(n_roots);
-            for(unsigned int i=0; i<n_roots; ++i) {
-                res.push_back(make_root_of_unity<T>(i,N));
-            }
-        }
-
-        template<typename T>
-        FFTVec<T> compute_roots_of_unity(unsigned int N) {
-            FFTVec<T> res;
-            compute_roots_of_unity(N, res);
-            return std::move(res);
-        }
-
-        // https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
-        
-        template<typename ROOTS_ITER, typename ITER1, typename ITER2>
-        static inline void tukeyCooley(ROOTS_ITER root_it,
-                         ITER1 it,
-                         ITER2 result,
-                         unsigned int N,
-                         unsigned int stride) {
-            if(N==0) {
-                *result = *it;
-                return;
-            }
-            auto double_stride = 2*stride;
-            auto half_N = N/2;
-            tukeyCooley(root_it, it         , result , half_N, double_stride );
-            auto result2 = result + N;
-            tukeyCooley(root_it, it + stride, result2, half_N, double_stride );
-            
-            for(unsigned int i=0;
-                i<N;
-                ++i, ++result, ++result2, root_it += stride)
-            {
-                auto & r1 = *result;
-                auto & r2 = *result2;
-                auto t = r1;
-                r2 *= *root_it;
-                r1 += r2;
-                r2 = t - r2;
-            }
-        }
-
+        // TODO replace by others :
+        // this does forward fft only so we wil need to remove the conjugations and use inverse where needed.
         template<typename T>
         struct Algo {
             using ROOTS_OF_UNITY = FFTVec<T>;
@@ -90,11 +38,11 @@ namespace imajuscule {
                 static_assert(std::is_same<T,typename ITER1::value_type::FPT>::value, "");
                 static_assert(std::is_same<T,typename ITER2::value_type::FPT>::value, "");
                 assert(N/2 == roots_of_unity.size());
-                tukeyCooley(roots_of_unity.begin(),
-                            it,
-                            result,
-                            N/2,
-                            stride);
+                tukeyCooley<FftType::FORWARD>(roots_of_unity.begin(),
+                                              it,
+                                              result,
+                                              N/2,
+                                              stride);
             }
             
         private:
@@ -107,20 +55,12 @@ namespace imajuscule {
                          ITER result_it) {
             using T = typename ITER::value_type;
             using FPT = typename T::FPT;
-            auto roots = compute_roots_of_unity<FPT>(fft_length);
-            Algo<FPT> a(std::move(roots));
-            a.run(signal_it, result_it, fft_length, 1);
-        }
-
-        template<typename Iter>
-        void normalize_fft(unsigned int fft_length,
-                           Iter begin,
-                           Iter end) {
-            assert(fft_length);
-            auto inv_l = 1. / fft_length;
             
-            std::transform(begin, end,
-                           begin, [inv_l](auto value) { return inv_l * value; });
+            using namespace imj::fft;
+            
+            ScopedContext<FPT> scoped_context(fft_length);
+            Algo<FPT> fft(scoped_context.get());
+            fft.run(signal_it, result_it, fft_length);
         }
         
         template<typename T>

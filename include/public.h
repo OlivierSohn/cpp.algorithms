@@ -61,7 +61,6 @@
 #include "strplot.h"
 #include "gradient_descent.hpp"
 #include "rng.hpp"
-#include "fft.hpp"
 #include "fft.interface.hpp"
 
 #if __APPLE__
@@ -69,6 +68,7 @@
 #endif
 
 #include "fft.impl.imj.hpp"
+#include "fft.hpp"
 #include "markov_chain.hpp"
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"

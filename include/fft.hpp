@@ -36,6 +36,7 @@ namespace imajuscule {
         template<typename T>
         struct Algo {
             using ROOTS_OF_UNITY = FFTVec<T>;
+            using ROOTS_ITER = typename ROOTS_OF_UNITY::const_iterator;
             
             Algo() = default;
             
@@ -55,29 +56,34 @@ namespace imajuscule {
                 static_assert(std::is_same<T,typename ITER1::value_type::FPT>::value, "");
                 static_assert(std::is_same<T,typename ITER2::value_type::FPT>::value, "");
                 assert(N/2 == roots_of_unity.size());
-                do_run(it, result, N, stride);
+                do_run(roots_of_unity.begin(),
+                       it,
+                       result,
+                       N/2,
+                       stride);
             }
             
         private:
             ROOTS_OF_UNITY roots_of_unity;
 
             template<typename ITER1, typename ITER2>
-            void do_run(ITER1 it,
+            void do_run(ROOTS_ITER root_it,
+                        ITER1 it,
                         ITER2 result,
                         unsigned int N,
                         unsigned int stride) const {
-                if(N==1) {
+                if(N==0) {
                     *result = *it;
                     return;
                 }
-                N /= 2;
-                do_run(it, result, N, 2*stride );
+                do_run(root_it, it         , result , N/2, 2*stride );
                 auto result2 = result + N;
-                do_run(it+stride, result2, N, 2*stride );
+                do_run(root_it, it + stride, result2, N/2, 2*stride );
                 
-                auto root_it = roots_of_unity.begin();
-                
-                for(unsigned int i=0; i<N; ++i, ++result, ++result2, root_it += stride) {
+                for(unsigned int i=0;
+                    i<N;
+                    ++i, ++result, ++result2, root_it += stride)
+                {
                     auto & r1 = *result;
                     auto & r2 = *result2;
                     auto t = r1;

@@ -12,6 +12,13 @@ namespace imajuscule {
     }
     
     namespace fft {
+
+        /*
+         * Space complexity, for forward fft of real input of size N:
+         *
+         * input :   N
+         */
+
         template<typename T>
         struct RealInput_<accelerate::Tag, T> {
             using type = std::vector<T>;

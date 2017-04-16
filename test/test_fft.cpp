@@ -35,8 +35,6 @@ namespace imajuscule {
  * input :   N
  * result:   N
  *
- * =>
- *
  */
 
 template<typename T>

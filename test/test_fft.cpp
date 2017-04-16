@@ -33,10 +33,11 @@ template<typename T>
 void testMyFFT() {
     using namespace imajuscule;
     using namespace imajuscule::fft;
+    using namespace imajuscule::imj::fft;
     using namespace imajuscule::testfft;
     
     constexpr auto N = 8;
-    FFTVec<T> res, input{{
+    RealInput<T> res, input{{
         {1,0},
         {1,0},
         {1,0},
@@ -86,15 +87,16 @@ void testAccelerateFFT() {
     using namespace imajuscule;
     using namespace imajuscule::accelerate;
     using namespace imajuscule::fft;
+    using namespace imajuscule::accelerate::fft;
     using namespace imajuscule::testfft;
     
     constexpr auto N = 8;
     constexpr auto Log2N = power_of_two_exponent(N);
     
-    ScopedFFTSetup<T> setup(Log2N, kFFTRadix2);
+    ScopedContext<T> setup(Log2N);
     
     constexpr int inputStride = 1;
-    std::vector<T> input {{
+    RealInput<T> input {{
         1,
         1,
         1,

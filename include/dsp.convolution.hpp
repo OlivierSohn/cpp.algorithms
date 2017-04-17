@@ -252,6 +252,8 @@ namespace imajuscule
 
         auto getComputationPeriodicity() { return partition_size; }
         
+        auto countPartitions() const { return ffts_of_partitionned_h.size(); }
+        
         void set_partition_size(int sz) {
             assert(sz > 0);
             partition_size = sz;

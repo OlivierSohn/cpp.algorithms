@@ -20,12 +20,7 @@
 
 namespace imajuscule {
     namespace testfft {
-        
-        template<typename T>
-        constexpr auto getFFTEpsilon(int N) {
-            return power_of_two_exponent(N) * std::numeric_limits<T>::epsilon(); // worst case error propagation is O(log N)
-        }
-        
+                
         template<typename T>
         void createRealInput(T & input) {
             for(int i=0; i<4; ++i) {

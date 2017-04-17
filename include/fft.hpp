@@ -6,7 +6,12 @@
 
 namespace imajuscule {
     namespace fft {
-        
+
+        template<typename T>
+        constexpr auto getFFTEpsilon(int N) {
+            return power_of_two_exponent(N) * std::numeric_limits<T>::epsilon(); // worst case error propagation is O(log N)
+        }
+
         template<typename T>
         using FFTVec = typename std::vector<complex<T>>;
 

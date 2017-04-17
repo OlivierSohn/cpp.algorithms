@@ -9,12 +9,13 @@ namespace imajuscule
     /*
      * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method#math_Eq.1
      */
-    template <typename Parent>
+    template <typename Parent, typename Tag>
     struct FFTConvolutionBase : public Parent {
         using T = typename Parent::FPT;
         using FPT = T;
         using FFT = typename Parent::FFT;
-        using FFTAlgo = typename fft::Algo<FPT>;
+        using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+        using Contexts = fft::Contexts_<Tag, FPT>;
         
         using Parent::get_fft_length;
         using Parent::getComputationPeriodicity;
@@ -29,8 +30,7 @@ namespace imajuscule
             
             auto const N = coeffs_.size();
             auto const fft_length = get_fft_length(N);
-            auto roots = fft::compute_roots_of_unity<T>(fft_length);
-            fft.setRootsOfUnity(std::move(roots));
+            fft.setContext(Contexts::getInstance().getBySize(fft_length));
             
             result.resize(fft_length, {0,0});
             x.reserve(fft_length);
@@ -51,11 +51,9 @@ namespace imajuscule
                 
                 x.resize(get_fft_length(), {0,0});
                 
-                auto it_ = compute_convolution(fft, x);
+                auto const & frequencies = compute_convolution(fft, x);
                 
-                // finish inverse fft
-                
-                fft.run(it_, result.begin(), get_fft_length(), 1);
+                fft.inverse(frequencies, result, get_fft_length());
                 
                 // in theory for inverse fft we should convert_to_conjugate the result
                 // but it is supposed to be real numbers so the conjugation would have no effect
@@ -66,7 +64,7 @@ namespace imajuscule
                 }
 #endif
 
-                auto factor = 1 / static_cast<T>(get_fft_length());
+                auto factor = 1 / (FFTAlgo::scale * static_cast<T>(get_fft_length()));
                 // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
                 
                 // y = mix first part of result with second part of previous result
@@ -131,7 +129,8 @@ namespace imajuscule
             return fft_of_x.size();
         }
         
-        void doSetCoefficients(fft::Algo<FPT> const & fft, std::vector<T> coeffs_) {
+        template<typename FFTAlgo>
+        void doSetCoefficients(FFTAlgo const & fft, std::vector<T> coeffs_) {
             N = coeffs_.size();
             
             auto fft_length = get_fft_length(N);
@@ -146,15 +145,16 @@ namespace imajuscule
             // compute fft of padded impulse response
             
             auto coeffs = complexify<FPT>(coeffs_.begin(), coeffs_.end());
-            fft.run(coeffs.begin(), fft_of_h.begin(), fft_length, 1);
+            fft.forward(coeffs, fft_of_h, fft_length);
         }
         
     protected:
 
-        auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x) {
+        template<typename FFTAlgo>
+        auto const & compute_convolution(FFTAlgo const & fft, FFT const & x) {
             // do fft of x
             
-            fft.run(x.begin(), fft_of_x.begin(), get_fft_length(), 1);
+            fft.forward(x, fft_of_x, get_fft_length());
             
             // multiply fft_of_x by fft_of_h
             
@@ -163,14 +163,10 @@ namespace imajuscule
             
             auto it_fft_h = fft_of_h.begin();
             for(; it_fft_x != end_fft_x; ++it_fft_x, ++it_fft_h) {
-                auto & c = *it_fft_x;
-                c *= *it_fft_h;
-                
-                // start inverse fft (anticipation step here, cf. https://www.dsprelated.com/showarticle/800.php)
-                c.convert_to_conjugate();
+                *it_fft_x *= *it_fft_h;
             }
             
-            return fft_of_x.begin();
+            return fft_of_x;
         }
       
     private:
@@ -262,7 +258,8 @@ namespace imajuscule
             assert(is_power_of_two(sz));
         }
 
-        void doSetCoefficients(fft::Algo<FPT> const & fft, std::vector<T> coeffs_) {
+        template<typename FFTAlgo>
+        void doSetCoefficients(FFTAlgo const & fft, std::vector<T> coeffs_) {
             
             auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
                 auto const N = coeffs_.size();
@@ -303,21 +300,22 @@ namespace imajuscule
                 // pad partitionned impulse response with 0
                 
                 coeffs.resize(fft_length, {0,0});
-                fft.run(coeffs.begin(), fft_of_partitionned_h.begin(), fft_length, 1);
+                fft.forward(coeffs, fft_of_partitionned_h, fft_length);
             }
             assert(it_coeffs == coeffs_.end());
         }
 
     protected:
 
-        auto compute_convolution(fft::Algo<FPT> const & fft, FFT const & x)
+        template<typename FFTAlgo>
+        auto const & compute_convolution(FFTAlgo const & fft, FFT const & x)
         {
             // do fft of x
             {
                 auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
                 auto const fft_length = get_fft_length();
                 assert(fft_length == oldest_fft_of_delayed_x.size());
-                fft.run(x.begin(), oldest_fft_of_delayed_x.begin(), fft_length, 1);
+                fft.forward(x, oldest_fft_of_delayed_x, fft_length);
                 ffts_of_delayed_x.advance();
             }
             
@@ -346,13 +344,7 @@ namespace imajuscule
                 ++ it_fft_of_partitionned_h;
             });
             
-            // start inverse fft (https://www.dsprelated.com/showarticle/800.php)
-            
-            for(auto & c : work) {
-                c.convert_to_conjugate();
-            }
-            
-            return work.begin();
+            return work;
         }
 
     private:
@@ -363,6 +355,8 @@ namespace imajuscule
         FFT work;
     };
 
+    using FFTAlgoTag = imj::Tag;
+    
     /*
     
      Notations for complexity:
@@ -395,7 +389,7 @@ namespace imajuscule
      * optimization : H and A are fixed so we cannot optimize this algorithm
      */
     template <typename T>
-    using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T> >;
+    using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T> , FFTAlgoTag >;
 
     /*
      * runtime complexity:
@@ -419,7 +413,7 @@ namespace imajuscule
      *
      */
     template <typename T>
-    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T> >;
+    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T>, FFTAlgoTag >;
     
     
     struct PartitionningSpec {

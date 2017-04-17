@@ -13,54 +13,18 @@ namespace imajuscule {
         template<typename T>
         using FFTIter = typename FFTVec<T>::iterator;
         
-        // TODO replace by others :
-        // this does forward fft only so we wil need to remove the conjugations and use inverse where needed.
-        template<typename T>
-        struct Algo {
-            using ROOTS_OF_UNITY = FFTVec<T>;
-            using ROOTS_ITER = typename ROOTS_OF_UNITY::const_iterator;
-            
-            Algo() = default;
-            
-            Algo(ROOTS_OF_UNITY roots_of_unity) :
-            roots_of_unity(std::move(roots_of_unity))
-            {}
-            
-            void setRootsOfUnity(ROOTS_OF_UNITY roots) {
-                roots_of_unity = std::move(roots);
-            }
-            
-            template<typename ITER1, typename ITER2>
-            void run(ITER1 it,
-                     ITER2 result,
-                     unsigned int N,
-                     unsigned int stride) const {
-                static_assert(std::is_same<T,typename ITER1::value_type::FPT>::value, "");
-                static_assert(std::is_same<T,typename ITER2::value_type::FPT>::value, "");
-                assert(N/2 == roots_of_unity.size());
-                tukeyCooley<FftType::FORWARD>(roots_of_unity.begin(),
-                                              it,
-                                              result,
-                                              N/2,
-                                              stride);
-            }
-            
-        private:
-            ROOTS_OF_UNITY roots_of_unity;
-        };
-        
-        template<typename ITER>
-        void compute_fft(unsigned int fft_length,
-                         ITER signal_it,
-                         ITER result_it) {
-            using T = typename ITER::value_type;
+        template<typename CONTAINER1, typename CONTAINER2>
+        void forward_fft(unsigned int fft_length,
+                         CONTAINER1 & signal,
+                         CONTAINER2 & result) {
+            using T = typename CONTAINER1::value_type;
             using FPT = typename T::FPT;
             
             using namespace imj::fft;
             
             ScopedContext<FPT> scoped_context(fft_length);
             Algo<FPT> fft(scoped_context.get());
-            fft.run(signal_it, result_it, fft_length);
+            fft.forward(signal, result, fft_length);
         }
         
         template<typename T>

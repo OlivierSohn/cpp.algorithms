@@ -67,7 +67,12 @@ namespace imajuscule {
             // https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html#//apple_ref/doc/uid/TP40005147-CH202-16195
             static constexpr auto scale = Tr::two();
             
-            Algo_(Context c) : ctxt(c) {}
+            Algo_() = default;
+            Algo_(Context c) : context(c) {}
+            
+            void setContext(Context c) {
+                context = c;
+            }
             
             void forward(RealInput const & input,
                          RealOutput & output,
@@ -83,7 +88,7 @@ namespace imajuscule {
                         1,
                         N/2);
                 
-                fft_zrip<T>(ctxt,
+                fft_zrip<T>(context,
                             &observed,
                             1,
                             power_of_two_exponent(N),
@@ -97,7 +102,7 @@ namespace imajuscule {
                 using namespace accelerate;
                 auto & observed = output.observed;
                 
-                fft_zrip<T>(ctxt,
+                fft_zrip<T>(context,
                             &observed,
                             1,
                             power_of_two_exponent(N),
@@ -111,7 +116,7 @@ namespace imajuscule {
                         N/2);
                 
             }
-            Context ctxt;
+            Context context;
         };
         
         namespace slow_debug {

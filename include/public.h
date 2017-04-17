@@ -67,6 +67,7 @@
 # include "fft.impl.acc.hpp"
 #endif
 
+#include "fft.roots.hpp"
 #include "fft.impl.imj.hpp"
 #include "fft.hpp"
 #include "markov_chain.hpp"

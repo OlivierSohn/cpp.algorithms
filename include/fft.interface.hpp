@@ -15,7 +15,7 @@ namespace imajuscule {
         
         template<typename TAG, typename T>
         struct Context_;
-        
+
         template<typename TAG, typename T>
         struct ScopedContext_ {
             using CTXT = Context_<TAG, T>;
@@ -29,6 +29,38 @@ namespace imajuscule {
             
             typename CTXT::type ctxt;
             auto get() const { return ctxt; }
+        };
+        
+        template<typename TAG, typename T>
+        struct Contexts_ {
+            using Context  = Context_<TAG, T>;
+            using ContextT = typename Context::type;
+            
+            static Contexts_ & getInstance() {
+                // ok to have static variable in header because class is templated
+                thread_local Contexts_ ctxt;
+                
+                return ctxt;
+            }
+            
+            ContextT getBySize(int size) {
+                assert(size > 0);
+                assert(is_power_of_two(size));
+                auto index = power_of_two_exponent(size);
+                if(index >= contexts.size()) {
+                    contexts.resize(index+1);
+                }
+                auto & ret = contexts[index];
+                if(!ret) {
+                    ret = Context::create(size);
+                }
+                return ret;
+            }
+        private:
+            Contexts_() {
+                contexts.resize(20);
+            }
+            std::vector<ContextT> contexts;
         };
         
         template<typename TAG, typename T>

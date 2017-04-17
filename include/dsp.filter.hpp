@@ -327,7 +327,7 @@ namespace imajuscule
                            nyquist_freq,
                            getFreq);
 
-        compute_fft(fft_length, input.begin(), res.begin());
+        forward_fft(fft_length, input, res);
         
         auto inv_N = 1. / fft_length;
         

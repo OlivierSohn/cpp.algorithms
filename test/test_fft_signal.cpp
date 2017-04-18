@@ -6,7 +6,7 @@ namespace imajuscule {
         void testGetSignal() {
             using Sig = fft::RealSignal_<Tag, T>;
             
-            std::vector<T> const signal {{ 1, 2, 3 }};
+            cacheline_aligned_allocated::vector<T> const signal {{ 1, 2, 3 }};
             
             auto sig = Sig::make(signal);
             

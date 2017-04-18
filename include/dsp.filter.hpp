@@ -318,7 +318,7 @@ namespace imajuscule
         using namespace imajuscule::fft;
         assert(is_power_of_two(fft_length));
         
-        FFTVec<T> res, input;
+        cacheline_aligned_allocated::vector<complex<T>> res, input;
         res.resize(fft_length);
         input.resize(fft_length);
         

@@ -30,7 +30,7 @@ namespace imajuscule
             it = y.end();
         }
         
-        void setCoefficients(std::vector<T> coeffs_) {
+        void setCoefficients(cacheline_aligned_allocated::vector<T> coeffs_) {
             
             if(coeffs_.size() < 2) {
                 coeffs_.resize(2); // avoid ill-formed cases
@@ -135,7 +135,7 @@ namespace imajuscule
             return fft_of_x.size();
         }
         
-        void doSetCoefficients(Algo const & fft, std::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, cacheline_aligned_allocated::vector<T> coeffs_) {
             
             N = coeffs_.size();
             
@@ -264,7 +264,7 @@ namespace imajuscule
             assert(is_power_of_two(sz));
         }
 
-        void doSetCoefficients(Algo const & fft, std::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, cacheline_aligned_allocated::vector<T> coeffs_) {
             
             auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
                 auto const N = coeffs_.size();

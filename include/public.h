@@ -61,16 +61,6 @@
 #include "strplot.h"
 #include "gradient_descent.hpp"
 #include "rng.hpp"
-#include "fft.interface.hpp"
-
-#if __APPLE__
-# include "fft.impl.acc.hpp"
-#endif
-
-#include "fft.roots.hpp"
-#include "fft.impl.imj.hpp"
-#include "fft.hpp"
-#include "markov_chain.hpp"
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"
 #include "allocator.adaptive_stack.hpp"
@@ -86,6 +76,18 @@
 #include "hash.hpp"
 #include "hash_table.hpp"
 #include "merge_sort.hpp"
+
+#include "fft.interface.hpp"
+
+#if __APPLE__
+# include "fft.impl.acc.hpp"
+#endif
+
+#include "fft.roots.hpp"
+#include "fft.impl.imj.hpp"
+#include "fft.hpp"
+
+#include "markov_chain.hpp"
 #include "dsp.filter.hpp"
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.benchmarks.hpp"

@@ -22,11 +22,11 @@ namespace imajuscule {
 
         template<typename T>
         struct RealSignal_<accelerate::Tag, T> {
-            using type = std::vector<T>;
+            using type = cacheline_aligned_allocated::vector<T>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
         
-            static type make(std::vector<T> reals) {
+            static type make(type reals) {
                 return std::move(reals);
             }
 
@@ -89,7 +89,7 @@ namespace imajuscule {
             }
 
         private:
-            std::vector<T> buffer;
+            cacheline_aligned_allocated::vector<T> buffer;
         };
         
         template<typename ComplexSplit>

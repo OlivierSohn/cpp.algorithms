@@ -35,7 +35,7 @@ namespace imajuscule
                 
                 Test(size_t partition_size, int length_impulse) {
                     pfftcv.set_partition_size(partition_size);
-                    pfftcv.setCoefficients(std::vector<float>(length_impulse));
+                    pfftcv.setCoefficients(cacheline_aligned_allocated::vector<float>(length_impulse));
                     for(int i=0; i<partition_size-1; ++i) {
                         pfftcv.step(0.f); // these should do next to nothing...
                         pfftcv.get();

@@ -4,17 +4,17 @@ namespace imajuscule {
         
         template<typename T>
         auto makeNonTrivialCoefficients() {
-            return std::vector<T>{{ .9,.8,.7,.6,.3,.2,.1,0. }};
+            return cacheline_aligned_allocated::vector<T>{{ .9,.8,.7,.6,.3,.2,.1,0. }};
         }
         
         template<typename T>
         auto makeTrivialCoefficients() {
-            return std::vector<T>{{ 1. }};
+            return cacheline_aligned_allocated::vector<T>{{ 1. }};
         }
         
         template<typename T>
         auto makeTrivialCoefficients2() {
-            return std::vector<T>{{ -1. }}; // makes partitionned test fail
+            return cacheline_aligned_allocated::vector<T>{{ -1. }}; // makes partitionned test fail
         }
         
         template<typename T>

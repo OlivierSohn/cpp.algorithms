@@ -15,6 +15,10 @@ namespace imajuscule {
             constexpr static auto f_create_fftsetup  = vDSP_create_fftsetup;
             constexpr static auto f_destroy_fftsetup = vDSP_destroy_fftsetup;
 
+            constexpr static auto f_zvfill   = vDSP_zvfill;
+            constexpr static auto f_vmul     = vDSP_vmul;
+            constexpr static auto f_zvmul    = vDSP_zvmul;
+            constexpr static auto f_zvma     = vDSP_zvma;
             constexpr static auto f_ctoz     = vDSP_ctoz;
             constexpr static auto f_ztoc     = vDSP_ztoc;
             constexpr static auto f_fft_zrip = vDSP_fft_zrip;
@@ -30,6 +34,10 @@ namespace imajuscule {
             constexpr static auto f_create_fftsetup  = vDSP_create_fftsetupD;
             constexpr static auto f_destroy_fftsetup = vDSP_destroy_fftsetupD;
 
+            constexpr static auto f_zvfill   = vDSP_zvfillD;
+            constexpr static auto f_vmul     = vDSP_vmulD;
+            constexpr static auto f_zvmul    = vDSP_zvmulD;
+            constexpr static auto f_zvma     = vDSP_zvmaD;
             constexpr static auto f_ctoz     = vDSP_ctozD;
             constexpr static auto f_ztoc     = vDSP_ztocD;
             constexpr static auto f_fft_zrip = vDSP_fft_zripD;
@@ -54,6 +62,16 @@ namespace imajuscule {
             return API<T>::f_destroy_fftsetup(std::forward<Args>(args)...);
         }
 
+        template<typename T, typename ...Args>
+        auto zvmul(Args&&... args) {
+            return API<T>::f_zvmul(std::forward<Args>(args)...);
+        }
+
+        template<typename T, typename ...Args>
+        auto vmul(Args&&... args) {
+            return API<T>::f_vmul(std::forward<Args>(args)...);
+        }
+        
         template<typename T, typename ...Args>
         auto ctoz(Args&&... args) {
             return API<T>::f_ctoz(std::forward<Args>(args)...);

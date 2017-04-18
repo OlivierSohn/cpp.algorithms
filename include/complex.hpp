@@ -15,7 +15,8 @@ namespace imajuscule
         using FPT = T;
         using Tr = NumTraits<T>;
         
-        explicit complex() = default;
+        explicit complex()
+        : re{}, im{} {};
         
         explicit complex(T const re)
         : re(re), im(0) {}
@@ -25,6 +26,9 @@ namespace imajuscule
         
         T real() const { return re; }
         T imag() const { return im; }
+        
+        T * realAddr() { return &re; }
+        T * imagAddr() { return &im; }
         
         complex & operator *=(complex const & z) {
             T c = re;

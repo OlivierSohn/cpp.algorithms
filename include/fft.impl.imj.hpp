@@ -11,7 +11,10 @@ namespace imajuscule {
     namespace imj {
         struct Tag {};
     }
-    
+
+    // on osx, my implementation is 20x slower than accelerate.vdsp
+    //using DefaultFFTTag = imj::Tag;
+
     namespace fft {
         
         /*
@@ -23,11 +26,53 @@ namespace imajuscule {
         template<typename T>
         struct RealInput_<imj::Tag, T> {
             using type = std::vector<complex<T>>;
+
+            static type make(std::vector<T> reals) {
+                type ret;
+                ret.reserve(reals.size());
+                for(auto r : reals) {
+                    ret.emplace_back(r);
+                }
+                return std::move(ret);
+            }
+            
+            static T get_signal(complex<T> const & c) {
+                assert(std::abs(c.imag()) < 0.0001f);
+                return c.real();
+            }
         };
         
         template<typename T>
         struct RealOutput_<imj::Tag, T> {
             using type = std::vector<complex<T>>;
+            
+            static void mult_assign(type & v, type const & w) {
+                auto it = v.begin();
+                auto end = v.end();
+                
+                auto it_w = w.begin();
+                for(; it != end; ++it, ++it_w) {
+                    *it *= *it_w;
+                }
+            }
+ 
+            static void fill(complex<T> value, type & v) {
+                std::fill(v.begin(), v.end(), value);
+            }
+            
+            static void multiply_add(type & accum, type const & m1, type const & m2) {
+                
+                auto it_accum = accum.begin();
+                
+                auto it1 = m1.begin();
+                auto end1 = m1.end();
+                
+                auto it2 = m2.begin();
+                for(; it1 != end1; ++it2, ++it1, ++it_accum) {
+                    assert(it_accum < accum.end());
+                    *it_accum += *it1 * *it2;
+                }
+            }
         };
         
         template<typename T>
@@ -137,8 +182,8 @@ namespace imajuscule {
                                               stride);
             }
             
-            void inverse(RealInput const & input,
-                         RealOutput & output,
+            void inverse(RealOutput const & input,
+                         RealInput & output,
                          unsigned int N) const
             {
                 constexpr auto stride = 1;
@@ -147,6 +192,14 @@ namespace imajuscule {
                                               output.begin(),
                                               N/2,
                                               stride);
+                // in theory for inverse fft we should convert_to_conjugate the result
+                // but it is supposed to be real numbers so the conjugation would have no effect
+                
+#ifndef NDEBUG
+                for(auto const & r : output) {
+                    assert(r.imag() < 0.01f);
+                }
+#endif
             }
             
             Context context;

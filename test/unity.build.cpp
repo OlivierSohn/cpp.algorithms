@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_vdsp.cpp"
 #include "test_dsp.convolution.cpp"
 #include "test_benchmark.cpp"
 #include "test_gradient_descent.cpp"

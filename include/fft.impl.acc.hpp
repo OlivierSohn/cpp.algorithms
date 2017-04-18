@@ -11,6 +11,8 @@ namespace imajuscule {
         struct Tag {};
     }
     
+    using DefaultFFTTag = accelerate::Tag;
+
     namespace fft {
 
         /*
@@ -23,27 +25,115 @@ namespace imajuscule {
         template<typename T>
         struct RealInput_<accelerate::Tag, T> {
             using type = std::vector<T>;
+        
+            static type make(std::vector<T> reals) {
+                return std::move(reals);
+            }
+
+            static T get_signal(T r) {
+                return r;
+            }
         };
         
 
+        /*
+         Represents the first half of the spectrum (the second half is the conjugate)
+         and the nyquist frequency (real) is encoded in the 0th index imag.
+         cf. packing here : https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html
+         */
         template<typename T>
         struct RealOutputImpl {
+            using SC = accelerate::SplitComplex<T>;
+            
             using value_type = T;
             
-            RealOutputImpl(int size) : observed_mem(size) {
-                observed = { observed_mem.data(), observed_mem.data() + size/2 };
+            RealOutputImpl() = default;
+            
+            RealOutputImpl(int size) : buffer(size) {
             }
             
-            accelerate::SplitComplex<T> observed;
+            void resize(size_t sz) {
+                buffer.resize(sz);
+            }
             
+            auto size() const { return buffer.size(); }
+            
+            auto count_cplx_elements() const { return buffer.size() / 2; }
+            
+            auto get_hybrid_split() {
+                return SC {
+                    buffer.data(),
+                    buffer.data() + buffer.size()/2
+                };
+            }
+
         private:
-            std::vector<T> observed_mem;
+            std::vector<T> buffer;
         };
         
+        template<typename ComplexSplit>
+        void advance(ComplexSplit & cs) {
+            ++cs.realp;
+            ++cs.imagp;
+        }
+
         template<typename T>
         struct RealOutput_<accelerate::Tag, T> {
             using Tag = accelerate::Tag;
             using type = RealOutputImpl<T>;
+            
+            static void mult_assign(type & v, type const & const_w) {
+                // v *= w
+                
+                auto & w = const_cast<type &>(const_w);
+                
+                auto V = v.get_hybrid_split();
+                auto W = w.get_hybrid_split();
+
+                *V.realp *= *W.realp;
+                *V.imagp *= *W.imagp;
+                
+                advance(V);
+                advance(W);
+                
+                accelerate::API<T>::f_zvmul(&V, 1,
+                                            &W, 1,
+                                            &V, 1, v.count_cplx_elements()-1, 1);
+            }
+            
+            static void fill(complex<T> value, type & v) {
+                auto V = v.get_hybrid_split();
+                
+                accelerate::SplitComplex<T> sc{value.realAddr(), value.imagAddr()};
+                accelerate::API<T>::f_zvfill(&sc,
+                                             &V, 1, v.count_cplx_elements());
+            }
+            
+            static void multiply_add(type & accum, type const & const_m1, type const & const_m2) {
+                // accum += m1 * m2
+                
+                auto & m1 = const_cast<type &>(const_m1);
+                auto & m2 = const_cast<type &>(const_m2);
+                
+                auto Accum = accum.get_hybrid_split();
+                auto M1 = m1.get_hybrid_split();
+                auto M2 = m2.get_hybrid_split();
+
+                {
+                    *Accum.realp += *M1.realp * *M2.realp;
+                    *Accum.imagp += *M1.imagp * *M2.imagp;
+                }
+                
+                advance(Accum);
+                advance(M1);
+                advance(M2);
+                
+                accelerate::API<T>::f_zvma(&M1, 1,
+                                           &M2, 1,
+                                           &Accum, 1,
+                                           &Accum, 1, accum.count_cplx_elements() - 1);
+                
+            }
         };
         
         template<typename T>
@@ -79,37 +169,38 @@ namespace imajuscule {
                          unsigned int N) const
             {
                 using namespace accelerate;
-                auto & observed = output.observed;
+                auto Output = output.get_hybrid_split();
                 
                 constexpr auto inputStride = 1;
                 ctoz<T>(reinterpret_cast<Complex<T> const *>(input.data()),
                         inputStride * 2,
-                        &observed,
+                        &Output,
                         1,
                         N/2);
                 
                 fft_zrip<T>(context,
-                            &observed,
+                            &Output,
                             1,
                             power_of_two_exponent(N),
                             FFT_FORWARD);
             }
             
-            void inverse(RealOutput const & output,
+            void inverse(RealOutput const & const_output,
                          RealInput & input,
                          unsigned int N) const
             {
                 using namespace accelerate;
-                auto & observed = output.observed;
+
+                auto Output = const_cast<RealOutput &>(const_output).get_hybrid_split();
                 
                 fft_zrip<T>(context,
-                            &observed,
+                            &Output,
                             1,
                             power_of_two_exponent(N),
-                            FFT_INVERSE); // todo : try with inverse here and don't conjugate before (measure to see if it's faster)
+                            FFT_INVERSE);
 
                 constexpr auto inputStride = 1;
-                ztoc<T>(&observed,
+                ztoc<T>(&Output,
                         1,
                         reinterpret_cast<Complex<T> *>(input.data()),
                         inputStride * 2,
@@ -124,9 +215,9 @@ namespace imajuscule {
             template<typename CONTAINER>
             struct UnwrapFrequencies<accelerate::Tag, CONTAINER> {
                 using T = typename CONTAINER::value_type;
-                static auto run(CONTAINER const & container, int N) {
+                static auto run(CONTAINER const & const_container, int N) {
                     
-                    auto & observed = container.observed;
+                    auto observed = const_cast<CONTAINER &>(const_container).get_hybrid_split();
                     
                     std::vector<complex<T>> res(N, {0,0});
                     res[0] = {

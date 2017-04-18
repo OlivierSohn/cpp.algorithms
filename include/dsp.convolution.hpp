@@ -9,12 +9,14 @@ namespace imajuscule
     /*
      * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method#math_Eq.1
      */
-    template <typename Parent, typename Tag>
+    template <typename Parent>
     struct FFTConvolutionBase : public Parent {
         using T = typename Parent::FPT;
         using FPT = T;
-        using FFT = typename Parent::FFT;
-        using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+        using Tag = typename Parent::FFTTag;
+        static constexpr auto get_signal = fft::RealInput_<Tag, FPT>::get_signal;
+        using RealSignal = typename fft::RealInput_<Tag, FPT>::type;
+        using Algo = typename fft::Algo_<Tag, FPT>;
         using Contexts = fft::Contexts_<Tag, FPT>;
         
         using Parent::get_fft_length;
@@ -28,43 +30,37 @@ namespace imajuscule
         
         void setCoefficients(std::vector<T> coeffs_) {
             
+            if(coeffs_.size() < 2) {
+                coeffs_.resize(2); // avoid ill-formed cases
+            }
             auto const N = coeffs_.size();
             auto const fft_length = get_fft_length(N);
             fft.setContext(Contexts::getInstance().getBySize(fft_length));
             
-            result.resize(fft_length, {0,0});
+            result.resize(fft_length);
             x.reserve(fft_length);
             {
-                y.resize( fft_length, {0,0});
+                y.resize(fft_length);
                 it = y.begin();
             }
-            
+
             doSetCoefficients(fft, std::move(coeffs_));
         }
         
         void step(T val) {
-            x.emplace_back(val, 0);
+            x.emplace_back(val);
             
             auto N = getComputationPeriodicity();
             if(unlikely(x.size() == N)) {
                 // pad x
                 
-                x.resize(get_fft_length(), {0,0});
+                x.resize(get_fft_length());
                 
                 auto const & frequencies = compute_convolution(fft, x);
-                
-                fft.inverse(frequencies, result, get_fft_length());
-                
-                // in theory for inverse fft we should convert_to_conjugate the result
-                // but it is supposed to be real numbers so the conjugation would have no effect
-                
-#ifndef NDEBUG
-                for(auto const & r : result) {
-                    assert(r.imag() < 0.01f);
-                }
-#endif
 
-                auto factor = 1 / (FFTAlgo::scale * static_cast<T>(get_fft_length()));
+                fft.inverse(frequencies, result, get_fft_length());
+
+                auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
                 // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
                 
                 // y = mix first part of result with second part of previous result
@@ -78,7 +74,7 @@ namespace imajuscule
                 for(; it_y != end_y; ++it_y, ++it_y_prev, ++it_res) {
                     *it_y = factor * (*it_y_prev + *it_res);
                 }
-                
+
                 // store second part of result for later
                 for(; it_y != end_y_prev; ++it_y, ++it_res) {
                     *it_y = *it_res;
@@ -100,23 +96,31 @@ namespace imajuscule
         T get() {
             assert(it < y.begin() + getComputationPeriodicity());
             assert(it >= y.begin());
-            auto val = it->real();
-            assert(std::abs(it->imag()) < 0.0001f);
-            return val;
+            return get_signal(*it);
         }
         
     private:
-        FFTAlgo fft;
-        FFT x, y, result;
+        Algo fft;
+        RealSignal x, y, result;
         typename decltype(y)::iterator it;
     };
     
-    template <typename T>
+    template <typename T, typename Tag>
     struct FFTConvolutionCRTP {
         using FPT = T;
-        using FFT = typename fft::FFTVec<T>;
+        using FFTTag = Tag;
+        
+        using RealSignal = typename fft::RealInput_<Tag, FPT>::type;
+        static constexpr auto makeRealSignal = fft::RealInput_<Tag, FPT>::make;
+
+        using CplxFreqs = typename fft::RealOutput_<Tag, FPT>::type;
+        static constexpr auto mult_assign = fft::RealOutput_<Tag, FPT>::mult_assign;
+        
+        using Algo = typename fft::Algo_<Tag, FPT>;
 
         auto getComputationPeriodicity() const { return N; }
+        
+        auto countPartitions() const { return 1; }
         
         bool empty() const { return fft_of_h.empty(); }
         
@@ -129,42 +133,32 @@ namespace imajuscule
             return fft_of_x.size();
         }
         
-        template<typename FFTAlgo>
-        void doSetCoefficients(FFTAlgo const & fft, std::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, std::vector<T> coeffs_) {
+            
             N = coeffs_.size();
             
             auto fft_length = get_fft_length(N);
             
-            fft_of_h.resize(fft_length, {0,0});
-            fft_of_x.resize(fft_length, {0,0});
+            fft_of_h.resize(fft_length);
+            fft_of_x.resize(fft_length);
             
             // pad impulse response with 0
             
             coeffs_.resize(fft_length, {});
             
             // compute fft of padded impulse response
-            
-            auto coeffs = complexify<FPT>(coeffs_.begin(), coeffs_.end());
+            auto coeffs = makeRealSignal(std::move(coeffs_));
             fft.forward(coeffs, fft_of_h, fft_length);
         }
         
     protected:
 
-        template<typename FFTAlgo>
-        auto const & compute_convolution(FFTAlgo const & fft, FFT const & x) {
+        auto const & compute_convolution(Algo const & fft, RealSignal const & x) {
             // do fft of x
             
             fft.forward(x, fft_of_x, get_fft_length());
             
-            // multiply fft_of_x by fft_of_h
-            
-            auto it_fft_x = fft_of_x.begin();
-            auto end_fft_x = fft_of_x.end();
-            
-            auto it_fft_h = fft_of_h.begin();
-            for(; it_fft_x != end_fft_x; ++it_fft_x, ++it_fft_h) {
-                *it_fft_x *= *it_fft_h;
-            }
+            mult_assign(fft_of_x, fft_of_h);            
             
             return fft_of_x;
         }
@@ -172,7 +166,7 @@ namespace imajuscule
     private:
         int N;
         
-        FFT fft_of_h, fft_of_x; // todo use std::vector<T> when we have optimized real ffts
+        CplxFreqs fft_of_h, fft_of_x;
     };
     
     /*
@@ -240,11 +234,19 @@ namespace imajuscule
         No
     };
 
-    template <typename T>
+    template <typename T, typename Tag>
     struct PartitionnedFFTConvolutionCRTP {
         using FPT = T;
-        using FFT = typename fft::FFTVec<T>;
+        using FFTTag = Tag;
+
+        using RealSignal = typename fft::RealInput_<Tag, FPT>::type;
         
+        using CplxFreqs = typename fft::RealOutput_<Tag, FPT>::type;
+        static constexpr auto fill = fft::RealOutput_<Tag, FPT>::fill;
+        static constexpr auto multiply_add = fft::RealOutput_<Tag, FPT>::multiply_add;
+        
+        using Algo = typename fft::Algo_<Tag, FPT>;
+
         auto get_fft_length() { assert(partition_size > 0); return 2 * partition_size; }
         auto get_fft_length(int) { return get_fft_length(); }
         
@@ -260,8 +262,7 @@ namespace imajuscule
             assert(is_power_of_two(sz));
         }
 
-        template<typename FFTAlgo>
-        void doSetCoefficients(FFTAlgo const & fft, std::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, std::vector<T> coeffs_) {
             
             auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
                 auto const N = coeffs_.size();
@@ -275,17 +276,17 @@ namespace imajuscule
                 }
                 return n_partitions;
             }();
-            
+
             ffts_of_delayed_x.resize(n_partitions);
             ffts_of_partitionned_h.resize(n_partitions);
             
             auto const fft_length = get_fft_length();
             
             for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                fft_of_partitionned_h.resize(fft_length, {0,0});
+                fft_of_partitionned_h.resize(fft_length);
             }
             for(auto & fft_of_delayed_x : ffts_of_delayed_x) {
-                fft_of_delayed_x.resize(fft_length, {0,0});
+                fft_of_delayed_x.resize(fft_length);
             }
             
             work.resize(fft_length);
@@ -293,24 +294,28 @@ namespace imajuscule
             // compute fft of padded impulse response
             
             auto it_coeffs = coeffs_.begin();
-            for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                auto end_coeffs = it_coeffs + partition_size;
-                assert(end_coeffs <= coeffs_.end());
-                auto coeffs = complexify<FPT>(it_coeffs, end_coeffs);
-                it_coeffs = end_coeffs;
-
-                // pad partitionned impulse response with 0
-                
-                coeffs.resize(fft_length, {0,0});
-                fft.forward(coeffs, fft_of_partitionned_h, fft_length);
+            {
+                RealSignal coeffs_slice(fft_length, {}); // initialize with zeros (second half is padding)
+                for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+                    auto end_coeffs = it_coeffs + partition_size;
+                    assert(end_coeffs <= coeffs_.end());
+                    auto slice_it = coeffs_slice.begin();
+                    for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
+                        using RealT = typename RealSignal::value_type;
+                        *slice_it = RealT(*it_coeffs);
+                    }
+                    
+                    // coeffs_slice is padded with 0, because it is bigger than partition_size
+                    // and initialized with zeros.
+                    fft.forward(coeffs_slice, fft_of_partitionned_h, fft_length);
+                }
             }
             assert(it_coeffs == coeffs_.end());
         }
 
     protected:
 
-        template<typename FFTAlgo>
-        auto const & compute_convolution(FFTAlgo const & fft, FFT const & x)
+        auto const & compute_convolution(Algo const & fft, RealSignal const & x)
         {
             // do fft of x
             {
@@ -323,25 +328,13 @@ namespace imajuscule
             
             auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin();
             
-            std::fill(work.begin(), work.end(), complex<T>(0,0));
+            fill(complex<T>(0,0), work);
             
             ffts_of_delayed_x.for_each_bkwd( [this, &it_fft_of_partitionned_h] (auto const & fft_of_delayed_x) {
                 assert(it_fft_of_partitionned_h < ffts_of_partitionned_h.end());
                 
-                auto const & fft_of_partitionned_h = *it_fft_of_partitionned_h;
-                
-                // multiply fft_of_delayed_x by fft_of_partitionned_h
-                
-                auto it_work = work.begin();
-                
-                auto it_fft_x = fft_of_delayed_x.begin();
-                auto end_fft_x = fft_of_delayed_x.end();
-                
-                auto it_fft_h = fft_of_partitionned_h.begin();
-                for(; it_fft_x != end_fft_x; ++it_fft_x, ++it_fft_h, ++it_work) {
-                    assert(it_work < work.end());
-                    *it_work += *it_fft_x * *it_fft_h;
-                }
+                // work += fft_of_delayed_x * fft_of_partitionned_h
+                multiply_add(work, fft_of_delayed_x, *it_fft_of_partitionned_h);
                 
                 ++ it_fft_of_partitionned_h;
             });
@@ -351,10 +344,10 @@ namespace imajuscule
 
     private:
         int partition_size = -1;
-        cyclic<FFT> ffts_of_delayed_x;
-        std::vector<FFT> ffts_of_partitionned_h;
+        cyclic<CplxFreqs> ffts_of_delayed_x;
+        std::vector<CplxFreqs> ffts_of_partitionned_h;
         
-        FFT work;
+        CplxFreqs work;
     };
 
     using FFTAlgoTag = imj::Tag;
@@ -390,8 +383,8 @@ namespace imajuscule
      *
      * optimization : H and A are fixed so we cannot optimize this algorithm
      */
-    template <typename T>
-    using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T> , FFTAlgoTag >;
+    template <typename T, typename FFTTag = DefaultFFTTag>
+    using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T, FFTTag> >;
 
     /*
      * runtime complexity:
@@ -414,8 +407,8 @@ namespace imajuscule
      *                of the different algorithms are well-spaced.
      *
      */
-    template <typename T>
-    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T>, FFTAlgoTag >;
+    template <typename T, typename FFTTag = DefaultFFTTag>
+    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, FFTTag> >;
     
     
     struct PartitionningSpec {

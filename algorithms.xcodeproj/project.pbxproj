@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		090DAD201EA56E9200ACBBA9 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */; };
 		09168FD21E099D78005DD50F /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09168FD11E099D78005DD50F /* unity.build.cpp */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
@@ -53,6 +54,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS10.2.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
 		0912152A1E0861CB00B860CB /* measure_containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = measure_containers.cpp; path = test/measure_containers.cpp; sourceTree = "<group>"; };
 		0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = allocator.adaptive_stack.hpp; path = include/allocator.adaptive_stack.hpp; sourceTree = "<group>"; };
 		0912152D1E096DD900B860CB /* pool.adaptive_stack.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = pool.adaptive_stack.h; path = include/pool.adaptive_stack.h; sourceTree = "<group>"; };
@@ -68,6 +70,7 @@
 		091AF71C1E27DC24004B554F /* markov_chain.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = markov_chain.hpp; path = include/markov_chain.hpp; sourceTree = "<group>"; };
 		091AF71D1E27DC58004B554F /* test_markov_chain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_markov_chain.cpp; path = test/test_markov_chain.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		091AF71E1E27F0E1004B554F /* hash.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = hash.hpp; path = include/hash.hpp; sourceTree = "<group>"; };
+		091BA6721EA54D1F00155CBE /* test_vdsp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_vdsp.cpp; path = test/test_vdsp.cpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
 		091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = allocator.aligned.hpp; path = include/allocator.aligned.hpp; sourceTree = "<group>"; };
 		0929F1DE1E70CAE600605F6D /* flt_math.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = flt_math.hpp; path = include/flt_math.hpp; sourceTree = "<group>"; };
@@ -177,6 +180,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				090DAD201EA56E9200ACBBA9 /* Accelerate.framework in Frameworks */,
 				09367D6C1E2E29330095BF20 /* libalgorithms.ios.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -251,6 +255,7 @@
 		09A2EC271EA2C48000D94138 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */,
 				09A2EC281EA2C48100D94138 /* Accelerate.framework */,
 			);
 			name = Frameworks;
@@ -282,6 +287,7 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,

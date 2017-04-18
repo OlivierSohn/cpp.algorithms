@@ -14,7 +14,9 @@ namespace imajuscule
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
+        static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
         static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
+        static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;
         using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         using Algo = typename fft::Algo_<Tag, FPT>;
         using Contexts = fft::Contexts_<Tag, FPT>;
@@ -64,25 +66,21 @@ namespace imajuscule
                 
                 auto it_res = result.begin();
                 auto it_y = y.begin();
-                auto end_y = it_y + N;
-                auto it_y_prev = end_y;
-                auto end_y_prev = it_y_prev + N;
-
-                // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
-                //
+                auto it_y_prev = it_y + N;
+                
                 // y = mix first part of result with second part of previous result
                 //
                 // 'first part of y' = factor * ('second part of y' + 'first part of result')
-                for(; it_y != end_y; ++it_y, ++it_y_prev, ++it_res) {
-                    *it_y = factor * (*it_y_prev + *it_res);
-                }
-
+                add_scalar_multiply(it_y, /* = */
+                                    /* ( */ it_res, /* + */ it_y_prev /* ) */, /* x */ factor,
+                                    N);
+                
                 // store second part of result for later
                 //
                 // 'second part of y' = 'second part of result'
-                for(; it_y != end_y_prev; ++it_y, ++it_res) {
-                    *it_y = *it_res;
-                }
+                copy(it_y   + N,
+                     it_res + N,
+                     N);
                 
                 // reset 'it' so that the results are accessible in get() method
                 assert(it == y.begin() + N-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector

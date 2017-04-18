@@ -23,6 +23,8 @@ namespace imajuscule {
         template<typename T>
         struct RealSignal_<imj::Tag, T> {
             using type = std::vector<complex<T>>;
+            using iter = typename type::iterator;
+            using const_iter = typename type::const_iterator;
             using value_type = typename type::value_type;
 
             static type make(std::vector<T> reals) {
@@ -37,6 +39,18 @@ namespace imajuscule {
             static T get_signal(value_type const & c) {
                 assert(std::abs(c.imag()) < 0.0001f);
                 return c.real();
+            }
+            
+            static void add_scalar_multiply(iter res, const_iter add1, const_iter add2, T const m, int N) {
+                // res = m * (add1 + add2)
+                
+                for(int i=0; i<N; ++i, ++res, ++add1, ++add2) {
+                    *res = m * (*add1 + *add2);
+                }
+            }
+            
+            static void copy(iter dest, const_iter from, int N) {
+                memcpy(&*dest, &*from, N * sizeof(*dest));
             }
         };
         

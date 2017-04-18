@@ -38,6 +38,7 @@ namespace imajuscule {
             
             static Contexts_ & getInstance() {
                 // ok to have static variable in header because class is templated
+                // (cf. test ThreadLocal)
                 thread_local Contexts_ ctxt;
                 
                 return ctxt;

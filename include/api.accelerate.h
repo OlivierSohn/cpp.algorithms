@@ -17,6 +17,9 @@ namespace imajuscule {
 
             constexpr static auto f_zvfill   = vDSP_zvfill;
             constexpr static auto f_vmul     = vDSP_vmul;
+            constexpr static auto f_vasm     = vDSP_vasm;
+            constexpr static auto f_mmov     = vDSP_mmov;
+            constexpr static auto f_vcpy     = cblas_scopy;
             constexpr static auto f_zvmul    = vDSP_zvmul;
             constexpr static auto f_zvma     = vDSP_zvma;
             constexpr static auto f_ctoz     = vDSP_ctoz;
@@ -36,6 +39,9 @@ namespace imajuscule {
 
             constexpr static auto f_zvfill   = vDSP_zvfillD;
             constexpr static auto f_vmul     = vDSP_vmulD;
+            constexpr static auto f_vasm     = vDSP_vasmD;
+            constexpr static auto f_mmov     = vDSP_mmovD;
+            constexpr static auto f_vcpy     = cblas_dcopy;
             constexpr static auto f_zvmul    = vDSP_zvmulD;
             constexpr static auto f_zvma     = vDSP_zvmaD;
             constexpr static auto f_ctoz     = vDSP_ctozD;

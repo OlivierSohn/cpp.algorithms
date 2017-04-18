@@ -41,3 +41,23 @@ TEST(MinMax, DISABLED_withNaN)
         ASSERT_EQ(1.f, *res.second);
     }
 }
+
+
+namespace imajuscule {
+    namespace threadlocaltest {
+        using Ctxts = fft::Contexts_<imj::Tag, float>;
+        
+        // implemented in another translation unit:
+        Ctxts & get_other_context();
+        
+        Ctxts & get_this_context() {
+            return Ctxts::getInstance();
+        }
+    }
+}
+TEST(ThreadLocal, test) {
+    using namespace imajuscule::threadlocaltest;
+
+    // verify that it's ok to have a static variable in header when class is templated
+    EXPECT_EQ(&get_other_context(), &get_this_context());
+}

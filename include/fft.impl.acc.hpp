@@ -23,6 +23,8 @@ namespace imajuscule {
         template<typename T>
         struct RealSignal_<accelerate::Tag, T> {
             using type = std::vector<T>;
+            using iter = typename type::iterator;
+            using const_iter = typename type::const_iterator;
         
             static type make(std::vector<T> reals) {
                 return std::move(reals);
@@ -30,6 +32,27 @@ namespace imajuscule {
 
             static T get_signal(T r) {
                 return r;
+            }
+            
+            static void add_scalar_multiply(iter res,
+                                            const_iter const_add1,
+                                            const_iter const_add2, T const m, int N) {
+                // res = m * (add1 + add2)
+                
+                accelerate::API<T>::f_vasm(&*const_add1, 1,
+                                           &*const_add2, 1,
+                                           &m,
+                                           &*res, 1,
+                                           N);
+                
+            }
+            
+            static void copy(iter dest, const_iter from, int N) {
+                // don't know which one is faster .. todo test!
+                /*accelerate::API<T>::f_vcpy(N,
+                                           &*from, 1,
+                                           &*dest, 1);*/
+                accelerate::API<T>::f_mmov(&*from, &*dest, 1, N, 1, 1);
             }
         };
         

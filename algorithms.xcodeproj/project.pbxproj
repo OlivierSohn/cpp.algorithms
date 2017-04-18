@@ -21,6 +21,8 @@
 		09367D741E2E2A240095BF20 /* gtest-all.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C71DB3F3CE003C168E /* gtest-all.cc */; };
 		09367D751E2E2A290095BF20 /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
 		09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09A2EC281EA2C48100D94138 /* Accelerate.framework */; };
+		09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
+		09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
 		09C645911E09F84700153C61 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 /* End PBXBuildFile section */
 
@@ -135,6 +137,7 @@
 		09A2EC2D1EA2F77500D94138 /* fft.impl.imj.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.impl.imj.hpp; path = include/fft.impl.imj.hpp; sourceTree = "<group>"; };
 		09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft_fbins.cpp; path = test/test_fft_fbins.cpp; sourceTree = "<group>"; };
 		09A4E4241EA6850700F92310 /* test_fft_signal.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft_signal.cpp; path = test/test_fft_signal.cpp; sourceTree = "<group>"; };
+		09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = not_in_unity_build.cpp; path = test/not_in_unity_build.cpp; sourceTree = "<group>"; };
 		09BA149A1E387D1B00A05F83 /* complex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = complex.hpp; path = include/complex.hpp; sourceTree = "<group>"; };
 		09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.hpp; path = include/dsp.filter.hpp; sourceTree = "<group>"; };
 		09BA14C41E387E4200A05F83 /* enum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = enum.h; path = include/enum.h; sourceTree = "<group>"; };
@@ -291,6 +294,7 @@
 			children = (
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
+				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
 				096C6D691EA0338D00389746 /* test_benchmark.cpp */,
 				0972718D1E1B4AFD00532772 /* test_cast.cpp */,
@@ -539,6 +543,7 @@
 				09367D751E2E2A290095BF20 /* GoogleTests.mm in Sources */,
 				09367D731E2E2A240095BF20 /* gtest_main.cc in Sources */,
 				09367D741E2E2A240095BF20 /* gtest-all.cc in Sources */,
+				09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */,
 				09367D721E2E29ED0095BF20 /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -550,6 +555,7 @@
 				093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */,
 				093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */,
 				093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */,
+				09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */,
 				09168FD21E099D78005DD50F /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

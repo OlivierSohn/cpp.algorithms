@@ -262,5 +262,3 @@ TEST(FFT, inverse_correctness) {
     });
 }
 
-// TODO add tests for vectorization
-

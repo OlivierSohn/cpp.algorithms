@@ -133,6 +133,8 @@
 		09A2EC2B1EA2F1FE00D94138 /* fft.interface.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.interface.hpp; path = include/fft.interface.hpp; sourceTree = "<group>"; };
 		09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.impl.acc.hpp; path = include/fft.impl.acc.hpp; sourceTree = "<group>"; };
 		09A2EC2D1EA2F77500D94138 /* fft.impl.imj.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.impl.imj.hpp; path = include/fft.impl.imj.hpp; sourceTree = "<group>"; };
+		09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft_fbins.cpp; path = test/test_fft_fbins.cpp; sourceTree = "<group>"; };
+		09A4E4241EA6850700F92310 /* test_fft_signal.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft_signal.cpp; path = test/test_fft_signal.cpp; sourceTree = "<group>"; };
 		09BA149A1E387D1B00A05F83 /* complex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = complex.hpp; path = include/complex.hpp; sourceTree = "<group>"; };
 		09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.hpp; path = include/dsp.filter.hpp; sourceTree = "<group>"; };
 		09BA14C41E387E4200A05F83 /* enum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = enum.h; path = include/enum.h; sourceTree = "<group>"; };
@@ -287,7 +289,6 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
-				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
@@ -296,6 +297,8 @@
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
 				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
 				097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */,
+				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
+				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
 				096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */,
@@ -304,6 +307,7 @@
 				093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
+				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
 			);
 			name = test;

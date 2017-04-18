@@ -44,6 +44,10 @@ namespace imajuscule {
         struct RealFBins_<imj::Tag, T> {
             using type = std::vector<complex<T>>;
             
+            static type make(std::vector<complex<T>> cplx) {
+                return std::move(cplx);
+            }
+
             static void mult_assign(type & v, type const & w) {
                 auto it = v.begin();
                 auto end = v.end();
@@ -54,8 +58,9 @@ namespace imajuscule {
                 }
             }
  
-            static void fill(complex<T> value, type & v) {
-                std::fill(v.begin(), v.end(), value);
+            static void zero(type & v) {
+                complex<T> zero{};
+                std::fill(v.begin(), v.end(), zero);
             }
             
             static void multiply_add(type & accum, type const & m1, type const & m2) {
@@ -207,7 +212,7 @@ namespace imajuscule {
         namespace slow_debug {
             
             template<typename CONTAINER>
-            struct UnwrapFrequencies<imj::Tag, CONTAINER> {
+            struct UnwrapFrequenciesRealFBins<imj::Tag, CONTAINER> {
                 static auto run(CONTAINER container, int N) {
                     return std::move(container);
                 }

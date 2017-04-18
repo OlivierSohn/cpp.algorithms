@@ -246,7 +246,7 @@ namespace imajuscule
         using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         
         using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-        static constexpr auto fill = fft::RealFBins_<Tag, FPT>::fill;
+        static constexpr auto zero = fft::RealFBins_<Tag, FPT>::zero;
         static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
         
         using Algo = typename fft::Algo_<Tag, FPT>;
@@ -332,7 +332,7 @@ namespace imajuscule
             
             auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin();
             
-            fill(complex<T>(0,0), work);
+            zero(work);
             
             ffts_of_delayed_x.for_each_bkwd( [this, &it_fft_of_partitionned_h] (auto const & fft_of_delayed_x) {
                 assert(it_fft_of_partitionned_h < ffts_of_partitionned_h.end());

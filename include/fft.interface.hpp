@@ -68,14 +68,14 @@ namespace imajuscule {
         
         namespace slow_debug {
             template<typename TAG, typename CONTAINER>
-            struct UnwrapFrequencies;
+            struct UnwrapFrequenciesRealFBins;
             
             template<typename TAG, typename CONTAINER>
             struct UnwrapSignal;
             
             template<typename TAG, typename CONTAINER>
             auto unwrap_frequencies(CONTAINER const & c, int size) {
-                UnwrapFrequencies<TAG, CONTAINER> u;
+                UnwrapFrequenciesRealFBins<TAG, CONTAINER> u;
                 return u.run(c, size);
             }
             

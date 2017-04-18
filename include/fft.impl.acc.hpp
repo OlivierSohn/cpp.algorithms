@@ -40,14 +40,14 @@ namespace imajuscule {
          cf. packing here : https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html
          */
         template<typename T>
-        struct RealOutputImpl {
+        struct RealFBinsImpl {
             using SC = accelerate::SplitComplex<T>;
             
             using value_type = T;
             
-            RealOutputImpl() = default;
+            RealFBinsImpl() = default;
             
-            RealOutputImpl(int size) : buffer(size) {
+            RealFBinsImpl(int size) : buffer(size) {
             }
             
             void resize(size_t sz) {
@@ -78,8 +78,23 @@ namespace imajuscule {
         template<typename T>
         struct RealFBins_<accelerate::Tag, T> {
             using Tag = accelerate::Tag;
-            using type = RealOutputImpl<T>;
-            
+            using type = RealFBinsImpl<T>;
+           
+            // this is slow, it is used for tests only
+            static type make(std::vector<complex<T>> cplx) {
+                // 'wrap' signal
+                type res(cplx.size());
+                auto split = res.get_hybrid_split();
+                *split.realp = cplx[0].real();
+                *split.imagp = cplx[cplx.size()/2].real();
+                
+                for(int i=1; i<cplx.size()/2; ++i) {
+                    split.realp[i] = cplx[i].real();
+                    split.imagp[i] = cplx[i].imag();
+                }
+                return std::move(res);
+            }
+
             static void mult_assign(type & v, type const & const_w) {
                 // v *= w
                 
@@ -99,10 +114,15 @@ namespace imajuscule {
                                             &V, 1, v.count_cplx_elements()-1, 1);
             }
             
-            static void fill(complex<T> value, type & v) {
-                auto V = v.get_hybrid_split();
+            static void zero(type & v) {
+                T zero{};
                 
-                accelerate::SplitComplex<T> sc{value.realAddr(), value.imagAddr()};
+                accelerate::SplitComplex<T> sc{
+                    &zero,
+                    &zero
+                };
+                
+                auto V = v.get_hybrid_split();
                 accelerate::API<T>::f_zvfill(&sc,
                                              &V, 1, v.count_cplx_elements());
             }
@@ -211,7 +231,7 @@ namespace imajuscule {
         namespace slow_debug {
             
             template<typename CONTAINER>
-            struct UnwrapFrequencies<accelerate::Tag, CONTAINER> {
+            struct UnwrapFrequenciesRealFBins<accelerate::Tag, CONTAINER> {
                 using T = typename CONTAINER::value_type;
                 static auto run(CONTAINER const & const_container, int N) {
                     

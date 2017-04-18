@@ -8,10 +8,10 @@ namespace imajuscule {
     namespace fft {
         
         template<typename TAG, typename T>
-        struct RealInput_;
+        struct RealSignal_;
         
         template<typename TAG, typename T>
-        struct RealOutput_;
+        struct RealFBins_;
         
         template<typename TAG, typename T>
         struct Context_;

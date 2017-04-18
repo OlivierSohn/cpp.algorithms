@@ -124,9 +124,9 @@ namespace imajuscule {
             using namespace imajuscule::fft;
             using namespace imajuscule::testfft;
 
-            using RealInput = typename RealInput_<Tag, T>::type;
-            using RealOutput = typename RealOutput_<Tag, T>::type;
-            using Context = typename Context_<Tag, T>::type;
+            using RealInput = typename RealSignal_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T>::type;
+            using Context   = typename Context_<Tag, T>::type;
             using ScopedContext = ScopedContext_<Tag, T>;
             using Algo = Algo_<Tag, T>;
 
@@ -134,7 +134,7 @@ namespace imajuscule {
             ScopedContext setup(N);
             
             RealInput input;
-            RealOutput output(N);
+            RealFBins output(N);
             
             input.reserve(N);
             
@@ -161,9 +161,9 @@ namespace imajuscule {
             using namespace imajuscule::fft;
             using namespace imajuscule::testfft;
             
-            using RealInput = typename RealInput_<Tag, T>::type;
-            using RealOutput = typename RealOutput_<Tag, T>::type;
-            using Context = typename Context_<Tag, T>::type;
+            using RealInput = typename RealSignal_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T>::type;
+            using Context   = typename Context_<Tag, T>::type;
             using ScopedContext = ScopedContext_<Tag, T>;
             using Algo = Algo_<Tag, T>;
             
@@ -171,7 +171,7 @@ namespace imajuscule {
             ScopedContext setup(N);
             
             RealInput input, reconstructed_input(N);
-            RealOutput output(N);
+            RealFBins output(N);
             
             input.reserve(N);
             
@@ -201,10 +201,10 @@ namespace imajuscule {
             using namespace imajuscule::fft;
             using namespace imajuscule::testfft;
             
-            using RealInputT = RealInput_<Tag, T>;
-            using RealInput = typename RealInput_<Tag, T>::type;
-            using RealOutput = typename RealOutput_<Tag, T>::type;
-            using Context = typename Context_<Tag, T>::type;
+            using RealInputT = RealSignal_<Tag, T>;
+            using RealInput = typename RealSignal_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T>::type;
+            using Context   = typename Context_<Tag, T>::type;
             using ScopedContext = ScopedContext_<Tag, T>;
             using Algo = Algo_<Tag, T>;
             
@@ -212,7 +212,7 @@ namespace imajuscule {
             ScopedContext setup(N);
             
             RealInput input, reconstructed_input(N);
-            RealOutput output(N);
+            RealFBins output(N);
             
             input = RealInputT::make(makeCoefficients<T>());
             EXPECT_EQ(N, input.size());
@@ -245,26 +245,22 @@ namespace imajuscule {
 
 TEST(FFT, forward_correctness) {
     using namespace imajuscule;
+    using namespace imajuscule;
     using namespace imajuscule::testfft;
     
-    testForwardFFT<imj::Tag>();
-    
-#if __APPLE__
-    
-    testForwardFFT<accelerate::Tag>();
-    
-#endif // __APPLE__
+    for_each(fft::Tags, [](auto t) {
+        testForwardFFT<decltype(t)>();
+    });
 }
 
 TEST(FFT, inverse_correctness) {
     using namespace imajuscule;
     using namespace imajuscule::testfft;
     
-    testInverseFFT<imj::Tag>();
-    
-#if __APPLE__
-    
-    testInverseFFT<accelerate::Tag>();
-    
-#endif // __APPLE__
+    for_each(fft::Tags, [](auto t) {
+        testInverseFFT<decltype(t)>();
+    });
 }
+
+// TODO add tests for vectorization
+

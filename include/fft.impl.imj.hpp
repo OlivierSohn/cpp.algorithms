@@ -12,9 +12,6 @@ namespace imajuscule {
         struct Tag {};
     }
 
-    // on osx, my implementation is 20x slower than accelerate.vdsp
-    //using DefaultFFTTag = imj::Tag;
-
     namespace fft {
         
         /*
@@ -24,8 +21,9 @@ namespace imajuscule {
          */
 
         template<typename T>
-        struct RealInput_<imj::Tag, T> {
+        struct RealSignal_<imj::Tag, T> {
             using type = std::vector<complex<T>>;
+            using value_type = typename type::value_type;
 
             static type make(std::vector<T> reals) {
                 type ret;
@@ -36,14 +34,14 @@ namespace imajuscule {
                 return std::move(ret);
             }
             
-            static T get_signal(complex<T> const & c) {
+            static T get_signal(value_type const & c) {
                 assert(std::abs(c.imag()) < 0.0001f);
                 return c.real();
             }
         };
         
         template<typename T>
-        struct RealOutput_<imj::Tag, T> {
+        struct RealFBins_<imj::Tag, T> {
             using type = std::vector<complex<T>>;
             
             static void mult_assign(type & v, type const & w) {
@@ -155,8 +153,8 @@ namespace imajuscule {
         
         template<typename T>
         struct Algo_<imj::Tag, T> {
-            using RealInput  = typename RealInput_ <imj::Tag, T>::type;
-            using RealOutput = typename RealOutput_<imj::Tag, T>::type;
+            using RealInput  = typename RealSignal_ <imj::Tag, T>::type;
+            using RealFBins  = typename RealFBins_<imj::Tag, T>::type;
             using Context    = typename Context_   <imj::Tag, T>::type;
             
             using Tr = NumTraits<T>;
@@ -171,7 +169,7 @@ namespace imajuscule {
             }
 
             void forward(RealInput const & input,
-                         RealOutput & output,
+                         RealFBins & output,
                          unsigned int N) const
             {
                 constexpr auto stride = 1;
@@ -182,7 +180,7 @@ namespace imajuscule {
                                               stride);
             }
             
-            void inverse(RealOutput const & input,
+            void inverse(RealFBins const & input,
                          RealInput & output,
                          unsigned int N) const
             {
@@ -232,10 +230,10 @@ namespace imajuscule {
             // this part could be #included to avoid repetitions
             
             template<typename T>
-            using RealInput = typename RealInput_<Tag, T>::type;
+            using RealInput = typename RealSignal_<Tag, T>::type;
 
             template<typename T>
-            using RealOutput = typename RealOutput_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T>::type;
         
             template<typename T>
             using Context = typename Context_<Tag, T>::type;

@@ -7,6 +7,24 @@
 namespace imajuscule {
     namespace fft {
 
+        /*
+         on OSX, 'accelerate' fft is 20x faster than 'imj' fft
+         */
+        
+        constexpr std::tuple<
+        imj::Tag            // cross-platform, 'straightforward', slow, large memory footprint
+#if __APPLE__
+        , accelerate::Tag // osx / ios only, vectorized, fast, small memory footprint
+#endif // __APPLE__
+        > Tags;
+
+        using Fastest =
+#if __APPLE__
+        accelerate::Tag;
+#else
+        imj::Tag;
+#endif
+        
         template<typename T>
         constexpr auto getFFTEpsilon(int N) {
             return power_of_two_exponent(N) * std::numeric_limits<T>::epsilon(); // worst case error propagation is O(log N)

@@ -104,12 +104,8 @@ TEST(Convolution, dirac) {
     using namespace imajuscule;
     using namespace imajuscule::testdspconv;
     
-    testDirac<imj::Tag>();
-    
-#if __APPLE__
-    
-    testDirac<accelerate::Tag>();
-    
-#endif // __APPLE__
+    for_each(fft::Tags, [](auto t) {
+        testDirac<decltype(t)>();
+    });
 }
 

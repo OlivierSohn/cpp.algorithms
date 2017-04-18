@@ -14,8 +14,8 @@ namespace imajuscule
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
-        static constexpr auto get_signal = fft::RealInput_<Tag, FPT>::get_signal;
-        using RealSignal = typename fft::RealInput_<Tag, FPT>::type;
+        static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
+        using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         using Algo = typename fft::Algo_<Tag, FPT>;
         using Contexts = fft::Contexts_<Tag, FPT>;
         
@@ -61,21 +61,25 @@ namespace imajuscule
                 fft.inverse(frequencies, result, get_fft_length());
 
                 auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
-                // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
-                
-                // y = mix first part of result with second part of previous result
                 
                 auto it_res = result.begin();
                 auto it_y = y.begin();
                 auto end_y = it_y + N;
                 auto it_y_prev = end_y;
                 auto end_y_prev = it_y_prev + N;
-                
+
+                // for efficiency reasons we will scale the result in the following loop to avoid an additional traversal
+                //
+                // y = mix first part of result with second part of previous result
+                //
+                // 'first part of y' = factor * ('second part of y' + 'first part of result')
                 for(; it_y != end_y; ++it_y, ++it_y_prev, ++it_res) {
                     *it_y = factor * (*it_y_prev + *it_res);
                 }
 
                 // store second part of result for later
+                //
+                // 'second part of y' = 'second part of result'
                 for(; it_y != end_y_prev; ++it_y, ++it_res) {
                     *it_y = *it_res;
                 }
@@ -110,11 +114,11 @@ namespace imajuscule
         using FPT = T;
         using FFTTag = Tag;
         
-        using RealSignal = typename fft::RealInput_<Tag, FPT>::type;
-        static constexpr auto makeRealSignal = fft::RealInput_<Tag, FPT>::make;
+        using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+        static constexpr auto makeRealSignal = fft::RealSignal_<Tag, FPT>::make;
 
-        using CplxFreqs = typename fft::RealOutput_<Tag, FPT>::type;
-        static constexpr auto mult_assign = fft::RealOutput_<Tag, FPT>::mult_assign;
+        using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
+        static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
         
         using Algo = typename fft::Algo_<Tag, FPT>;
 
@@ -239,11 +243,11 @@ namespace imajuscule
         using FPT = T;
         using FFTTag = Tag;
 
-        using RealSignal = typename fft::RealInput_<Tag, FPT>::type;
+        using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         
-        using CplxFreqs = typename fft::RealOutput_<Tag, FPT>::type;
-        static constexpr auto fill = fft::RealOutput_<Tag, FPT>::fill;
-        static constexpr auto multiply_add = fft::RealOutput_<Tag, FPT>::multiply_add;
+        using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
+        static constexpr auto fill = fft::RealFBins_<Tag, FPT>::fill;
+        static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
         
         using Algo = typename fft::Algo_<Tag, FPT>;
 
@@ -349,8 +353,6 @@ namespace imajuscule
         
         CplxFreqs work;
     };
-
-    using FFTAlgoTag = imj::Tag;
     
     /*
     
@@ -383,7 +385,7 @@ namespace imajuscule
      *
      * optimization : H and A are fixed so we cannot optimize this algorithm
      */
-    template <typename T, typename FFTTag = DefaultFFTTag>
+    template <typename T, typename FFTTag = fft::Fastest>
     using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T, FFTTag> >;
 
     /*
@@ -407,7 +409,7 @@ namespace imajuscule
      *                of the different algorithms are well-spaced.
      *
      */
-    template <typename T, typename FFTTag = DefaultFFTTag>
+    template <typename T, typename FFTTag = fft::Fastest>
     using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, FFTTag> >;
     
     

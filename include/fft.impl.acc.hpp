@@ -11,8 +11,6 @@ namespace imajuscule {
         struct Tag {};
     }
     
-    using DefaultFFTTag = accelerate::Tag;
-
     namespace fft {
 
         /*
@@ -23,7 +21,7 @@ namespace imajuscule {
          */
 
         template<typename T>
-        struct RealInput_<accelerate::Tag, T> {
+        struct RealSignal_<accelerate::Tag, T> {
             using type = std::vector<T>;
         
             static type make(std::vector<T> reals) {
@@ -78,7 +76,7 @@ namespace imajuscule {
         }
 
         template<typename T>
-        struct RealOutput_<accelerate::Tag, T> {
+        struct RealFBins_<accelerate::Tag, T> {
             using Tag = accelerate::Tag;
             using type = RealOutputImpl<T>;
             
@@ -148,8 +146,8 @@ namespace imajuscule {
 
         template<typename T>
         struct Algo_<accelerate::Tag, T> {
-            using RealInput  = typename RealInput_ <accelerate::Tag, T>::type;
-            using RealOutput = typename RealOutput_<accelerate::Tag, T>::type;
+            using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
+            using RealFBins  = typename RealFBins_<accelerate::Tag, T>::type;
             using Context    = typename Context_   <accelerate::Tag, T>::type;
             using Tr = NumTraits<T>;
 
@@ -165,7 +163,7 @@ namespace imajuscule {
             }
             
             void forward(RealInput const & input,
-                         RealOutput & output,
+                         RealFBins & output,
                          unsigned int N) const
             {
                 using namespace accelerate;
@@ -185,13 +183,13 @@ namespace imajuscule {
                             FFT_FORWARD);
             }
             
-            void inverse(RealOutput const & const_output,
+            void inverse(RealFBins const & const_output,
                          RealInput & input,
                          unsigned int N) const
             {
                 using namespace accelerate;
 
-                auto Output = const_cast<RealOutput &>(const_output).get_hybrid_split();
+                auto Output = const_cast<RealFBins &>(const_output).get_hybrid_split();
                 
                 fft_zrip<T>(context,
                             &Output,
@@ -261,10 +259,10 @@ namespace imajuscule {
             using namespace imajuscule::fft;
             
             template<typename T>
-            using RealInput = typename RealInput_<Tag, T>::type;
+            using RealInput = typename RealSignal_<Tag, T>::type;
             
             template<typename T>
-            using RealOutput = typename RealOutput_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T>::type;
             
             template<typename T>
             using Context = typename Context_<Tag, T>::type;

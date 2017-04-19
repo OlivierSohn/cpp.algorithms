@@ -67,30 +67,5 @@ namespace imajuscule {
         auto destroy_fftsetup(Args&&... args) {
             return API<T>::f_destroy_fftsetup(std::forward<Args>(args)...);
         }
-
-        template<typename T, typename ...Args>
-        auto zvmul(Args&&... args) {
-            return API<T>::f_zvmul(std::forward<Args>(args)...);
-        }
-
-        template<typename T, typename ...Args>
-        auto vmul(Args&&... args) {
-            return API<T>::f_vmul(std::forward<Args>(args)...);
-        }
-        
-        template<typename T, typename ...Args>
-        auto ctoz(Args&&... args) {
-            return API<T>::f_ctoz(std::forward<Args>(args)...);
-        }
-        
-        template<typename T, typename ...Args>
-        auto ztoc(Args&&... args) {
-            return API<T>::f_ztoc(std::forward<Args>(args)...);
-        }
-        
-        template<typename T, typename ...Args>
-        auto fft_zrip(Args&&... args) {
-            return API<T>::f_fft_zrip(std::forward<Args>(args)...);
-        }
     }
 }

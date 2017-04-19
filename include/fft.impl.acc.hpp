@@ -79,7 +79,7 @@ namespace imajuscule {
             
             auto size() const { return buffer.size(); }
             
-            auto count_cplx_elements() const { return buffer.size() / 2; }
+            auto vector_size() const { return buffer.size() / 2 - 1; }
             
             auto get_hybrid_split() {
                 return SC {
@@ -134,7 +134,7 @@ namespace imajuscule {
                 
                 accelerate::API<T>::f_zvmul(&V, 1,
                                             &W, 1,
-                                            &V, 1, v.count_cplx_elements()-1, 1);
+                                            &V, 1, v.vector_size(), 1);
             }
             
             static void zero(type & v) {
@@ -147,7 +147,7 @@ namespace imajuscule {
                 
                 auto V = v.get_hybrid_split();
                 accelerate::API<T>::f_zvfill(&sc,
-                                             &V, 1, v.count_cplx_elements());
+                                             &V, 1, v.vector_size() + 1);
             }
             
             static void multiply_add(type & accum, type const & const_m1, type const & const_m2) {
@@ -172,7 +172,7 @@ namespace imajuscule {
                 accelerate::API<T>::f_zvma(&M1, 1,
                                            &M2, 1,
                                            &Accum, 1,
-                                           &Accum, 1, accum.count_cplx_elements() - 1);
+                                           &Accum, 1, accum.vector_size());
                 
             }
         };
@@ -213,17 +213,17 @@ namespace imajuscule {
                 auto Output = output.get_hybrid_split();
                 
                 constexpr auto inputStride = 1;
-                ctoz<T>(reinterpret_cast<Complex<T> const *>(input.data()),
-                        inputStride * 2,
-                        &Output,
-                        1,
-                        N/2);
+                API<T>::f_ctoz(reinterpret_cast<Complex<T> const *>(input.data()),
+                               inputStride * 2,
+                               &Output,
+                               1,
+                               N/2);
                 
-                fft_zrip<T>(context,
-                            &Output,
-                            1,
-                            power_of_two_exponent(N),
-                            FFT_FORWARD);
+                API<T>::f_fft_zrip(context,
+                                   &Output,
+                                   1,
+                                   power_of_two_exponent(N),
+                                   FFT_FORWARD);
             }
             
             void inverse(RealFBins const & const_output,
@@ -234,18 +234,18 @@ namespace imajuscule {
 
                 auto Output = const_cast<RealFBins &>(const_output).get_hybrid_split();
                 
-                fft_zrip<T>(context,
-                            &Output,
-                            1,
-                            power_of_two_exponent(N),
-                            FFT_INVERSE);
-
+                API<T>::f_fft_zrip(context,
+                                   &Output,
+                                   1,
+                                   power_of_two_exponent(N),
+                                   FFT_INVERSE);
+                
                 constexpr auto inputStride = 1;
-                ztoc<T>(&Output,
-                        1,
-                        reinterpret_cast<Complex<T> *>(input.data()),
-                        inputStride * 2,
-                        N/2);
+                API<T>::f_ztoc(&Output,
+                               1,
+                               reinterpret_cast<Complex<T> *>(input.data()),
+                               inputStride * 2,
+                               N/2);
                 
             }
             Context context;

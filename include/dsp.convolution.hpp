@@ -7,7 +7,7 @@
 namespace imajuscule
 {    
     /*
-     * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method#math_Eq.1
+     * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method
      */
     template <typename Parent>
     struct FFTConvolutionBase : public Parent {
@@ -22,7 +22,7 @@ namespace imajuscule
         using Contexts = fft::Contexts_<Tag, FPT>;
         
         using Parent::get_fft_length;
-        using Parent::getComputationPeriodicity;
+        using Parent::getLatency;
         using Parent::doSetCoefficients;
         using Parent::compute_convolution;
         
@@ -52,7 +52,7 @@ namespace imajuscule
         void step(T val) {
             x.emplace_back(val);
             
-            auto N = getComputationPeriodicity();
+            auto N = getLatency();
             if(unlikely(x.size() == N)) {
                 // pad x
                 
@@ -96,7 +96,7 @@ namespace imajuscule
         }
         
         T get() {
-            assert(it < y.begin() + getComputationPeriodicity());
+            assert(it < y.begin() + getLatency());
             assert(it >= y.begin());
             return get_signal(*it);
         }
@@ -120,7 +120,7 @@ namespace imajuscule
         
         using Algo = typename fft::Algo_<Tag, FPT>;
 
-        auto getComputationPeriodicity() const { return N; }
+        auto getLatency() const { return N; }
         
         auto countPartitions() const { return 1; }
         
@@ -254,7 +254,7 @@ namespace imajuscule
         
         bool empty() const { return ffts_of_partitionned_h.empty(); }
 
-        auto getComputationPeriodicity() { return partition_size; }
+        auto getLatency() { return partition_size; }
         
         auto countPartitions() const { return ffts_of_partitionned_h.size(); }
         

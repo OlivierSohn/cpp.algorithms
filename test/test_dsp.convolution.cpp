@@ -36,7 +36,7 @@ namespace imajuscule {
             
             // feed a dirac
             conv.step(1);
-            for(int i=1; i<conv.getComputationPeriodicity(); ++i) {
+            for(int i=1; i<conv.getLatency(); ++i) {
                 conv.step(0);
             }
             

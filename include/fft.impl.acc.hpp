@@ -25,6 +25,7 @@ namespace imajuscule {
             using type = cacheline_aligned_allocated::vector<T>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
+            using value_type = typename type::value_type;
         
             static type make(type reals) {
                 return std::move(reals);

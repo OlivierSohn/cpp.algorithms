@@ -243,6 +243,7 @@ namespace imajuscule
         using FFTTag = Tag;
 
         using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+        using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
         
         using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
         static constexpr auto zero = fft::RealFBins_<Tag, FPT>::zero;
@@ -280,6 +281,7 @@ namespace imajuscule
                 return n_partitions;
             }();
 
+            ffts_of_delayed_x.reset();
             ffts_of_delayed_x.resize(n_partitions);
             ffts_of_partitionned_h.resize(n_partitions);
             
@@ -298,7 +300,7 @@ namespace imajuscule
             
             auto it_coeffs = coeffs_.begin();
             {
-                RealSignal coeffs_slice(fft_length, {0}); // initialize with zeros (second half is padding)
+                RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
                 for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
                     auto end_coeffs = it_coeffs + partition_size;
                     assert(end_coeffs <= coeffs_.end());

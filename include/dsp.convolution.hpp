@@ -298,7 +298,7 @@ namespace imajuscule
             
             auto it_coeffs = coeffs_.begin();
             {
-                RealSignal coeffs_slice(fft_length, {}); // initialize with zeros (second half is padding)
+                RealSignal coeffs_slice(fft_length, {0}); // initialize with zeros (second half is padding)
                 for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
                     auto end_coeffs = it_coeffs + partition_size;
                     assert(end_coeffs <= coeffs_.end());

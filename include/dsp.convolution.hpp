@@ -40,6 +40,7 @@ namespace imajuscule
             fft.setContext(Contexts::getInstance().getBySize(fft_length));
             
             result.resize(fft_length);
+            x.clear();
             x.reserve(fft_length);
             {
                 y.resize(fft_length);

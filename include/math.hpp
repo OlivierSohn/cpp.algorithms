@@ -66,6 +66,12 @@ namespace imajuscule {
         return res;
     }
     
+    template<int64_t power>
+    static constexpr int64_t pow2() {
+        constexpr int64_t res = (((int64_t)1) << power);
+        return res;
+    }
+    
     static inline uint32_t count_leading_zeroes(uint32_t arg) {
         if (arg == 0) {
             return 32;

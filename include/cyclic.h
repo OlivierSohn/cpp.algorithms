@@ -6,13 +6,13 @@
 
 namespace imajuscule
 {
-    enum CyclicInitializationType
+    enum class CyclicInitialization
     {
-        OVERWRITE_INITIAL_VALUES_WITH_FIRST_FEED,
-        KEEP_INITIAL_VALUES
+        FIRST_FEED,
+        INITIAL_VALUES
     };
     
-    template<class T, int KIND = KEEP_INITIAL_VALUES>
+    template<class T, CyclicInitialization Init = CyclicInitialization::INITIAL_VALUES>
     struct cyclic
     {
         using Type = T;
@@ -53,11 +53,12 @@ namespace imajuscule
  
         // movable
         cyclic(cyclic&&o) :
-        buf(std::move(o.buf)),
         initialValue(std::move(o.initialValue)),
         isFirstFeed(o.isFirstFeed)
         {
-            it = buf.begin() + std::distance(o.it, o.buf.begin());
+            auto d =  std::distance(o.buf.begin(), o.it);
+            buf = std::move(o.buf);
+            it = buf.begin() + d;
         }
         
         cyclic & operator =(cyclic && o) {
@@ -79,7 +80,7 @@ namespace imajuscule
         
         void feed(ParameterType val) {
             if(isFirstFeed) {
-                if(KIND == OVERWRITE_INITIAL_VALUES_WITH_FIRST_FEED) {
+                if(Init == CyclicInitialization::FIRST_FEED) {
                     std::fill(buf.begin(), buf.end(), val);
                 }
                 isFirstFeed = false;

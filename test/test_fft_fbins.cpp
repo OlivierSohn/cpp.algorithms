@@ -101,6 +101,87 @@ namespace imajuscule {
             testZero<Tag, float>();
             testZero<Tag, double>();
         }
+        
+        template<typename Tag, typename T>
+        void testSqMag() {
+            using FBins = fft::RealFBins_<Tag, T>;
+            using namespace fft::slow_debug;
+            using namespace fft;
+            
+            {
+                auto f = FBins::make({{    {2,0}, {0,+1}, {0,-1}, {4,0}, {0,-1}, {0,+1} }});
+                auto p = FBins::getMaxSquaredAmplitude(f);
+                EXPECT_EQ(3, p.first);
+            }
+            {
+                auto f = FBins::make({{    {1,0}, {1,1}, {0,-1}, {0,0}, {0,-1}, {0,+1} }});
+                auto p = FBins::getMaxSquaredAmplitude(f);
+                EXPECT_EQ(1, p.first);
+            }
+            {
+                using Sig = fft::RealSignal_<Tag, T>;
+                auto highest_sine = Sig::make({{ 1, 1, 1, 1, 1, 1, 1, 1 }});
+                using Algo = Algo_<Tag, T>;
+                Algo a;
+                auto size_fft = highest_sine.size();
+                typename FBins::type f(size_fft);
+                ScopedContext_<Tag, T> sc(size_fft);
+                a.setContext(sc.get());
+                a.forward(highest_sine,f,size_fft);
+                auto p = FBins::getMaxSquaredAmplitude(f);
+                EXPECT_EQ(0, p.first);
+                EXPECT_EQ(1, p.second);
+            }
+            {
+                using Sig = fft::RealSignal_<Tag, T>;
+                auto highest_sine = Sig::make({{ -1, +1, -1, +1, -1, +1, -1, +1 }});
+                using Algo = Algo_<Tag, T>;
+                Algo a;
+                auto size_fft = highest_sine.size();
+                auto nyquist_bin_index = size_fft / 2;
+                typename FBins::type f(size_fft);
+                ScopedContext_<Tag, T> sc(size_fft);
+                a.setContext(sc.get());
+                a.forward(highest_sine,f,size_fft);
+                auto p = FBins::getMaxSquaredAmplitude(f);
+                EXPECT_EQ(nyquist_bin_index, p.first);
+                EXPECT_EQ(1, p.second);
+            }
+            {
+                using Sig = fft::RealSignal_<Tag, T>;
+                auto highest_sine = Sig::make({{ -1, 0, +1, 0, -1, 0, +1, 0 }});
+                using Algo = Algo_<Tag, T>;
+                Algo a;
+                auto size_fft = highest_sine.size();
+                auto nyquist_bin_index = size_fft / 2;
+                typename FBins::type f(size_fft);
+                ScopedContext_<Tag, T> sc(size_fft);
+                a.setContext(sc.get());
+                a.forward(highest_sine,f,size_fft);
+                auto p = FBins::getMaxSquaredAmplitude(f);
+                EXPECT_EQ(nyquist_bin_index/2, p.first);
+                EXPECT_EQ(0.25, p.second);
+            }
+            {
+                using Sig = fft::RealSignal_<Tag, T>;
+                auto highest_sine = Sig::make({{ 1, .9, .7, .3, -.3, -.7, -.9, -1 }});
+                using Algo = Algo_<Tag, T>;
+                Algo a;
+                auto size_fft = highest_sine.size();
+                typename FBins::type f(size_fft);
+                ScopedContext_<Tag, T> sc(size_fft);
+                a.setContext(sc.get());
+                a.forward(highest_sine,f,size_fft);
+                auto p = FBins::getMaxSquaredAmplitude(f);
+                EXPECT_TRUE(1 == p.first || 7 == p.first);
+            }
+        }
+        
+        template<typename Tag>
+        void testSqMag() {
+            testSqMag<Tag, float>();
+            testSqMag<Tag, double>();
+        }
     }
 }
 
@@ -128,5 +209,14 @@ TEST(FFTFBins, zero) {
     
     for_each(fft::Tags, [](auto t) {
         testZero<decltype(t)>();
+    });
+}
+
+TEST(FFTFBins, sqMag) {
+    using namespace imajuscule;
+    using namespace imajuscule::testfftfbins;
+    
+    for_each(fft::Tags, [](auto t) {
+        testSqMag<decltype(t)>();
     });
 }

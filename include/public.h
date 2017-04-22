@@ -52,7 +52,6 @@
 #include "slidingaverage.h"
 #include "meta.hpp"
 #include "numtraits.h"
-#include "peaks.hpp"
 #include "math.hpp"
 #include "flt_math.hpp"
 #include "freelist.hpp"
@@ -87,6 +86,7 @@
 #include "fft.impl.imj.hpp"
 #include "fft.hpp"
 
+#include "peaks.hpp"
 #include "markov_chain.hpp"
 #include "dsp.filter.hpp"
 #include "dsp.convolution.hpp"

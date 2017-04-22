@@ -56,6 +56,7 @@ namespace imajuscule {
         
         template<typename T>
         struct RealFBins_<imj::Tag, T> {
+            using Tag = imj::Tag;
             using type = cacheline_aligned_allocated::vector<complex<T>>;
             
             static type make(type cplx) {
@@ -89,6 +90,25 @@ namespace imajuscule {
                     assert(it_accum < accum.end());
                     *it_accum += *it1 * *it2;
                 }
+            }
+            
+            static std::pair<int, T> getMaxSquaredAmplitude(type const & v) {
+                auto Max = T(0);
+                
+                int index = -1;
+                int i=0;
+                for( auto & c : v) {
+                    auto M = norm(c);
+                    if(M > Max) {
+                        index = i;
+                        Max = M;
+                    }
+                    ++i;
+                }
+
+                auto div = static_cast<T>(v.size()) * Algo_<Tag,T>::scale;
+
+                return {index, Max/(div * div)};
             }
         };
         

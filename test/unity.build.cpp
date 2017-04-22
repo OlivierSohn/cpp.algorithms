@@ -10,6 +10,8 @@
 
 #include <thread>
 
+#include "test_containers.cpp"
+#include "test_math.cpp"
 #include "test_fft_fbins.cpp"
 #include "test_fft_signal.cpp"
 #include "test_vdsp.cpp"

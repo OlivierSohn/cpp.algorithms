@@ -176,6 +176,36 @@ namespace imajuscule {
                                            &Accum, 1, accum.vector_size());
                 
             }
+            
+            static std::pair<int, T> getMaxSquaredAmplitude(type const & const_v) {
+                typename type::value_type Max = 0;
+                
+                auto & v = const_cast<type &>(const_v);
+                auto V = v.get_hybrid_split();
+                auto index = 0;
+                Max = std::max(Max, *V.realp * *V.realp);
+                {
+                    auto M = *V.imagp * *V.imagp;
+                    if(M > Max) {
+                        index = v.vector_size()+1;
+                        Max = M;
+                    }
+                }
+
+                auto n = v.vector_size();
+                for(int i=0; i<n; ++i) {
+                    advance(V);
+                    auto M = (*V.realp * *V.realp) + (*V.imagp * *V.imagp);
+                    if(M > Max) {
+                        index = i+1;
+                        Max = M;
+                    }
+                }
+                
+                auto div = static_cast<T>(const_v.size()) * Algo_<Tag,T>::scale;
+                
+                return {index, Max/(div * div)};
+            }
         };
         
         template<typename T>
@@ -188,8 +218,23 @@ namespace imajuscule {
             static constexpr auto destroy = accelerate::API<T>::f_destroy_fftsetup;
         };
 
+        enum class FFTType {
+            Normal,
+            WithTmpBuffer
+        };
+
+        cacheline_aligned_allocated::vector<int8_t> & getFFTTmp();
+
         template<typename T>
         struct Algo_<accelerate::Tag, T> {
+            
+            // it's not clear what I should use :
+            // on ios it seems to be a little faster with a tmp buffer,
+            // but it's the opposite on osx
+            
+            //static constexpr auto ffttype = FFTType::WithTmpBuffer;
+            static constexpr auto ffttype = FFTType::Normal;
+            
             using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
             using RealFBins  = typename RealFBins_<accelerate::Tag, T>::type;
             using Context    = typename Context_   <accelerate::Tag, T>::type;
@@ -220,11 +265,29 @@ namespace imajuscule {
                                1,
                                N/2);
                 
-                API<T>::f_fft_zrip(context,
-                                   &Output,
-                                   1,
-                                   power_of_two_exponent(N),
-                                   FFT_FORWARD);
+                if(ffttype == FFTType::WithTmpBuffer) {
+                    auto & buffer = getFFTTmp();
+                    buffer.reserve(N * sizeof(T));
+                    
+                    SplitComplex<T> buf {
+                        reinterpret_cast<T*>(buffer.data()),
+                        reinterpret_cast<T*>(buffer.data()) + N / 2
+                    };
+                    
+                    API<T>::f_fft_zript(context,
+                                        &Output,
+                                        1,
+                                        &buf,
+                                        power_of_two_exponent(N),
+                                        FFT_FORWARD);
+                }
+                else {
+                    API<T>::f_fft_zrip(context,
+                                       &Output,
+                                       1,
+                                       power_of_two_exponent(N),
+                                       FFT_FORWARD);
+                }
             }
             
             void inverse(RealFBins const & const_output,
@@ -235,11 +298,29 @@ namespace imajuscule {
 
                 auto Output = const_cast<RealFBins &>(const_output).get_hybrid_split();
                 
-                API<T>::f_fft_zrip(context,
-                                   &Output,
-                                   1,
-                                   power_of_two_exponent(N),
-                                   FFT_INVERSE);
+                if(ffttype == FFTType::WithTmpBuffer) {
+                    auto & buffer = getFFTTmp();
+                    buffer.reserve(N * sizeof(T));
+                    
+                    SplitComplex<T> buf {
+                        reinterpret_cast<T*>(buffer.data()),
+                        reinterpret_cast<T*>(buffer.data()) + N / 2
+                    };
+
+                    API<T>::f_fft_zript(context,
+                                        &Output,
+                                        1,
+                                        &buf,
+                                        power_of_two_exponent(N),
+                                        FFT_INVERSE);
+                }
+                else {
+                    API<T>::f_fft_zrip(context,
+                                       &Output,
+                                       1,
+                                       power_of_two_exponent(N),
+                                       FFT_INVERSE);
+                }
                 
                 constexpr auto inputStride = 1;
                 API<T>::f_ztoc(&Output,

@@ -6,6 +6,16 @@
 
 #include "private.h"
 
+namespace imajuscule {
+    namespace fft {
+
+        cacheline_aligned_allocated::vector<int8_t> & getFFTTmp() {
+            thread_local cacheline_aligned_allocated::vector<int8_t> v;
+            return v;
+        }
+    }
+}
+
 #include "dsp.convolution.cpp"
 #include "hash_table.cpp"
 #include "pool.adaptive_stack.cpp"

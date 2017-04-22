@@ -130,5 +130,19 @@ namespace imajuscule {
         return expt_unsigned(1/p, static_cast<unsigned int>(-q));
     }
     
+    
+    template<typename ITER, typename VAL = typename ITER::value_type>
+    VAL dichotomic_sum(ITER it, ITER end) {
+        auto d = std::distance(it, end);
+        if(0 == d) {
+            return {};
+        }
+        if(1 == d) {
+            return *it;
+        }
+        auto mid = it + d/2;
+        return dichotomic_sum(it, mid) + dichotomic_sum(mid, end);
+    }
+
 } // NS imajuscule
 

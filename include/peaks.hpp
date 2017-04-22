@@ -152,4 +152,69 @@ namespace imajuscule
         
         return ret;
     }
+    
+    struct FreqAmplitude {
+        float relative_freq;
+        float amplitude;
+    };
+    
+    template<typename ITER, typename VAL = typename ITER::value_type>
+    FreqAmplitude max_freq_amplitude(ITER it, ITER end) {
+        using namespace fft;
+        using Tag = Fastest;
+        using Algo = Algo_<Tag, VAL>;
+        using RealFBins = RealFBins_<Tag, VAL>;
+        using ScopedContext = ScopedContext_<Tag, VAL>;
+        
+        cacheline_aligned_allocated::vector<VAL> v;
+        auto fft_length = ceil_power_of_two(std::distance(it, end));
+        v.reserve(fft_length);
+        for(; it!=end; ++it) {
+            v.push_back(*it);
+        }
+        v.resize(fft_length, VAL{0});
+        auto signal = RealSignal_<Tag, VAL>::make(std::move(v));
+        
+        typename RealFBins::type result(fft_length);
+
+        ScopedContext scoped_context(fft_length);
+        Algo fft(scoped_context.get());
+        fft.forward(signal, result, fft_length);
+        auto Max = RealFBins::getMaxSquaredAmplitude(result);
+        return {
+            Max.first/static_cast<float>(fft_length),
+            std::sqrt(Max.second)
+        };
+    }
+    
+    template<typename ITER, typename F_WINDOW, typename VAL = typename ITER::value_type>
+    VAL avg_windowed_abs_integrated(ITER it, ITER end, int avg_size, F_WINDOW window) {
+        slidingWindowedAverage<VAL, CyclicInitialization::INITIAL_VALUES> avg(avg_size, window);
+        auto n = std::distance(it, end);
+        std::vector<VAL> avgs;
+        avgs.reserve(n);
+        
+        for(; it!=end; ++it) {
+            avg.feed(*it);
+            avgs.push_back(std::abs(avg.compute()));
+        }
+        
+        // to minimize numerical errors
+        return dichotomic_sum(avgs.begin(), avgs.end()) / avg.getWindowAverage();
+    }
+    
+    template<typename CONTAINER, typename T = typename CONTAINER::value_type>
+    T max_auto_corr(CONTAINER const & c) {
+        CONTAINER input;
+        input.resize(2*c.size());
+        std::copy(c.begin(), c.end(), input.begin());
+
+        CONTAINER output;
+        output.resize(c.size());
+        accelerate::API<T>::f_conv(&*input.begin(), 1,
+                                   &*(c.end()-1), -1,
+                                   &*(output.begin()), 1, output.size(), c.size());
+        std::cout<< "";
+        assert(0);
+    }
 }

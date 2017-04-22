@@ -203,6 +203,7 @@ namespace imajuscule
         return dichotomic_sum(avgs.begin(), avgs.end()) / avg.getWindowAverage();
     }
     
+#ifdef __APPLE__
     template<typename CONTAINER, typename T = typename CONTAINER::value_type>
     T max_auto_corr(CONTAINER const & c) {
         CONTAINER input;
@@ -215,6 +216,8 @@ namespace imajuscule
                                    &*(c.end()-1), -1,
                                    &*(output.begin()), 1, output.size(), c.size());
         std::cout<< "";
-        assert(0);
+        assert(0); // not tested / implemented
     }
+#endif
+    
 }

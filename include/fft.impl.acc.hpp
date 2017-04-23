@@ -22,7 +22,7 @@ namespace imajuscule {
 
         template<typename T>
         struct RealSignal_<accelerate::Tag, T> {
-            using type = cacheline_aligned_allocated::vector<T>;
+            using type = a_64::vector<T>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
             using value_type = typename type::value_type;
@@ -90,7 +90,7 @@ namespace imajuscule {
             }
 
         private:
-            cacheline_aligned_allocated::vector<T> buffer;
+            a_64::vector<T> buffer;
         };
         
         template<typename ComplexSplit>
@@ -223,7 +223,7 @@ namespace imajuscule {
             WithTmpBuffer
         };
 
-        cacheline_aligned_allocated::vector<int8_t> & getFFTTmp();
+        a_64::vector<int8_t> & getFFTTmp();
 
         template<typename T>
         struct Algo_<accelerate::Tag, T> {

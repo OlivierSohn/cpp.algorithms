@@ -15,7 +15,7 @@ namespace imajuscule {
         }
         
         template<typename T>
-        void compute_roots_of_unity(unsigned int N, cacheline_aligned_allocated::vector<complex<T>> & res) {
+        void compute_roots_of_unity(unsigned int N, a_64::vector<complex<T>> & res) {
             assert(is_power_of_two(N));
             auto n_roots = N/2;
             res.reserve(n_roots);
@@ -26,7 +26,7 @@ namespace imajuscule {
         
         template<typename T>
         auto compute_roots_of_unity(unsigned int N) {
-            cacheline_aligned_allocated::vector<complex<T>> res;
+            a_64::vector<complex<T>> res;
             compute_roots_of_unity(N, res);
             return std::move(res);
         }

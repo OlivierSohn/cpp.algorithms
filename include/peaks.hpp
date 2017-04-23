@@ -166,7 +166,7 @@ namespace imajuscule
         using RealFBins = RealFBins_<Tag, VAL>;
         using ScopedContext = ScopedContext_<Tag, VAL>;
         
-        cacheline_aligned_allocated::vector<VAL> v;
+        a_64::vector<VAL> v;
         auto fft_length = ceil_power_of_two(std::distance(it, end));
         v.reserve(fft_length);
         for(; it!=end; ++it) {

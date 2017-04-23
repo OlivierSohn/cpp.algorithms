@@ -1,30 +1,26 @@
 
 namespace imajuscule {
     namespace testdspconv {
+        constexpr auto end_index = 4;
         
         template<typename T>
-        auto makeNonTrivialCoefficients() {
-            return cacheline_aligned_allocated::vector<T>{{ .9,.8,.7,.6,.3,.2,.1,0. }};
-        }
-        
-        template<typename T>
-        auto makeTrivialCoefficients() {
-            return cacheline_aligned_allocated::vector<T>{{ 1. }};
-        }
-        
-        template<typename T>
-        auto makeTrivialCoefficients2() {
-            return cacheline_aligned_allocated::vector<T>{{ -1. }}; // makes partitionned test fail
-        }
-        
-        template<typename T>
-        auto makeCoefficients(int coeffs_index) {
+        a_64::vector<T> makeCoefficients(int coeffs_index) {
             switch(coeffs_index) {
-                case 0: return makeTrivialCoefficients<T>();
-                case 1: return makeTrivialCoefficients2<T>();
-                default:
-                    return makeNonTrivialCoefficients<T>();
+                case 0: return {{ +1. }};
+                case 1: return {{ -1. }};
+                case 2: return {{ .9,.8,.7,.6,.3,.2,.1,0. }};
+                case 3: {
+                    constexpr auto sz = 80000;
+                    a_64::vector<T> v(sz);
+                    auto index = 0;
+                    for(auto & value: v) {
+                        value = (sz - index) / static_cast<T>(sz);
+                        ++index;
+                    }
+                    return std::move(v);
+                }
             }
+            throw std::logic_error("coeff index too big");
         }
         
         template<typename Convolution, typename Coeffs>
@@ -62,13 +58,20 @@ namespace imajuscule {
             
             const auto coefficients = makeCoefficients<T>(coeffs_index);
             
-            int i=0;
-            for(int i=0; i<5;i++)
-            {
-                auto const part_size = pow2(i);
+            if(coefficients.size() < 1024) {
+                for(int i=0; i<5;i++)
+                {
+                    auto const part_size = pow2(i);
+                    Convolution conv;
+                    
+                    conv.set_partition_size(part_size);
+                    test(conv, coefficients);
+                }
+            }
+            else {
                 Convolution conv;
                 
-                conv.set_partition_size(part_size);
+                conv.set_partition_size(1024);
                 test(conv, coefficients);
             }
             return false;
@@ -89,7 +92,7 @@ namespace imajuscule {
         template<typename Tag>
         bool testDirac() {
             using namespace fft;
-            for(int i=0; i<3; ++i) {
+            for(int i=0; i<end_index; ++i) {
                 testDirac2<FFTConvolution<float, Tag>>(i);
                 testDirac2<FFTConvolution<double, Tag>>(i);
                 testDiracPartitionned<PartitionnedFFTConvolution<float, Tag>>(i);

@@ -22,12 +22,12 @@ namespace imajuscule {
 
         template<typename T>
         struct RealSignal_<imj::Tag, T> {
-            using type = cacheline_aligned_allocated::vector<complex<T>>;
+            using type = a_64::vector<complex<T>>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
             using value_type = typename type::value_type;
 
-            static type make(cacheline_aligned_allocated::vector<T> reals) {
+            static type make(a_64::vector<T> reals) {
                 type ret;
                 ret.reserve(reals.size());
                 for(auto r : reals) {
@@ -57,7 +57,7 @@ namespace imajuscule {
         template<typename T>
         struct RealFBins_<imj::Tag, T> {
             using Tag = imj::Tag;
-            using type = cacheline_aligned_allocated::vector<complex<T>>;
+            using type = a_64::vector<complex<T>>;
             
             static type make(type cplx) {
                 return std::move(cplx);
@@ -114,7 +114,7 @@ namespace imajuscule {
         
         template<typename T>
         struct ImjContext {
-            using vec_roots = cacheline_aligned_allocated::vector<complex<T>>;
+            using vec_roots = a_64::vector<complex<T>>;
             
             ImjContext() : roots(nullptr) {}
             ImjContext(vec_roots * roots) : roots(roots) {}
@@ -233,8 +233,16 @@ namespace imajuscule {
                 // but it is supposed to be real numbers so the conjugation would have no effect
                 
 #ifndef NDEBUG
+                T M {};
+                std::for_each(output.begin(), output.end(),
+                              [&M](auto v) { M = std::max(M, std::abs(v.real())); } );
                 for(auto const & r : output) {
-                    assert(r.imag() < 0.01f);
+                    if(M) {
+                        assert(std::abs(r.imag()/M) < 1e-6);
+                    }
+                    else {
+                        assert(std::abs(r.imag()) < 1e-6);
+                    }
                 }
 #endif
             }

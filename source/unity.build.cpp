@@ -9,8 +9,8 @@
 namespace imajuscule {
     namespace fft {
 
-        cacheline_aligned_allocated::vector<int8_t> & getFFTTmp() {
-            thread_local cacheline_aligned_allocated::vector<int8_t> v;
+        a_64::vector<int8_t> & getFFTTmp() {
+            thread_local a_64::vector<int8_t> v;
             return v;
         }
     }

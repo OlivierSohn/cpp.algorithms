@@ -14,6 +14,11 @@ namespace imajuscule
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
+        
+        using SetupParam = float;
+        
+        void applySetup(SetupParam const & p) const {}
+        
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
         static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
         static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;
@@ -22,9 +27,11 @@ namespace imajuscule
         using Contexts = fft::Contexts_<Tag, FPT>;
         
         using Parent::get_fft_length;
-        using Parent::getLatency;
+        using Parent::getBlockSize;
         using Parent::doSetCoefficients;
         using Parent::compute_convolution;
+        
+        static constexpr bool is_atomic = true;
         
         FFTConvolutionBase() {
             it = y.end();
@@ -46,23 +53,27 @@ namespace imajuscule
                 y.resize(fft_length);
                 it = y.begin();
             }
-
+            
             doSetCoefficients(fft, std::move(coeffs_));
+        }
+        
+        bool willComputeNextStep() const {
+            return x.size() == getBlockSize()-1;
         }
         
         void step(T val) {
             x.emplace_back(val);
             
-            auto N = getLatency();
+            auto N = getBlockSize();
             if(unlikely(x.size() == N)) {
                 // pad x
                 
                 x.resize(get_fft_length());
                 
                 auto const & frequencies = compute_convolution(fft, x);
-
+                
                 fft.inverse(frequencies, result, get_fft_length());
-
+                
                 auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
                 
                 auto it_res = result.begin();
@@ -97,12 +108,77 @@ namespace imajuscule
         }
         
         T get() {
-            assert(it < y.begin() + getLatency());
+            assert(it < y.begin() + getBlockSize());
             assert(it >= y.begin());
             return get_signal(*it);
         }
         
     private:
+        Algo fft;
+        RealSignal x, y, result;
+        typename decltype(y)::iterator it;
+    };
+    
+    struct SubConvolution {
+        using FPT = float;
+        int countPartitions() const { return 0; }
+        int get_fft_length() const { return 0; }
+    };
+    
+    template<typename T, typename TAG>
+    struct FFTScalingConvolution {
+        using FPT = T;
+        using Tag = TAG;
+        static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
+        static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
+        static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;
+        using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+        using Algo = typename fft::Algo_<Tag, FPT>;
+        using Contexts = fft::Contexts_<Tag, FPT>;
+        
+        /*
+         using Parent::get_fft_length;
+        using Parent::getBlockSize;
+        using Parent::doSetCoefficients;
+        using Parent::compute_convolution;
+        */
+        
+        auto getBlockSize() const { return min_partition_size; }
+        auto getLatency() const { return min_partition_size; }
+
+        void set_partition_size(int sz) {
+            assert(sz > 0);
+            min_partition_size = sz;
+            assert(is_power_of_two(sz));
+        }
+        
+        std::vector<SubConvolution> subs;
+
+        auto begin() const { return subs.begin(); }
+        auto end() const { return subs.end(); }
+        auto begin() { return subs.begin(); }
+        auto end() { return subs.end(); }
+        
+        FFTScalingConvolution() {
+            it = y.end();
+        }
+        
+        void setCoefficients(a_64::vector<T> coeffs_) {
+            
+            if(coeffs_.size() < 2) {
+                coeffs_.resize(2); // avoid ill-formed cases
+            }
+        }
+        
+        void step(T val) {
+
+        }
+        
+        T get() {
+        }
+        
+    private:
+        int min_partition_size;
         Algo fft;
         RealSignal x, y, result;
         typename decltype(y)::iterator it;
@@ -121,18 +197,27 @@ namespace imajuscule
         
         using Algo = typename fft::Algo_<Tag, FPT>;
 
+    private:
+        int N;
+        
+        CplxFreqs fft_of_h, fft_of_x;
+    public:
+        
+        auto getBlockSize() const { return N; }
         auto getLatency() const { return N; }
+        auto getGranularMinPeriod() const { return getBlockSize(); }
+        bool isValid() const { return true; }
         
         auto countPartitions() const { return 1; }
         
         bool empty() const { return fft_of_h.empty(); }
         
-        auto get_fft_length(int N) {
+        auto get_fft_length(int N) const {
             auto N_nonzero_y = 2 * N - 1;
             return ceil_power_of_two(N_nonzero_y);
         }
         
-        auto get_fft_length() {
+        auto get_fft_length() const {
             return fft_of_x.size();
         }
         
@@ -165,11 +250,6 @@ namespace imajuscule
             
             return fft_of_x;
         }
-      
-    private:
-        int N;
-        
-        CplxFreqs fft_of_h, fft_of_x;
     };
     
     /*
@@ -201,42 +281,6 @@ namespace imajuscule
      */
     
     
-    int get_lg2_optimal_partition_size(GradientDescent & gd,
-                                       int n_iterations,
-                                       int n_channels,
-                                       int n_frames,
-                                       int length_impulse,
-                                       bool constraint,
-                                       float & min_val,
-                                       int n_tests);
-    
-    static inline int get_optimal_partition_size(GradientDescent & gd,
-                                                 int n_channels,
-                                                 bool with_spread,
-                                                 int n_audiocb_frames,
-                                                 int length_impulse,
-                                                 float & value )
-    {
-        /* timings have random noise, so iterating helps having a better precision */
-        constexpr auto n_iterations = 30;
-        constexpr auto n_tests = 1;
-        int lg2_part_size = get_lg2_optimal_partition_size(gd,
-                                                           n_iterations,
-                                                           n_channels,
-                                                           n_audiocb_frames,
-                                                           length_impulse,
-                                                           with_spread,
-                                                           value,
-                                                           n_tests);
-        
-        return pow2(lg2_part_size);
-    }
-    
-    enum class Autotune {
-        Yes,
-        No
-    };
-
     template <typename T, typename Tag>
     struct PartitionnedFFTConvolutionCRTP {
         using FPT = T;
@@ -251,12 +295,16 @@ namespace imajuscule
         
         using Algo = typename fft::Algo_<Tag, FPT>;
 
-        auto get_fft_length() { assert(partition_size > 0); return 2 * partition_size; }
-        auto get_fft_length(int) { return get_fft_length(); }
+        auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
+        auto get_fft_length(int) const { return get_fft_length(); }
         
         bool empty() const { return ffts_of_partitionned_h.empty(); }
 
-        auto getLatency() { return partition_size; }
+        auto getBlockSize() const { return partition_size; }
+        auto getGranularMinPeriod() const { return getBlockSize(); }
+        auto getLatency() const { return partition_size; }
+
+        bool isValid() const { return true; }
         
         auto countPartitions() const { return ffts_of_partitionned_h.size(); }
         
@@ -356,6 +404,142 @@ namespace imajuscule
     };
     
     /*
+     * Performs a 1-D gradient descent using lg(partition_size) as variable parameter.
+     * Fixed parameters are: impulse response length, number of channels, spread constraint,
+     */
+    template<typename AtomicConvolution>
+    int get_lg2_optimal_partition_size_for_atomic_convolution(GradientDescent<typename AtomicConvolution::SetupParam> & gradient_descent,
+                                                              int n_iterations,
+                                                              int n_channels,
+                                                              int n_frames,
+                                                              int length_impulse,
+                                                              bool constraint,
+                                                              float & min_val,
+                                                              int n_tests) {
+        gradient_descent.setFunction( [n_frames, length_impulse, constraint, n_tests, n_channels] (int lg2_partition_size, float & val){
+            using namespace profiling;
+            using namespace std;
+            using namespace std::chrono;
+            
+            if(lg2_partition_size < 0) {
+                return ParamState::OutOfRange;
+            }
+            if(lg2_partition_size > 20) {
+                throw logic_error("Gradient descent is not working?");
+            }
+            auto const partition_size = pow2(lg2_partition_size);
+            
+            if(constraint) {
+                if(n_channels * n_frames >= partition_size) {
+                    // partitions are too small so we can't chose the phases so that at most one computation occurs per callback
+                    return ParamState::OutOfRange;
+                }
+            }
+            
+            struct Test {
+                
+                Test(size_t partition_size, int length_impulse) {
+                    pfftcv.set_partition_size(partition_size);
+                    pfftcv.setCoefficients(a_64::vector<float>(length_impulse));
+                    for(int i=0; i<partition_size-1; ++i) {
+                        if(pfftcv.willComputeNextStep()) {
+                            throw logic_error("Wrong timing! Should stop earlier!");
+                        }
+                        pfftcv.step(0.f); // these do next to nothing...
+                        pfftcv.get();
+                    }
+                    if(!pfftcv.willComputeNextStep()) {
+                        throw logic_error("Wrong timing! Should stop later!");
+                    }
+                }
+                
+                void run() {
+                    assert(pfftcv.willComputeNextStep());
+                    pfftcv.step(0.f); // ... this one does the ffts
+                    pfftcv.get();
+                }
+            private:
+                AtomicConvolution pfftcv;
+            };
+            
+            // prepare tests
+            
+            vector<Test> tests;
+            tests.reserve(n_tests);
+            for(int i=0; i<n_tests;++i) {
+                tests.emplace_back(partition_size, length_impulse);
+            }
+            
+            val = measure_one<high_resolution_clock>([&tests](){
+                for(auto & t : tests) {
+                    t.run();
+                }
+            });
+            
+            val /= n_tests;
+            // val == 'one computation'
+            
+            auto n_max_computes_per_callback = n_frames / partition_size;
+            if(n_frames != n_max_computes_per_callback * partition_size) {
+                // in the worst case, we have one more
+                ++ n_max_computes_per_callback;
+            }
+            if(constraint) {
+                if(n_max_computes_per_callback != 1) {
+                    throw logic_error("the constraint ensures that the number of"
+                                      " computes per callback is 1/n_channels on average");
+                }
+                // n_frames is small enough and partition_size is big enough so that
+                // there is enough "room" to spread the computes of different channels over different callback calls,
+                // provided we "phase" the different partitionned convolutions correctly.
+                // Hence we take this advantage into account here:
+                val /= n_channels;
+            }
+            
+            val *= n_max_computes_per_callback;
+            // val == 'worst computation time over one callback'
+            
+            val /= n_frames;
+            // val == 'worst computation time over one callback, averaged per frame'
+            
+            return ParamState::Ok;
+        });
+        
+        auto start_lg2_partition = 5;
+        if(constraint) {
+            // to ensure that the constraint is met in first try
+            start_lg2_partition = 1 + power_of_two_exponent(n_channels * n_frames);
+        }
+        
+        return gradient_descent.findMinimum(n_iterations,
+                                            start_lg2_partition,
+                                            min_val);
+    }
+    
+    template<typename AtomicConvolution>
+    int get_optimal_partition_size_for_atomic_convolution(GradientDescent<typename AtomicConvolution::SetupParam> & gd,
+                                                          int n_channels,
+                                                          bool with_spread,
+                                                          int n_audiocb_frames,
+                                                          int length_impulse,
+                                                          float & value )
+    {
+        /* timings have random noise, so iterating helps having a better precision */
+        constexpr auto n_iterations = 30;
+        constexpr auto n_tests = 1;
+        int lg2_part_size = get_lg2_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(gd,
+                                                                                                     n_iterations,
+                                                                                                     n_channels,
+                                                                                                     n_audiocb_frames,
+                                                                                                     length_impulse,
+                                                                                                     with_spread,
+                                                                                                     value,
+                                                                                                     n_tests);
+        
+        return pow2(lg2_part_size);
+    }
+
+    /*
     
      Notations for complexity:
      
@@ -412,18 +596,25 @@ namespace imajuscule
      */
     template <typename T, typename FFTTag = fft::Fastest>
     using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, FFTTag> >;
+
+    template <typename T, typename FFTTag = fft::Fastest>
+    using ScalingPartitionnedFFTConvolution = FFTScalingConvolution<T, FFTTag>;
     
-    
+    template<typename SetupParam>
     struct PartitionningSpec {
         int size =  -1;
-        float avg_time_per_sample = std::numeric_limits<float>::max(); // nano seconds
-        GradientDescent gd;
+        SetupParam cost;
+        float getCost() const { return static_cast<float>(cost); }
+        GradientDescent<SetupParam> gd;
     };
     
+    template<typename SetupParam>
     struct PartitionningSpecs {
+        using PartitionningSpec = PartitionningSpec<SetupParam>;
+
         PartitionningSpec & getWithSpread(bool spread) {
             if(spread) {
-                return with_spread.avg_time_per_sample < without_spread.avg_time_per_sample ? with_spread : without_spread;
+                return with_spread.cost < without_spread.cost ? with_spread : without_spread;
             }
             else {
                 return without_spread;
@@ -436,28 +627,68 @@ namespace imajuscule
     template<typename T>
     struct PartitionAlgo {
         template<typename ...Args>
-        static PartitionningSpecs run(Args... args) {
+        static PartitionningSpecs<float> run(Args... args) {
             return {};
         }
     };
     
     template<typename T>
     struct PartitionAlgo< PartitionnedFFTConvolution<T> > {
+        using AtomicConvolution = PartitionnedFFTConvolution<T>;
+        using SetupParam = typename AtomicConvolution::SetupParam;
+        using PartitionningSpec = PartitionningSpec<SetupParam>;
+        using PartitionningSpecs = PartitionningSpecs<SetupParam>;
+        
         static PartitionningSpecs run(int n_channels, int n_audio_cb_frames, int size_impulse_response) {
             assert(n_channels > 0);
             PartitionningSpecs res;
             {
                 auto & spec = res.without_spread;
-                spec.size = get_optimal_partition_size( spec.gd, n_channels, false, n_audio_cb_frames, size_impulse_response, spec.avg_time_per_sample );
+                spec.size = get_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(spec.gd,
+                                                                                                 n_channels,
+                                                                                                 false,
+                                                                                                 n_audio_cb_frames,
+                                                                                                 size_impulse_response,
+                                                                                                 spec.avg_time_per_sample );
             }
             
             if(n_channels > 1) {
                 auto & spec = res.with_spread;
-                spec.size = get_optimal_partition_size( spec.gd, n_channels, true, n_audio_cb_frames, size_impulse_response, spec.avg_time_per_sample );
+                spec.size = get_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(spec.gd,
+                                                                                                 n_channels,
+                                                                                                 true,
+                                                                                                 n_audio_cb_frames,
+                                                                                                 size_impulse_response,
+                                                                                                 spec.avg_time_per_sample );
             }
             
             return std::move(res);
         }
     };
+    
+    
+    template<typename Convolution, typename T = typename Convolution::FPT>
+    struct Epsilon {
+        static T get(Convolution const & c) {
+            return c.countPartitions() * fft::getFFTEpsilon<T>(c.get_fft_length());
+        }
+    };
+    
+    template<typename T, typename FFTTag>
+    struct Epsilon< ScalingPartitionnedFFTConvolution<T, FFTTag> > {
+        static T get(ScalingPartitionnedFFTConvolution<T, FFTTag> const & c) {
+            T eps{};
+            for(auto const & sub_c : c) {
+                eps += getEpsilon(sub_c);
+            }
+            return eps;
+        }
+    };
+    
+    template<typename Convolution, typename T = typename Convolution::FPT>
+    T getEpsilon(Convolution const & c) {
+        return Epsilon<Convolution>::get(c);
+    }
+    
     
 }

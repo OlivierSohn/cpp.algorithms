@@ -130,6 +130,22 @@ namespace imajuscule {
         return expt_unsigned(1/p, static_cast<unsigned int>(-q));
     }
     
+    template<typename T>
+    T exp_mean(T a, T b) {
+        if(a < 0 && b < 0) {
+            return -exp_mean(-a, -b);
+        }
+        if(a < 0 || b < 0) {
+            throw std::logic_error("logarithmic mean with negative input");
+        }
+        if(a == b) {
+            return a;
+        }
+        float mid_log = (std::log(static_cast<float>(b)) + std::log(static_cast<float>(a))) / 2.f;
+        T res = std::exp(mid_log);
+        
+        return static_cast<T>(res);
+    }
     
     template<typename ITER, typename VAL = typename ITER::value_type>
     VAL dichotomic_sum(ITER it, ITER end) {

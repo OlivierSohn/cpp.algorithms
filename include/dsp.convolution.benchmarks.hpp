@@ -6,6 +6,8 @@
 
 namespace imajuscule
 {
+    // obsolete, takes time to maintain...
+    /*
     struct ConvolutionBenchmark {
         static constexpr auto count_frames_exp = 8;
         static constexpr auto count_impulse_exp = 10;
@@ -42,6 +44,7 @@ namespace imajuscule
         bool hasConstraint() const { return n_channels > 1; }
     private:
         int n_channels;
+        
         using Vectors = std::vector<std::vector<Minimum>> ;
         Vectors best_lg2_partition_size, best_lg2_partition_size_with_channel_spread;
         
@@ -52,7 +55,7 @@ namespace imajuscule
         Vectors & editVectors(bool constraint) {
             return constraint? best_lg2_partition_size_with_channel_spread : best_lg2_partition_size;
         }
-    private:
+
         void initialize_vectors(bool constraint, int n_iterations) {
             Vectors & v = editVectors(constraint);
             v.resize(count_frames_exp);
@@ -168,5 +171,5 @@ namespace imajuscule
     private:
         static ConvolutionOptimizer * instance;
         ConvolutionBenchmarks benchmarks;
-    };
+    };*/
 }

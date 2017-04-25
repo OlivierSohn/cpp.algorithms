@@ -8,7 +8,7 @@ namespace imajuscule {
 
 #define TYPE_TO_STR(x,y) do { typedef void(*T)(x); auto tts = type_to_string<T>(); y = tts(T()); } while(0)
 
-#define COUT_TYPE(x) std::string str_##x; TYPE_TO_STR(x, str_##x); std::cout << str_##x;
+#define COUT_TYPE(x) std::string str_##x; TYPE_TO_STR(x, str_##x); debugging::simplifySymbol(str_##x); std::cout << str_##x;
 
     std::string demangle(const char * type_name, bool remove_namespace = true);
     

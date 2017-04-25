@@ -24,11 +24,18 @@ namespace imajuscule {
         }
         
         template<typename Convolution, typename Coeffs>
-        bool test(Convolution & conv, Coeffs const & coefficients) {
+        void test(Convolution & conv, Coeffs const & coefficients) {
             using T = typename Convolution::FPT;
             using namespace fft;
             
-            conv.setCoefficients(coefficients);
+            if(!conv.isValid()) {
+                std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
+                std::cout << std::endl << 
+                "coefficient size : " << coefficients.size() << std::endl <<
+                "partition size : " << conv.getBlockSize() << std::endl <<
+                "partition count : " << conv.countPartitions() << std::endl;
+                return;
+            }
             
             // feed a dirac
             conv.step(1);
@@ -43,60 +50,117 @@ namespace imajuscule {
             }
 
             // we sum the results of each partition so the epsilon is (worst case) :
-            auto eps = conv.countPartitions() * getFFTEpsilon<T>(conv.get_fft_length());
-            EXPECT_EQ(coefficients.size(), results.size());
+            auto eps = getEpsilon(conv);
+            ASSERT_EQ(coefficients.size(), results.size());
             for(auto j=0; j<results.size(); ++j) {
-                EXPECT_NEAR(coefficients[j], results[j], eps);
+                ASSERT_NEAR(coefficients[j], results[j], eps);
             }
-            return false;
         }
         
-        template<typename Convolution>
-        bool testDiracPartitionned(int coeffs_index) {
-            
-            using T = typename Convolution::FPT;
-            
+        template<typename T, typename F>
+        void testPartitionned(int coeffs_index, F f) {
             const auto coefficients = makeCoefficients<T>(coeffs_index);
             
             if(coefficients.size() < 1024) {
                 for(int i=0; i<5;i++)
                 {
-                    auto const part_size = pow2(i);
-                    Convolution conv;
-                    
-                    conv.set_partition_size(part_size);
-                    test(conv, coefficients);
+                    const auto part_size = pow2(i);
+                    f(part_size, coefficients);
                 }
             }
             else {
-                Convolution conv;
-                
-                conv.set_partition_size(1024);
-                test(conv, coefficients);
+                constexpr auto part_size = 1024;
+                f(part_size, coefficients);
             }
-            return false;
+        }
+        
+        enum class TestFinegrained {
+            Begin,
+            
+            Low = Begin,
+            Med,
+            High,
+
+            End
+        };
+        
+        template<typename Convolution>
+        void testDiracFinegrainedPartitionned(int coeffs_index) {
+            
+            auto f = [](int part_size, auto const & coefficients)
+            {
+                for(auto type = TestFinegrained::Begin;
+                    type != TestFinegrained::End;
+                    increment(type))
+                {
+                    Convolution conv;
+                    
+                    conv.set_partition_size(part_size);
+                    conv.setCoefficients(coefficients);
+                    
+                    range<int> r {
+                        conv.getLowestValidMultiplicationsGroupSize(),
+                        conv.getHighestValidMultiplicationsGroupSize()
+                    };
+                    
+                    switch(type) {
+                        case TestFinegrained::Low:
+                            conv.setMultiplicationGroupLength(r.getMin());
+                            break;
+                        case TestFinegrained::High:
+                            conv.setMultiplicationGroupLength(r.getMax());
+                            break;
+                        case TestFinegrained::Med:
+                            conv.setMultiplicationGroupLength(r.getExpCenter());
+                            break;
+                        default:
+                            throw std::logic_error("not supported");
+                    }
+                    test(conv, coefficients);
+                }
+            };
+            
+            testPartitionned<typename Convolution::FPT>(coeffs_index, f);
         }
         
         template<typename Convolution>
-        bool testDirac2(int coeffs_index) {
+        void testDiracPartitionned(int coeffs_index) {
+            
+            auto f = [](int part_size, auto const & coefficients){
+                Convolution conv;
+                
+                conv.set_partition_size(part_size);
+                conv.setCoefficients(coefficients);
+                test(conv, coefficients);
+            };
+            
+            testPartitionned<typename Convolution::FPT>(coeffs_index, f);
+        }
+        
+        template<typename Convolution>
+        void testDirac2(int coeffs_index) {
             
             using T = typename Convolution::FPT;
             
             const auto coefficients = makeCoefficients<T>(coeffs_index);
             Convolution conv;
+            conv.setCoefficients(coefficients);
             
             test(conv, coefficients);
-            return false;
         }
         
         template<typename Tag>
         bool testDirac() {
             using namespace fft;
             for(int i=0; i<end_index; ++i) {
+                testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Tag>>(i);
+                testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Tag>>(i);
                 testDirac2<FFTConvolution<float, Tag>>(i);
                 testDirac2<FFTConvolution<double, Tag>>(i);
                 testDiracPartitionned<PartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracPartitionned<PartitionnedFFTConvolution<double, Tag>>(i);
+                //testDiracPartitionned<ScalingPartitionnedFFTConvolution<float, Tag>>(i);
+                //testDiracPartitionned<ScalingPartitionnedFFTConvolution<double, Tag>>(i);
             }
             return false;
         }

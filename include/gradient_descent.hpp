@@ -17,9 +17,10 @@ namespace imajuscule
      * State machine algorithm for naive gradient descent of a discrete function
      */
     
+    template<typename Value>
     struct GradientDescent {
 
-        using FUNCTION = std::function<ParamState(int, float&)>;
+        using FUNCTION = std::function<ParamState(int, Value&)>;
 
         GradientDescent() { reset(); }
         
@@ -43,7 +44,7 @@ namespace imajuscule
             reset();
         }
         
-        int findMinimum(int const n_interations, int start_param, float & min_val) {
+        int findMinimum(int const n_interations, int start_param, Value & min_val) {
             verify_func_exists();
             
             for(int i=0; i<n_interations; ++i) {
@@ -76,7 +77,7 @@ namespace imajuscule
             int index_min = min_param;
             for(auto v : results) {
                 auto m = v.second.get_value();
-                if(std::isnan(m)) {
+                if(std::isnan(static_cast<float>(m))) {
                     continue;
                 }
                 if( m < min_) {
@@ -91,7 +92,7 @@ namespace imajuscule
         auto begin() const { return results.begin(); }
         auto end() const { return results.end(); }
         
-        float getValue(int key) const {
+        Value getValue(int key) const {
             auto it = results.find(key);
             if( it == results.end() ) {
                 throw std::logic_error("key not found in gradient descent results");
@@ -107,7 +108,7 @@ namespace imajuscule
             
             auto const ret2 = debug_extend(range<int>{min_index, end_index-1});
             
-            std::vector<float> values;
+            std::vector<Value> values;
             
             int index = begin()->first;
             assert(index == min_index);
@@ -132,7 +133,9 @@ namespace imajuscule
             if(min_param != ret2) {
                 static auto count = 0;
                 ++count;
-                std::cout << "mistake " << count << " : " << min_param << " (" << std::log(getValue(min_param)) << ") != " << ret2 << " (" << std::log(getValue(ret2)) << ")" << std::endl;
+                std::cout << "mistake " << count << " : "
+                << min_param << " (" << std::log(static_cast<float>(getValue(min_param))) << ") != "
+                << ret2      << " (" << std::log(static_cast<float>(getValue(ret2)))      << ")" << std::endl;
             }
         }
         
@@ -141,7 +144,7 @@ namespace imajuscule
         int decreasing_direction;
         int first_param;
         int min_param;
-        float min_value;
+        Value min_value;
         
         void reset() {
             decreasing_direction = 0;
@@ -149,21 +152,21 @@ namespace imajuscule
         }
         
         struct Result {
-            float get_value() const {
+            Value get_value() const {
                 if(state == ParamState::Ok) {
                     return val;
                 }
                 else {
-                    return std::nanf("");
+                    return {};
                 }
             }
             
-            float feed(ParamState s, float value) {
+            Value feed(ParamState s, Value value) {
                 if(state != s) {
                     throw std::runtime_error("different param states for the same index");
                 }
                 if(s == ParamState::OutOfRange) {
-                    return 0.f;
+                    return {};
                 }
                 val = std::min(val, value);
                 return val;
@@ -171,12 +174,12 @@ namespace imajuscule
             
             int index;
             ParamState state;
-            float val;
+            Value val;
         };
         std::map<int, Result> results;
         
         int do_run(int param) {
-            float val;
+            Value val;
             auto res = f(param, val);
             
             auto it = results.find(param);
@@ -257,7 +260,6 @@ namespace imajuscule
         }
     };
     
-    
     /*
      * Finds the local minimum of a discrete function
      *
@@ -273,7 +275,7 @@ namespace imajuscule
                     F f,
                     float & min_value)
     {
-        GradientDescent gd(f);
+        GradientDescent<float> gd(f);
         
         return gd.findMinimum(n_iterations,
                               from,

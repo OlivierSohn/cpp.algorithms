@@ -67,6 +67,8 @@
 		09168FC61E099C42005DD50F /* libalgorithms.ios.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.ios.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		09168FD11E099D78005DD50F /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = test/unity.build.cpp; sourceTree = "<group>"; };
 		09168FD31E099DAF005DD50F /* test_allocators.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_allocators.cpp; path = test/test_allocators.cpp; sourceTree = "<group>"; };
+		091771511EAE73070074ACEC /* profiling.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = profiling.h; path = include/profiling.h; sourceTree = "<group>"; };
+		091771521EAE733D0074ACEC /* profiling.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = profiling.cpp; path = source/profiling.cpp; sourceTree = "<group>"; };
 		09186B091E8670DE00E5BEC9 /* logging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logging.h; path = include/logging.h; sourceTree = "<group>"; };
 		091AF71A1E27A295004B554F /* static_vector.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = static_vector.h; path = include/static_vector.h; sourceTree = "<group>"; };
 		091AF71B1E27A295004B554F /* allocated_containers.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = allocated_containers.h; path = include/allocated_containers.h; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
+		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
 		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
@@ -218,14 +221,15 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
-				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
+				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
 				0912152F1E09941800B860CB /* pool.adaptive_stack.cpp */,
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,
+				091771521EAE733D0074ACEC /* profiling.cpp */,
 				09FD59C01E7B03950052B2FD /* range.cpp */,
 				09C02B041E98D09100E570F5 /* scheduler.cpp */,
 				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
@@ -324,7 +328,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -336,6 +339,7 @@
 				099FD6221E9188FE0067C18D /* debugging.h */,
 				096C6D411E9ED69200389746 /* defines.h */,
 				094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */,
+				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
@@ -343,6 +347,7 @@
 				09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */,
 				09A2EC2D1EA2F77500D94138 /* fft.impl.imj.hpp */,
 				09A2EC2B1EA2F1FE00D94138 /* fft.interface.hpp */,
+				092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */,
 				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,
 				096C6D661EA0129300389746 /* gradient_descent.hpp */,
@@ -362,6 +367,7 @@
 				093F0A1E1E9AB399004432C2 /* peaks.hpp */,
 				0912152D1E096DD900B860CB /* pool.adaptive_stack.h */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,
+				091771511EAE73070074ACEC /* profiling.h */,
 				0912152E1E096DD900B860CB /* public.h */,
 				092EAAB81E2A4994006C11E9 /* range.h */,
 				093239CC1DB438C7003C168E /* rng.hpp */,

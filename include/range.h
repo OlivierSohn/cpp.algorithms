@@ -228,12 +228,19 @@ namespace imajuscule
             }
         }
         
+        /*
+         Waring: for integral types, rounds the value.
+         */
         T getCenter() const {
             if( std::is_integral<T>() ) {
-                return 0.5f * ( min_ + max_ );
+                return ( min_ + max_ ) / 2;
             } else {
                 return avg_;
             }
+        }
+        
+        T getExpCenter() const {
+            return exp_mean(getMin(), getMax());
         }
         
         void setMin(T val) {

@@ -52,6 +52,10 @@ namespace imajuscule {
             static void copy(iter dest, const_iter from, int N) {
                 memcpy(&*dest, &*from, N * sizeof(*dest));
             }
+
+            static void zero(type & v) {
+                std::fill(v.begin(), v.end(), value_type{});
+            }
         };
         
         template<typename T>

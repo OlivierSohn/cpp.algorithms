@@ -7,21 +7,6 @@
 namespace imajuscule {
     namespace debugging {
 
-        static void simplifySymbol(std::string & subTrace)
-        {
-            std::string s = "imajuscule::";
-            
-            while(1)
-            {
-                auto i = subTrace.find(s);
-                if (i == std::string::npos) {
-                    break;
-                }
-                subTrace.erase(i, s.length());
-            };
-        }
-        
-
 #ifndef _WIN32
         std::vector<std::string> getProgramStack(int n_removed)
         {

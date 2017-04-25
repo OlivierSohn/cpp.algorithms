@@ -15,6 +15,7 @@ namespace imajuscule {
             constexpr static auto f_create_fftsetup  = vDSP_create_fftsetup;
             constexpr static auto f_destroy_fftsetup = vDSP_destroy_fftsetup;
 
+            constexpr static auto f_vfill    = vDSP_vfill;
             constexpr static auto f_zvfill   = vDSP_zvfill;
             constexpr static auto f_vmul     = vDSP_vmul;
             constexpr static auto f_vasm     = vDSP_vasm;
@@ -39,6 +40,7 @@ namespace imajuscule {
             constexpr static auto f_create_fftsetup  = vDSP_create_fftsetupD;
             constexpr static auto f_destroy_fftsetup = vDSP_destroy_fftsetupD;
 
+            constexpr static auto f_vfill    = vDSP_vfillD;
             constexpr static auto f_zvfill   = vDSP_zvfillD;
             constexpr static auto f_vmul     = vDSP_vmulD;
             constexpr static auto f_vasm     = vDSP_vasmD;
@@ -62,14 +64,5 @@ namespace imajuscule {
         template<typename T>
         using FFTSetup_ = typename API<T>::T_FFTSetup;
         
-        template<typename T, typename ...Args>
-        auto create_fftsetup(Args&&... args) {
-            return API<T>::f_create_fftsetup(std::forward<Args>(args)...);
-        }
-
-        template<typename T, typename ...Args>
-        auto destroy_fftsetup(Args&&... args) {
-            return API<T>::f_destroy_fftsetup(std::forward<Args>(args)...);
-        }
     }
 }

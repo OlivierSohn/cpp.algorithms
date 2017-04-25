@@ -35,7 +35,7 @@ namespace imajuscule
         const_iterator cycleEnd() const { return it;}
         auto cycleEnd() { return it;}
 
-        size_t size() const { return buf.size(); }
+        auto size() const { return buf.size(); }
         
         cyclic() : isFirstFeed(true) {
             it = buf.begin();
@@ -115,6 +115,15 @@ namespace imajuscule
             auto start = std::reverse_iterator<const_iterator>(cycleEnd());
             std::for_each(start, rend(), f);
             std::for_each(rbegin(), start, f);
+        }
+        
+        auto const & get_backward(int index_backward) const {
+            int end_index = std::distance(buf.begin(), cycleEnd());
+            auto real_index = end_index - 1 - index_backward;
+            if(real_index < 0) {
+                real_index += buf.size();
+            }
+            return buf[real_index];
         }
         
     private:

@@ -30,13 +30,16 @@ namespace imajuscule {
                            container.end(),
                            container.begin(),
                            [](auto v){
-                               if( std::isnan(v) ) {
+                               auto cost = static_cast<float>(v);
+                               if( std::isnan(cost) ) {
                                    return v;
                                }
                                if(v < 0.f) {
                                    throw std::logic_error("cannot draw log of negative values");
                                }
-                               return std::log(v);
+                               auto ret = v;
+                               ret.setCost(std::log(cost));
+                               return ret;
                            });
             draw(container, c, include_zero);
         }
@@ -67,7 +70,7 @@ namespace imajuscule {
                     assert(v_index == i);
                 }
                 
-                auto val = container[v_index];
+                auto val = static_cast<float>(container[v_index]);
                 
                 if(std::isnan(val)) {
                     constexpr auto margin = 1;

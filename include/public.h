@@ -43,6 +43,7 @@
 # include "api.accelerate.h"
 #endif
 
+#include "profiling.h"
 #include "defines.h"
 #include "logging.h"
 #include "object.h"
@@ -60,6 +61,7 @@
 #include "strplot.h"
 #include "gradient_descent.hpp"
 #include "rng.hpp"
+#include "debugging.h"
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"
 #include "allocator.adaptive_stack.hpp"
@@ -90,8 +92,8 @@
 #include "markov_chain.hpp"
 #include "dsp.filter.hpp"
 #include "dsp.convolution.hpp"
+#include "dsp.convolution.finegrained.hpp"
 #include "dsp.convolution.benchmarks.hpp"
 #include "enum.h"
 #include "interpolation.h"
-#include "debugging.h"
 #include "scheduler.h"

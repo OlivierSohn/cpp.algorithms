@@ -1,3 +1,5 @@
+// notion of benchmark is obsolete and costly to maintain...
+/*
 namespace imajuscule {
     namespace benchmark_partconv {
         void dump(std::ofstream & f, ConvolutionBenchmark const & b, bool constraint) {
@@ -80,3 +82,4 @@ TEST(BenchmarkPartitionnedConvolution, DISABLED_withOptimizer) {
         
     }
 }
+*/

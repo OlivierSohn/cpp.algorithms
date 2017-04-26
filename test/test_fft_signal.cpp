@@ -84,7 +84,8 @@ namespace imajuscule {
             using Sig = fft::RealSignal_<Tag, T>;
             using namespace fft::slow_debug;
  
-            for(int N=0; N<10000; ++N){
+            std::vector<int> vN{{0,1,2,3,4,5,6,7,8,80,81,82,83,84,85,86,87,88,89,90,1001,1002,1003}};
+            for(auto N : vN) {
                 a64::vector<T> v;
                 v.resize(N, 1);
                 auto sig = Sig::make(std::move(v));

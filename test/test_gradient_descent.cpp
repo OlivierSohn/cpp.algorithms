@@ -1,18 +1,19 @@
 
-template<typename ARRAY>
-auto create_f(ARRAY const & array, int & counter) {
-    return [&array, &counter](int x, float & val) {
-        using namespace imajuscule;
-        ++counter;
-        if(x < 0 || x >= array.size()) {
-            return ParamState::OutOfRange;
-        }
-        val = array[x];
-        return ParamState::Ok;
-    };
-}
 
 namespace testGradientDescent {
+    template<typename ARRAY>
+    auto create_f(ARRAY const & array, int & counter) {
+        return [&array, &counter](int x, float & val) {
+            using namespace imajuscule;
+            ++counter;
+            if(x < 0 || x >= array.size()) {
+                return ParamState::OutOfRange;
+            }
+            val = array[x];
+            return ParamState::Ok;
+        };
+    }
+
     void test(std::array<int, 6> values) {
         using namespace imajuscule;
         
@@ -31,7 +32,7 @@ namespace testGradientDescent {
             for(int i=0; i<values.size(); ++i) {
                 counter = 0;
                 float min_;
-                int m = findMinimum(n_iterations, i, f, min_);
+                int m = findLocalMinimum(n_iterations, i, f, min_);
                 ASSERT_EQ(values[m], min_);
                 ASSERT_EQ(values[index_min], values[m]);
 #if DEBUG_GRADIENT_DESCENT == 0
@@ -44,7 +45,7 @@ namespace testGradientDescent {
             }};
             for(int i : invalid_starts) {
                 float min_;
-                ASSERT_THROW(findMinimum(n_iterations, i, f, min_), std::logic_error) << i;
+                ASSERT_THROW(findLocalMinimum(n_iterations, i, f, min_), std::logic_error) << i;
             }
         }
     }

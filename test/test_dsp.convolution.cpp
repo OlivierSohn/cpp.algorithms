@@ -10,7 +10,7 @@ namespace imajuscule {
                 case 1: return {{ -1. }};
                 case 2: return {{ .9,.8,.7,.6,.3,.2,.1,0. }};
                 case 3: {
-                    constexpr auto sz = 80000;
+                    constexpr auto sz = 2000;
                     a64::vector<T> v(sz);
                     auto index = 0;
                     for(auto & value: v) {
@@ -69,7 +69,7 @@ namespace imajuscule {
                 }
             }
             else {
-                constexpr auto part_size = 1024;
+                constexpr auto part_size = 256;
                 f(part_size, coefficients);
             }
         }

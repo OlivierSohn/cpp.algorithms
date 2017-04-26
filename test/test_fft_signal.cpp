@@ -6,7 +6,7 @@ namespace imajuscule {
         void testGetSignal() {
             using Sig = fft::RealSignal_<Tag, T>;
             
-            a_64::vector<T> const signal {{ 1, 2, 3 }};
+            a64::vector<T> const signal {{ 1, 2, 3 }};
             
             auto sig = Sig::make(signal);
             
@@ -85,7 +85,7 @@ namespace imajuscule {
             using namespace fft::slow_debug;
  
             for(int N=0; N<10000; ++N){
-                a_64::vector<T> v;
+                a64::vector<T> v;
                 v.resize(N, 1);
                 auto sig = Sig::make(std::move(v));
 

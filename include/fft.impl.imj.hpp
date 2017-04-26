@@ -22,12 +22,12 @@ namespace imajuscule {
 
         template<typename T>
         struct RealSignal_<imj::Tag, T> {
-            using type = a_64::vector<complex<T>>;
+            using type = a64::vector<complex<T>>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
             using value_type = typename type::value_type;
 
-            static type make(a_64::vector<T> reals) {
+            static type make(a64::vector<T> reals) {
                 type ret;
                 ret.reserve(reals.size());
                 for(auto r : reals) {
@@ -61,7 +61,7 @@ namespace imajuscule {
         template<typename T>
         struct RealFBins_<imj::Tag, T> {
             using Tag = imj::Tag;
-            using type = a_64::vector<complex<T>>;
+            using type = a64::vector<complex<T>>;
             
             static type make(type cplx) {
                 return std::move(cplx);
@@ -118,7 +118,7 @@ namespace imajuscule {
         
         template<typename T>
         struct ImjContext {
-            using vec_roots = a_64::vector<complex<T>>;
+            using vec_roots = a64::vector<complex<T>>;
             
             ImjContext() : roots(nullptr) {}
             ImjContext(vec_roots * roots) : roots(roots) {}

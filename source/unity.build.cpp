@@ -9,8 +9,8 @@
 namespace imajuscule {
     namespace fft {
 
-        a_64::vector<int8_t> & getFFTTmp() {
-            thread_local a_64::vector<int8_t> v;
+        a64::vector<int8_t> & getFFTTmp() {
+            thread_local a64::vector<int8_t> v;
             return v;
         }
     }

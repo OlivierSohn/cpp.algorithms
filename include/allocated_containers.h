@@ -16,7 +16,7 @@ namespace imajuscule {
         using unordered_map = std::unordered_map<K, V, Hash, Pred, StackAllocator<std::pair<const K,V>>>;
     }
     
-    namespace a_64 {
+    namespace a64 {
         template<typename T>
         using vector = std::vector<T, AlignedAllocator<T>>;        
     }

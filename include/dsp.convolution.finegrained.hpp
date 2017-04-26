@@ -73,7 +73,7 @@ namespace imajuscule
             it = y.end();
         }
         
-        void setCoefficients(a_64::vector<T> coeffs_) {
+        void setCoefficients(a64::vector<T> coeffs_) {
             
             if(coeffs_.size() < 2) {
                 coeffs_.resize(2); // avoid ill-formed cases
@@ -276,7 +276,7 @@ namespace imajuscule
             assert(is_power_of_two(sz));
         }
 
-        void doSetCoefficients(Algo const & fft, a_64::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
             
             auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
                 auto const N = coeffs_.size();
@@ -431,7 +431,7 @@ namespace imajuscule
                 using T = typename NonAtomicConvolution::FPT;
                 Test(size_t partition_size, int length_impulse) {
                     pfftcv.set_partition_size(partition_size);
-                    pfftcv.setCoefficients(a_64::vector<T>(length_impulse));
+                    pfftcv.setCoefficients(a64::vector<T>(length_impulse));
                     
                     // the value is not very important it will be overriden later on,
                     // but we need to set something valid

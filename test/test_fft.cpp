@@ -33,7 +33,7 @@ namespace imajuscule {
         
         template<typename T>
         auto makeCoefficients() {
-            return a_64::vector<T>{{ .9,.8,.7,.6,.3,.2,.1,0. }};
+            return a64::vector<T>{{ .9,.8,.7,.6,.3,.2,.1,0. }};
         }
         
         template<typename Tag, typename T, typename Input>

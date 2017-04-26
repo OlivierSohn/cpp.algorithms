@@ -4,14 +4,14 @@ namespace imajuscule {
         constexpr auto end_index = 4;
         
         template<typename T>
-        a_64::vector<T> makeCoefficients(int coeffs_index) {
+        a64::vector<T> makeCoefficients(int coeffs_index) {
             switch(coeffs_index) {
                 case 0: return {{ +1. }};
                 case 1: return {{ -1. }};
                 case 2: return {{ .9,.8,.7,.6,.3,.2,.1,0. }};
                 case 3: {
                     constexpr auto sz = 80000;
-                    a_64::vector<T> v(sz);
+                    a64::vector<T> v(sz);
                     auto index = 0;
                     for(auto & value: v) {
                         value = (sz - index) / static_cast<T>(sz);

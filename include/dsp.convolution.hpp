@@ -37,7 +37,7 @@ namespace imajuscule
             it = y.end();
         }
         
-        void setCoefficients(a_64::vector<T> coeffs_) {
+        void setCoefficients(a64::vector<T> coeffs_) {
             
             if(coeffs_.size() < 2) {
                 coeffs_.resize(2); // avoid ill-formed cases
@@ -163,7 +163,7 @@ namespace imajuscule
             it = y.end();
         }
         
-        void setCoefficients(a_64::vector<T> coeffs_) {
+        void setCoefficients(a64::vector<T> coeffs_) {
             
             if(coeffs_.size() < 2) {
                 coeffs_.resize(2); // avoid ill-formed cases
@@ -221,7 +221,7 @@ namespace imajuscule
             return fft_of_x.size();
         }
         
-        void doSetCoefficients(Algo const & fft, a_64::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
             
             N = coeffs_.size();
             
@@ -314,7 +314,7 @@ namespace imajuscule
             assert(is_power_of_two(sz));
         }
 
-        void doSetCoefficients(Algo const & fft, a_64::vector<T> coeffs_) {
+        void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
             
             auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
                 auto const N = coeffs_.size();
@@ -440,7 +440,7 @@ namespace imajuscule
                 
                 Test(size_t partition_size, int length_impulse) {
                     pfftcv.set_partition_size(partition_size);
-                    pfftcv.setCoefficients(a_64::vector<float>(length_impulse));
+                    pfftcv.setCoefficients(a64::vector<float>(length_impulse));
                     for(int i=0; i<partition_size-1; ++i) {
                         if(pfftcv.willComputeNextStep()) {
                             throw logic_error("Wrong timing! Should stop earlier!");

@@ -9,10 +9,8 @@ namespace imajuscule
     /*
      * This algorithm was introduced for functions with randomicity,
      * when computing the derivative using close neighbours leads to big errors.
-     *
-     * A Naive approach would have been to do a binary search abd compute the derivative using neighbours at each step.
-     * Here we first use "far away" neighbours to do this computation and progressively reduce the reach.
-     * Complexity-wise, there is just a small constant factor in front of the Log N of the binary search to pay.
+     * The idea here is to adapt the proximity of the neighbour during the algorithm
+     * complexity : O(lg N)
      */
     
     template<typename Value>

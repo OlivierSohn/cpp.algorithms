@@ -18,6 +18,7 @@
 #include "test_dsp.convolution.cpp"
 #include "test_benchmark.cpp"
 #include "test_range_search.cpp"
+#include "test_global_search.cpp"
 #include "test_gradient_descent.cpp"
 #include "test_peaks.cpp"
 #include "test_cast.cpp"

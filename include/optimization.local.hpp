@@ -4,8 +4,6 @@
  * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
  */
 
-#define DEBUG_GRADIENT_DESCENT 1
-
 namespace imajuscule
 {
     
@@ -23,6 +21,10 @@ namespace imajuscule
         
         using Base::f;
         using Base::results;
+        using Base::getValue;
+        using Base::eval;
+        using Base::begin;
+        using Base::end;
         
         GradientDescent() { reset(); }
         
@@ -73,17 +75,6 @@ namespace imajuscule
                 }
             }
             return index_min;
-        }
-        
-        auto begin() const { return results.begin(); }
-        auto end() const { return results.end(); }
-        
-        Value getValue(int key) const {
-            auto it = results.find(key);
-            if( it == results.end() ) {
-                throw std::logic_error("key not found in gradient descent results");
-            }
-            return it->second.get_value();
         }
         
         void debug(bool logdraw = false) {
@@ -141,16 +132,7 @@ namespace imajuscule
         
         int do_run(int param) {
             Value val;
-            auto res = f(param, val);
-            
-            auto it = results.find(param);
-            if(it == results.end()) {
-                results[param] = {param, res, val};
-            }
-            else {
-                // use information of previous runs : take the minimum
-                val = it->second.feed(res, val);
-            }
+            auto res = eval(param, val);
             
             if(res == ParamState::OutOfRange) {
                 // we went too far

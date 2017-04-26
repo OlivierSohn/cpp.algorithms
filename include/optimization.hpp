@@ -7,8 +7,9 @@
 namespace imajuscule
 {
     enum class ParamState {
+        Ok,
         OutOfRange,
-        Ok
+        NotEvaluated,
     };
     
     /*
@@ -48,7 +49,18 @@ namespace imajuscule
             f = func;
             onFunctionChanged();
         }
+        
+        auto begin() const { return results.begin(); }
+        auto end() const { return results.end(); }
 
+        Value getValue(int key) const {
+            auto it = results.find(key);
+            if( it == results.end() ) {
+                throw std::logic_error("key not found in gradient descent results");
+            }
+            return it->second.get_value();
+        }
+        
     protected:
         FUNCTION f;
         
@@ -74,7 +86,7 @@ namespace imajuscule
             }
             
             int index;
-            ParamState state;
+            ParamState state = ParamState::NotEvaluated;
             Value val;
         };
         std::map<int, Result> results;
@@ -104,6 +116,20 @@ namespace imajuscule
                 throw std::logic_error("no value worked");
             }
             
+            return res;
+        }
+        
+        ParamState eval(int param, Value & val) {
+            auto res = f(param, val);
+            
+            auto it = results.find(param);
+            if(it == results.end()) {
+                results[param] = {param, res, val};
+            }
+            else {
+                // use information of previous runs : take the minimum
+                val = it->second.feed(res, val);
+            }
             return res;
         }
     };

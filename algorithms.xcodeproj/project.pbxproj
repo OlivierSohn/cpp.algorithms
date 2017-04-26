@@ -126,6 +126,8 @@
 		096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_range_search.cpp; path = test/test_range_search.cpp; sourceTree = "<group>"; };
 		096C7DB81EB11B5400DDEB20 /* optimization.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.hpp; path = include/optimization.hpp; sourceTree = "<group>"; };
 		096C7DB91EB11B5400DDEB20 /* optimization.global.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.global.hpp; path = include/optimization.global.hpp; sourceTree = "<group>"; };
+		096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_global_search.cpp; path = test/test_global_search.cpp; sourceTree = "<group>"; };
+		096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.ranged.hpp; path = include/optimization.local.ranged.hpp; sourceTree = "<group>"; };
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
@@ -301,6 +303,7 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
 				096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
@@ -370,6 +373,7 @@
 				096C7DB91EB11B5400DDEB20 /* optimization.global.hpp */,
 				096C7DB81EB11B5400DDEB20 /* optimization.hpp */,
 				096C6D661EA0129300389746 /* optimization.local.hpp */,
+				096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */,
 				093F0A1E1E9AB399004432C2 /* peaks.hpp */,
 				0912152D1E096DD900B860CB /* pool.adaptive_stack.h */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,

@@ -4,8 +4,6 @@
  * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
  */
 
-#define DEBUG_GRADIENT_DESCENT 1
-
 namespace imajuscule
 {
     /*

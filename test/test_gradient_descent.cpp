@@ -35,9 +35,6 @@ namespace testGradientDescent {
                 int m = findLocalMinimum(n_iterations, i, f, min_);
                 ASSERT_EQ(values[m], min_);
                 ASSERT_EQ(values[index_min], values[m]);
-#if DEBUG_GRADIENT_DESCENT == 0
-                ASSERT_TRUE(counter <= 3 + std::abs(i - m)); // white box test
-#endif
             }
             
             std::vector<int> invalid_starts {{

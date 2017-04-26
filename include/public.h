@@ -63,6 +63,7 @@
 #include "optimization.hpp"
 #include "optimization.global.hpp"
 #include "optimization.local.hpp"
+#include "optimization.local.ranged.hpp"
 #include "debugging.h"
 #include "print_type.hpp"
 #include "pool.adaptive_stack.h"

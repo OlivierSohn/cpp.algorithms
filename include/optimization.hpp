@@ -78,5 +78,33 @@ namespace imajuscule
             Value val;
         };
         std::map<int, Result> results;
+        
+        int getMinValue(Value & min_value) const
+        {
+            bool first = true;
+            int res{-1}; // initialization just to silence warning
+            for(auto const & p : results) {
+                auto const & r = p.second;
+                if(r.state != ParamState::Ok) {
+                    continue;
+                }
+                if(first) {
+                    first = false;
+                    min_value = r.val;
+                    res = r.index;
+                    continue;
+                }
+                if(static_cast<float>(r.val) < static_cast<float>(min_value)) {
+                    min_value = r.val;
+                    res = r.index;
+                }
+            }
+            
+            if(first) {
+                throw std::logic_error("no value worked");
+            }
+            
+            return res;
+        }
     };
 }

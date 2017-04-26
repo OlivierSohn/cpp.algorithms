@@ -22,6 +22,7 @@ namespace imajuscule
         
         using Base::f;
         using Base::results;
+        using Base::getMinValue;
         
         RangeSearch(range<int> admissible_params, FUNCTION f) :
         Base(f),
@@ -34,63 +35,20 @@ namespace imajuscule
         template<typename F>
         int findMinimum(F stop_search, Value & min_value) {
             
-            // scan already existing evaluations to see if one matches the stop criteria
-            
-            for(auto const & p : results) {
-                auto const & r = p.second;
-                if(r.state != ParamState::Ok) {
-                    continue;
-                }
-                if(!stop_search(r.val)) {
-                    continue;
-                }
-                min_value = r.val;
-                return r.index;
-            }
-            
-            // extend the search
-            
             int param;
             while(next(param)) {
                 assert(results.find(param) == results.end());
 
                 auto res = f(param, min_value);
                 results[param] = {param, res, min_value};
-                if(res == ParamState::Ok) {
-                    if(stop_search(min_value)) {
-                        return param;
-                    }
+                if(res == ParamState::Ok && stop_search(min_value)) {
+                    break;
                 }
             }
-            
-            // return minimal result
-            
-            bool first = true;
-            int res{-1}; // initialization just to silence warning
-            for(auto const & p : results) {
-                auto const & r = p.second;
-                if(r.state != ParamState::Ok) {
-                    continue;
-                }
-                if(first) {
-                    first = false;
-                    min_value = r.val;
-                    res = r.index;
-                    continue;
-                }
-                if(static_cast<float>(r.val) < static_cast<float>(min_value)) {
-                    min_value = r.val;
-                    res = r.index;
-                }
-            }
-            
-            if(first) {
-                throw std::logic_error("no value worked");
-            }
-            
-            return res;
+
+            return getMinValue(min_value);
         }
-        
+                
     private:
         range<int> admissible_params;
         

@@ -249,7 +249,8 @@ namespace imajuscule
     public:
         auto getMultiplicationsGroupMaxSize() const { return mult_grp_len; }
         auto countMultiplicativeGrains() const { return 1 + (countPartitions()-1)/getMultiplicationsGroupMaxSize(); }
-        auto countGrains() const { return 2 + countMultiplicativeGrains(); }
+        static constexpr auto countNonMultiplicativeGrains() { return 2; }
+        auto countGrains() const { return countNonMultiplicativeGrains() + countMultiplicativeGrains(); }
         
         int getLowestValidMultiplicationsGroupSize() const {
             // lowest valid mult_grp_len verifies:
@@ -257,12 +258,13 @@ namespace imajuscule
             // countGrains() == getBlockSize()
             // 2 + 1 + (ffts_of_partitionned_h.size() - 1)/mult_grp_len == partition_size
             
-            if(partition_size < 3) {
+            auto constexpr min_number_grains = countNonMultiplicativeGrains() + 1;
+            if(partition_size < min_number_grains) {
                 // invalid configuration
                 return getHighestValidMultiplicationsGroupSize();
             }
             for(int i=1;; ++i) {
-                if( 2 + 1 + (ffts_of_partitionned_h.size() - 1)/i <= partition_size) {
+                if( min_number_grains + (ffts_of_partitionned_h.size() - 1)/i <= partition_size) {
                     return i;
                 }
             }
@@ -441,7 +443,7 @@ namespace imajuscule
                 bool isValid() const { return pfftcv.isValid(); }
                 
                 int getGranularMinPeriod() const { return pfftcv.getGranularMinPeriod(); }
-
+                int countMultiplicativeGrains() const { return pfftcv.countMultiplicativeGrains(); }
                 int getHighestValidMultiplicationsGroupSize() const { return pfftcv.getHighestValidMultiplicationsGroupSize(); }
                 int getLowestValidMultiplicationsGroupSize() const { return pfftcv.getLowestValidMultiplicationsGroupSize(); }
                 
@@ -473,10 +475,12 @@ namespace imajuscule
                 }
             }
             
+            constexpr auto n_non_multiplicative_grains = NonAtomicConvolution::countNonMultiplicativeGrains();
+            static_assert(2 == n_non_multiplicative_grains, "");
             static constexpr auto index_fft = 0;
             static constexpr auto index_ifft = 1;
-            array<GrainType, 2> grain_types{{ GrainType::FFT, GrainType::IFFT }};
-            array<int, 2> times;
+            array<GrainType, n_non_multiplicative_grains> grain_types{{ GrainType::FFT, GrainType::IFFT }};
+            array<float, n_non_multiplicative_grains> times;
             int index = 0;
             for(auto g : grain_types)
             {
@@ -486,53 +490,56 @@ namespace imajuscule
                 // in case globals need to be initialized
                 prepare(); measure();
                 
-                times[index] = avg(measure_n<high_resolution_clock>( n_atoms_repeat, prepare, measure));
+                times[index] = avg(measure_n<high_resolution_clock>(n_atoms_repeat,
+                                                                    prepare,
+                                                                    measure)) / static_cast<float>(tests.size());
                 ++index;
             }
             
             cout << endl;
             cout << "fft  time : " << times[index_fft ] << endl;
             cout << "ifft time : " << times[index_ifft] << endl;
-            
-            auto max_time_fixed_grains = max(times[0], times[1]);
-            float worst_grain_cost = max_time_fixed_grains;
-            
-            // find biggest multiplication group such that the time is just below max_fixed_grains
-            
-            range<int> multiplication_group_length {
-                tests[0].getLowestValidMultiplicationsGroupSize(),
-                tests[0].getHighestValidMultiplicationsGroupSize()
-            };
-            
-            // in case of no spread we want to allow having multiple grains per callback.
-            // But then we need to implement a gradient descent to find the sweet spot.
-            // in atomic case there is no need for that because there is one less 'degree of freedom'
-            // as the grain periodicity is imposed by the partition size.
-            if(constraint) {
-                // adjust lower bound of range to make sure that we have at most one grain every 'n_channel' audio callbacks if we use spread
-                auto const min_grain_period = n_frames * n_channels;
-                
-                while(1) {
-                    auto m = multiplication_group_length.getMin();
-                    tests[0].setMultiplicationGroupLength(m);
-                    if(min_grain_period <= tests[0].getGranularMinPeriod()) {
-                        // Note that the caller choses the starting point of the gradient descent
-                        // such that on first iteration we always break here.
-                        break;
-                    }
-                    // grains are too close so we adjust the range
-                    multiplication_group_length.setMin(multiplication_group_length.getMin() + 1);
-                    if(!multiplication_group_length.empty()) {
-                        continue;
-                    }
-                    cout << "min grain period could not be met" << endl;
-                    return ParamState::OutOfRange;
-                }
-            }
 
-            auto f_time_multiplications = [&tests](int mult_grp_length){
+            struct CostEvaluator {
+                array<float, n_non_multiplicative_grains> fft_times;
+                int n_audio_cb_frames;
+                int n_channels;
+                bool constraint;
+                
+                float evaluate(float multiplication_grain_time, int n_multiplicative_grains, int period) const {
+                    if(constraint) {
+                        // we need to think of spreading later on
+                        //return std::numeric_limits<float>::max();
+                    }
+                    auto max_n_grains_per_cb = n_audio_cb_frames / period;
+                    if(max_n_grains_per_cb * period != n_audio_cb_frames) {
+                        ++max_n_grains_per_cb; // worst case, not avg
+                    }
+                    
+                    cyclic<float> grains_costs(n_multiplicative_grains + n_non_multiplicative_grains,
+                                               multiplication_grain_time); // initialize with multiplicative grain times
+                    for(auto t : fft_times) {
+                        grains_costs.feed(t);
+                    }
+                   
+                    auto cost = computeMaxSlidingSum(grains_costs,
+                                                max_n_grains_per_cb);
+                    
+                    cost /= n_audio_cb_frames;
+                    // cost == 'worst computation time over one callback, averaged per frame'
+                    return cost;
+                }
+            } cost_evaluator{times, n_frames, n_channels, constraint};
+            
+            RangedGradientDescent<float> rgd([ &cost_evaluator, &tests ](int multiplication_group_size, float & cost) {
+                // compute multiplication time for the group
+                
                 for(auto & t : tests) {
-                    t.setMultiplicationGroupLength(mult_grp_length);
+                    t.setMultiplicationGroupLength(multiplication_group_size);
+                }
+                
+                if(!tests[0].isValid()) {
+                    return ParamState::OutOfRange;
                 }
                 
                 auto prepare = [&tests]() {
@@ -546,93 +553,35 @@ namespace imajuscule
                     }
                 };
                 
-                return avg(measure_n<high_resolution_clock>(n_atoms_repeat, prepare, measure));
+                auto multiplication_grain_time = avg(measure_n<high_resolution_clock>(n_atoms_repeat,
+                                                                                      prepare,
+                                                                                      measure)) / static_cast<float>(tests.size());
+
+                cost = cost_evaluator.evaluate(multiplication_grain_time,
+                                               tests[0].countMultiplicativeGrains(),
+                                               tests[0].getGranularMinPeriod());
+                
+                cout
+                << "mult time for group size '" << multiplication_group_size << "' : " << multiplication_grain_time
+                << " cost : '" << cost << "'" << endl;
+
+                return ParamState::Ok;
+            });
+            
+            range<int> multiplication_group_length {
+                tests[0].getLowestValidMultiplicationsGroupSize(),
+                tests[0].getHighestValidMultiplicationsGroupSize()
             };
             
-            auto time_mult_M = f_time_multiplications(multiplication_group_length.getMax());
-            cout << "mult time for '" << multiplication_group_length.getMax() << "' (maximal) : " << time_mult_M << endl;
-            if(time_mult_M <= max_time_fixed_grains) {
-                // we are done because the multiplication with a maximal group length is faster
-                // than fixed grains
-                
-                // and we prefer large periods so we chose the max group length
-                multiplication_group_length.setMin(multiplication_group_length.getMax());
-            }
-            else {
-                // the multiplication with a maximal group length is slower...
-                
-                auto time_mult_m = f_time_multiplications(multiplication_group_length.getMin());
-                cout << "mult time for '" << multiplication_group_length.getMin() << "' (minimal) : " << time_mult_m << endl;
-                if(time_mult_m >= max_time_fixed_grains) {
-                    // ... and the multiplication with a minimal group is slower too
-                    if(time_mult_M < time_mult_m) {
-                        throw std::logic_error("more work done faster ??");
-                    }
-                }
-                else {
-                    // ... and the multiplication with a minimal group is faster,
-                    // so we are in the right conditions to do a binary search
+            constexpr auto n_iterations = 1;
+            float cost;
+            val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, cost);
+            val.setCost(cost);
+            
+            cout
+            << "optimal group size : " << val.multiplication_group_size
+            << " cost : '" << cost << "'" << endl;
 
-                    while(multiplication_group_length.delta() > 1) {
-                        auto med = multiplication_group_length.getCenter();
-                        assert(med != multiplication_group_length.getMin());
-                        assert(med != multiplication_group_length.getMax());
-                        
-                        auto time_mult = f_time_multiplications(med);
-                        cout << "mult time for '" << med << "' : " << time_mult << endl;
-                        if(time_mult < max_time_fixed_grains) {
-                            time_mult_m = time_mult;
-                            multiplication_group_length.setMin(med);
-                        }
-                        else {
-                            multiplication_group_length.setMax(med);
-                        }
-                    }
-                }
-                
-                worst_grain_cost = time_mult_m;
-                multiplication_group_length.setMax(multiplication_group_length.getMin());
-            }
-            
-            auto optimal_group_length = multiplication_group_length.getMin();
-            val.multiplication_group_size = optimal_group_length;
-            
-            tests[0].setMultiplicationGroupLength(optimal_group_length);
-            auto period = tests[0].getGranularMinPeriod();
-            
-            if(constraint) {
-                if(n_channels * n_frames >= period) {
-                    throw std::logic_error("this should have been handled before");
-                }
-            }
-
-            worst_grain_cost /= n_tests;
-            // worst_grain_cost == 'one computation'
-            
-            auto n_max_computes_per_callback = n_frames / period;
-            if(n_frames != n_max_computes_per_callback * period) {
-                // in the worst case, we have one more
-                ++ n_max_computes_per_callback;
-            }
-            if(constraint) {
-                if(n_max_computes_per_callback != 1) {
-                    throw logic_error("the constraint ensures that the number of"
-                                      " computes per callback is 1/n_channels on average");
-                }
-                // n_frames is small enough and partition_size is big enough so that
-                // there is enough "room" to spread the computes of different channels over different callback calls,
-                // provided we "phase" the different partitionned convolutions correctly.
-                // Hence we take this advantage into account here:
-                worst_grain_cost /= n_channels;
-            }
-            
-            worst_grain_cost *= n_max_computes_per_callback;
-            // worst_grain_cost == 'worst computation time over one callback'
-            
-            worst_grain_cost /= n_frames;
-            // worst_grain_cost == 'worst computation time over one callback, averaged per frame'
-            
-            val.setCost(worst_grain_cost);
             return ParamState::Ok;
         });
         
@@ -649,9 +598,9 @@ namespace imajuscule
             + 1 + power_of_two_exponent(n_frames); // criteria for atomic version of convolution
         }
         
-        return gradient_descent.findMinimum(n_iterations,
-                                            start_lg2_partition,
-                                            min_val);
+        return gradient_descent.findLocalMinimum(n_iterations,
+                                                 start_lg2_partition,
+                                                 min_val);
     }
     
     template<typename NonAtomicConvolution, typename SetupParam = typename NonAtomicConvolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>

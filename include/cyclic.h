@@ -15,10 +15,10 @@ namespace imajuscule
     template<class T, CyclicInitialization Init = CyclicInitialization::INITIAL_VALUES>
     struct cyclic
     {
-        using Type = T;
         using container = typename std::vector<T>;
         using iterator = typename container::iterator;
         using const_iterator = typename container::const_iterator;
+        using value_type = T;
         using ParameterType = T;
         
         operator container & () { return buf; }
@@ -36,12 +36,13 @@ namespace imajuscule
         auto cycleEnd() { return it;}
 
         auto size() const { return buf.size(); }
+        auto empty() const { return buf.empty(); }
         
         cyclic() : isFirstFeed(true) {
             it = buf.begin();
         }
         
-        cyclic(size_t size, ParameterType initVals)
+        cyclic(size_t size, ParameterType initVals = {})
         : initialValue(initVals), isFirstFeed(true) {
             buf.resize(size, initVals);
             it = buf.begin();

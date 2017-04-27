@@ -50,6 +50,7 @@
 #include "safe_cast.hpp"
 #include "available_indexes.hpp"
 #include "cyclic.h"
+#include "slidingsum.h"
 #include "slidingaverage.h"
 #include "meta.hpp"
 #include "numtraits.h"

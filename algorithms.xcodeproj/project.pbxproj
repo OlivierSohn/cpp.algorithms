@@ -128,6 +128,7 @@
 		096C7DB91EB11B5400DDEB20 /* optimization.global.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.global.hpp; path = include/optimization.global.hpp; sourceTree = "<group>"; };
 		096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_global_search.cpp; path = test/test_global_search.cpp; sourceTree = "<group>"; };
 		096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.ranged.hpp; path = include/optimization.local.ranged.hpp; sourceTree = "<group>"; };
+		096C7DBC1EB2140F00DDEB20 /* slidingsum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = slidingsum.h; path = include/slidingsum.h; sourceTree = "<group>"; };
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
@@ -335,6 +336,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				096C7DBC1EB2140F00DDEB20 /* slidingsum.h */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,

@@ -93,10 +93,10 @@ namespace imajuscule
         
         T compute() const {
             T sum{};
-            auto it_window = window.begin();
+            auto it = window.begin();
             values_.for_each([&](auto v) {
-                sum += v * *it_window;
-                ++it_window;
+                sum += v * *it;
+                ++it;
             });
             return sum / safe_cast<float>(values_.size());
         }

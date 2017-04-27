@@ -1,7 +1,7 @@
 
-using namespace imajuscule;
 
 TEST(SlidingAverage, test) {
+    using namespace imajuscule;
     {
         slidingAverage<float> avg(3);
         EXPECT_FLOAT_EQ(0.f, avg.compute());

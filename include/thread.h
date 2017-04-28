@@ -37,6 +37,7 @@ namespace imajuscule
             struct sched_param param;
         };
         
+#if __APPLE__
         struct MachSchedParams {
             bool read();
             bool write() const;
@@ -52,27 +53,36 @@ namespace imajuscule
             thread_precedence_policy_data_t precedence_policy;
             thread_time_constraint_policy_data_t time_constraint_policy;
         };
+#endif
         
         struct SchedParams {
             bool read() {
-                bool ok = mach.read();
-                ok = posix.read() && ok;
+                bool ok = posix.read();
+#if __APPLE__
+                ok = mach.read() && ok;
+#endif
                 return ok;
             }
             
             bool write() const {
-                bool ok = mach.write();
-                ok = posix.write() && ok;
+                bool ok = posix.write();
+#if __APPLE__
+                ok = mach.write() && ok;
+#endif
                 return ok;
             }
             
             void log() const {
-                mach.log();
                 posix.log();
+#if __APPLE__
+                mach.log();
+#endif
             }
             
-            MachSchedParams mach;
             PosixSchedParams posix;
+#if __APPLE__
+            MachSchedParams mach;
+#endif
         private:
         };
         
@@ -86,11 +96,13 @@ namespace imajuscule
                 }
                 //prev.log();
                 cur = prev;
+#if __APPLE__
                 ok = cur.mach.setRealTime();
                 if(!ok) {
                     cerr << "could not set real time" << endl;
                     return;
                 }
+#endif
 //                cur.posix.set(policy, priority);
                 //cur.log(); // log Before switching to real time
                 /*if(!cur.write()) {
@@ -107,9 +119,11 @@ namespace imajuscule
                     std::cerr << "could not set previous priority" << std::endl;
                     return;
                 }*/
+#if __APPLE__
                 if(!prev.mach.setNonRealTime()) {
                     std::cerr << "could not set non realtime" << std::endl;
                 }
+#endif
                 //prev.log();
             }
             

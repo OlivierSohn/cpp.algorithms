@@ -41,8 +41,11 @@
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
 # include <unistd.h>
+#endif
 
-#include <mach/thread_policy.h>
+#if (defined (__APPLE__) && defined (__MACH__))
+
+# include <mach/thread_policy.h>
 
 # if TARGET_OS_IPHONE
 // those arre commented out in the header on ios
@@ -66,6 +69,7 @@ kern_return_t thread_policy_get
 # endif
 
 #endif
+
 
 #if __APPLE__
 # include <Accelerate/Accelerate.h>

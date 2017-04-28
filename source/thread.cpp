@@ -13,6 +13,7 @@ namespace imajuscule
             perror(msg);
         }
         
+#if __APPLE__
         bool MachSchedParams::read() {
              ok = true;
             /*
@@ -157,6 +158,7 @@ namespace imajuscule
             cout << endl;
              */
         }
+#endif
         
         bool PosixSchedParams::read() {
             

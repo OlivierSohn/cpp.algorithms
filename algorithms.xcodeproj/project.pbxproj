@@ -96,6 +96,8 @@
 		093239D31DB55C1D003C168E /* math.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = math.hpp; path = include/math.hpp; sourceTree = "<group>"; };
 		093239D81DB5651B003C168E /* libalgorithms.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.ios.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		093A7BF11EB2A5DB00CBDD97 /* thread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = thread.h; path = include/thread.h; sourceTree = "<group>"; };
+		093A7BF21EB2A7B500CBDD97 /* thread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = thread.cpp; path = source/thread.cpp; sourceTree = "<group>"; };
 		093E6E711E20B0D9004DFED2 /* test_types.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_types.cpp; path = test/test_types.cpp; sourceTree = "<group>"; };
 		093F0A1E1E9AB399004432C2 /* peaks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = peaks.hpp; path = include/peaks.hpp; sourceTree = "<group>"; };
 		093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_peaks.cpp; path = test/test_peaks.cpp; sourceTree = "<group>"; };
@@ -241,6 +243,7 @@
 				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
 				09BA14CD1E388C6600A05F83 /* string.cpp */,
 				09FD59BE1E7AF3920052B2FD /* string.manip.cpp */,
+				093A7BF21EB2A7B500CBDD97 /* thread.cpp */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,
 			);
 			name = source;
@@ -336,7 +339,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				096C7DBC1EB2140F00DDEB20 /* slidingsum.h */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -386,10 +388,12 @@
 				0972718C1E1B325200532772 /* safe_cast.hpp */,
 				09C02B051E98D0AD00E570F5 /* scheduler.h */,
 				09BA14C91E38840800A05F83 /* slidingaverage.h */,
+				096C7DBC1EB2140F00DDEB20 /* slidingsum.h */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 				091AF71A1E27A295004B554F /* static_vector.h */,
 				09BA14CC1E388C4400A05F83 /* string.manip.h */,
 				092EAA8F1E2A4733006C11E9 /* strplot.h */,
+				093A7BF11EB2A5DB00CBDD97 /* thread.h */,
 			);
 			name = include;
 			sourceTree = "<group>";

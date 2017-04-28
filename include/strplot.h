@@ -25,21 +25,18 @@ namespace imajuscule {
         }
 
         template<typename T>
-        void drawLog(T container, char c = default_curve_char, bool include_zero = true) {
+        void drawLog(T container, char c = default_curve_char, bool include_zero = false) {
             std::transform(container.begin(),
                            container.end(),
                            container.begin(),
                            [](auto v){
-                               auto cost = static_cast<float>(v);
-                               if( std::isnan(cost) ) {
+                               if( std::isnan(v) ) {
                                    return v;
                                }
                                if(v < 0.f) {
                                    throw std::logic_error("cannot draw log of negative values");
                                }
-                               auto ret = v;
-                               ret.setCost(std::log(cost));
-                               return ret;
+                               return std::log(v);
                            });
             draw(container, c, include_zero);
         }

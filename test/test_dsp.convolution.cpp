@@ -29,11 +29,13 @@ namespace imajuscule {
             using namespace fft;
             
             if(!conv.isValid()) {
-                std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
+                /*
+                 std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
                 std::cout << std::endl << 
                 "coefficient size : " << coefficients.size() << std::endl <<
                 "partition size : " << conv.getBlockSize() << std::endl <<
                 "partition count : " << conv.countPartitions() << std::endl;
+                 */
                 return;
             }
             

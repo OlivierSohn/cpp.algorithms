@@ -16,9 +16,10 @@ namespace imajuscule
         void setCost(float c) { cost = c; }
         
         operator float() const { return cost; }
+        operator float&() { return cost; }
         
     private:
-        float cost = std::nanf("");
+        float cost = std::numeric_limits<float>::quiet_NaN();
     };
     
     struct FinegrainedSetupParam : public Cost {
@@ -413,12 +414,15 @@ namespace imajuscule
                                                                  bool constraint,
                                                                  SetupParam & min_val,
                                                                  int n_tests) {
-        gradient_descent.setFunction( [n_frames, length_impulse, constraint, n_tests, n_channels] (int lg2_partition_size, auto & val){
+        //std::cout << "main thread: " << std::endl;
+        //thread::logSchedParams();
+
+        gradient_descent.setFunction( [n_frames, length_impulse, constraint, n_tests, n_iterations, n_channels] (int lg2_partition_size, auto & val){
             using namespace profiling;
             using namespace std;
             using namespace std::chrono;
             
-            constexpr auto n_atoms_repeat = 4;
+            constexpr auto n_atoms_repeat = 1;
             
             if(lg2_partition_size < 0) {
                 return ParamState::OutOfRange;
@@ -427,7 +431,7 @@ namespace imajuscule
                 throw logic_error("Gradient descent is not working?");
             }
             int const partition_size = pow2(lg2_partition_size);
-            cout << "partition size : " << partition_size << endl;
+//            cout << "partition size : " << partition_size << endl;
             
             struct Test {
                 using T = typename NonAtomicConvolution::FPT;
@@ -470,7 +474,7 @@ namespace imajuscule
             for(int i=0; i<n_tests;++i) {
                 tests.emplace_back(partition_size, length_impulse);
                 if(!tests[i].isValid()) {
-                    cout << "invalid test" << endl;
+                    //cout << "invalid test" << endl;
                     return ParamState::OutOfRange;
                 }
             }
@@ -490,15 +494,15 @@ namespace imajuscule
                 // in case globals need to be initialized
                 prepare(); measure();
                 
-                times[index] = avg(measure_n<high_resolution_clock>(n_atoms_repeat,
+                times[index] = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
                                                                     prepare,
                                                                     measure)) / static_cast<float>(tests.size());
                 ++index;
             }
             
-            cout << endl;
-            cout << "fft  time : " << times[index_fft ] << endl;
-            cout << "ifft time : " << times[index_ifft] << endl;
+//            cout << endl;
+//            cout << "fft  time : " << times[index_fft ] << endl;
+//            cout << "ifft time : " << times[index_ifft] << endl;
 
             struct CostEvaluator {
                 array<float, n_non_multiplicative_grains> fft_times;
@@ -553,7 +557,7 @@ namespace imajuscule
                     }
                 };
                 
-                auto multiplication_grain_time = avg(measure_n<high_resolution_clock>(n_atoms_repeat,
+                auto multiplication_grain_time = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
                                                                                       prepare,
                                                                                       measure)) / static_cast<float>(tests.size());
 
@@ -561,26 +565,31 @@ namespace imajuscule
                                                tests[0].countMultiplicativeGrains(),
                                                tests[0].getGranularMinPeriod());
                 
-                cout
-                << "mult time for group size '" << multiplication_group_size << "' : " << multiplication_grain_time
-                << " cost : '" << cost << "'" << endl;
+                //cout
+                //<< "mult time for group size '" << multiplication_group_size << "' : " << multiplication_grain_time
+                //<< " cost : '" << cost << "'" << endl;
 
                 return ParamState::Ok;
             });
             
-            range<int> multiplication_group_length {
+            range<int> const multiplication_group_length {
                 tests[0].getLowestValidMultiplicationsGroupSize(),
                 tests[0].getHighestValidMultiplicationsGroupSize()
             };
             
-            constexpr auto n_iterations = 1;
             float cost;
             val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, cost);
             val.setCost(cost);
+            constexpr auto debug = false;
+            if(debug) {
+                rgd.plot();
+                rgd.make_exhaustive(multiplication_group_length);
+                rgd.plot();
+            }
             
-            cout
-            << "optimal group size : " << val.multiplication_group_size
-            << " cost : '" << cost << "'" << endl;
+//            cout
+//            << "optimal group size : " << val.multiplication_group_size
+//            << " cost : '" << cost << "'" << endl;
 
             return ParamState::Ok;
         });
@@ -611,8 +620,7 @@ namespace imajuscule
                                                              int length_impulse,
                                                              SetupParam & value )
     {
-        /* timings have random noise, so iterating helps having a better precision */
-        constexpr auto n_iterations = 30;
+        constexpr auto n_iterations = 1;
         constexpr auto n_tests = 1;
         int lg2_part_size = get_lg2_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
                                                                                                            n_iterations,

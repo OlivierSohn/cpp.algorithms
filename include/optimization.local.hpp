@@ -20,6 +20,8 @@ namespace imajuscule
         using Base::verify_func_exists;
         
         using Base::f;
+        using Base::make_exhaustive;
+        using Base::plot;
         using Base::results;
         using Base::getValue;
         using Base::eval;
@@ -54,66 +56,16 @@ namespace imajuscule
             return min_param;
         }
         
-        int debug_extend(range<int> indices) {
-            verify_func_exists();
-            
-            assert(decreasing_direction); // call run first!
-            extend_results(-1, indices);
-            extend_results(+1, indices);
-            
-            auto min_ = min_value;
-            int index_min = min_param;
-            for(auto v : results) {
-                auto m = v.second.get_value();
-                if(std::isnan(static_cast<float>(m))) {
-                    continue;
-                }
-                if( m < min_) {
-                    min_ = m;
-                    index_min = v.second.index;
-                    std::cout << "found better min!" << std::endl;
-                }
-            }
-            return index_min;
-        }
-        
         void debug(bool logdraw = false) {
             verify_func_exists();
+
+            plot(logdraw); // to see result before we add points
 
             auto const min_index = std::min(0, begin()->first);
             auto const end_index = std::max(9, min_param + 5);
             
-            auto const ret2 = debug_extend(range<int>{min_index, end_index-1});
-            
-            std::vector<Value> values;
-            
-            int index = begin()->first;
-            assert(index == min_index);
-            
-            for(auto const & res : results) {
-                assert(index == res.second.index); // make sure we capture every index in the range
-                values.push_back(res.second.get_value());
-                ++index;
-            }
-            assert(index == end_index);
-            
-            constexpr auto height = 30;
-            StringPlot plot(height, values.size());
-            if(logdraw) {
-                constexpr auto with_zero = false;
-                plot.drawLog(values, default_curve_char, with_zero);
-            } else {
-                plot.draw(values);
-            }
-            plot.log();
-            
-            if(min_param != ret2) {
-                static auto count = 0;
-                ++count;
-                std::cout << "mistake " << count << " : "
-                << min_param << " (" << std::log(static_cast<float>(getValue(min_param))) << ") != "
-                << ret2      << " (" << std::log(static_cast<float>(getValue(ret2)))      << ")" << std::endl;
-            }
+            auto const ret2 = make_exhaustive(range<int>{min_index, end_index-1});
+            plot(logdraw);                        
         }
         
     private:

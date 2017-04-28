@@ -8,11 +8,30 @@ namespace imajuscule
 {
     namespace profiling {
         
+        // could be optimized using vDSP_meanv
         template<typename Array, typename T = typename Array::value_type>
-        T avg(Array const & a) {
+        float avg(Array const & a) {
             assert(!a.empty());
-            return std::accumulate(a.begin(), a.end(), T{}) / a.size();
+//            StringPlot p(20, a.size());
+//            p.draw(a, default_curve_char, true);
+//            p.log();
+            return std::accumulate(a.begin(), a.end(), T{}) / static_cast<float>(a.size());
         }
+        
+        // could be optimized with vDSP_minv
+        template<typename Array, typename T = typename Array::value_type>
+        float min_(Array const & a) {
+            assert(!a.empty());
+//            StringPlot p(20, a.size());
+//            p.draw(a, default_curve_char, true);
+//            p.log();
+            return *std::min_element(a.begin(), a.end());
+        }
+        
+        struct MakeRealTime {
+            // deactivated until we prove that this is better...
+            //thread::ScopedPriorityChange s{SCHED_OTHER, thread::Priority::Max};
+        };
         
         void pollute_cache();
         
@@ -44,7 +63,9 @@ namespace imajuscule
             pollute_cache();
 
             {
+                MakeRealTime rt;
                 Timer<Clock> t(duration);
+                
                 f();
             }
             
@@ -55,7 +76,6 @@ namespace imajuscule
         std::vector<rep> measure_n(int n, PREP preparation, F f) {
             assert(n > 0);
             std::vector<rep> durations(n);
-            durations.reserve(n);
             
             for(auto & duration : durations)
             {
@@ -64,6 +84,7 @@ namespace imajuscule
                 pollute_cache();
                 
                 {
+                    MakeRealTime rt;
                     Timer<Clock> t(&duration);
                     f();
                 }

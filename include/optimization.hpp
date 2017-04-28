@@ -61,6 +61,68 @@ namespace imajuscule
             return it->second.get_value();
         }
         
+        void plot(bool logdraw = true) const {
+
+            if(results.empty()) {
+                std::cout << "empty" << std::endl;
+                return;
+            }
+            
+            auto range_index = range<int>{
+                results.begin()->first,
+                results.rbegin()->first
+            };
+            
+            constexpr auto unevaluated_val = std::numeric_limits<float>::quiet_NaN();
+            std::vector<float> values(range_index.getSpan() + 1,
+                                      unevaluated_val);
+
+            for(auto const & v : results) {
+                if(v.second.state == ParamState::Ok) {
+                    values[v.first - range_index.getMin()] = v.second.val;
+                }
+            }
+            
+            constexpr auto height = 30;
+            StringPlot p(height, values.size());
+            if(logdraw) {
+                p.drawLog(std::move(values));
+            } else {
+                p.draw(values);
+            }
+            p.log();
+        }
+
+        int make_exhaustive(range<int> const & r) {
+            verify_func_exists();
+            
+            Value min_before;
+            auto index_min_before = getMinValue(min_before);
+
+            for(auto i = r.getMin(); i<=r.getMax(); ++i) {
+                auto it = results.find(i);
+                if(it != results.end()) {
+                    continue;
+                }
+                Value val;
+                auto res = f(i, val);
+                results[i] = {i, res, val};
+            }
+            
+            Value min_after;
+            auto index_min_after = getMinValue(min_after);
+            
+            if(index_min_after != index_min_before) {
+                using namespace std;
+                static auto count = 0;
+                ++count;
+                cout << "mistake " << count << " : "
+                << index_min_before << " (" << log(static_cast<float>(min_before)) << ") != "
+                << index_min_after  << " (" << log(static_cast<float>(min_after))  << ")" << endl;
+            }
+            return index_min_after;
+        }
+        
     protected:
         FUNCTION f;
         

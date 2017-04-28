@@ -16,6 +16,7 @@ namespace imajuscule {
     }
 }
 
+#include "thread.cpp"
 #include "profiling.cpp"
 #include "dsp.convolution.cpp"
 #include "hash_table.cpp"

@@ -35,6 +35,38 @@
 #include <utility>
 #include <vector>
 
+#ifdef __APPLE__
+#include "TargetConditionals.h"
+#endif
+
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+# include <unistd.h>
+
+#include <mach/thread_policy.h>
+
+# if TARGET_OS_IPHONE
+// those arre commented out in the header on ios
+kern_return_t thread_policy_set
+(
+	thread_act_t thread,
+	thread_policy_flavor_t flavor,
+	thread_policy_t policy_info,
+	mach_msg_type_number_t policy_infoCnt
+ );
+kern_return_t thread_policy_get
+(
+	thread_act_t thread,
+	thread_policy_flavor_t flavor,
+	thread_policy_t policy_info,
+	mach_msg_type_number_t *policy_infoCnt,
+	boolean_t *get_default
+ );
+# else
+#  include <sys/sysctl.h>
+# endif
+
+#endif
+
 #if __APPLE__
 # include <Accelerate/Accelerate.h>
 #endif
@@ -43,7 +75,6 @@
 # include "api.accelerate.h"
 #endif
 
-#include "profiling.h"
 #include "defines.h"
 #include "logging.h"
 #include "object.h"
@@ -60,6 +91,8 @@
 #include "complex.hpp"
 #include "range.h"
 #include "strplot.h"
+#include "thread.h"
+#include "profiling.h"
 #include "rng.hpp"
 #include "optimization.hpp"
 #include "optimization.global.hpp"

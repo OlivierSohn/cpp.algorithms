@@ -31,7 +31,7 @@ namespace imajuscule
         os << "multiplication group size : " << p.multiplication_group_size;
         return os;
     }
-
+    
     template <typename Parent>
     struct FinegrainedFFTConvolutionBase : public Parent {
         using T = typename Parent::FPT;
@@ -44,7 +44,7 @@ namespace imajuscule
         void applySetup(SetupParam const & p) {
             setMultiplicationGroupLength(p.multiplication_group_size);
         }
-
+        
         static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
         static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
@@ -52,7 +52,7 @@ namespace imajuscule
         using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         using Algo = typename fft::Algo_<Tag, FPT>;
         using Contexts = fft::Contexts_<Tag, FPT>;
-
+        
         using Parent::get_fft_length;
         using Parent::getBlockSize;
         using Parent::doSetCoefficients;
@@ -100,7 +100,7 @@ namespace imajuscule
             zero_signal(y);
             doSetMultiplicationGroupLength(l);
         }
-
+        
         void fastForwardToComputation(GrainType t, T val = 1) {
             switch(t) {
                 case GrainType::FFT:
@@ -220,7 +220,7 @@ namespace imajuscule
     struct FinegrainedPartitionnedFFTConvolutionCRTP {
         using FPT = T;
         using FFTTag = Tag;
-
+        
         using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
         
@@ -229,12 +229,12 @@ namespace imajuscule
         static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
         
         using Algo = typename fft::Algo_<Tag, FPT>;
-
+        
         auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
         auto get_fft_length(int) const { return get_fft_length(); }
         
         bool empty() const { return ffts_of_partitionned_h.empty(); }
-
+        
         auto getBlockSize() const { return partition_size; }
         auto getLatency() const { return 2*partition_size; }
         auto getGranularMinPeriod() const { return getBlockSize() / countGrains(); }
@@ -278,7 +278,7 @@ namespace imajuscule
             partition_size = sz;
             assert(is_power_of_two(sz));
         }
-
+        
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
             
             auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
@@ -293,13 +293,13 @@ namespace imajuscule
                 }
                 return n_partitions;
             }();
-
+            
             grain_number = 1;
-
+            
             ffts_of_delayed_x.reset();
             ffts_of_delayed_x.resize(n_partitions);
             ffts_of_partitionned_h.resize(n_partitions);
-
+            
             auto const fft_length = get_fft_length();
             
             for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
@@ -332,9 +332,9 @@ namespace imajuscule
             }
             assert(it_coeffs == coeffs_.end());
         }
-
+        
     protected:
-
+        
         int getGrainNumber() const { return grain_number; }
         
         void compute_x_fft(Algo const & fft, RealSignal const & x) {
@@ -375,11 +375,11 @@ namespace imajuscule
         auto const & get_multiply_add_result() const {
             return work;
         }
-
+        
         void increment_grain() {
             ++grain_number;
         }
-
+        
     private:
         int mult_grp_len = 0;
         int partition_size = -1;
@@ -398,7 +398,7 @@ namespace imajuscule
      - n_frames_audio_cb, n_channels, with_spread (those 3 can be reduced to 'equivalent_n_frames_cb')
      - impulse response length
      
-     output parameters: 
+     output parameters:
      - lg(partition size)
      
      1D - Gradient descent according to cost 'max grain computation time' with variable parameters 'lg(partition_size)'
@@ -416,7 +416,7 @@ namespace imajuscule
                                                                  int n_tests) {
         //std::cout << "main thread: " << std::endl;
         //thread::logSchedParams();
-
+        
         gradient_descent.setFunction( [n_frames, length_impulse, constraint, n_tests, n_iterations, n_channels] (int lg2_partition_size, auto & val){
             using namespace profiling;
             using namespace std;
@@ -431,7 +431,7 @@ namespace imajuscule
                 throw logic_error("Gradient descent is not working?");
             }
             int const partition_size = pow2(lg2_partition_size);
-//            cout << "partition size : " << partition_size << endl;
+            //            cout << "partition size : " << partition_size << endl;
             
             struct Test {
                 using T = typename NonAtomicConvolution::FPT;
@@ -495,15 +495,15 @@ namespace imajuscule
                 prepare(); measure();
                 
                 times[index] = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
-                                                                    prepare,
-                                                                    measure)) / static_cast<float>(tests.size());
+                                                                     prepare,
+                                                                     measure)) / static_cast<float>(tests.size());
                 ++index;
             }
             
-//            cout << endl;
-//            cout << "fft  time : " << times[index_fft ] << endl;
-//            cout << "ifft time : " << times[index_ifft] << endl;
-
+            //            cout << endl;
+            //            cout << "fft  time : " << times[index_fft ] << endl;
+            //            cout << "ifft time : " << times[index_ifft] << endl;
+            
             struct CostEvaluator {
                 array<float, n_non_multiplicative_grains> fft_times;
                 int n_audio_cb_frames;
@@ -525,9 +525,9 @@ namespace imajuscule
                     for(auto t : fft_times) {
                         grains_costs.feed(t);
                     }
-                   
+                    
                     auto cost = computeMaxSlidingSum(grains_costs,
-                                                max_n_grains_per_cb);
+                                                     max_n_grains_per_cb);
                     
                     cost /= n_audio_cb_frames;
                     // cost == 'worst computation time over one callback, averaged per frame'
@@ -558,9 +558,9 @@ namespace imajuscule
                 };
                 
                 auto multiplication_grain_time = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
-                                                                                      prepare,
-                                                                                      measure)) / static_cast<float>(tests.size());
-
+                                                                                       prepare,
+                                                                                       measure)) / static_cast<float>(tests.size());
+                
                 cost = cost_evaluator.evaluate(multiplication_grain_time,
                                                tests[0].countMultiplicativeGrains(),
                                                tests[0].getGranularMinPeriod());
@@ -568,7 +568,7 @@ namespace imajuscule
                 //cout
                 //<< "mult time for group size '" << multiplication_group_size << "' : " << multiplication_grain_time
                 //<< " cost : '" << cost << "'" << endl;
-
+                
                 return ParamState::Ok;
             });
             
@@ -587,10 +587,10 @@ namespace imajuscule
                 rgd.plot();
             }
             
-//            cout
-//            << "optimal group size : " << val.multiplication_group_size
-//            << " cost : '" << cost << "'" << endl;
-
+            //            cout
+            //            << "optimal group size : " << val.multiplication_group_size
+            //            << " cost : '" << cost << "'" << endl;
+            
             return ParamState::Ok;
         });
         
@@ -640,7 +640,7 @@ namespace imajuscule
         using SetupParam = typename NonAtomicConvolution::SetupParam;
         using PartitionningSpec = PartitionningSpec<SetupParam>;
         using PartitionningSpecs = PartitionningSpecs<SetupParam>;
-
+        
         static PartitionningSpecs run(int n_channels, int n_audio_cb_frames, int size_impulse_response) {
             assert(n_channels > 0);
             PartitionningSpecs res;

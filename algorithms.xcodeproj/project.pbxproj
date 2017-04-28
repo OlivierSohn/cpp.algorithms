@@ -307,8 +307,6 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
-				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
-				096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
@@ -323,11 +321,13 @@
 				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
+				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
 				096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,
 				093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */,
+				096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,

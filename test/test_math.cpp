@@ -71,6 +71,108 @@ TEST(MaxSlidingSum, test) {
     }
 }
 
+TEST(PhasedSum, test) {
+    using namespace imajuscule;
+    constexpr auto cyclic_size = 5;
+    cyclic<float> c(cyclic_size);
+    c.feed(1);
+    c.feed(2);
+    c.feed(3);
+    c.feed(4);
+    c.feed(5);
+    
+    cyclic<float> res;
+    {
+        constexpr auto phase = 0;
+        constexpr auto n_iterators = 2;
+        phased_sum(c, phase, n_iterators, res);
+        
+        auto it = res.begin();
+        ASSERT_FLOAT_EQ(2, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(4, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(6, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(8, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(10, *it);
+        ++it;
+    }
+    {
+        constexpr auto phase = 1;
+        constexpr auto n_iterators = 2;
+        phased_sum(c, phase, n_iterators, res);
+        
+        auto it = res.begin();
+        ASSERT_FLOAT_EQ(3, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(5, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(7, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(9, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(6, *it);
+        ++it;
+    }
+
+    for(int i=0; i<10; ++i) {
+        auto phase = 1 + cyclic_size;
+        constexpr auto n_iterators = 2;
+        phased_sum(c, phase, n_iterators, res);
+        
+        auto it = res.begin();
+        ASSERT_FLOAT_EQ(3, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(5, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(7, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(9, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(6, *it);
+        ++it;
+    }
+    
+    {
+        constexpr auto phase = 2;
+        constexpr auto n_iterators = 3;
+        phased_sum(c, phase, n_iterators, res);
+        
+        auto it = res.begin();
+        ASSERT_FLOAT_EQ(9, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(7, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(10, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(8, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(11, *it);
+        ++it;
+    }
+    
+    for(int i=0; i<10; ++i) {
+        auto phase = 2 + cyclic_size;
+        constexpr auto n_iterators = 3;
+        phased_sum(c, phase, n_iterators, res);
+        
+        auto it = res.begin();
+        ASSERT_FLOAT_EQ(9, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(7, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(10, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(8, *it);
+        ++it;
+        ASSERT_FLOAT_EQ(11, *it);
+        ++it;
+    }
+
+}
+
 TEST(Math, expMean) {
     using namespace imajuscule;
     

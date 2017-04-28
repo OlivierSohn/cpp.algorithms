@@ -44,4 +44,28 @@ namespace imajuscule
         return fulls_sum + max_partial;
     }
     
+    template <typename CYCLIC>
+    void phased_sum(CYCLIC const & cycle, int const phase, int const n_iterators, CYCLIC & result) {
+        assert(phase >= 0);
+        assert(n_iterators > 1);
+        using T = typename CYCLIC::value_type;
+        result.resize(cycle.size());
+        auto it = result.begin();
+        auto end = result.end();
+        auto begin_cycle = cycle.begin();
+        int ph = 0;
+        auto sz = cycle.size();
+        
+        for(; it!=end; ++it, ++ph) {
+            *it = {};
+            auto ph_it = ph;
+            for(int n = 0; n<n_iterators; ++n, ph_it += phase) {
+                while(ph_it >= sz) {
+                    ph_it -= sz;
+                }
+                assert(ph_it >= 0);
+                *it += *(begin_cycle + ph_it);
+            }
+        }
+    }
 }

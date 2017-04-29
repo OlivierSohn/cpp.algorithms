@@ -12,7 +12,8 @@ namespace imajuscule {
         Normal = sizeof(void*),
         SSE    = 16,
         AVX    = 32,
-        CACHE_LINE = cache_line_n_bytes
+        CACHE_LINE = cache_line_n_bytes,
+        PAGE   = 4096
     };
     
     /*

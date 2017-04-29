@@ -182,3 +182,11 @@ TEST(Math, expMean) {
     auto v = exp_mean(2,128);
     ASSERT_EQ(16, v);
 }
+
+TEST(Math, IntDiv) {
+    for(int i=1; i<10; ++i) {
+        for(int j=1; j<10; ++j) {
+            ASSERT_EQ(j, (j/i)*i + (j%i));
+        }
+    }
+}

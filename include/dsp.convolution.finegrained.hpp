@@ -266,12 +266,14 @@ namespace imajuscule
             // 2 + 1 + (ffts_of_partitionned_h.size() - 1)/mult_grp_len == partition_size
             
             auto constexpr min_number_grains = countNonMultiplicativeGrains() + 1;
-            if(partition_size < min_number_grains) {
+            auto diff = partition_size - min_number_grains;
+            if(diff < 0) {
                 // invalid configuration
                 return getHighestValidMultiplicationsGroupSize();
             }
+            assert(diff >=0 );
             for(int i=1;; ++i) {
-                if( min_number_grains + (ffts_of_partitionned_h.size() - 1)/i <= partition_size) {
+                if( (ffts_of_partitionned_h.size() - 1)/i <= diff) {
                     return i;
                 }
             }

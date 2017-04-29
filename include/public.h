@@ -138,3 +138,5 @@ kern_return_t thread_policy_get
 #include "enum.h"
 #include "interpolation.h"
 #include "scheduler.h"
+
+#include "measure_multiplyadd_contiguity.hpp" // for test on ios

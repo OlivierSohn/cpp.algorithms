@@ -64,7 +64,7 @@ namespace imajuscule
 
             {
                 MakeRealTime rt;
-                Timer<Clock> t(duration);
+                Timer<Clock> t(&duration);
                 
                 f();
             }

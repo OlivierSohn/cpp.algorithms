@@ -134,6 +134,15 @@ namespace imajuscule
         bool isFirstFeed:1;
     };
     
+    template<typename T>
+    static std::ostream& operator<<(std::ostream& os, const cyclic<T>& c)
+    {
+        for(auto const & v : c) {
+            os << v << " ";
+        }
+        return os;
+    }
+
     template<typename C, typename T = typename C::value_type>
     std::vector<T> to_vector(C const & cyclic_) {
         std::vector<T> vec;

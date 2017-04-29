@@ -23,18 +23,35 @@ namespace imajuscule
         float cost = std::numeric_limits<float>::quiet_NaN();
     };
     
+    struct GrainsCosts {
+        float fft, ifft, mult;
+    };
+    
+    static std::ostream& operator<<(std::ostream& os, const GrainsCosts& g)
+    {
+        using namespace std;
+        os << "grain 'fft'  : " << g.fft << endl;
+        os << "grain 'ifft' : " << g.ifft << endl;
+        os << "grain 'mult' : " << g.mult << endl;
+        return os;
+    }
+
     struct FinegrainedSetupParam : public Cost {
         void setPhase(int ph) { phase = ph; }
+        void setGrainsCosts(GrainsCosts gcosts) { grains_costs = gcosts; }
         
         int multiplication_group_size = 0;
         int phase = 0;
+        GrainsCosts grains_costs;
     };
     
     static std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
     {
+        using namespace std;
         os
-        << "multiplication group size : " << p.multiplication_group_size << std::endl
-        << "phase : " << p.phase;
+        << "phase : " << p.phase << endl
+        << p.grains_costs
+        << "multiplication group size : " << p.multiplication_group_size << endl;
         return os;
     }
     
@@ -514,6 +531,7 @@ namespace imajuscule
             
             struct PhasedCost : public Cost {
                 int phase = 0; // in frames
+                GrainsCosts grains_costs;
             };
 
             struct CostEvaluator {
@@ -582,6 +600,10 @@ namespace imajuscule
                     cost /= n_audio_cb_frames;
                     // cost == 'worst computation time over one callback, averaged per sample'
                     
+                    result.grains_costs.fft  = fft_times[index_fft];
+                    result.grains_costs.ifft = fft_times[index_ifft];
+                    result.grains_costs.mult = multiplication_grain_time;
+
                     result.setCost(cost);
                 }
             } cost_evaluator{times, n_frames, n_channels, constraint};
@@ -632,6 +654,7 @@ namespace imajuscule
             PhasedCost phased_cost;
             val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, phased_cost);
             val.setCost(phased_cost.getCost());
+            val.setGrainsCosts(phased_cost.grains_costs);
             val.setPhase(phased_cost.phase);
             
             constexpr auto debug = false;

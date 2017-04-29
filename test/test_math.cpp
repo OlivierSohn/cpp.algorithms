@@ -38,7 +38,6 @@ TEST(MaxSlidingSum, test) {
     c.feed(3);
     
     float full_sum = 1+2+3+4+5;
-    float max_value = 5;
     
     std::array<float,cyclic_size + 1> expected_max{{
         0,
@@ -85,7 +84,7 @@ TEST(PhasedSum, test) {
     {
         constexpr auto phase = 0;
         constexpr auto n_iterators = 2;
-        phased_sum(c, phase, n_iterators, res);
+        compute_phased_sum(c, phase, n_iterators, res);
         
         auto it = res.begin();
         ASSERT_FLOAT_EQ(2, *it);
@@ -102,7 +101,7 @@ TEST(PhasedSum, test) {
     {
         constexpr auto phase = 1;
         constexpr auto n_iterators = 2;
-        phased_sum(c, phase, n_iterators, res);
+        compute_phased_sum(c, phase, n_iterators, res);
         
         auto it = res.begin();
         ASSERT_FLOAT_EQ(3, *it);
@@ -120,7 +119,7 @@ TEST(PhasedSum, test) {
     for(int i=0; i<10; ++i) {
         auto phase = 1 + cyclic_size;
         constexpr auto n_iterators = 2;
-        phased_sum(c, phase, n_iterators, res);
+        compute_phased_sum(c, phase, n_iterators, res);
         
         auto it = res.begin();
         ASSERT_FLOAT_EQ(3, *it);
@@ -138,7 +137,7 @@ TEST(PhasedSum, test) {
     {
         constexpr auto phase = 2;
         constexpr auto n_iterators = 3;
-        phased_sum(c, phase, n_iterators, res);
+        compute_phased_sum(c, phase, n_iterators, res);
         
         auto it = res.begin();
         ASSERT_FLOAT_EQ(9, *it);
@@ -156,7 +155,7 @@ TEST(PhasedSum, test) {
     for(int i=0; i<10; ++i) {
         auto phase = 2 + cyclic_size;
         constexpr auto n_iterators = 3;
-        phased_sum(c, phase, n_iterators, res);
+        compute_phased_sum(c, phase, n_iterators, res);
         
         auto it = res.begin();
         ASSERT_FLOAT_EQ(9, *it);

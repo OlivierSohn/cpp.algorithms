@@ -45,7 +45,7 @@ namespace imajuscule
     }
     
     template <typename CYCLIC>
-    void phased_sum(CYCLIC const & cycle, int const phase, int const n_iterators, CYCLIC & result) {
+    void compute_phased_sum(CYCLIC const & cycle, int const phase, int const n_iterators, CYCLIC & result) {
         assert(phase >= 0);
         assert(n_iterators > 1);
         using T = typename CYCLIC::value_type;

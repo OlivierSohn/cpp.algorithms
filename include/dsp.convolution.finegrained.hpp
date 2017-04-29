@@ -18,17 +18,23 @@ namespace imajuscule
         operator float() const { return cost; }
         operator float&() { return cost; }
         
+        float getCost() const { return cost; }
     private:
         float cost = std::numeric_limits<float>::quiet_NaN();
     };
     
     struct FinegrainedSetupParam : public Cost {
+        void setPhase(int ph) { phase = ph; }
+        
         int multiplication_group_size = 0;
+        int phase = 0;
     };
     
     static std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
     {
-        os << "multiplication group size : " << p.multiplication_group_size;
+        os
+        << "multiplication group size : " << p.multiplication_group_size << std::endl
+        << "phase : " << p.phase;
         return os;
     }
     
@@ -504,17 +510,20 @@ namespace imajuscule
             //            cout << "fft  time : " << times[index_fft ] << endl;
             //            cout << "ifft time : " << times[index_ifft] << endl;
             
+            struct PhasedCost : public Cost {
+                int phase = 0; // in frames
+            };
+
             struct CostEvaluator {
                 array<float, n_non_multiplicative_grains> fft_times;
                 int n_audio_cb_frames;
                 int n_channels;
                 bool constraint;
                 
-                float evaluate(float multiplication_grain_time, int n_multiplicative_grains, int period) const {
-                    if(constraint) {
-                        // we need to think of spreading later on
-                        //return std::numeric_limits<float>::max();
-                    }
+                void evaluate(float multiplication_grain_time, int n_multiplicative_grains, int period,
+                               PhasedCost & result) const {
+                    result.phase = 0;
+                    
                     auto max_n_grains_per_cb = n_audio_cb_frames / period;
                     if(max_n_grains_per_cb * period != n_audio_cb_frames) {
                         ++max_n_grains_per_cb; // worst case, not avg
@@ -526,16 +535,56 @@ namespace imajuscule
                         grains_costs.feed(t);
                     }
                     
-                    auto cost = computeMaxSlidingSum(grains_costs,
-                                                     max_n_grains_per_cb);
+                    float cost = computeMaxSlidingSum(grains_costs,
+                                                      max_n_grains_per_cb);
+                    
+                    if(constraint) {
+                        assert(n_channels >= 2);
+                        auto n_min_empty_cb_between_consecutive_grains = -1 + period / n_audio_cb_frames;
+                        if(n_min_empty_cb_between_consecutive_grains >= n_channels - 1) {
+                            // easy case : there is enough room between grains to evenly distribute all channels
+                            result.phase = period / n_channels;
+                        }
+                        else {
+                            // harder case: we need to go more in detail, and find the phase that minimizes
+                            // the worst callback cost.
+
+                            cost *= n_channels;
+                            // now cost is the 'phase == 0' cost
+                            result.phase = 0;
+                            
+                            cyclic<float> phased_grains_costs;
+                            for(int phase = 1; phase < grains_costs.size(); ++phase) {
+                                compute_phased_sum(grains_costs,
+                                                   phase,
+                                                   n_channels,
+                                                   phased_grains_costs);
+                                
+                                auto phased_cost = computeMaxSlidingSum(phased_grains_costs,
+                                                                        max_n_grains_per_cb);
+                                if(phased_cost < cost) {
+                                    cost = phased_cost;
+                                    result.phase = phase;
+                                }
+                            }
+                            
+                            // convert phase units from "grain periods" to "frames"
+                            result.phase *= period;
+                        }
+                        // cost is now the cost of each channel
+                        // but cost should be per sample, not per frame, so
+                        // we divide by the number of channels
+                        cost /= static_cast<float>(n_channels);
+                    }
                     
                     cost /= n_audio_cb_frames;
-                    // cost == 'worst computation time over one callback, averaged per frame'
-                    return cost;
+                    // cost == 'worst computation time over one callback, averaged per sample'
+                    
+                    result.setCost(cost);
                 }
             } cost_evaluator{times, n_frames, n_channels, constraint};
             
-            RangedGradientDescent<float> rgd([ &cost_evaluator, &tests ](int multiplication_group_size, float & cost) {
+            RangedGradientDescent<PhasedCost> rgd([ &cost_evaluator, &tests ](int multiplication_group_size, auto & cost) {
                 // compute multiplication time for the group
                 
                 for(auto & t : tests) {
@@ -561,9 +610,10 @@ namespace imajuscule
                                                                                        prepare,
                                                                                        measure)) / static_cast<float>(tests.size());
                 
-                cost = cost_evaluator.evaluate(multiplication_grain_time,
-                                               tests[0].countMultiplicativeGrains(),
-                                               tests[0].getGranularMinPeriod());
+                cost_evaluator.evaluate(multiplication_grain_time,
+                                        tests[0].countMultiplicativeGrains(),
+                                        tests[0].getGranularMinPeriod(),
+                                        cost);
                 
                 //cout
                 //<< "mult time for group size '" << multiplication_group_size << "' : " << multiplication_grain_time
@@ -577,9 +627,11 @@ namespace imajuscule
                 tests[0].getHighestValidMultiplicationsGroupSize()
             };
             
-            float cost;
-            val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, cost);
-            val.setCost(cost);
+            PhasedCost phased_cost;
+            val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, phased_cost);
+            val.setCost(phased_cost.getCost());
+            val.setPhase(phased_cost.phase);
+            
             constexpr auto debug = false;
             if(debug) {
                 rgd.plot();

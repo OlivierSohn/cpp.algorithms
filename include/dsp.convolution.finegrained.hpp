@@ -107,23 +107,30 @@ namespace imajuscule
             fft.setContext(Contexts::getInstance().getBySize(fft_length));
             
             result.resize(fft_length);
-            x.clear();
             x.reserve(fft_length);
             {
                 y.resize(fft_length);
-                it = y.begin();
             }
             
             doSetCoefficients(fft, std::move(coeffs_));
+            reset_states();
         }
         
         void setMultiplicationGroupLength(int l) {
-            x.clear();
-            it = y.begin();
-            zero_signal(y);
             doSetMultiplicationGroupLength(l);
+            reset_states();
         }
         
+    private:
+        void reset_states() {
+            Parent::reset_base_states();
+            x.clear();
+            zero_signal(y);
+            it = y.begin();
+            grain_counter = 0;
+        }
+        
+    public:
         void fastForwardToComputation(GrainType t, T val = 1) {
             switch(t) {
                 case GrainType::FFT:
@@ -267,8 +274,11 @@ namespace imajuscule
         
     protected:
         void doSetMultiplicationGroupLength(int length) {
-            grain_number = 1;
             mult_grp_len = length;
+        }
+        
+        void reset_base_states() {
+            grain_number = 1;
         }
     public:
         auto getMultiplicationsGroupMaxSize() const { return mult_grp_len; }
@@ -318,8 +328,6 @@ namespace imajuscule
                 }
                 return n_partitions;
             }();
-            
-            grain_number = 1;
             
             ffts_of_delayed_x.reset();
             ffts_of_delayed_x.resize(n_partitions);

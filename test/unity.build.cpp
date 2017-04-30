@@ -10,9 +10,6 @@
 
 #include <thread>
 
-#  include "test_measure_multiplyadd_contiguity.cpp"
-
-/*
 #include "test_containers.cpp"
 #include "test_math.cpp"
 #include "test_fft_fbins.cpp"
@@ -37,5 +34,5 @@
 
 #if MEASURE_PERFS
 #  include "measure_containers.cpp"
+#  include "test_measure_multiplyadd_contiguity.cpp"
 #endif
-*/

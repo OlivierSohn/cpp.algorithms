@@ -34,6 +34,31 @@ namespace imajuscule
             }
             return static_cast<int>(fVal);
         }
+        
+        // convert 3.00000 to 3 / 5. to 5 / 0.4000 to 0.4 / leave 3.00001 as is
+        static std::string toSignificantString(const float val) {
+            auto str = std::to_string(val);
+            auto pos_point = str.find_first_of('.');
+            if(pos_point != std::string::npos) {
+                auto last_significant = str.find_last_not_of('0');
+                if( last_significant != std::string::npos ) {
+                    if(last_significant == pos_point) {
+                        str.erase(pos_point);
+                    }
+                    else {
+                        str.erase(last_significant + 1);
+                    }
+                }
+            }
+            return str;
+        }
+        
+        static std::string to_string_with_precision(const float a_value, const int n)
+        {
+            std::ostringstream out;
+            out << std::setprecision(n) << a_value;
+            return out.str();
+        }
     };
     
     template <>

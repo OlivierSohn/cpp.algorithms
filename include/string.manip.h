@@ -38,6 +38,14 @@ namespace imajuscule
     int begins_with(std::string const& s, std::string begin);
     int ibegins_with(std::string const& s, std::string begin);
     
+    inline bool ends_with(std::string const & value, std::string const & ending)
+    {
+        if (ending.size() > value.size()) {
+            return false;
+        }
+        return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+    }
+    
     // trim from start (in place)
     int ltrim(std::string &s);
     

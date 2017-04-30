@@ -48,22 +48,6 @@
 # include <mach/thread_policy.h>
 
 # if TARGET_OS_IPHONE
-// those arre commented out in the header on ios
-kern_return_t thread_policy_set
-(
-	thread_act_t thread,
-	thread_policy_flavor_t flavor,
-	thread_policy_t policy_info,
-	mach_msg_type_number_t policy_infoCnt
- );
-kern_return_t thread_policy_get
-(
-	thread_act_t thread,
-	thread_policy_flavor_t flavor,
-	thread_policy_t policy_info,
-	mach_msg_type_number_t *policy_infoCnt,
-	boolean_t *get_default
- );
 # else
 #  include <sys/sysctl.h>
 # endif

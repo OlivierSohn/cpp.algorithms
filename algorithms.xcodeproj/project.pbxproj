@@ -99,6 +99,7 @@
 		093A7BF11EB2A5DB00CBDD97 /* thread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = thread.h; path = include/thread.h; sourceTree = "<group>"; };
 		093A7BF21EB2A7B500CBDD97 /* thread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = thread.cpp; path = source/thread.cpp; sourceTree = "<group>"; };
 		093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_measure_multiplyadd_contiguity.cpp; path = test/test_measure_multiplyadd_contiguity.cpp; sourceTree = "<group>"; };
+		093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = measure_multiplyadd_contiguity.hpp; path = include/measure_multiplyadd_contiguity.hpp; sourceTree = "<group>"; };
 		093E6E711E20B0D9004DFED2 /* test_types.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_types.cpp; path = test/test_types.cpp; sourceTree = "<group>"; };
 		093F0A1E1E9AB399004432C2 /* peaks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = peaks.hpp; path = include/peaks.hpp; sourceTree = "<group>"; };
 		093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_peaks.cpp; path = test/test_peaks.cpp; sourceTree = "<group>"; };
@@ -341,6 +342,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,

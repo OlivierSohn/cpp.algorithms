@@ -52,7 +52,7 @@ namespace imajuscule
             using namespace std;
 
 #if TARGET_OS_IPHONE
-            int bus_speed = 100000000;
+            return false;
 #else
             static int bus_speed = 0;
             if(!bus_speed) {
@@ -68,7 +68,6 @@ namespace imajuscule
                     return false;
                 }
             }
-#endif
             
             auto HZ = bus_speed;
             time_constraint_policy.period=0;
@@ -82,11 +81,14 @@ namespace imajuscule
                 cerr << "write(time_constraint_policy) failed" << endl;
                 return false;
             }
-
             return true;
+#endif
         }
         
         bool MachSchedParams::setNonRealTime() {
+#if TARGET_OS_IPHONE
+            return false;
+#else
             kern_return_t ret;
             thread_standard_policy_data_t pt;
             mach_msg_type_number_t cnt = THREAD_STANDARD_POLICY_COUNT;
@@ -107,6 +109,7 @@ namespace imajuscule
                 return false;
             
             return true;
+#endif
         }
         
         bool MachSchedParams::write() const {

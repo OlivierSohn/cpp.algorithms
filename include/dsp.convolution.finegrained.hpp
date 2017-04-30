@@ -263,7 +263,12 @@ namespace imajuscule
         auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
         auto get_fft_length(int) const { return get_fft_length(); }
         
-        bool empty() const { return ffts_of_partitionned_h.empty(); }
+        bool empty() const {
+            return ffts_of_partitionned_h.empty();
+        }
+        void clear() {
+            ffts_of_partitionned_h.clear();
+        }
         
         auto getBlockSize() const { return partition_size; }
         auto getLatency() const { return 2*partition_size; }

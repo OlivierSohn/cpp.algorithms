@@ -124,4 +124,7 @@
 #include "interpolation.h"
 #include "scheduler.h"
 
-#include "measure_multiplyadd_contiguity.hpp" // for test on ios
+
+#if __APPLE__
+# include "measure_multiplyadd_contiguity.hpp" // for test on ios
+#endif

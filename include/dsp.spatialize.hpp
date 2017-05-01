@@ -27,8 +27,25 @@ namespace imajuscule
                 size_partition = sz;
             }
             
+            void clear() {
+                forEachEar([](auto & convolutions) {
+                    convolutions.clear();
+                });
+            }
+            
+            bool empty() const { return convs.empty() || convs[0].empty() || convs[0][0].empty(); }
+            
             bool isValid() const {
                 return convs[0][0].isValid();
+            }
+            
+            template<typename T>
+            void applySetup(T const & setup) {
+                forEachEar([&setup](auto & convolutions) {
+                    for(auto & c : convolutions) {
+                        c.applySetup(setup);
+                    }
+                });
             }
             
             int countSources() const { return convs[0].size(); }
@@ -46,19 +63,25 @@ namespace imajuscule
                     c.set_partition_size(size_partition);
                     c.setCoefficients(std::move(coeffs));
                     
-                    // may be suboptimal
-                    c.setMultiplicationGroupLength(c.getHighestValidMultiplicationsGroupSize());
                 });
             }
-            /*
+
+            void setMaxMultiplicationGroupLength() {
+                forEachEar([](auto & convolutions) {
+                    for(auto & c : convolutions) {
+                        c.setMultiplicationGroupLength(c.getHighestValidMultiplicationsGroupSize());
+                    }
+                });
+            }
+
             void setMultiplicationGroupLength(int i) {
-                forEachEar([i](auto & out) {
-                    for(auto & c : convs) {
+                forEachEar([i](auto & convolutions) {
+                    for(auto & c : convolutions) {
                         c.setMultiplicationGroupLength(i);
                     }
                 });
             }
-            */
+
             void step(T const * vals) {
                 forEachEar([vals](auto & convolutions) {
                     int i = 0;
@@ -69,11 +92,24 @@ namespace imajuscule
                 });
             }
             
-            void get(std::array<T, nEars> & samples) {
+            void get(T * samples) {
                 forEachEar(samples, [](auto & convolutions, auto & s) {
                     s = 0;
                     for(auto & c : convolutions) {
                         s += c.get();
+                    }
+                });
+            }
+            
+            void dephaseComputations(int phase) {
+                int n = 0;
+                forEachEar([phase_=phase, &n](auto & convolutions) {
+                    for(auto & c : convolutions) {
+                        auto const phase = n * phase_;
+                        for(int j=0; j<phase; ++j) {
+                            c.step(0);
+                        }
+                        ++n;
                     }
                 });
             }
@@ -84,7 +120,7 @@ namespace imajuscule
             
             template<typename Input, typename F>
             void forEachEar(Input & i, F f) {
-                assert(i.size() == nEars);
+                //assert(i.size() == nEars);
                 int j=0;
                 for(auto & c : convs) {
                     f(c, i[j]);

@@ -164,10 +164,6 @@ namespace imajuscule
         }
         
         void setCoefficients(a64::vector<T> coeffs_) {
-            
-            if(coeffs_.size() < 2) {
-                coeffs_.resize(2); // avoid ill-formed cases
-            }
         }
         
         void step(T val) {

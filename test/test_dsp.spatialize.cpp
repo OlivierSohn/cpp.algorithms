@@ -28,6 +28,8 @@ namespace imajuscule {
             using namespace fft;
             constexpr auto nEars = Spatialize::nEars;
             
+            spatialize.setMaxMultiplicationGroupLength();
+
             if(!spatialize.isValid()) {
                 /*
                  std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
@@ -55,7 +57,7 @@ namespace imajuscule {
             std::vector<std::array<T, nEars>> results;
             for(int i=0; i<ear_signals[0].size(); ++i) {
                 results.emplace_back();
-                spatialize.get(results.back());
+                spatialize.get(results.back().data());
                 spatialize.step(input.data());
             }
 
@@ -100,6 +102,7 @@ namespace imajuscule {
                     audio::Spatializer<nOutMono, Convolution> spatialized;
                     
                     spatialized.set_partition_size(part_size);
+                    
                     spatialized.addSourceLocation({{coefficients}});
                     
                     test(spatialized, {{coefficients}});
@@ -124,6 +127,7 @@ namespace imajuscule {
                     audio::Spatializer<nOutStereo, Convolution> spatialized;
                     
                     spatialized.set_partition_size(part_size);
+
                     opposite_coeffs = coefficients;
                     for(auto & o : opposite_coeffs) {
                         o = -o;

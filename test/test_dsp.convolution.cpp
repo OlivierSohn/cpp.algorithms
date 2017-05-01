@@ -51,7 +51,6 @@ namespace imajuscule {
                 conv.step(0);
             }
 
-            // we sum the results of each partition so the epsilon is (worst case) :
             auto eps = getEpsilon(conv);
             ASSERT_EQ(coefficients.size(), results.size());
             for(auto j=0; j<results.size(); ++j) {

@@ -16,6 +16,7 @@
 #include "test_fft_signal.cpp"
 #include "test_vdsp.cpp"
 #include "test_dsp.convolution.cpp"
+#include "test_dsp.spatialize.cpp"
 #include "test_benchmark.cpp"
 #include "test_range_search.cpp"
 #include "test_global_search.cpp"

@@ -137,6 +137,8 @@
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
+		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
+		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
 		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
 		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
@@ -309,7 +311,6 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
-				093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
@@ -320,6 +321,7 @@
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
 				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
 				097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */,
+				097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */,
 				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
 				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
@@ -329,6 +331,7 @@
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,
+				093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */,
 				093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */,
 				096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
@@ -342,7 +345,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -357,6 +359,7 @@
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
+				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
 				09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */,
@@ -374,6 +377,7 @@
 				09186B091E8670DE00E5BEC9 /* logging.h */,
 				091AF71C1E27DC24004B554F /* markov_chain.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
+				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
 				0996F3E81E2EF3030053B30B /* meta.hpp */,
 				092EAAB91E2A49F3006C11E9 /* numtraits.h */,

@@ -119,6 +119,7 @@
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.convolution.benchmarks.hpp"
+#include "dsp.spatialize.hpp"
 #include "enum.h"
 #include "interpolation.h"
 #include "scheduler.h"

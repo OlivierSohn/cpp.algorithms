@@ -144,6 +144,7 @@
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
 		0996F3EC1E2F821A0053B30B /* test_freelist.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freelist.cpp; path = test/test_freelist.cpp; sourceTree = "<group>"; };
+		0999CE481EB926C100309E86 /* test_rng.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_rng.cpp; path = test/test_rng.cpp; sourceTree = "<group>"; };
 		099FD6221E9188FE0067C18D /* debugging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debugging.h; path = include/debugging.h; sourceTree = "<group>"; };
 		099FD6231E9189F00067C18D /* debugging.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = debugging.cpp; path = source/debugging.cpp; sourceTree = "<group>"; };
 		09A2EC281EA2C48100D94138 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
@@ -311,6 +312,7 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				0999CE481EB926C100309E86 /* test_rng.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,

@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_rng.cpp"
 #include "test_containers.cpp"
 #include "test_math.cpp"
 #include "test_fft_fbins.cpp"

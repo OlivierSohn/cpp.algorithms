@@ -43,6 +43,8 @@ namespace imajuscule {
             current = nodes[n].get();
         }
         
+        bool empty() const { return nodes.empty(); }
+        
         template<ExecuteLambdas exec>
         MarkovNode * step_normalized(float p) {
             return do_step<Probabilities::NORMALIZE, exec>(p);

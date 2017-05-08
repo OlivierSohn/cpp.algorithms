@@ -62,6 +62,12 @@ namespace imajuscule
             it = buf.begin() + d;
         }
         
+        cyclic(container i)
+        : buf(std::move(i)), isFirstFeed(false) {
+            it = buf.begin();
+            
+        }
+        
         cyclic & operator =(cyclic && o) {
             if(this != &o) {
                 buf = std::move(o.buf);

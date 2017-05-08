@@ -105,6 +105,11 @@ namespace imajuscule {
             return nodes.back().get();
         }
         
+        void clear() {
+            nodes.clear();
+            current = nullptr;
+        }
+        
     private:
         std::vector<std::unique_ptr<MarkovNode>> nodes;
         MarkovNode * current = nullptr;

@@ -104,6 +104,13 @@ namespace imajuscule
             }
         }
         
+        void go_back() {
+            if(it == buf.begin()) {
+                it = buf.end();
+            }
+            --it;
+        }
+        
         void reset() {
             std::fill(buf.begin(), buf.end(), initialValue);
             it = buf.begin();

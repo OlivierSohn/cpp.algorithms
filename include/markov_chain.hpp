@@ -60,6 +60,9 @@ namespace imajuscule {
             assert(proba >= 0.f);
             assert(proba <= 1.f);
             assert(current);
+            if(!current) {
+                return nullptr;
+            }
             if(current->destinations.empty()) {
                 return current;
             }

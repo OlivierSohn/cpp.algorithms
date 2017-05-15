@@ -28,3 +28,14 @@ TEST(Cyclic, traversal) {
         c.feed(i++);
     }
 }
+TEST(Cyclic, grow) {
+    for(int i=0; i<10; ++i) {
+        cyclic<int> c;
+        ASSERT_EQ(0, c.size());
+        
+        for(int j=0; j<i; ++i) {
+            c.grow(j);
+        }
+        ASSERT_EQ(i, c.size());
+    }
+}

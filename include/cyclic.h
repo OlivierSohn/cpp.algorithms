@@ -85,6 +85,15 @@ namespace imajuscule
             it = buf.begin() + dist;
         }
         
+        void grow(ParameterType val) {
+            auto empty = buf.empty();
+            resize(size()+1);
+            if(!empty) {
+                advance();
+            }
+            *it = std::move(val);
+        }
+        
         void feed(ParameterType val) {
             if(isFirstFeed) {
                 if(Init == CyclicInitialization::FIRST_FEED) {

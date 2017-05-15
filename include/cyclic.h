@@ -86,12 +86,9 @@ namespace imajuscule
         }
         
         void grow(ParameterType val) {
-            auto empty = buf.empty();
-            resize(size()+1);
-            if(!empty) {
-                advance();
-            }
-            *it = std::move(val);
+            auto dist = std::distance(buf.begin(), it);
+            buf.push_back(val);
+            it = buf.begin() + dist;
         }
         
         void feed(ParameterType val) {
@@ -147,6 +144,10 @@ namespace imajuscule
                 real_index += buf.size();
             }
             return buf[real_index];
+        }
+        
+        void toBack() {
+            it = buf.end()-1;
         }
         
     private:

@@ -24,6 +24,8 @@ namespace imajuscule
         operator container & () { return buf; }
         operator container const& () const { return buf; }
         
+        auto & back() { return buf.back(); }
+        
         auto begin() const { return buf.begin();}
         auto end() const { return buf.end();}
         auto begin() { return buf.begin();}

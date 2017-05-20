@@ -27,6 +27,7 @@
 #include "test_cyclic.cpp"
 #include "test_fft.cpp"
 #include "test_markov_chain.cpp"
+#include "test_scoped.cpp"
 #include "test_freelist.cpp"
 #include "test_cpp.cpp"
 #include "test_types.cpp"

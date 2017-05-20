@@ -123,6 +123,7 @@
 #include "enum.h"
 #include "interpolation.h"
 #include "scheduler.h"
+#include "scoped.h"
 
 
 #if __APPLE__

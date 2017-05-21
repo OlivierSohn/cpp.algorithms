@@ -1,7 +1,6 @@
 
 namespace imajuscule {
     struct TestScoped {
-    protected:
         static thread_local int n, counter;
         
         void f() {

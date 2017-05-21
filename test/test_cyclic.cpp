@@ -33,7 +33,7 @@ TEST(Cyclic, grow) {
         cyclic<int> c;
         ASSERT_EQ(0, c.size());
         
-        for(int j=0; j<i; ++i) {
+        for(int j=0; j<i; ++j) {
             c.grow(j);
         }
         ASSERT_EQ(i, c.size());

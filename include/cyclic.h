@@ -125,6 +125,15 @@ namespace imajuscule
             isFirstFeed = true;
         }
         
+        void erase(iterator dit) {
+            if(it >= dit) {
+                if(it != buf.begin()) {
+                    --it;
+                }
+            }
+            buf.erase(dit);            
+        }
+        
         template<typename F>
         void for_each(F f) const {
             auto start = cycleEnd();

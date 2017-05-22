@@ -39,3 +39,20 @@ TEST(Cyclic, grow) {
         ASSERT_EQ(i, c.size());
     }
 }
+TEST(Cyclic, erase) {
+    {
+        cyclic<int> c(2);
+        c.feed(1);
+        c.feed(2);
+        c.advance();
+        c.erase(c.cycleEnd());
+        ASSERT_EQ(1, *c.cycleEnd());
+    }
+    {
+        cyclic<int> c(2);
+        c.feed(1);
+        c.feed(2);
+        c.erase(c.cycleEnd());
+        ASSERT_EQ(2, *c.cycleEnd());
+    }
+}

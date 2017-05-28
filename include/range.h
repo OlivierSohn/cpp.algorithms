@@ -170,6 +170,10 @@ namespace imajuscule
             }
         }
         
+        bool contains(range const & r) const {
+            return contains(r.getMin()) && contains(r.getMax());
+        }
+        
         where whereIs(T val) const {
             assert(!empty());
             if ( std::is_integral<T>() ) {

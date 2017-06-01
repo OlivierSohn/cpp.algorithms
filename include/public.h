@@ -6,6 +6,16 @@
 
 #pragma once
 
+#ifdef _WIN32
+#define NOMINMAX
+#include "Windows.h"
+#include "Objbase.h"
+#elif __ANDROID__
+#else
+#include <uuid/uuid.h>
+#endif
+
+
 #include <array>
 #include <algorithm>
 #include <cassert>

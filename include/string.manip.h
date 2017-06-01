@@ -118,4 +118,6 @@ namespace imajuscule
     T lines(Args... args) {
         return {{ (std::string(args) + '\n') }...};
     }
+    
+    std::string generateGuid();
 }

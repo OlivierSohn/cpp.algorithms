@@ -577,7 +577,7 @@ namespace imajuscule
         HRESULT hr = CoCreateGuid(&guid);
         if (unlikely(FAILED(hr)))
         {
-            LG(ERR, "ReferentiableManagerBase::generateGuid : CoCreateGuid failed %x", hr);
+            LG(ERR, "generateGuid : CoCreateGuid failed %x", hr);
             A(0);
             return sGuid;
         }
@@ -586,7 +586,7 @@ namespace imajuscule
         hr = StringFromCLSID(guid, &bstrGuid);
         if (unlikely(FAILED(hr)))
         {
-            LG(ERR, "ReferentiableManagerBase::generateGuid : StringFromCLSID failed %x", hr);
+            LG(ERR, "generateGuid : StringFromCLSID failed %x", hr);
             A(0);
             return sGuid;
         }
@@ -625,7 +625,7 @@ namespace imajuscule
         // ensure memory is freed
         ::CoTaskMemFree(bstrGuid);
 #elif __ANDROID__
-        LG(ERR, "ReferentiableManagerBase::generateGuid : on android, the guid should be generated in java");
+        LG(ERR, "generateGuid : on android, the guid should be generated in java");
 #else
         uuid_t uu;
         uuid_generate(uu);

@@ -105,6 +105,15 @@ namespace imajuscule
             advance();
         }
         
+        void setByIndex(int i) {
+            it = buf.begin() + i;
+            assert(it < buf.end());
+        }
+        
+        int getIndex() const {
+            return std::distance(buf.begin(), cycleEnd());
+        }
+        
         void advance() {
             ++it;
             if(it == buf.end()) {

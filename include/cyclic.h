@@ -158,10 +158,14 @@ namespace imajuscule
         }
         
         auto const & get_backward(int index_backward) const {
-            int end_index = std::distance(buf.begin(), cycleEnd());
+            int end_index = getIndex();
             auto real_index = end_index - 1 - index_backward;
-            if(real_index < 0) {
-                real_index += buf.size();
+            auto sz = buf.size();
+            while(real_index < 0) {
+                real_index += sz;
+            }
+            while(real_index >= sz) {
+                real_index -= sz;
             }
             return buf[real_index];
         }

@@ -30,3 +30,4 @@ namespace imajuscule {
 #include "string.manip.cpp"
 #include "debugging.cpp"
 #include "scheduler.cpp"
+#include "indentedStream.cpp"

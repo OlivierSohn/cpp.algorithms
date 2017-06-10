@@ -23,7 +23,6 @@
 		09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09A2EC281EA2C48100D94138 /* Accelerate.framework */; };
 		09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
 		09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
-		09C2579A1EEB028400608C56 /* indentedStream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09C257991EEB028400608C56 /* indentedStream.cpp */; };
 		09C645911E09F84700153C61 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 /* End PBXBuildFile section */
 
@@ -601,7 +600,6 @@
 				093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */,
 				093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */,
 				09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */,
-				09C2579A1EEB028400608C56 /* indentedStream.cpp in Sources */,
 				09168FD21E099D78005DD50F /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

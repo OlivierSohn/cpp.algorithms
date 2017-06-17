@@ -5,12 +5,12 @@ TEST(Cyclic, traversal) {
     constexpr auto sz = 3;
     cyclic<int> c(sz, {});
     int i = 0;
-
+    
     // fill-in the cycle
     for(int j=0; j<sz; ++j) {
         c.feed(i++);
     }
-
+    
     // verify elements are traversed in the right order
     for(int j=0; j<3*sz; ++j) {
         std::vector<int> fwd, bwd;
@@ -28,6 +28,33 @@ TEST(Cyclic, traversal) {
         c.feed(i++);
     }
 }
+
+TEST(Cyclic, traversalLeftRight) {
+    constexpr auto sz = 10;
+    cyclic<int> c(sz, {});
+    int i = 0;
+    
+    // fill-in the cycle
+    for(int j=0; j<sz; ++j) {
+        c.feed(i++);
+    }
+    
+    // verify elements are traversed in the right order
+    for(int j=0; j<3*sz; ++j) {
+        for(int k=0; k<sz; ++k) {
+            c.advance();
+            
+            std::vector<int> left_right;
+            c.for_each_left_and_right(j, [&left_right](auto v) {
+                left_right.push_back(v);
+            });
+            
+            ASSERT_EQ(std::min(1+2*j, sz), left_right.size());
+            ASSERT_EQ(*c.cycleEnd(), left_right[0]);
+        }
+    }
+}
+
 TEST(Cyclic, grow) {
     for(int i=0; i<10; ++i) {
         cyclic<int> c;

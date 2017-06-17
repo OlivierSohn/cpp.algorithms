@@ -12,6 +12,21 @@ namespace imajuscule
         INITIAL_VALUES
     };
     
+    template<typename Iterator, typename Container>
+    void next(Iterator & it_, Container & buf) {
+        ++it_;
+        if(it_ == buf.end()) {
+            it_ = buf.begin();
+        }
+    }
+    template<typename Iterator, typename Container>
+    void prev(Iterator & it_, Container & buf) {
+        if(it_ == buf.begin()) {
+            it_ = buf.end();
+        }
+        --it_;
+    }
+
     template<class T, CyclicInitialization Init = CyclicInitialization::INITIAL_VALUES>
     struct cyclic
     {
@@ -115,17 +130,11 @@ namespace imajuscule
         }
         
         void advance() {
-            ++it;
-            if(it == buf.end()) {
-                it = buf.begin();
-            }
+            next(it, buf);
         }
         
         void go_back() {
-            if(it == buf.begin()) {
-                it = buf.end();
-            }
-            --it;
+            prev(it, buf);
         }
         
         void reset() {
@@ -155,6 +164,30 @@ namespace imajuscule
             auto start = std::reverse_iterator<const_iterator>(cycleEnd());
             std::for_each(start, rend(), f);
             std::for_each(rbegin(), start, f);
+        }
+        
+        // width == 0 : only on current
+        template<typename F>
+        void for_each_left_and_right(int width, F f) const {
+            assert(width >= 0);
+            assert(it != buf.end());
+            auto fwdIt = const_iterator(it);
+            auto bwdIt = const_iterator(it);
+            
+            f(*it);
+            
+            for(int i=0; i<width; ++i) {
+                next(fwdIt, buf);
+                if(fwdIt == bwdIt) {
+                    break;
+                }
+                f(*fwdIt);
+                prev(bwdIt, buf);
+                if(fwdIt == bwdIt) {
+                    break;
+                }
+                f(*bwdIt);
+            }
         }
         
         auto const & get_backward(int index_backward) const {

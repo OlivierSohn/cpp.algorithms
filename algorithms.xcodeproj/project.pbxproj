@@ -624,6 +624,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAF91DB3F0F80075CB05 /* ios.debug.xcconfig */;
 			buildSettings = {
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = Debug;
 		};
@@ -631,6 +632,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAFA1DB3F0F80075CB05 /* ios.release.xcconfig */;
 			buildSettings = {
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = Release;
 		};

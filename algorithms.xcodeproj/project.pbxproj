@@ -140,6 +140,8 @@
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
 		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
+		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
+		0983C7371F254C5D00EE86C1 /* test_angles.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_angles.cpp; path = test/test_angles.cpp; sourceTree = "<group>"; };
 		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
 		099467E71ED062C000375322 /* scoped.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scoped.h; path = include/scoped.h; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
@@ -321,6 +323,7 @@
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
+				0983C7371F254C5D00EE86C1 /* test_angles.cpp */,
 				096C6D691EA0338D00389746 /* test_benchmark.cpp */,
 				0972718D1E1B4AFD00532772 /* test_cast.cpp */,
 				09121CA61EAB957700BBC64B /* test_containers.cpp */,
@@ -356,6 +359,7 @@
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
+				0983C7361F254BF100EE86C1 /* angles.h */,
 				09A2EC2A1EA2E48200D94138 /* api.accelerate.h */,
 				09BA14CB1E38898B00A05F83 /* available_indexes.hpp */,
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,

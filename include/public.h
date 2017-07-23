@@ -73,6 +73,7 @@
 # include "api.accelerate.h"
 #endif
 
+#include "angles.h"
 #include "indentedStream.h"
 #include "defines.h"
 #include "logging.h"

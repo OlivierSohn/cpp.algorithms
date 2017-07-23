@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_angles.cpp"
 #include "test_rng.cpp"
 #include "test_containers.cpp"
 #include "test_math.cpp"

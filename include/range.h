@@ -300,6 +300,15 @@ namespace imajuscule
             }
         }
         
+        range & scaleNormalized(float minScale, float maxScale) {
+            assert(!empty());
+            auto d = delta();
+            auto m = getMin();
+            set(m + minScale * d,
+                m + maxScale * d);
+            return *this;
+        }
+        
         void homothety( T origin, T factor ) {
             assert( factor >= Tr::zero() );
             

@@ -11,6 +11,16 @@ namespace imajuscule {
         int col;
     };
     
+    static inline MatrixCoord indexToCoordinates(int i, int nColumns) {
+        auto rowIdx = i/nColumns;
+        auto colIdx = i - rowIdx * nColumns;
+        return {rowIdx, colIdx};
+    }
+    
+    static inline int coordinatesToIndex(MatrixCoord coord, int nColumns) {
+        return nColumns * coord.row + coord.col;
+    }
+    
     template<typename T>
     struct Matrix {
         
@@ -23,27 +33,28 @@ namespace imajuscule {
         Matrix() = default;
         
         Matrix(int rows, int columns) :
-        n_rows(rows)
-        , n_columns(columns) {
+        nRows(rows)
+        , nColumns(columns) {
             resize(rows, columns);
         }
         
         void resize(int rows, int columns) {
-            n_rows = rows;
-            n_columns = columns;
+            nRows = rows;
+            nColumns = columns;
             v.resize(rows*columns);
         }
-        int countRows() const { return n_rows; }
-        int countColumns() const { return n_columns; }
-        T * operator [] (int row) { return v.data() + row * n_columns; }
-        T const * operator [] (int row) const { return v.data() + row * n_columns; }
+        int countRows() const { return nRows; }
+        int countColumns() const { return nColumns; }
+        T * operator [] (int row) { return v.data() + row * nColumns; }
+        T const * operator [] (int row) const { return v.data() + row * nColumns; }
         
         T const & getByIndex(int i) const { return v[i]; }
+
+        T const & get(MatrixCoord const & c) const { return v[coordinatesToIndex(c, nColumns)]; }
+        T & edit(MatrixCoord const & c) { return v[coordinatesToIndex(c, nColumns)]; }
         
         MatrixCoord indexToCoordinates(int i) const {
-            auto rowIdx = i/n_columns;
-            auto colIdx = i - rowIdx * n_columns;
-            return {rowIdx, colIdx};
+            return imajuscule::indexToCoordinates(i, nColumns);
         }
         
         auto begin() const { return v.begin(); }
@@ -52,7 +63,7 @@ namespace imajuscule {
         auto end() { return v.end(); }
         
     private:
-        int n_rows, n_columns;
+        int nRows, nColumns;
         std::vector<T> v;
     };
 

@@ -143,6 +143,7 @@
 		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
 		0983C7371F254C5D00EE86C1 /* test_angles.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_angles.cpp; path = test/test_angles.cpp; sourceTree = "<group>"; };
 		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
+		098DC8BD1F64BBD500C5A8B2 /* binary.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = binary.h; path = include/binary.h; sourceTree = "<group>"; };
 		099467E71ED062C000375322 /* scoped.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scoped.h; path = include/scoped.h; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
@@ -362,6 +363,7 @@
 				0983C7361F254BF100EE86C1 /* angles.h */,
 				09A2EC2A1EA2E48200D94138 /* api.accelerate.h */,
 				09BA14CB1E38898B00A05F83 /* available_indexes.hpp */,
+				098DC8BD1F64BBD500C5A8B2 /* binary.h */,
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,

@@ -61,7 +61,8 @@ TEST(Cyclic, grow) {
         ASSERT_EQ(0, c.size());
         
         for(int j=0; j<i; ++j) {
-            c.grow(j);
+            int v=j;
+            c.grow(std::move(v));
         }
         ASSERT_EQ(i, c.size());
     }

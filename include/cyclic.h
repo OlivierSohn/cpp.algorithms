@@ -102,9 +102,9 @@ namespace imajuscule
             it = buf.begin() + dist;
         }
         
-        void grow(ParameterType val) {
+        void grow(ParameterType && val) {
             auto dist = std::distance(buf.begin(), it);
-            buf.push_back(val);
+            buf.push_back(std::move(val));
             it = buf.begin() + dist;
         }
         

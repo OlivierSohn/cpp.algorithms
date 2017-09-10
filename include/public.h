@@ -73,6 +73,8 @@
 # include "api.accelerate.h"
 #endif
 
+#include "color.h"
+#include "matrix.hpp"
 #include "binary.h"
 #include "angles.h"
 #include "indentedStream.h"

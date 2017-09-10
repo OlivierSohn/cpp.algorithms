@@ -31,3 +31,4 @@ namespace imajuscule {
 #include "debugging.cpp"
 #include "scheduler.cpp"
 #include "indentedStream.cpp"
+#include "color.cpp"

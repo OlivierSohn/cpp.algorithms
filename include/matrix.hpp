@@ -49,6 +49,7 @@ namespace imajuscule {
         T const * operator [] (int row) const { return v.data() + row * nColumns; }
         
         T const & getByIndex(int i) const { return v[i]; }
+        T & editByIndex(int i) { return v[i]; }
 
         T const & get(MatrixCoord const & c) const { return v[coordinatesToIndex(c, nColumns)]; }
         T & edit(MatrixCoord const & c) { return v[coordinatesToIndex(c, nColumns)]; }

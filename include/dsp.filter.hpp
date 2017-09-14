@@ -105,7 +105,7 @@ namespace imajuscule
         // not tested
         T square_magnitude(T rate, T freq) const {
             auto fcut = freq_from_cst(rate);
-            A(fcut != 0);
+            Assert(fcut != 0);
             auto ratio = freq/fcut;
             return Tr::one() / get_inv_square_filter_magnitude<KIND>(ratio * ratio);
         }

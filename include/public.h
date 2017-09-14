@@ -73,6 +73,7 @@
 # include "api.accelerate.h"
 #endif
 
+#include "convex_hull.h"
 #include "color.h"
 #include "matrix.hpp"
 #include "binary.h"

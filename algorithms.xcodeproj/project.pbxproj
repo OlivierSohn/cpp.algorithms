@@ -104,6 +104,7 @@
 		093F0A1E1E9AB399004432C2 /* peaks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = peaks.hpp; path = include/peaks.hpp; sourceTree = "<group>"; };
 		093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_peaks.cpp; path = test/test_peaks.cpp; sourceTree = "<group>"; };
 		094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.benchmarks.hpp; path = include/dsp.convolution.benchmarks.hpp; sourceTree = "<group>"; };
+		094DE2381F69C10A007191A0 /* convex_hull.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = convex_hull.h; path = include/convex_hull.h; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
@@ -361,7 +362,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				098DC8EF1F65B56200C5A8B2 /* color.h */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -370,7 +370,9 @@
 				09BA14CB1E38898B00A05F83 /* available_indexes.hpp */,
 				098DC8BD1F64BBD500C5A8B2 /* binary.h */,
 				09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */,
+				098DC8EF1F65B56200C5A8B2 /* color.h */,
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
+				094DE2381F69C10A007191A0 /* convex_hull.h */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
 				096C6D411E9ED69200389746 /* defines.h */,

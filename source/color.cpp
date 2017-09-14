@@ -83,7 +83,7 @@ namespace imajuscule {
             }
             color.setInLinear(std::move(linearCandidate));
         }
-        cout << setprecision(2) << linearBrightness << " " << colorBrightnessLinear(color) << " " << targetLinearBrightness << endl;
+        cout << "brightness: " << setprecision(2) << linearBrightness << " " << colorBrightnessLinear(color) << " " << targetLinearBrightness << endl;
     }
     
     // todo ponderate this with min or max brightness

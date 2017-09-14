@@ -578,7 +578,7 @@ namespace imajuscule
         if (unlikely(FAILED(hr)))
         {
             LG(ERR, "generateGuid : CoCreateGuid failed %x", hr);
-            A(0);
+            Assert(0);
             return sGuid;
         }
         
@@ -587,7 +587,7 @@ namespace imajuscule
         if (unlikely(FAILED(hr)))
         {
             LG(ERR, "generateGuid : StringFromCLSID failed %x", hr);
-            A(0);
+            Assert(0);
             return sGuid;
         }
         

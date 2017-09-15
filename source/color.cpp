@@ -27,12 +27,14 @@ namespace imajuscule {
         bY * c[2] / 255.f;
     }
     
-    void adjustColorBrightness(BrightnessAdjustment adj, Color8 & color, float targetLinearBrightness) {
+    void adjustColorBrightness(BrightnessAdjustment adj, Color8 & color, float targetLinearBrightness, float effectRatio) {
         using namespace std;
         auto linearBrightness = colorBrightnessLinear(color);
         if(!linearBrightness) {
             return;
         }
+        
+        targetLinearBrightness = linearBrightness + effectRatio * (targetLinearBrightness-linearBrightness);
         
         if(linearBrightness == targetLinearBrightness) {
             return;

@@ -128,7 +128,7 @@ namespace imajuscule
         Scaling
     };
     
-    void adjustColorBrightness(BrightnessAdjustment, Color8 &, float brightness);
+    void adjustColorBrightness(BrightnessAdjustment, Color8 &, float brightness, float effectRatio);
 
     float colorBrightnessLinear(Color8 &);
     float squaredEuclidianDistance(Color8 &, Color8 &);

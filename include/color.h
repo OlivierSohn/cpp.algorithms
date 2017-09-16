@@ -17,24 +17,68 @@ namespace imajuscule
             return 1.055f*pow(v,1.0f/2.4f)-0.055f;
     }
     
-    static inline unsigned char linearToSRGB(unsigned char ref) {
-        float c = ref/255.f;
+    static inline unsigned char linearToSRGB(float c) {
         auto res = inv_gam_sRGB(c);
         assert(res <= 1.f);
         assert(res >= 0.f);
-        return (unsigned char)(res*255 + 0.5f);
+        return (unsigned char)(res*255.f + 0.5f);
     }
     
-    static inline unsigned char SRGBToLinear(unsigned char ref) {
+    static inline float SRGBToLinear(unsigned char ref) {
         float c = ref/255.f;
         auto res = gam_sRGB(c);
         assert(res <= 1.f);
         assert(res >= 0.f);
-        return (unsigned char)(res*255 + 0.5f);
+        return res;
     }
     
+    static inline std::array<float, 3> linearToHSV(std::array<float, 3> ref) {
+        // using http://www.rapidtables.com/convert/color/rgb-to-hsv.htm
+        
+        float r = ref[0];
+        float g = ref[1];
+        float b = ref[2];
+
+        int maxComponent = 0;
+        float cmax = r; // note that v == cmax
+        if(g > cmax) {
+            maxComponent = 1;
+            cmax = g;
+        }
+        if(b > cmax) {
+            maxComponent = 2;
+            cmax = b;
+        }
+        float cmin = std::min(r,std::min(g,b));
+        auto delta = cmax-cmin;
+
+        if (delta < 0.00001) {
+            // grey case
+            return {{0,0,cmax}};
+        }
+        assert(cmax > 0);
+        auto s = delta / cmax;
+        float h;
+        switch(maxComponent) {
+            case 0:
+                h = (g-b) / delta;
+                break;
+            case 1:
+                h = 2.f + (b-r)/delta;
+                break;
+            case 2:
+                h = 4.f + (r-g)/delta;
+                break;
+        }
+        h /= 6.f; // normalize
+        return {{h,s,cmax}};
+    }
+    
+    template<typename T>
     struct LazyPlainColor {
-        LazyPlainColor(std::array<unsigned char, 3> && colors) :
+        using value_type = T;
+        
+        LazyPlainColor(std::array<value_type, 3> && colors) :
         color(std::move(colors))
         , uptodate(true) {
         }
@@ -54,6 +98,20 @@ namespace imajuscule
             uptodate = true;
         }
         
+        template<typename F>
+        void setDiscrete(std::array<float,3> const & ref, F conversion) {
+            for(int i=0; i<color.size(); ++i) {
+                color[i] = conversion(ref[i]);
+            }
+            uptodate = true;
+        }
+        
+        template<typename F, typename U>
+        void set3(std::array<U,3> const & ref, F conversion) {
+            color = conversion(ref);
+            uptodate = true;
+        }
+        
         auto const & get() const {
             assert(uptodate);
             return color;
@@ -70,14 +128,15 @@ namespace imajuscule
         }
     private:
         
-        std::array<unsigned char,3> color;
+        std::array<value_type,3> color;
         bool uptodate : 1;
     };
     
     struct Color8 {
         Color8() = default;
         
-        Color8(std::array<unsigned char, 3> && colors) : srgb(std::move(colors)) {
+        Color8(std::array<unsigned char, 3> && colors) :
+        srgb(std::move(colors)) {
         }
         
         Color8(const unsigned char arr[3]) :
@@ -91,6 +150,7 @@ namespace imajuscule
         void reset() {
             srgb.invalidate();
             linear.invalidate();
+            hsv.invalidate();
         }
         
         // note this is NOT "color equality", it is "C++ object content equality".
@@ -98,28 +158,39 @@ namespace imajuscule
             return (srgb == other.srgb) && (linear == other.linear);
         }
         
-        void setInLinear(std::array<unsigned char, 3> && a) {
+        void setInLinear(std::array<float, 3> && a) {
             srgb.invalidate();
+            hsv.invalidate();
             linear = {std::move(a)};
         }
         void setInSRGB(std::array<unsigned char, 3> && a) {
             linear.invalidate();
+            hsv.invalidate();
             srgb = {std::move(a)};
         }
         std::array<unsigned char,3> const & inSRGB() {
             if(!srgb.isValid()) {
-                srgb.set(linear.get(), linearToSRGB);
+                srgb.setDiscrete(linear.get(), linearToSRGB);
             }
             return srgb.get();
         }
-        std::array<unsigned char,3> const & inLinearRGB() {
+        std::array<float,3> const & inLinearRGB() {
             if(!linear.isValid()) {
                 linear.set(srgb.get(), SRGBToLinear);
             }
             return linear.get();
         }
+        std::array<float,3> const & inHSV() {
+            if(!hsv.isValid()) {
+                hsv.set3(inLinearRGB(), linearToHSV);
+            }
+            return hsv.get();
+        }
     private:
-        LazyPlainColor srgb, linear;
+        // this is the only colorspace using discretized colors because it is given as input in discretized mode
+        LazyPlainColor<unsigned char> srgb;
+        LazyPlainColor<float> linear;
+        LazyPlainColor<float> hsv;
     };
     
     
@@ -131,6 +202,8 @@ namespace imajuscule
     void adjustColorBrightness(BrightnessAdjustment, Color8 &, float brightness, float effectRatio);
 
     float colorBrightnessLinear(Color8 &);
-    float squaredEuclidianDistance(Color8 &, Color8 &);
+    float squaredEuclidianLinearDistance(Color8 &, Color8 &);
+    float HSVDistance(Color8 &, Color8 &);
+    float stackOverflowSquaredHSVDistance(Color8 &, Color8 &);
     
 }

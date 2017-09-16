@@ -43,6 +43,11 @@ namespace imajuscule {
             nColumns = columns;
             v.resize(rows*columns);
         }
+        
+        void reset() {
+            v.clear();
+        }
+        
         int countRows() const { return nRows; }
         int countColumns() const { return nColumns; }
         T * operator [] (int row) { return v.data() + row * nColumns; }

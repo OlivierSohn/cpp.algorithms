@@ -1,12 +1,12 @@
 
 namespace imajuscule {
     
-    void alphaCompositeColor(Color8 & color, unsigned char overlayed, float overlayAlpha) {
+    void alphaCompositeColor(Color8 & color, float overlayed, float overlayAlpha) {
         auto const & c = color.inLinearRGB();
-        std::array<unsigned char, 3> linear;
+        std::array<float, 3> linear;
         
         for(int i=0; i<3; ++i) {
-            linear[i] = (int)(.5f + (c[i] * (1 - overlayAlpha) + overlayed * overlayAlpha));
+            linear[i] = (c[i] * (1 - overlayAlpha) + overlayed * overlayAlpha);
         }
         
         color.setInLinear(std::move(linear));
@@ -22,9 +22,9 @@ namespace imajuscule {
         auto const & c = color.inLinearRGB();
         
         return
-        rY * c[0] / 255.f +
-        gY * c[1] / 255.f +
-        bY * c[2] / 255.f;
+        rY * c[0] +
+        gY * c[1] +
+        bY * c[2];
     }
     
     void adjustColorBrightness(BrightnessAdjustment adj, Color8 & color, float targetLinearBrightness, float effectRatio) {
@@ -42,44 +42,44 @@ namespace imajuscule {
         
         if(adj == BrightnessAdjustment::AlphaCompositing) {
             float alpha;
-            int overlay;
+            float overlay;
             if(linearBrightness < targetLinearBrightness) {
                 // white is 1
-                overlay = 255;
+                overlay = 1.f;
                 
                 // c is brightness
                 // alpha compositing: targetBrightness = (1-alpha) * brightness + alpha * 1
                 // alpha * (1 - brightness) = targetBrightness - brightness
-                alpha = 1 - ((1 - targetLinearBrightness) / (1-linearBrightness));
+                alpha = 1.f - ((1.f - targetLinearBrightness) / (1.f-linearBrightness));
             }
             else {
                 // black is 0
-                overlay = 0;
+                overlay = 0.f;
                 
                 // c is brightness
                 // alpha compositing: targetBrightness = (1-alpha) * brightness
                 // alpha * (- brightness) = targetBrightness - brightness
-                alpha = 1 - (targetLinearBrightness / linearBrightness);
+                alpha = 1.f - (targetLinearBrightness / linearBrightness);
                 
                 // note that this branch is equivalent to Scaling method
             }
-            assert(alpha <= 1);
-            assert(alpha >= 0);
+            assert(alpha <= 1.f);
+            assert(alpha >= 0.f);
             alphaCompositeColor(color, overlay, alpha);
         }
         else {
             auto ratio = targetLinearBrightness / linearBrightness;
             
-            std::array<unsigned char, 3> linearCandidate;
+            std::array<float, 3> linearCandidate;
             auto const & c = color.inLinearRGB();
             
             for(int i=0; i<3; ++i) {
                 // it is easy to match brightness this way
                 // but it might look better to do alpha compositing with white instead
-                auto res = (int)(c[i] * ratio);
-                if(res > 255) {
+                auto res = c[i] * ratio;
+                if(res > 1) {
                     cout << "color brightness adjustment : saturation" << endl;
-                    res = 255;
+                    res = 1;
                 }
                 linearCandidate[i] = res;
             }
@@ -87,10 +87,42 @@ namespace imajuscule {
         }
         cout << "brightness: " << setprecision(2) << linearBrightness << " " << colorBrightnessLinear(color) << " " << targetLinearBrightness << endl;
     }
+ 
+    float HSVDistance(Color8 & color1, Color8 & color2) {
+        auto const c1 = color1.inHSV();
+        auto const c2 = color2.inHSV();
+        auto const h1 = c1[0];
+        auto const h2 = c2[0];
+        auto hueDistance = std::min(std::abs(h2-h1), 1.f-std::abs(h2-h1)); // .15 is big (red to yellow)
+        
+        // hue distance shoud take into account which part of the hue is used as in green, there is less variations than red
+        
+        auto saturationDistance = std::abs(c1[2] - c2[2]); // .7 is big
+        auto valueDistance = std::abs(c1[1] - c2[1]); // .8 is big
+
+        return 2 * valueDistance + saturationDistance + 4 * hueDistance; // see comments
+    }
     
-    // todo ponderate this with min or max brightness
-    // or apply transformation on colors beforehand
-    float squaredEuclidianDistance(Color8 & color1, Color8 & color2) {
+    float stackOverflowSquaredHSVDistance(Color8 & color1, Color8 & color2) {
+        // cf Sean Gerrish answer https://stackoverflow.com/questions/35113979/calculate-distance-between-colors-in-hsv-space
+        auto const c1 = color1.inHSV();
+        auto const c2 = color2.inHSV();
+        auto const h1 = c1[0];
+        auto const h2 = c2[0];
+        auto const s1 = c1[1];
+        auto const s2 = c2[1];
+        auto const v1 = c1[2];
+        auto const v2 = c2[2];
+
+        auto tmp1 = std::sin(h1)*s1*v1 - std::sin(h2)*s2*v2;
+        auto tmp2 = std::cos(h1)*s1*v1 - std::cos(h2)*s2*v2;
+        auto tmp3 = v1-v2;
+        return tmp1*tmp1
+        + tmp2*tmp2
+        + tmp3*tmp3;
+    }
+
+    float squaredEuclidianLinearDistance(Color8 & color1, Color8 & color2) {
         // https://en.wikipedia.org/wiki/Color_difference
         auto c1 = color1.inLinearRGB();
         auto c2 = color2.inLinearRGB();
@@ -100,6 +132,6 @@ namespace imajuscule {
         auto dG = c1[1] - c2[1];
         auto dB = c1[2] - c2[2];
         
-        return dR*dR*(2 + r/256) + 4*dG*dG + dB*dB*(2 + (255-r)/256);
+        return dR*dR*(2 + r) + 4*dG*dG + dB*dB*(3 - r);
     }
 }

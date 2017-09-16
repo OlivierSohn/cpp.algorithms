@@ -1,15 +1,7 @@
 namespace imajuscule {
     
     
-    // for now we use this (simply truncating one of r,g,b components) ...
-    using point2D = std::pair<int,int>;
-    // .. in the end we'll use this, projection on the p1 x p2 plane
-    //using point2D = glm::vec2;
-    
-    
-    
-    
-    
+    using point2D = std::pair<float,float>;
     
     /*
     std::ostream &operator <<(std::ostream &s, const Point &point )
@@ -45,25 +37,6 @@ namespace imajuscule {
             upper_hull.reserve(points.size());
         }
         
-        /*
-        GrahamScan( size_t n, int xmin, int xmax, int ymin, int ymax )
-        : N( n )
-        , x_range( xmin, xmax )
-        , y_range( ymin, ymax )
-        {
-            //
-            // In this constructor I generate the N random points asked for
-            // by the caller. Their values are randomly assigned in the x/y
-            // ranges specified as arguments
-            //
-            srand( static_cast<unsigned int>( time(NULL) ) );
-            for ( size_t i = 0 ; i < N ; i++ ) {
-                int x = ( rand() % ( x_range.second - x_range.first + 1 ) ) + x_range.first;
-                int y = ( rand() % ( y_range.second - y_range.first + 1 ) ) + y_range.first;
-                raw_points.push_back( std::make_pair( x, y ) );
-            }
-        }
-         */
         //
         // The initial array of points is stored in vectgor raw_points. I first
         // sort it, which gives me the far left and far right points of the hull.
@@ -195,151 +168,9 @@ namespace imajuscule {
             - ( (p2.point.projection.first - p1.point.projection.first ) * (p0.point.projection.second - p1.point.projection.second ) );
         }
         
-        void log_raw_points( std::ostream &f )
-        {
-            f << "Creating raw points:\n";
-            for ( auto r : raw_points )
-                f << r << " ";
-            f << "\n";
-        }
-        void log_partitioned_points( std::ostream &f )
-        {
-            f << "Partitioned set:\n"
-            << "Left : " << left << "\n"
-            << "Right : " << right << "\n"
-            << "Lower partition: ";
-            for ( size_t i = 0 ; i < lower_partition_points.size() ; i++ )
-                f << lower_partition_points[ i ];
-            f << "\n";
-            f << "Upper partition: ";
-            for ( size_t i = 0 ; i < upper_partition_points.size() ; i++ )
-                f << upper_partition_points[ i ];
-            f << "\n";
-        }
-        void log_hull( std::ostream & f )
-        {
-            f << "Lower hull: ";
-            for ( size_t i = 0 ; i < lower_hull.size() ; i++ )
-                f << lower_hull[ i ];
-            f << "\n";
-            f << "Upper hull: ";
-            for ( size_t i = 0 ; i < upper_hull.size() ; i++ )
-                f << upper_hull[ i ];
-            f << "\n";
-            f << "Convex hull: ";
-            for ( size_t i = 0 ; i < lower_hull.size() ; i++ )
-                f << lower_hull[ i ] << " ";
-            for ( auto ii = upper_hull.rbegin() + 1 ;
-                 ii != upper_hull.rend();
-                 ii ++ )
-                f << *ii << " ";
-            f << "\n";
-            
-        }
-        /*
-        void plot_raw_points( std::ostream &f )
-        {
-            f << "set xrange ["
-            << x_range.first
-            << ":"
-            << x_range.second
-            << "]\n";
-            f << "set yrange ["
-            << y_range.first
-            << ":"
-            << y_range.second
-            << "]\n";
-            f << "unset mouse\n";
-            f << "set title 'The set of raw points in the set' font 'Arial,12'\n";
-            f << "set style line 1 pointtype 7 linecolor rgb 'red'\n";
-            f << "set style line 2 pointtype 7 linecolor rgb 'green'\n";
-            f << "set style line 3 pointtype 7 linecolor rgb 'black'\n";
-            f << "plot '-' ls 1 with points notitle\n";
-            for ( size_t i = 0 ; i < N ; i++ )
-                f << raw_points[ i ].first << " " << raw_points[ i ].second << "\n";
-            f << "e\n";
-            f << "pause -1 'Hit OK to move to the next state'\n";
-        }
-         */
-        void plot_partitioned_points( std::ostream &f )
-        {
-            f << "set title 'The points partitioned into an upper and lower hull' font 'Arial,12'\n";
-            f << "plot '-' ls 1 with points notitle, "
-            << "'-' ls 2 with points notitle, "
-            << "'-' ls 3 with linespoints notitle\n";
-            for ( size_t i = 0 ; i < lower_partition_points.size() ; i++ )
-                f << lower_partition_points[ i ].first
-                << " "
-                << lower_partition_points[ i ].second
-                << "\n";
-            f << "e\n";
-            for ( size_t i = 0 ; i < upper_partition_points.size() ; i++ )
-                f << upper_partition_points[ i ].first
-                << " "
-                << upper_partition_points[ i ].second
-                << "\n";
-            f << "e\n";
-            f << left.first << " " << left.second << "\n";
-            f << right.first << " " << right.second << "\n";
-            f << "e\n";
-            f << "pause -1 'Hit OK to move to the next state'\n";
-        }
-        void plot_hull( std::ostream &f, std::string text )
-        {
-            f << "set title 'The hull in state: "
-            << text
-            << "' font 'Arial,12'\n";
-            f << "plot '-' ls 1 with points notitle, ";
-            if ( lower_hull.size() )
-                f << "'-' ls 3 with linespoints notitle, ";
-            if ( upper_hull.size() )
-                f << "'-' ls 3 with linespoints notitle, ";
-            f << "'-' ls 2 with points notitle\n";
-            for ( size_t i = 0 ; i < lower_partition_points.size() ; i++ )
-                f << lower_partition_points[ i ].first
-                << " "
-                << lower_partition_points[ i ].second
-                << "\n";
-            f << right.first << " " << right.second << "\n";
-            f << "e\n";
-            if ( lower_hull.size() ) {
-                for ( size_t i = 0 ; i < lower_hull.size() ; i++ )
-                    f << lower_hull[ i ].first
-                    << " "
-                    << lower_hull[ i ].second
-                    << "\n";
-                f << "e\n";
-            }
-            if ( upper_hull.size() ) {
-                for ( auto ii = upper_hull.rbegin();
-                     ii != upper_hull.rend();
-                     ii++ )
-                    f << ii->first
-                    << " "
-                    << ii->second
-                    << "\n";
-                f << "e\n";
-            }
-            for ( size_t i = 0 ; i < upper_partition_points.size() ; i++ )
-                f << upper_partition_points[ i ].first
-                << " "
-                << upper_partition_points[ i ].second
-                << "\n";
-            f << "e\n";
-            f << "pause -1 'Hit OK to move to the next state'\n";
-        }
         private :
-        //
-        // These values determine the range of numbers generated to
-        // provide the input data. The values are all passed in as part
-        // of the constructor
-        //
-        /*
-         const size_t N;
-        const Point x_range;
-        const Point y_range;
-        */
-        // The raw data points generated by the constructor
+        
+        // The raw data points
         std::vector< Point > raw_points;
         //
         // These values are used to represent the partitioned set. A special
@@ -359,28 +190,8 @@ namespace imajuscule {
         std::vector< Point > upper_hull;
     };
     
-    /*
-    int main(int argc, char* argv[])
-    {
-        std::ofstream gnuplot_file( "gnuplot.cmd" );
-        const int N = 20;
-        GrahamScan g( N, 0, 100, 0, 100 );
-        g.log_raw_points( std::cout );
-        g.plot_raw_points( gnuplot_file );
-        g.partition_points();
-        g.log_partitioned_points( std::cout );
-        g.plot_partitioned_points( gnuplot_file );
-        //
-        // Okay, time to start building the hull
-        //
-        g.build_hull( gnuplot_file );
-        g.log_hull( std::cout );
-        g.plot_hull( gnuplot_file, "complete" );
-        return 0;
-    }*/
-    
     template<typename Point>
-    std::vector<Point> computeConvexHull(std::vector<Point> && v) {
+    std::vector<Point> computeConvexHull(std::vector<Point> const & v) {
         GrahamScan<Point> g(v);
         g.partition_points();
         g.build_hull();

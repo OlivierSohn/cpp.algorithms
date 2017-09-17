@@ -85,24 +85,9 @@ namespace imajuscule {
             }
             color.setInLinear(std::move(linearCandidate));
         }
-        cout << "brightness: " << setprecision(2) << linearBrightness << " " << colorBrightnessLinear(color) << " " << targetLinearBrightness << endl;
+//        cout << "brightness: " << setprecision(2) << linearBrightness << " " << colorBrightnessLinear(color) << " " << targetLinearBrightness << endl;
     }
  
-    float HSVDistance(Color8 & color1, Color8 & color2) {
-        auto const c1 = color1.inHSV();
-        auto const c2 = color2.inHSV();
-        auto const h1 = c1[0];
-        auto const h2 = c2[0];
-        auto hueDistance = std::min(std::abs(h2-h1), 1.f-std::abs(h2-h1)); // .15 is big (red to yellow)
-        
-        // hue distance shoud take into account which part of the hue is used as in green, there is less variations than red
-        
-        auto saturationDistance = std::abs(c1[2] - c2[2]); // .7 is big
-        auto valueDistance = std::abs(c1[1] - c2[1]); // .8 is big
-
-        return 2 * valueDistance + saturationDistance + 4 * hueDistance; // see comments
-    }
-    
     float stackOverflowSquaredHSVDistance(Color8 & color1, Color8 & color2) {
         // cf Sean Gerrish answer https://stackoverflow.com/questions/35113979/calculate-distance-between-colors-in-hsv-space
         auto const c1 = color1.inHSV();
@@ -114,9 +99,9 @@ namespace imajuscule {
         auto const v1 = c1[2];
         auto const v2 = c2[2];
 
-        auto tmp1 = std::sin(h1)*s1*v1 - std::sin(h2)*s2*v2;
-        auto tmp2 = std::cos(h1)*s1*v1 - std::cos(h2)*s2*v2;
-        auto tmp3 = v1-v2;
+        auto const tmp1 = std::sin(2.f*(float)M_PI*h1)*s1*v1 - std::sin(2.f*(float)M_PI*h2)*s2*v2;
+        auto const tmp2 = std::cos(2.f*(float)M_PI*h1)*s1*v1 - std::cos(2.f*(float)M_PI*h2)*s2*v2;
+        auto const tmp3 = v1-v2;
         return tmp1*tmp1
         + tmp2*tmp2
         + tmp3*tmp3;

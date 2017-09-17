@@ -203,7 +203,6 @@ namespace imajuscule
 
     float colorBrightnessLinear(Color8 &);
     float squaredEuclidianLinearDistance(Color8 &, Color8 &);
-    float HSVDistance(Color8 &, Color8 &);
     float stackOverflowSquaredHSVDistance(Color8 &, Color8 &);
     
 }

@@ -192,6 +192,9 @@ namespace imajuscule {
     
     template<typename Point>
     std::vector<Point> computeConvexHull(std::vector<Point> const & v) {
+        if(v.size() <= 3) {
+            return v;
+        }
         GrahamScan<Point> g(v);
         g.partition_points();
         g.build_hull();

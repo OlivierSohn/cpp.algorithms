@@ -193,15 +193,9 @@ namespace imajuscule
         LazyPlainColor<float> hsv;
     };
     
-    
-    enum class BrightnessAdjustment {
-        AlphaCompositing,
-        Scaling
-    };
-    
-    void adjustColorBrightness(BrightnessAdjustment, Color8 &, float brightness, float effectRatio);
+    void adjustColorBrightness(Color8 &, float brightness, float effectRatio);
 
-    float colorBrightnessLinear(Color8 &);
+    float colorBrightness(Color8 &);
     float squaredEuclidianLinearDistance(Color8 &, Color8 &);
     float stackOverflowSquaredHSVDistance(Color8 &, Color8 &);
     

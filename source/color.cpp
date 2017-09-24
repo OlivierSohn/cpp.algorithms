@@ -2,90 +2,109 @@
 namespace imajuscule {
     
     void alphaCompositeColor(Color8 & color, float overlayed, float overlayAlpha) {
-        auto const & c = color.inLinearRGB();
-        std::array<float, 3> linear;
+        auto const & c = color.inSRGB();
+        std::array<unsigned char, 3> srgb;
         
         for(int i=0; i<3; ++i) {
-            linear[i] = (c[i] * (1 - overlayAlpha) + overlayed * overlayAlpha);
+            float v = (c[i]/255.f) * (1.f - overlayAlpha) + overlayed * overlayAlpha;
+            srgb[i] = (unsigned char)(255.f * v);
         }
         
-        color.setInLinear(std::move(linear));
+        color.setInSRGB(std::move(srgb));
     }
     
     
-    float colorBrightnessLinear(Color8 & color) {
+    float colorBrightness(Color8 & color) {
         // sRGB luminance(Y) values
         constexpr auto rY = 0.212655f;
         constexpr auto gY = 0.715158f;
         constexpr auto bY = 0.072187f;
         
-        auto const & c = color.inLinearRGB();
+        // perceived
+        /*
+        constexpr auto rY = 0.299f;
+        constexpr auto gY = 0.587f;
+        constexpr auto bY = 0.114f;
+         */
+        /*
+        constexpr auto rY = 0.333f;
+        constexpr auto gY = 0.333f;
+        constexpr auto bY = 0.333f;
+        */
+        auto const & c = color.inSRGB();
         
         return
-        rY * c[0] +
-        gY * c[1] +
-        bY * c[2];
+        rY * (c[0]/255.f) +
+        gY * (c[1]/255.f) +
+        bY * (c[2]/255.f);
     }
     
-    void adjustColorBrightness(BrightnessAdjustment adj, Color8 & color, float targetLinearBrightness, float effectRatio) {
+    void adjustColorBrightness(Color8 & color, float targetBrightness, float effectRatio) {
         using namespace std;
-        auto linearBrightness = colorBrightnessLinear(color);
-        if(!linearBrightness) {
+        auto const & c = color.inSRGB();
+        unsigned char M = std::max(c[0], std::max(c[1], c[2]));
+        if(!M) {
             return;
         }
         
-        targetLinearBrightness = linearBrightness + effectRatio * (targetLinearBrightness-linearBrightness);
+        auto brightness = colorBrightness(color);
+        assert(brightness);
         
-        if(linearBrightness == targetLinearBrightness) {
+        targetBrightness = brightness + effectRatio * (targetBrightness-brightness);
+        
+        if(brightness == targetBrightness) {
             return;
         }
         
-        if(adj == BrightnessAdjustment::AlphaCompositing) {
-            float alpha;
-            float overlay;
-            if(linearBrightness < targetLinearBrightness) {
-                // white is 1
-                overlay = 1.f;
-                
-                // c is brightness
-                // alpha compositing: targetBrightness = (1-alpha) * brightness + alpha * 1
-                // alpha * (1 - brightness) = targetBrightness - brightness
-                alpha = 1.f - ((1.f - targetLinearBrightness) / (1.f-linearBrightness));
-            }
-            else {
-                // black is 0
-                overlay = 0.f;
-                
-                // c is brightness
-                // alpha compositing: targetBrightness = (1-alpha) * brightness
-                // alpha * (- brightness) = targetBrightness - brightness
-                alpha = 1.f - (targetLinearBrightness / linearBrightness);
-                
-                // note that this branch is equivalent to Scaling method
-            }
-            assert(alpha <= 1.f);
-            assert(alpha >= 0.f);
-            alphaCompositeColor(color, overlay, alpha);
+        // mixed approach : scale until one component saturates, then alpha compose with white
+        auto scaleRatioMax = 255.5f / (float)M;
+        auto generalRatio = targetBrightness / brightness;
+        bool needAlphaCompositing = generalRatio > scaleRatioMax;
+        auto scaleRatio = std::min(scaleRatioMax, generalRatio);
+        
+        std::array<unsigned char, 3> srgbCandidate;
+        
+        for(int i=0; i<3; ++i) {
+            // it is easy to match brightness this way
+            // but it might look better to do alpha compositing with white instead
+            float res = c[i] * scaleRatio;
+            assert(res < 255.8f);
+            srgbCandidate[i] = res;
+        }
+        color.setInSRGB(std::move(srgbCandidate));
+        
+        if(!needAlphaCompositing) {
+            return;
+        }
+        // update brightness
+        brightness = colorBrightness(color);
+        
+        float alpha;
+        float overlay;
+        if(brightness < targetBrightness) {
+            // white is 1
+            overlay = 1.f;
+            
+            // c is brightness
+            // alpha compositing: targetBrightness = (1-alpha) * brightness + alpha * 1
+            // alpha * (1 - brightness) = targetBrightness - brightness
+            alpha = 1.f - ((1.f - targetBrightness) / (1.f-brightness));
         }
         else {
-            auto ratio = targetLinearBrightness / linearBrightness;
+            // black is 0
+            overlay = 0.f;
             
-            std::array<float, 3> linearCandidate;
-            auto const & c = color.inLinearRGB();
+            // c is brightness
+            // alpha compositing: targetBrightness = (1-alpha) * brightness
+            // alpha * (- brightness) = targetBrightness - brightness
+            alpha = 1.f - (targetBrightness / brightness);
             
-            for(int i=0; i<3; ++i) {
-                // it is easy to match brightness this way
-                // but it might look better to do alpha compositing with white instead
-                auto res = c[i] * ratio;
-                if(res > 1) {
-                    cout << "color brightness adjustment : saturation" << endl;
-                    res = 1;
-                }
-                linearCandidate[i] = res;
-            }
-            color.setInLinear(std::move(linearCandidate));
+            // note that this branch is equivalent to Scaling method
         }
-//        cout << "brightness: " << setprecision(2) << linearBrightness << " " << colorBrightnessLinear(color) << " " << targetLinearBrightness << endl;
+        assert(alpha <= 1.f);
+        assert(alpha >= 0.f);
+        alphaCompositeColor(color, overlay, alpha);
+        cout << "brightness: " << setprecision(2) << brightness << " " << colorBrightness(color) << " " << targetBrightness << endl;
     }
  
     float stackOverflowSquaredHSVDistance(Color8 & color1, Color8 & color2) {

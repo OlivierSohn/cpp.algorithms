@@ -159,6 +159,17 @@ namespace imajuscule {
         auto mid = it + d/2;
         return dichotomic_sum(it, mid) + dichotomic_sum(mid, end);
     }
+    
+    template< typename T>
+    void clamp(T & v, T m, T M) {
+        assert(m <= M);
+        if(v > M) {
+            v = M;
+        }
+        else if(v < m) {
+            v = m;
+        }
+    }
 
 } // NS imajuscule
 

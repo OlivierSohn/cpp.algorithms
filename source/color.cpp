@@ -126,16 +126,16 @@ namespace imajuscule {
         + tmp3*tmp3;
     }
 
-    float squaredEuclidianLinearDistance(Color8 & color1, Color8 & color2) {
+    float squaredEuclidianDistance(Color8 & color1, Color8 & color2) {
         // https://en.wikipedia.org/wiki/Color_difference
-        auto c1 = color1.inLinearRGB();
-        auto c2 = color2.inLinearRGB();
+        auto c1 = color1.inSRGB();
+        auto c2 = color2.inSRGB();
         
-        auto r = (c1[0] + c2[0]) / 2.f;
+        auto r = (c1[0] + c2[0]) / (255.f * 2.f);
         auto dR = c1[0] - c2[0];
         auto dG = c1[1] - c2[1];
         auto dB = c1[2] - c2[2];
         
-        return dR*dR*(2 + r) + 4*dG*dG + dB*dB*(3 - r);
+        return (dR*dR*(2 + r) + 4*dG*dG + dB*dB*(3 - r)) / (255.f * 255.f);
     }
 }

@@ -196,7 +196,7 @@ namespace imajuscule
     void adjustColorBrightness(Color8 &, float brightness, float effectRatio);
 
     float colorBrightness(Color8 &);
-    float squaredEuclidianLinearDistance(Color8 &, Color8 &);
+    float squaredEuclidianDistance(Color8 &, Color8 &);
     float stackOverflowSquaredHSVDistance(Color8 &, Color8 &);
     
 }

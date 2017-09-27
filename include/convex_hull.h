@@ -55,7 +55,9 @@ namespace imajuscule {
             //
             // Step one in partitioning the points is to sort the raw data
             //
-            std::sort( raw_points.begin(), raw_points.end(), [](auto const & p1, auto const & p2) { return p1.point.projection < p2.point.projection; } );
+            std::sort(raw_points.begin(),
+                      raw_points.end(),
+                      [](auto const & p1, auto const & p2) { return p1.point.projection < p2.point.projection; } );
             //
             // The the far left and far right points, remove them from the
             // sorted sequence and store them in special members

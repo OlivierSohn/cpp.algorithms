@@ -104,7 +104,7 @@ namespace imajuscule {
         assert(alpha <= 1.f);
         assert(alpha >= 0.f);
         alphaCompositeColor(color, overlay, alpha);
-        cout << "brightness: " << setprecision(2) << brightness << " " << colorBrightness(color) << " " << targetBrightness << endl;
+        //cout << "brightness: " << setprecision(2) << brightness << " " << colorBrightness(color) << " " << targetBrightness << endl;
     }
  
     float stackOverflowSquaredHSVDistance(Color8 & color1, Color8 & color2) {

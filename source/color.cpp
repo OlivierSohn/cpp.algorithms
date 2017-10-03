@@ -16,21 +16,15 @@ namespace imajuscule {
     
     float colorBrightness(Color8 & color) {
         // sRGB luminance(Y) values
-        constexpr auto rY = 0.212655f;
+/*        constexpr auto rY = 0.212655f;
         constexpr auto gY = 0.715158f;
         constexpr auto bY = 0.072187f;
-        
+  */
         // perceived
-        /*
         constexpr auto rY = 0.299f;
         constexpr auto gY = 0.587f;
         constexpr auto bY = 0.114f;
-         */
-        /*
-        constexpr auto rY = 0.333f;
-        constexpr auto gY = 0.333f;
-        constexpr auto bY = 0.333f;
-        */
+    
         auto const & c = color.inSRGB();
         
         return

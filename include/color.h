@@ -32,7 +32,7 @@ namespace imajuscule
         return res;
     }
     
-    static inline std::array<float, 3> linearToHSV(std::array<float, 3> ref) {
+    static inline std::array<float, 3> linearToHSV(std::array<float, 3> const & ref) {
         // using http://www.rapidtables.com/convert/color/rgb-to-hsv.htm
         
         float r = ref[0];

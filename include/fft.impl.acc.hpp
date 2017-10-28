@@ -112,7 +112,7 @@ namespace imajuscule {
             using type = RealFBinsImpl<T>;
            
             // this is slow, it is used for tests only
-            static type make(std::vector<complex<T>> cplx) {
+            static type make(std::vector<complex<T>> const & cplx) {
                 // 'wrap' signal
                 type res(cplx.size());
                 auto split = res.get_hybrid_split();

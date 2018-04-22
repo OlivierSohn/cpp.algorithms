@@ -4,7 +4,7 @@
  * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
  */
 
-#include "public.h"
+#include "../include/public.h"
 
 #include <execinfo.h>
 #include <cxxabi.h>

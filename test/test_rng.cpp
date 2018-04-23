@@ -79,7 +79,7 @@ namespace imajuscule {
                 for(int j=0; j<10; ++j) {
                     auto v = mersenne<SEEDED::Yes>()();
                     if(create_ref) {
-                        cout << v << "," << endl;
+                        cout << v << "," << endl;
                     }
                     else {
                         ASSERT_EQ(v, ref[i][j]);

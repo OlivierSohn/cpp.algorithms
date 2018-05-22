@@ -28,5 +28,13 @@ namespace imajuscule
             }
         };
 
+        struct MutexLock {
+            MutexLock(std::mutex & m) : m(m) { m.lock(); }
+            ~ScopedMutex() { m.unlock(); }
+        private:
+            std::mutex & m;
+        };
+
+
     }
 }

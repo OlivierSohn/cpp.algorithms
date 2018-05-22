@@ -31,6 +31,7 @@
 #include <iterator>
 #include <list>
 #include <map>
+#include <mutex>
 #include <new>
 #include <unordered_map>
 #include <memory>

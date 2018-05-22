@@ -7,15 +7,15 @@
 namespace imajuscule
 {
     namespace scoped {
-        
+
         // todo support multithreading
         template<typename Parent>
         struct OnLeavingLast : public Parent {
             using Parent::f;
             using Parent::n;
-            
+
             OnLeavingLast() { ++n; }
-            
+
             ~OnLeavingLast() {
                 auto new_value = --n;
                 if(0 == new_value) {
@@ -30,7 +30,7 @@ namespace imajuscule
 
         struct MutexLock {
             MutexLock(std::mutex & m) : m(m) { m.lock(); }
-            ~ScopedMutex() { m.unlock(); }
+            ~MutexLock() { m.unlock(); }
         private:
             std::mutex & m;
         };

@@ -375,14 +375,14 @@ namespace imajuscule
     void rtrim(std::string &s) {
         s.erase(std::find_if(s.rbegin(),
                              s.rend(),
-                             std::not1(std::ptr_fun<int, int>(std::isspace))
+                             [](auto c) {return !std::isspace(c);}
                              ).base(),
                 s.end());
     }
     
     int ltrim(std::string &s) {
         auto beg = s.begin();
-        auto first_non_space = std::find_if(beg, s.end(), std::not1(std::ptr_fun<int, int>(std::isspace)));
+        auto first_non_space = std::find_if(beg, s.end(), [](char c) {return !std::isspace(c);});
         int range = safe_cast<int>(std::distance(beg, first_non_space));
         s.erase(beg, first_non_space);
         return range;

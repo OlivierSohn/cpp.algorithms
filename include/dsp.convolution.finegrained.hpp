@@ -518,7 +518,7 @@ namespace imajuscule
             }
             
             constexpr auto n_non_multiplicative_grains = NonAtomicConvolution::countNonMultiplicativeGrains();
-            static_assert(2 == n_non_multiplicative_grains, "");
+            static_assert(2 == n_non_multiplicative_grains);
             static constexpr auto index_fft = 0;
             static constexpr auto index_ifft = 1;
             array<GrainType, n_non_multiplicative_grains> grain_types{{ GrainType::FFT, GrainType::IFFT }};

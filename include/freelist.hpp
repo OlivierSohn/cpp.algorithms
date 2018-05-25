@@ -55,7 +55,7 @@ namespace imajuscule {
             static constexpr auto max_size = MaxSize<LINK_T>::value - 1; // -1 because one element is used to store head
             static constexpr auto null_() { return Links<LINK_T>::getNull(); };
             
-            static_assert(sizeof(value_type) >= sizeof(link_type), "");
+            static_assert(sizeof(value_type) >= sizeof(link_type));
             
             FreeListImpl() {
                 assert(size < max_size);

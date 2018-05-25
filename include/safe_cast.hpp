@@ -18,9 +18,9 @@ namespace imajuscule {
         operator()(U v) ->
         // may need to be changed to std::is_pod<typename std::remove_pointer<T>::type>::value to support cast to pod*
         typename std::enable_if<!std::is_pointer<T1>::value && std::is_pod<T>::value, T>::type {
-            static_assert(!std::is_pointer<U>::value, "");
+            static_assert(!std::is_pointer<U>::value);
             using UNoRef = typename std::remove_reference<U>::type;
-            static_assert(std::is_pod<UNoRef>::value, "");
+            static_assert(std::is_pod<UNoRef>::value);
             return static_cast<T>(v);
         }
         
@@ -32,7 +32,7 @@ namespace imajuscule {
         typename std::enable_if<std::is_class<T1>::value, T>::type
         {
             using UNoRef = typename std::remove_reference<U>::type;
-            static_assert(std::is_base_of<UNoRef, T>::value || std::is_base_of<T, UNoRef>::value, "");
+            static_assert(std::is_base_of<UNoRef, T>::value || std::is_base_of<T, UNoRef>::value);
             return static_cast<T>(v);
         }
         
@@ -45,8 +45,8 @@ namespace imajuscule {
         {
             using UNoRef = typename std::remove_reference<U>::type;
             using TNoRef = typename std::remove_reference<T>::type;
-            static_assert(std::is_class<UNoRef>::value, "");
-            static_assert(std::is_base_of<UNoRef, TNoRef>::value || std::is_base_of<TNoRef, UNoRef>::value, "");
+            static_assert(std::is_class<UNoRef>::value);
+            static_assert(std::is_base_of<UNoRef, TNoRef>::value || std::is_base_of<TNoRef, UNoRef>::value);
             return dynamic_cast<T>(v); // can throw
         }
         
@@ -57,8 +57,8 @@ namespace imajuscule {
         operator()(U ptr) ->
         typename std::enable_if<std::is_pointer<T1>::value && std::is_class<typename std::remove_pointer<T1>::type>::value, T>::type {
             using UPtr = typename std::remove_reference<U>::type;
-            static_assert(std::is_pointer<UPtr>::value, "");
-            static_assert(std::is_class<typename std::remove_pointer<UPtr>::type>::value, "");
+            static_assert(std::is_pointer<UPtr>::value);
+            static_assert(std::is_class<typename std::remove_pointer<UPtr>::type>::value);
             assert(ptr);
             auto ret = dynamic_cast<T>(ptr);
             assert(ret);

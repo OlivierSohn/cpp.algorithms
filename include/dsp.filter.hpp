@@ -67,7 +67,7 @@ namespace imajuscule
     
     template<typename orderState, int NORDER>
     struct FixedOrderFilter {
-        static_assert(NORDER >= 1, "");
+        static_assert(NORDER >= 1);
 
         int getOrder() const {
             return NORDER;

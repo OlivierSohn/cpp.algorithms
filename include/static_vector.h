@@ -164,10 +164,10 @@ namespace imajuscule {
     };
     
     // todo make this work:
-    //static_assert(std::is_nothrow_move_constructible<StackVector<int>>::va‌​lue, "");
-    //static_assert(std::is_nothrow_move_constructible<StackGrowthControl>::va‌​lue, "");
-    //static_assert(std::is_nothrow_move_constructible<adaptive_stack_allocated::vector<int>>::va‌​lue, "");
-//    static_assert(std::is_nothrow_move_constructible<std::vector<int>>::va‌​lue, "");
-    //static_assert(std::is_nothrow_move_constructible<int>::va‌​lue, "");
+    //static_assert(std::is_nothrow_move_constructible<StackVector<int>>::va‌​lue);
+    //static_assert(std::is_nothrow_move_constructible<StackGrowthControl>::va‌​lue);
+    //static_assert(std::is_nothrow_move_constructible<adaptive_stack_allocated::vector<int>>::va‌​lue);
+//    static_assert(std::is_nothrow_move_constructible<std::vector<int>>::va‌​lue);
+    //static_assert(std::is_nothrow_move_constructible<int>::va‌​lue);
     
 }

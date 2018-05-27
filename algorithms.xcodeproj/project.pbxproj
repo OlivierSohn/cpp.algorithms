@@ -124,7 +124,6 @@
 		0960BAFE1DB3F0F80075CB05 /* osx.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.xcconfig; path = xcode.config/osx.xcconfig; sourceTree = "<group>"; };
 		096807881EA13B60006BB4AD /* dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dsp.convolution.cpp; path = source/dsp.convolution.cpp; sourceTree = "<group>"; };
 		096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.hpp; path = include/dsp.convolution.hpp; sourceTree = "<group>"; };
-		096C6D411E9ED69200389746 /* defines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = defines.h; path = include/defines.h; sourceTree = "<group>"; };
 		096C6D661EA0129300389746 /* optimization.local.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.hpp; path = include/optimization.local.hpp; sourceTree = "<group>"; };
 		096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = test_gradient_descent.cpp; path = test/test_gradient_descent.cpp; sourceTree = "<group>"; };
 		096C6D691EA0338D00389746 /* test_benchmark.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_benchmark.cpp; path = test/test_benchmark.cpp; sourceTree = "<group>"; };
@@ -188,6 +187,12 @@
 		09EF8F2E1DB3E89B00DC7342 /* bounded_lifo.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = bounded_lifo.hpp; path = include/bounded_lifo.hpp; sourceTree = "<group>"; };
 		09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = print_type.hpp; path = include/print_type.hpp; sourceTree = "<group>"; };
 		09EF8F301DB3E89B00DC7342 /* iter_range.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; fileEncoding = 4; name = iter_range.hpp; path = include/iter_range.hpp; sourceTree = "<group>"; };
+		09FC7DEA20BAD5910037B04C /* gen.names.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gen.names.h; path = include/gen.names.h; sourceTree = "<group>"; };
+		09FC7DEB20BAD5910037B04C /* logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logger.h; path = include/logger.h; sourceTree = "<group>"; };
+		09FC7DEC20BAD5910037B04C /* log.stack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = log.stack.h; path = include/log.stack.h; sourceTree = "<group>"; };
+		09FC7DED20BAD5910037B04C /* optional.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = optional.h; path = include/optional.h; sourceTree = "<group>"; };
+		09FC7DEE20BAD5A50037B04C /* log.stack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.stack.cpp; path = source/log.stack.cpp; sourceTree = "<group>"; };
+		09FC7DEF20BAD6B10037B04C /* imj.assert.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = imj.assert.h; path = include/imj.assert.h; sourceTree = "<group>"; };
 		09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = sort_utils.cpp; path = source/sort_utils.cpp; sourceTree = "<group>"; };
 		09FD59BE1E7AF3920052B2FD /* string.manip.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string.manip.cpp; path = source/string.manip.cpp; sourceTree = "<group>"; };
 		09FD59C01E7B03950052B2FD /* range.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = range.cpp; path = source/range.cpp; sourceTree = "<group>"; };
@@ -252,6 +257,7 @@
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 				09C257991EEB028400608C56 /* indentedStream.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
+				09FC7DEE20BAD5A50037B04C /* log.stack.cpp */,
 				0912152F1E09941800B860CB /* pool.adaptive_stack.cpp */,
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,
@@ -362,6 +368,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				09FC7DEF20BAD6B10037B04C /* imj.assert.h */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -375,7 +382,6 @@
 				094DE2381F69C10A007191A0 /* convex_hull.h */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
-				096C6D411E9ED69200389746 /* defines.h */,
 				094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
@@ -389,6 +395,7 @@
 				092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */,
 				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,
+				09FC7DEA20BAD5910037B04C /* gen.names.h */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				091AF71E1E27F0E1004B554F /* hash.hpp */,
 				093239CD1DB45790003C168E /* heap_sort.hpp */,
@@ -396,6 +403,8 @@
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,
 				09BA14C51E387E4200A05F83 /* interpolation.h */,
 				09EF8F301DB3E89B00DC7342 /* iter_range.hpp */,
+				09FC7DEC20BAD5910037B04C /* log.stack.h */,
+				09FC7DEB20BAD5910037B04C /* logger.h */,
 				09186B091E8670DE00E5BEC9 /* logging.h */,
 				091AF71C1E27DC24004B554F /* markov_chain.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
@@ -409,6 +418,7 @@
 				096C7DB81EB11B5400DDEB20 /* optimization.hpp */,
 				096C6D661EA0129300389746 /* optimization.local.hpp */,
 				096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */,
+				09FC7DED20BAD5910037B04C /* optional.h */,
 				093F0A1E1E9AB399004432C2 /* peaks.hpp */,
 				0912152D1E096DD900B860CB /* pool.adaptive_stack.h */,
 				09EF8F2F1DB3E89B00DC7342 /* print_type.hpp */,

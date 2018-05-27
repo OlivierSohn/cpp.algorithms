@@ -16,6 +16,7 @@ namespace imajuscule {
     }
 }
 
+#include "log.stack.cpp"
 #include "thread.cpp"
 #include "profiling.cpp"
 #include "dsp.convolution.cpp"
@@ -32,3 +33,4 @@ namespace imajuscule {
 #include "scheduler.cpp"
 #include "indentedStream.cpp"
 #include "color.cpp"
+#include "gen.names.cpp"

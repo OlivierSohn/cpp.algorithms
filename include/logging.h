@@ -10,17 +10,17 @@ namespace imajuscule
     void print_time(std::chrono::time_point<T> time) {
         using namespace std;
         using namespace std::chrono;
-        
+
         time_t curr_time = T::to_time_t(time);
         char sRep[100];
         // if needed use %Y-%m-%d for year / month / date
         strftime(sRep,sizeof(sRep),"%H:%M:%S",localtime(&curr_time));
-        
+
         typename T::duration since_epoch = time.time_since_epoch();
         seconds s = duration_cast<seconds>(since_epoch);
         since_epoch -= s;
         milliseconds milli = duration_cast<milliseconds>(since_epoch);
-        
+
         cout << sRep << ":";
         auto c = milli.count();
         if(c < 100) {
@@ -31,11 +31,11 @@ namespace imajuscule
         }
         std::cout << c << "|";
     }
-    
+
     static inline void print_system_time() {
         print_time(std::chrono::system_clock::now());
     }
-    
+
     struct ScopedLog {
         /*
          * Pass nullptr for action do deactivate logging
@@ -55,21 +55,21 @@ namespace imajuscule
     private:
         const char * action;
     };
-    
+
     struct ScopedFileWrite {
         ScopedFileWrite(std::string const & str, bool scopedlog = true) :
         file(str.c_str()),
         log(scopedlog?"Writing":nullptr, str.c_str())
         {}
-        
+
         ~ScopedFileWrite() { file.close(); }
-        
+
         template<typename T>
         std::ostream & operator << (T v) {
             file << v;
             return file;
         }
-        
+
         template<typename T>
         void write_vec(T const & vec, const char * name) {
             file << name << " = [";
@@ -83,12 +83,12 @@ namespace imajuscule
             }
             file << std::endl << "]'" << std::endl << std::endl;
         }
-        
+
     private:
         ScopedLog log;
         std::ofstream file;
     };
-    
+
     template<typename T>
     class ScopedIndent {
     public:
@@ -101,4 +101,5 @@ namespace imajuscule
     private:
         T & ref;
     };
+
 }

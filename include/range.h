@@ -13,43 +13,43 @@ namespace imajuscule
         PixelWidth = 0,
         NoPixelWidth = 1
     };
-    
+
     template <class T>
     struct range
     {
         using Tr = NumTraits<T>;
-        
+
         range() : min_ (Tr::one()), max_(-Tr::one()) {}
 
         range(const range & other ) : min_(other.min_), max_(other.max_) {}
         range(range && o) : min_(std::move(o.min_)), max_(std::move(o.max_)) {}
-        
+
         range & operator=(const range & other) {
             min_ = other.min_;
             max_ = other.max_;
             return *this;
         }
-        
+
         range& operator=(range&& o) {
             min_ = std::move(o.min_);
             max_ = std::move(o.max_);
             return *this;
         }
-        
+
         range(T min, T max) {
             assert(min <= max);
             set(min, max);
         }
-        
+
         bool operator == ( const range & other ) const {
             return !( (*this)!= other );
         }
-        
+
         bool operator != ( const range & other ) const;
-        
+
         bool before( range const & other ) const {
             assert( !empty() );
-            
+
             if( std::is_integral<T>() ) {
                 return ( max_ < other.min_ );
             } else {
@@ -58,10 +58,10 @@ namespace imajuscule
                 return tmp > 0.f;
             }
         }
-        
+
         T minTo( T val ) const {
             assert( !empty() );
-            
+
             if( std::is_integral<T>() ) {
                 return val - min_;
             } else {
@@ -71,7 +71,7 @@ namespace imajuscule
         }
         T maxTo( T val ) const {
             assert( !empty() );
-            
+
             if( std::is_integral<T>() ) {
                 return val - max_;
             } else {
@@ -79,7 +79,7 @@ namespace imajuscule
                 return val - halfSpan_;
             }
         }
-        
+
         T getAt(T ratio) const {
             assert(ratio >= 0.f);
             assert(ratio <= 1.f);
@@ -123,7 +123,7 @@ namespace imajuscule
                 halfSpan_ = 0.f;
             }
         }
-        
+
         void set(T Min, T Max) {
             assert(Min <= Max);
             if( std::is_integral<T>() ) {
@@ -136,7 +136,7 @@ namespace imajuscule
                 halfSpan_ = 0.5f * ( Max - Min );
             }
         }
-        
+
         template <class U = T, typename = std::enable_if<!std::is_integral<U>::value>>
         void setByAvgHalfSpan( T avg, T halfSpan) {
             static_assert(!std::is_integral<T>(), "wrong type");
@@ -144,10 +144,10 @@ namespace imajuscule
             assert( halfSpan >= Tr::zero() );
             halfSpan_ = halfSpan;
         }
-        
+
         bool extend(T val);
         void extend(range<T> const & r);
-        
+
         void includeMargin(T margin) {
             assert(margin <= Tr::zero() || !empty()); // adding a margin to an empty range makes no sense
             if( std::is_integral<T>() ) {
@@ -157,7 +157,7 @@ namespace imajuscule
                 halfSpan_ += margin;
             }
         }
-        
+
         bool contains(T val) const {
             if( empty() ) {
                 return false;
@@ -169,11 +169,11 @@ namespace imajuscule
                 return( (val <= halfSpan_) && ( val >= - halfSpan_ ) );
             }
         }
-        
+
         bool contains(range const & r) const {
             return contains(r.getMin()) && contains(r.getMax());
         }
-        
+
         where whereIs(T val) const {
             assert(!empty());
             if ( std::is_integral<T>() ) {
@@ -195,20 +195,20 @@ namespace imajuscule
         }
 
         bool overlaps( range const & r ) const;
-        
+
         range intersection( range const & r ) const;
-        
+
         template <class U = T, typename = std::enable_if<!std::is_integral<U>::value>>
         void trim( T val ) {
             static_assert( !std::is_integral<T>(), "wrong type" );
             assert( val >= Tr::zero() );
-            
+
             // don't test for that : it's ok if an empty range is reduced, it is still empty after ( halfSpan_ < 0.f )
             //if ( halfSpan_ >= 0.f ) {
                 halfSpan_ *= val;
             //}
         }
-        
+
         T getSpan() const {
             if( std::is_integral<T>() ) {
                 return max_ - min_;
@@ -216,7 +216,7 @@ namespace imajuscule
                 return 2.f * halfSpan_;
             }
         }
-        
+
         T getMax() const {
             if( std::is_integral<T>() ) {
                 return max_;
@@ -231,7 +231,7 @@ namespace imajuscule
                 return avg_ - halfSpan_;
             }
         }
-        
+
         /*
          Waring: for integral types, rounds the value.
          */
@@ -242,11 +242,11 @@ namespace imajuscule
                 return avg_;
             }
         }
-        
+
         T getExpCenter() const {
             return exp_mean(getMin(), getMax());
         }
-        
+
         void setMin(T val) {
             if( std::is_integral<T>() ) {
                 min_ = val;
@@ -267,7 +267,7 @@ namespace imajuscule
                 }
             }
         }
-        
+
         void setMax(T val) {
             if( std::is_integral<T>() ) {
                 max_ = val;
@@ -288,7 +288,7 @@ namespace imajuscule
                 }
             }
         }
-        
+
         T minDist( T val ) const;
 
         void translate( T val ) {
@@ -299,7 +299,7 @@ namespace imajuscule
                 avg_ += val;
             }
         }
-        
+
         range & scaleNormalized(float minScale, float maxScale) {
             assert(!empty());
             auto d = delta();
@@ -308,10 +308,10 @@ namespace imajuscule
                 m + maxScale * d);
             return *this;
         }
-        
+
         void homothety( T origin, T factor ) {
             assert( factor >= Tr::zero() );
-            
+
             if( std::is_integral<T>() ) {
                 min_ = origin + (min_ - origin) * factor;
                 max_ = origin + (max_ - origin) * factor;
@@ -320,28 +320,28 @@ namespace imajuscule
                 halfSpan_ *= factor;
             }
         }
-        
+
         template < splitMethod METHOD >
         void split( float ratio, range & r1, range & r2) const {
-            
+
             assert( !empty() );
-            
+
             if( std::is_integral<T>() ) {
                 if( PixelWidth == METHOD) {
                     // min == max == 0 means a pixel of width 1
                     auto const pixel_size = Tr::one();
-                    
+
                     T length = max_ + pixel_size - min_;
-                    
+
                     T ratio_length = (T)((((float)length) * ratio) + 0.5f);
-                    
+
                     r2.min_ = min_ + ratio_length;
                     r1.max_ = r2.min_ - pixel_size;
                 } else {
                     T length = max_ - min_;
-                    
+
                     T ratio_length = (T)((((float)length) * ratio) + 0.5f);
-                    
+
                     r2.min_ = min_ + ratio_length;
                     r1.max_ = r2.min_;
                 }
@@ -350,7 +350,7 @@ namespace imajuscule
                 auto diff = halfSpan_ - r1.halfSpan_;
                 assert( diff >= 0.f);
                 r2.halfSpan_ = diff;
-                
+
                 r1.avg_ = avg_ - diff;
                 r2.avg_ = avg_ + r1.halfSpan_;
             }
@@ -367,9 +367,19 @@ namespace imajuscule
             T halfSpan_; // floating types
         };
     };
-    
+
     extern template struct range<double>;
     extern template struct range<float>;
     extern template struct range<int32_t>;
     extern template struct range<int16_t>;
+
+    template<typename T>
+    void logRange(range<T> r) {
+        if(r.empty()) {
+            LG(INFO, "[empty]");
+        }
+        else {
+            LG(INFO, "[%f .. %f]", r.getMin(), r.getMax());
+        }
+    }
 }

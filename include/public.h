@@ -65,25 +65,33 @@
 
 #endif
 
-
 #if __APPLE__
 # include <Accelerate/Accelerate.h>
-#endif
-
-#if __APPLE__
 # include "api.accelerate.h"
 #endif
 
+#if __has_include(<optional>)
+#   include <optional>
+#elif __has_include(<experimental/optional>)
+#   include <experimental/optional>
+#else
+#   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
+#endif
+
+#include "../../cpp.os.logs/include/public.h"
+
+#include "defines.h"
+#include "optional.h"
 #include "convex_hull.h"
 #include "color.h"
 #include "matrix.hpp"
 #include "binary.h"
 #include "angles.h"
 #include "indentedStream.h"
-#include "defines.h"
 #include "logging.h"
 #include "object.h"
 #include "safe_cast.hpp"
+#include "gen.names.h"
 #include "available_indexes.hpp"
 #include "cyclic.h"
 #include "slidingsum.h"
@@ -119,6 +127,7 @@
 #include "hash.hpp"
 #include "hash_table.hpp"
 #include "merge_sort.hpp"
+#include "logger.h"
 
 #include "fft.interface.hpp"
 

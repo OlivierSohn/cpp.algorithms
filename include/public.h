@@ -80,7 +80,6 @@
 
 #include "../../cpp.os.logs/include/public.h"
 
-#include "optional.h"
 #include "imj.assert.h"
 #include "convex_hull.h"
 #include "color.h"
@@ -90,6 +89,7 @@
 #include "indentedStream.h"
 #include "logging.h"
 #include "log.stack.h"
+#include "optional.h"
 #include "object.h"
 #include "safe_cast.hpp"
 #include "gen.names.h"

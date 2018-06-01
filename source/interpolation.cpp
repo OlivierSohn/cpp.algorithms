@@ -7,7 +7,7 @@
 using namespace imajuscule;
 
 namespace imajuscule {
-    
+
     // we add 1 for every group, because a value of 0.f means the first value of the group
     const float itp::NO_EASE = safe_cast<float>(INTERPOLATION_LOWER_BOUND + 1);
     const float itp::EASE_IN = safe_cast<float>(EASE_IN_first_value + 1);
@@ -17,7 +17,7 @@ namespace imajuscule {
     // values for NO_EASE:
     const float itp::P1 = 0.f;
     const float itp::PVD = 1.f;
-    
+
     // values for EASE_IN/OUT/IO:
     const float itp::P2 = 0.f;
     const float itp::P3 = 1.f;
@@ -68,7 +68,7 @@ itp::interpolation itp::intToInterpolation(int val, bool & bReal)
 }
 
 const char * itp::interpolationInfo(int val)
-{    
+{
     itp::interpolation itpVal = (itp::interpolation) val;
 
     switch (itpVal)
@@ -232,10 +232,10 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
 
 float itp::linearTween(
     float t, // t_cur - t_start
-    float b, // val_start 
+    float b, // val_start
     float c, // val_end - val_start
     float d  // t_end - t_start
-    ) 
+    )
 {
 	return c*t/d + b;
 }
@@ -402,8 +402,8 @@ float itp::easeInExpo(float t, float b, float c, float d) {
 }
 
 float itp::proportional_value_derivative(float t_start_to_cur, float val_start, float val_range, float t_start_to_end) {
-    
-    // interpolation to compensate for "a small change In a small value has more effect than a small change In a big value"
+
+    // interpolation to compensate for "a small change in a small value has more effect than a small change in a big value"
     //
     // derivative of f should be proportional to f :
     //
@@ -448,7 +448,7 @@ float itp::proportional_value_derivative(float t_start_to_cur, float val_start, 
     }
 
     assert(same_sign_strict( val_end, val_start ));
-    
+
     return val_start * powf(val_end/val_start, t_start_to_cur/t_start_to_end);
 }
 
@@ -502,5 +502,3 @@ float itp::easeInOutCirc(float t, float b, float c, float d) {
 	t -= 2.0f;
 	return c/2.0f * (sqrtf(1.0f - t*t) + 1.0f) + b;
 }
-
-

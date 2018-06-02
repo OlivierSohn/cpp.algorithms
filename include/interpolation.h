@@ -66,6 +66,63 @@ namespace imajuscule
         static const float EXPO;
         static const float CIRC;
         
+        
+        static constexpr bool isValid( interpolation type )
+        {
+            switch(type)
+            {
+                default:
+                    return false;
+                case LINEAR:
+                    return true;
+                case PROPORTIONAL_VALUE_DERIVATIVE:
+                    return true;
+                case EASE_IN_QUAD:
+                    return true;
+                case EASE_IN_CUBIC:
+                    return true;
+                case EASE_IN_QUART:
+                    return true;
+                case EASE_IN_QUINT:
+                    return true;
+                case EASE_IN_SINE:
+                    return true;
+                case EASE_IN_EXPO:
+                    return true;
+                case EASE_IN_CIRC:
+                    return true;
+                case EASE_OUT_QUAD:
+                    return true;
+                case EASE_OUT_CUBIC:
+                    return true;
+                case EASE_OUT_QUART:
+                    return true;
+                case EASE_OUT_QUINT:
+                    return true;
+                case EASE_OUT_SINE:
+                    return true;
+                case EASE_OUT_EXPO:
+                    return true;
+                case EASE_OUT_CIRC:
+                    return true;
+                case EASE_INOUT_QUAD:
+                    return true;
+                case EASE_INOUT_CUBIC:
+                    return true;
+                case EASE_INOUT_QUART:
+                    return true;
+                case EASE_INOUT_QUINT:
+                    return true;
+                case EASE_INOUT_SINE:
+                    return true;
+                case EASE_INOUT_EXPO:
+                    return true;
+                case EASE_INOUT_CIRC:
+                    return true;
+            }
+            return false;
+        }
+        
         static const enumTraversal & interpolation_traversal();
 
         // returns true if value is an interpolation

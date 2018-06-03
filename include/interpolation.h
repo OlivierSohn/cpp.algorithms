@@ -124,15 +124,15 @@ namespace imajuscule
 
         // quadratic easing in - accelerating from zero velocity
 
-        static float easeInQuad(float t, float b, float c, float d);
+        static float easeInOrd2(float t, float b, float c, float d);
 
         // quadratic easing out - decelerating to zero velocity
 
-        static float easeOutQuad(float t, float b, float c, float d);
+        static float easeOutOrd2(float t, float b, float c, float d);
 
         // quadratic easing in/out - acceleration until halfway, then deceleration
 
-        static float easeInOutQuad(float t, float b, float c, float d);
+        static float easeInOutOrd2(float t, float b, float c, float d);
 
         // cubic easing in - accelerating from zero velocity
 
@@ -148,27 +148,27 @@ namespace imajuscule
 
         // quartic easing in - accelerating from zero velocity
 
-        static float easeInQuart(float t, float b, float c, float d);
+        static float easeInOrd4(float t, float b, float c, float d);
 
         // quartic easing out - decelerating to zero velocity
 
-        static float easeOutQuart(float t, float b, float c, float d);
+        static float easeOutOrd4(float t, float b, float c, float d);
 
         // quartic easing in/out - acceleration until halfway, then deceleration
 
-        static float easeInOutQuart(float t, float b, float c, float d);
+        static float easeInOutOrd4(float t, float b, float c, float d);
 
         // quintic easing in - accelerating from zero velocity
 
-        static float easeInQuint(float t, float b, float c, float d);
+        static float easeInOrd5(float t, float b, float c, float d);
 
         // quintic easing out - decelerating to zero velocity
 
-        static float easeOutQuint(float t, float b, float c, float d);
+        static float easeOutOrd5(float t, float b, float c, float d);
 
         // quintic easing in/out - acceleration until halfway, then deceleration
 
-        static float easeInOutQuint(float t, float b, float c, float d);
+        static float easeInOutOrd5(float t, float b, float c, float d);
 
         // sinusoidal easing in - accelerating from zero velocity
 

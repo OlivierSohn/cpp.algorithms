@@ -142,16 +142,16 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
             return proportional_value_derivative(t,b,c,d);
             break;
         case EASE_IN_QUAD:
-            return easeInQuad(t,b,c,d);
+            return easeInOrd2(t,b,c,d);
             break;
         case EASE_IN_CUBIC:
             return easeInOrd3(t,b,c,d);
             break;
         case EASE_IN_QUART:
-            return easeInQuart(t,b,c,d);
+            return easeInOrd4(t,b,c,d);
             break;
         case EASE_IN_QUINT:
-            return easeInQuint(t,b,c,d);
+            return easeInOrd5(t,b,c,d);
             break;
         case EASE_IN_SINE:
             return easeInSine(t,b,c,d);
@@ -163,16 +163,16 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
             return easeInCirc(t,b,c,d);
             break;
         case EASE_OUT_QUAD:
-            return easeOutQuad(t,b,c,d);
+            return easeOutOrd2(t,b,c,d);
             break;
         case EASE_OUT_CUBIC:
             return easeOutOrd3(t,b,c,d);
             break;
         case EASE_OUT_QUART:
-            return easeOutQuart(t,b,c,d);
+            return easeOutOrd4(t,b,c,d);
             break;
         case EASE_OUT_QUINT:
-            return easeOutQuint(t,b,c,d);
+            return easeOutOrd5(t,b,c,d);
             break;
         case EASE_OUT_SINE:
             return easeOutSine(t,b,c,d);
@@ -184,16 +184,16 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
             return easeOutCirc(t,b,c,d);
             break;
         case EASE_INOUT_QUAD:
-            return easeInOutQuad(t,b,c,d);
+            return easeInOutOrd2(t,b,c,d);
             break;
         case EASE_INOUT_CUBIC:
             return easeInOutOrd3(t,b,c,d);
             break;
         case EASE_INOUT_QUART:
-            return easeInOutQuart(t,b,c,d);
+            return easeInOutOrd4(t,b,c,d);
             break;
         case EASE_INOUT_QUINT:
-            return easeInOutQuint(t,b,c,d);
+            return easeInOutOrd5(t,b,c,d);
             break;
         case EASE_INOUT_SINE:
             return easeInOutSine(t,b,c,d);
@@ -226,7 +226,7 @@ float itp::linearTween(
 // quadratic easing In - accelerating from zero velocity
 
 
-float itp::easeInQuad(float t, float b, float c, float d) {
+float itp::easeInOrd2(float t, float b, float c, float d) {
 	t /= d;
 	return c*t*t + b;
 }
@@ -235,7 +235,7 @@ float itp::easeInQuad(float t, float b, float c, float d) {
 // quadratic easing Out - decelerating to zero velocity
 
 
-float itp::easeOutQuad(float t, float b, float c, float d) {
+float itp::easeOutOrd2(float t, float b, float c, float d) {
 	t /= d;
 	return -c * t*(t-2.0f) + b;
 }
@@ -245,7 +245,7 @@ float itp::easeOutQuad(float t, float b, float c, float d) {
 // quadratic easing In/Out - acceleration until halfway, then deceleration
 
 
-float itp::easeInOutQuad(float t, float b, float c, float d) {
+float itp::easeInOutOrd2(float t, float b, float c, float d) {
 	t /= d/2.0f;
 	if (t < 1.0f) return c/2.0f*t*t + b;
 	t--;
@@ -288,7 +288,7 @@ float itp::easeInOutOrd3(float t, float b, float c, float d) {
 // quartic easing In - accelerating from zero velocity
 
 
-float itp::easeInQuart(float t, float b, float c, float d) {
+float itp::easeInOrd4(float t, float b, float c, float d) {
 	t /= d;
 	return c*t*t*t*t + b;
 }
@@ -298,7 +298,7 @@ float itp::easeInQuart(float t, float b, float c, float d) {
 // quartic easing Out - decelerating to zero velocity
 
 
-float itp::easeOutQuart(float t, float b, float c, float d) {
+float itp::easeOutOrd4(float t, float b, float c, float d) {
 	t /= d;
 	t--;
 	return -c * (t*t*t*t - 1.0f) + b;
@@ -309,7 +309,7 @@ float itp::easeOutQuart(float t, float b, float c, float d) {
 // quartic easing In/Out - acceleration until halfway, then deceleration
 
 
-float itp::easeInOutQuart(float t, float b, float c, float d) {
+float itp::easeInOutOrd4(float t, float b, float c, float d) {
 	t /= d/2.0f;
 	if (t < 1.0f) return c/2.0f*t*t*t*t + b;
 	t -= 2.0f;
@@ -320,7 +320,7 @@ float itp::easeInOutQuart(float t, float b, float c, float d) {
 // quintic easing In - accelerating from zero velocity
 
 
-float itp::easeInQuint(float t, float b, float c, float d) {
+float itp::easeInOrd5(float t, float b, float c, float d) {
 	t /= d;
 	return c*t*t*t*t*t + b;
 }
@@ -330,7 +330,7 @@ float itp::easeInQuint(float t, float b, float c, float d) {
 // quintic easing Out - decelerating to zero velocity
 
 
-float itp::easeOutQuint(float t, float b, float c, float d) {
+float itp::easeOutOrd5(float t, float b, float c, float d) {
 	t /= d;
 	t--;
 	return c*(t*t*t*t*t + 1.0f) + b;
@@ -341,7 +341,7 @@ float itp::easeOutQuint(float t, float b, float c, float d) {
 // quintic easing In/Out - acceleration until halfway, then deceleration
 
 
-float itp::easeInOutQuint(float t, float b, float c, float d) {
+float itp::easeInOutOrd5(float t, float b, float c, float d) {
 	t /= d/2.0f;
 	if (t < 1.0f) return c/2.0f*t*t*t*t*t + b;
 	t -= 2.0f;

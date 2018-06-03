@@ -16,7 +16,7 @@ namespace imajuscule
             LINEAR = INTERPOLATION_LOWER_BOUND,
             PROPORTIONAL_VALUE_DERIVATIVE,
             EASE_IN_first_value,
-            EASE_IN_QUAD,
+            EASE_IN_QUAD, // = 3
             EASE_IN_CUBIC,
             EASE_IN_QUART,
             EASE_IN_QUINT,
@@ -25,7 +25,7 @@ namespace imajuscule
             EASE_IN_CIRC,
             EASE_IN_last_value,
             EASE_OUT_first_value,
-            EASE_OUT_QUAD,
+            EASE_OUT_QUAD, // = 12
             EASE_OUT_CUBIC,
             EASE_OUT_QUART,
             EASE_OUT_QUINT,
@@ -34,7 +34,7 @@ namespace imajuscule
             EASE_OUT_CIRC,
             EASE_OUT_last_value,
             EASE_INOUT_first_value,
-            EASE_INOUT_QUAD,
+            EASE_INOUT_QUAD, // = 21
             EASE_INOUT_CUBIC,
             EASE_INOUT_QUART,
             EASE_INOUT_QUINT,
@@ -67,65 +67,28 @@ namespace imajuscule
         static const float CIRC;
 
 
-        static constexpr bool isValid( interpolation type )
+        static constexpr bool intIsReal(int val)
         {
-            switch(type)
+            itp::interpolation itpVal = static_cast<itp::interpolation> (val);
+
+            switch (itpVal)
             {
-                default:
-                    return false;
-                case LINEAR:
-                    return true;
-                case PROPORTIONAL_VALUE_DERIVATIVE:
-                    return true;
-                case EASE_IN_QUAD:
-                    return true;
-                case EASE_IN_CUBIC:
-                    return true;
-                case EASE_IN_QUART:
-                    return true;
-                case EASE_IN_QUINT:
-                    return true;
-                case EASE_IN_SINE:
-                    return true;
-                case EASE_IN_EXPO:
-                    return true;
-                case EASE_IN_CIRC:
-                    return true;
-                case EASE_OUT_QUAD:
-                    return true;
-                case EASE_OUT_CUBIC:
-                    return true;
-                case EASE_OUT_QUART:
-                    return true;
-                case EASE_OUT_QUINT:
-                    return true;
-                case EASE_OUT_SINE:
-                    return true;
-                case EASE_OUT_EXPO:
-                    return true;
-                case EASE_OUT_CIRC:
-                    return true;
-                case EASE_INOUT_QUAD:
-                    return true;
-                case EASE_INOUT_CUBIC:
-                    return true;
-                case EASE_INOUT_QUART:
-                    return true;
-                case EASE_INOUT_QUINT:
-                    return true;
-                case EASE_INOUT_SINE:
-                    return true;
-                case EASE_INOUT_EXPO:
-                    return true;
-                case EASE_INOUT_CIRC:
-                    return true;
+            case EASE_IN_first_value:
+            case EASE_IN_last_value:
+            case EASE_OUT_first_value:
+            case EASE_OUT_last_value:
+            case EASE_INOUT_first_value:
+            case EASE_INOUT_last_value:
+                return false;
+            default:
+                return (val >= INTERPOLATION_LOWER_BOUND) && (val < INTERPOLATION_UPPER_BOUND);
             }
-            return false;
         }
 
+        // returns true if value is an interpolation
         static interpolation toItp(int i) {
           auto v = static_cast<interpolation>(i);
-          if (isValid(v)) {
+          if (intIsReal(v)) {
             return v;
           }
           Assert(0 && "interpolation is not valid");
@@ -134,8 +97,6 @@ namespace imajuscule
 
         static const enumTraversal & interpolation_traversal();
 
-        // returns true if value is an interpolation
-        static bool intIsReal(int val);
         static interpolation intToInterpolation(int val, bool & bReal);
         static const char * interpolationInfo(int);
 
@@ -175,15 +136,15 @@ namespace imajuscule
 
         // cubic easing in - accelerating from zero velocity
 
-        static float easeInCubic(float t, float b, float c, float d);
+        static float easeInOrd3(float t, float b, float c, float d);
 
         // cubic easing out - decelerating to zero velocity
 
-        static float easeOutCubic(float t, float b, float c, float d);
+        static float easeOutOrd3(float t, float b, float c, float d);
 
         // cubic easing in/out - acceleration until halfway, then deceleration
 
-        static float easeInOutCubic(float t, float b, float c, float d);
+        static float easeInOutOrd3(float t, float b, float c, float d);
 
         // quartic easing in - accelerating from zero velocity
 

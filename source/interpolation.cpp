@@ -42,24 +42,6 @@ const enumTraversal & itp::interpolation_traversal()
     return gInterpolationTraversal;
 }
 
-bool itp::intIsReal(int val)
-{
-    itp::interpolation itpVal = (itp::interpolation) val;
-
-    switch (itpVal)
-    {
-    case EASE_IN_first_value:
-    case EASE_IN_last_value:
-    case EASE_OUT_first_value:
-    case EASE_OUT_last_value:
-    case EASE_INOUT_first_value:
-    case EASE_INOUT_last_value:
-        return false;
-    default:
-        return (val >= INTERPOLATION_LOWER_BOUND) && (val < INTERPOLATION_UPPER_BOUND);
-    }
-}
-
 itp::interpolation itp::intToInterpolation(int val, bool & bReal)
 {
     auto iVal = safe_cast<itp::interpolation>(val);
@@ -82,7 +64,7 @@ const char * itp::interpolationInfo(int val)
         return "Ease In Quad";
         break;
     case EASE_IN_CUBIC:
-        return "Ease In Cubic";
+        return "Ease In Ord3";
         break;
     case EASE_IN_QUART:
         return "Ease In Quart";
@@ -103,7 +85,7 @@ const char * itp::interpolationInfo(int val)
         return "Ease Out Quad";
         break;
     case EASE_OUT_CUBIC:
-        return "Ease Out Cubic";
+        return "Ease Out Ord3";
         break;
     case EASE_OUT_QUART:
         return "Ease Out Quart";
@@ -124,7 +106,7 @@ const char * itp::interpolationInfo(int val)
         return "Ease InOut Quad";
         break;
     case EASE_INOUT_CUBIC:
-        return "Ease InOut Cubic";
+        return "Ease InOut Ord3";
         break;
     case EASE_INOUT_QUART:
         return "Ease InOut Quart";
@@ -163,7 +145,7 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
             return easeInQuad(t,b,c,d);
             break;
         case EASE_IN_CUBIC:
-            return easeInCubic(t,b,c,d);
+            return easeInOrd3(t,b,c,d);
             break;
         case EASE_IN_QUART:
             return easeInQuart(t,b,c,d);
@@ -184,7 +166,7 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
             return easeOutQuad(t,b,c,d);
             break;
         case EASE_OUT_CUBIC:
-            return easeOutCubic(t,b,c,d);
+            return easeOutOrd3(t,b,c,d);
             break;
         case EASE_OUT_QUART:
             return easeOutQuart(t,b,c,d);
@@ -205,7 +187,7 @@ float itp::interpolate( interpolation type, float t, float b, float c, float d)
             return easeInOutQuad(t,b,c,d);
             break;
         case EASE_INOUT_CUBIC:
-            return easeInOutCubic(t,b,c,d);
+            return easeInOutOrd3(t,b,c,d);
             break;
         case EASE_INOUT_QUART:
             return easeInOutQuart(t,b,c,d);
@@ -271,20 +253,20 @@ float itp::easeInOutQuad(float t, float b, float c, float d) {
 }
 
 
-// Cubic easing In - accelerating from zero velocity
+// Ord3 easing In - accelerating from zero velocity
 
 
-float itp::easeInCubic(float t, float b, float c, float d) {
+float itp::easeInOrd3(float t, float b, float c, float d) {
 	t /= d;
 	return c*t*t*t + b;
 }
 
 
 
-// Cubic easing Out - decelerating to zero velocity
+// Ord3 easing Out - decelerating to zero velocity
 
 
-float itp::easeOutCubic(float t, float b, float c, float d) {
+float itp::easeOutOrd3(float t, float b, float c, float d) {
 	t /= d;
 	t--;
 	return c*(t*t*t + 1.0f) + b;
@@ -292,10 +274,10 @@ float itp::easeOutCubic(float t, float b, float c, float d) {
 
 
 
-// Cubic easing In/Out - acceleration until halfway, then deceleration
+// Ord3 easing In/Out - acceleration until halfway, then deceleration
 
 
-float itp::easeInOutCubic(float t, float b, float c, float d) {
+float itp::easeInOutOrd3(float t, float b, float c, float d) {
 	t /= d/2.0f;
 	if (t < 1.0f) return c/2.0f*t*t*t + b;
 	t -= 2.0f;

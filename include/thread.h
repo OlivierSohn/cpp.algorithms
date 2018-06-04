@@ -9,24 +9,13 @@ namespace imajuscule
     namespace thread {
         void logSchedParams();
 
-        enum class Priority {
-            Max
-        };
-
-        static inline int toNumber(Priority p, int policy) {
-            if(p != Priority::Max) {
-                throw std::logic_error("unhandled priority");
-            }
-            return sched_get_priority_max(policy);
-        }
-
         struct PosixSchedParams {
             bool read();
             bool write() const;
 
-            void set(int policy, Priority priority) {
+            void setMaxPriority(int policy) {
                 this->policy = policy;
-                param.sched_priority = toNumber(priority, policy);
+                param.sched_priority = sched_get_priority_max(policy);
             }
 
             void log() const;
@@ -56,37 +45,51 @@ namespace imajuscule
 
         struct SchedParams {
             bool read() {
-                bool ok = posix.read();
 #if __APPLE__
-                ok = mach.read() && ok;
+                return mach.read();
+#else
+                return posix.read();
 #endif
-                return ok;
             }
 
             bool write() const {
-                bool ok = posix.write();
 #if __APPLE__
-                ok = mach.write() && ok;
+                return mach.write();
+#else
+                return posix.write();
 #endif
-                return ok;
             }
 
             void log() const {
-                posix.log();
 #if __APPLE__
                 mach.log();
+#else
+                posix.log();
 #endif
             }
 
-            PosixSchedParams posix;
 #if __APPLE__
             MachSchedParams mach;
+#else
+            PosixSchedParams posix;
 #endif
-        private:
         };
+        
+        static inline bool priorityIsReadOnly() {
+#if __APPLE__
+            return false;
+#else
+            SchedParams p;
+            if(!p.read()) {
+                return false;
+            }
+            p.posix.setMaxPriority(SCHED_RR);
+            return !p.write();
+#endif
+        }
 
-        struct ScopedPriorityChange {
-            ScopedPriorityChange(int policy, Priority priority) {
+        struct ScopedRTPriority {
+            ScopedRTPriority() {
                 using namespace std;
                 ok = prev.read();
                 if(!ok) {
@@ -99,18 +102,13 @@ namespace imajuscule
 #if __APPLE__
                 ok = cur.mach.setRealTime();
 #else
-                cur.posix.set(policy, priority);
+                cur.posix.setMaxPriority(SCHED_RR);
                 //cur.log(); // log Before switching to real time
                 ok = cur.write();
 #endif
-
-                if(!ok) {
-                    cerr << "could not set real time" << endl;
-                    return;
-                }
             }
 
-            ~ScopedPriorityChange() {
+            ~ScopedRTPriority() {
                 if(!ok) {
                     return;
                 }

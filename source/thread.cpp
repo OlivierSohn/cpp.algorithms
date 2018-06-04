@@ -176,7 +176,12 @@ namespace imajuscule
         bool PosixSchedParams::write() const {
             auto s = pthread_setschedparam(pthread_self(), policy, &param);
             if (s) {
-                handle_error(s, "pthread_setschedparam");
+                // we don't log here, because it leads to very redundant logs when user is not root.
+                // to handle that case, it is best to test this function on program start, and
+                // log, once only, that we don't have control over thread priorities.
+
+                //handle_error(s, "pthread_setschedparam");
+
                 return false;
             }
             return true;

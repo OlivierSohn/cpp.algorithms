@@ -7,12 +7,12 @@
 namespace imajuscule
 {
     namespace thread {
-        
+
         void handle_error(int en, const char * msg) {
             errno = en;
             perror(msg);
         }
-        
+
 #if __APPLE__
         bool MachSchedParams::read() {
              ok = true;
@@ -47,7 +47,7 @@ namespace imajuscule
              }*/
             return ok;
         }
-        
+
         bool MachSchedParams::setRealTime() {
             using namespace std;
 
@@ -59,7 +59,7 @@ namespace imajuscule
                 int ret;
                 int mib[2] = { CTL_HW, HW_BUS_FREQ };
                 size_t len;
-                
+
                 len = sizeof(bus_speed);
                 ret = sysctl (mib, 2, &bus_speed, &len, NULL, 0);
                 if (ret < 0) {
@@ -68,7 +68,7 @@ namespace imajuscule
                     return false;
                 }
             }
-            
+
             auto HZ = bus_speed;
             time_constraint_policy.period=0;
             time_constraint_policy.computation=HZ/500;
@@ -84,7 +84,7 @@ namespace imajuscule
             return true;
 #endif
         }
-        
+
         bool MachSchedParams::setNonRealTime() {
 #if TARGET_OS_IPHONE
             return false;
@@ -93,30 +93,30 @@ namespace imajuscule
             thread_standard_policy_data_t pt;
             mach_msg_type_number_t cnt = THREAD_STANDARD_POLICY_COUNT;
             boolean_t get_default = TRUE;
-            
+
             ret = thread_policy_get(pthread_mach_thread_np(pthread_self()),
                                     THREAD_STANDARD_POLICY,
                                     (thread_policy_t)&pt,
                                     &cnt, &get_default);
             if (KERN_SUCCESS != ret)
                 return false;
-            
+
             ret = thread_policy_set(pthread_mach_thread_np(pthread_self()),
                                     THREAD_STANDARD_POLICY,
                                     (thread_policy_t)&pt,
                                     THREAD_STANDARD_POLICY_COUNT);
             if (KERN_SUCCESS != ret)
                 return false;
-            
+
             return true;
 #endif
         }
-        
+
         bool MachSchedParams::write() const {
             /*
             using namespace std;
             thread_port_t threadport = pthread_mach_thread_np(pthread_self());
-            
+
             int ret;
             if(ext_default) {
                 if ((ret=thread_policy_set(threadport,
@@ -145,7 +145,7 @@ namespace imajuscule
              */
             return true;
         }
-        
+
         void MachSchedParams::log() const {
             /*
             using namespace std;
@@ -162,9 +162,9 @@ namespace imajuscule
              */
         }
 #endif
-        
+
         bool PosixSchedParams::read() {
-            
+
             auto s = pthread_getschedparam(pthread_self(), &policy, &param);
             if (s) {
                 handle_error(s, "pthread_getschedparam");
@@ -172,7 +172,7 @@ namespace imajuscule
             }
             return true;
         }
-        
+
         bool PosixSchedParams::write() const {
             auto s = pthread_setschedparam(pthread_self(), policy, &param);
             if (s) {
@@ -181,7 +181,7 @@ namespace imajuscule
             }
             return true;
         }
-        
+
         void PosixSchedParams::log() const {
             using namespace std;
             cout << "policy ";
@@ -204,7 +204,7 @@ namespace imajuscule
             << "priority " << param.sched_priority
             << " (" << sched_get_priority_min(policy) << " / " << sched_get_priority_max(policy) << ")" << endl;
         }
-        
+
         void logSchedParams() {
             SchedParams p;
             bool ok = p.read();

@@ -561,7 +561,7 @@ namespace imajuscule
      *   when 'H < A':
      *     worst audio callback call ... O( A * lg(H) )    (= A/H * O( H * lg(H) ))
      *
-     *   when 'A < H ':
+     *   when 'A < H ':
      *     worst audio callback call ... O( H * lg(H) )
      *
      * optimization : H and A are fixed so we cannot optimize this algorithm
@@ -579,7 +579,7 @@ namespace imajuscule
      *   with 'PART_L < A':
      *     worst audio callback call ... O(     A  * (part_N + lg(PART_L)) )       (= A/PART_L *  O( PART_L * (PART_N + lg(PART_L) ) )
      *
-     *   with 'A < PART_L ' 
+     *   with 'A < PART_L ' 
      *     worst audio callback call ... O( PART_L * (PART_N + lg(PART_L) ) )
      *                                 = O( PART_L * (H/PART_L + lg(PART_L) ) )
      *                                 = O( H + PART_L * lg(PART_L) ) )

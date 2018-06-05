@@ -114,7 +114,7 @@ namespace imajuscule {
                         }
                     }));
                     
-                    //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
+                    //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
                     times.push_back( t );
                 }
                 return std::move(times);
@@ -159,7 +159,7 @@ namespace imajuscule {
                         }
                     }));
                     
-                    //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
+                    //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
                     times.push_back( t );
                 }
                 return std::move(times);

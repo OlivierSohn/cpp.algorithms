@@ -158,7 +158,7 @@ namespace imajuscule
             if(time_constraint_default) {
                 cout << "time constraint";
             }
-            cout << endl;
+            cout << endl;
              */
         }
 #endif

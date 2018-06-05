@@ -4,21 +4,19 @@ using namespace imajuscule;
 namespace imajuscule {
     namespace freelist {
         template<typename FREELIST>
-        void test() {
+        void testNoSublists() {
             auto size = FREELIST::size;
             std::vector<typename FREELIST::value_type*> values;
-            
+
             FREELIST l;
             for(size_t i=0; i<size; ++i) {
                 auto p = l.Take();
                 ASSERT_NE(nullptr, p);
                 values.push_back(p);
             }
-            // when the free list is full we cannot take more :
-            ASSERT_EQ(nullptr, l.Take());
-            
-            
-            // when the free list is full and one element is returned,
+            // the main free list is full, the next call to Take would allocate a sub freeList.
+
+            // when the main free list is full and one element is returned,
             // the next element taken is the returned element :
             for(int i=0; i<values.size(); ++i) {
                 auto ret = values[i];
@@ -27,16 +25,51 @@ namespace imajuscule {
                 ASSERT_EQ(ret, p);
             }
         }
+
+        template<typename FREELIST>
+        void testSublists() {
+            auto size = FREELIST::size;
+            std::vector<typename FREELIST::value_type*> values;
+
+            FREELIST l;
+            for(size_t i=0; i<4*size; ++i) {
+                auto p = l.Take();
+                ASSERT_NE(nullptr, p);
+                values.push_back(p);
+            }
+
+            auto prevValues = values;
+
+
+            // return all values, in random order:
+            Shuffle(values);
+            for(int i=0; i<values.size(); ++i) {
+                l.Return(ret);
+            }
+
+            // by now the free list is empty.
+
+            std::vector<typename FREELIST::value_type*> newValues;
+
+            FREELIST l;
+            for(size_t i=0; i<4*size; ++i) {
+                newValues.push_back(l.Take());
+            }
+
+            // verify that taking the values again will give the same results (modulo sorting):
+            EXPECT_EQ(StdSort(values), StdSort(newValues));
+        }
     }
 }
 
 TEST(FreeList, simple) {
     using namespace imajuscule::freelist;
-    constexpr auto size = 4;
-    
-    test<FreeList<double, size, void*>>();
-    test<FreeList<uint16_t, size, uint16_t>>();
-    test<FreeList<int, size, uint16_t>>();
+    constexpr auto size = 400;
+
+    testNoSublists<FreeList<double, size, void*>>();
+    testNoSublists<FreeList<uint16_t, size, uint16_t>>();
+    testNoSublists<FreeList<int, size, uint16_t>>();
+    testSublists<FreeList<double, size, void*>>();
+    testSublists<FreeList<uint16_t, size, uint16_t>>();
+    testSublists<FreeList<int, size, uint16_t>>();
 }
-
-

@@ -90,6 +90,7 @@
 #include "logging.h"
 #include "log.stack.h"
 #include "optional.h"
+#include "fifo1.hpp"
 #include "object.h"
 #include "safe_cast.hpp"
 #include "gen.names.h"

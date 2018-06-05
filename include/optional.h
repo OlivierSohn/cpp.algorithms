@@ -11,9 +11,24 @@ namespace imajuscule
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
+  namespace optional_ns =
+  #if __has_include(<optional>)
+        std;
+  #elif __has_include(<experimental/optional>)
+        std::experimental;
+  #else
+  #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
+  #endif
+
   // inspired from https://stackoverflow.com/questions/44217316/how-do-i-use-stdoptional-in-c
   template<typename T>
   T const& get_value(Optional<T>const &opt)
+  {
+      Assert(opt);
+      return *opt;
+  }
+  template<typename T>
+  T & get_value(Optional<T>&opt)
   {
       Assert(opt);
       return *opt;

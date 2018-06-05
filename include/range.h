@@ -257,7 +257,7 @@ namespace imajuscule
                     val -= avg_;
                     auto span = halfSpan_ - val;
                     if( span < 0.f ) {
-                        // newMin > oldMax
+                        // newMin > oldMax
                         set( val );
                     } else {
                         auto diffMin = val + halfSpan_;
@@ -278,7 +278,7 @@ namespace imajuscule
                     val -= avg_;
                     auto span = val + halfSpan_;
                     if( span < 0.f ) {
-                        // newMax < oldMin
+                        // newMax < oldMin
                         set( val );
                     } else {
                         auto diffMax = val - halfSpan_;

@@ -10,6 +10,7 @@
 
 #include <thread>
 
+#include "test_fifo.cpp"
 #include "test_fifo1.cpp"
 #include "test_angles.cpp"
 #include "test_rng.cpp"

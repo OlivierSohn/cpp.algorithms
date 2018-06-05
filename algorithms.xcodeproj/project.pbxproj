@@ -221,6 +221,8 @@
 		09F1577C20C6AA2500662939 /* fifo1.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo1.hpp; path = include/fifo1.hpp; sourceTree = "<group>"; };
 		09F1577D20C6AA3C00662939 /* test_fifo1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo1.cpp; path = test/test_fifo1.cpp; sourceTree = "<group>"; };
 		09F1577F20C6ABD200662939 /* os.log.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = os.log.xcodeproj; path = ../cpp.os.logs/os.log.xcodeproj; sourceTree = "<group>"; };
+		09F1578E20C6B7B900662939 /* fifo.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.hpp; path = include/fifo.hpp; sourceTree = "<group>"; };
+		09F1578F20C6C28000662939 /* test_fifo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo.cpp; path = test/test_fifo.cpp; sourceTree = "<group>"; };
 		09FC7DEA20BAD5910037B04C /* gen.names.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gen.names.h; path = include/gen.names.h; sourceTree = "<group>"; };
 		09FC7DEB20BAD5910037B04C /* logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logger.h; path = include/logger.h; sourceTree = "<group>"; };
 		09FC7DEC20BAD5910037B04C /* log.stack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = log.stack.h; path = include/log.stack.h; sourceTree = "<group>"; };
@@ -384,6 +386,7 @@
 				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
 				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
+				09F1578F20C6C28000662939 /* test_fifo.cpp */,
 				09F1577D20C6AA3C00662939 /* test_fifo1.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
 				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
@@ -431,6 +434,7 @@
 				09A2EC2D1EA2F77500D94138 /* fft.impl.imj.hpp */,
 				09A2EC2B1EA2F1FE00D94138 /* fft.interface.hpp */,
 				092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */,
+				09F1578E20C6B7B900662939 /* fifo.hpp */,
 				09F1577C20C6AA2500662939 /* fifo1.hpp */,
 				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,

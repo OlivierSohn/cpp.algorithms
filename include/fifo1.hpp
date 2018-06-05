@@ -16,6 +16,11 @@ namespace imajuscule {
     */
     template< typename T >
     struct fifo1 {
+      
+      void reset() {
+        v = {};
+      }
+      
       T & front() {
         return get_value(v);
       }

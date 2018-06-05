@@ -88,46 +88,66 @@ namespace imajuscule
 #endif
         }
 
-        struct ScopedRTPriority {
-            ScopedRTPriority() {
-                using namespace std;
-                ok = prev.read();
-                if(!ok) {
-                    cerr << "could not get priority" << endl;
-                    return;
-                }
-                //prev.log();
-                cur = prev;
-
-#if __APPLE__
-                ok = cur.mach.setRealTime();
-#else
-                cur.posix.setMaxPriority(SCHED_RR);
-                //cur.log(); // log Before switching to real time
-                ok = cur.write();
+      struct CtrlRTPriority {
+        CtrlRTPriority() {
+          using namespace std;
+          ok = prev.read();
+          if(!ok) {
+            cerr << "could not get priority" << endl;
+            return;
+          }
+          cur = prev;
+#ifndef __APPLE__
+          cur.posix.setMaxPriority(SCHED_RR);
 #endif
-            }
-
-            ~ScopedRTPriority() {
-                if(!ok) {
-                    return;
-                }
+        }
+        
+        void lock() {
+          if(!ok) {
+            return;
+          }
 #if __APPLE__
-                if(!prev.mach.setNonRealTime()) {
-                    std::cerr << "could not set non realtime" << std::endl;
-                }
+          ok = cur.mach.setRealTime();
 #else
-                if(!prev.write()) {
-                    std::cerr << "could not set previous priority" << std::endl;
-                    return;
-                }
+          ok = cur.write();
 #endif
-                //prev.log();
-            }
+        }
+        
+        void unlock() {
+          if(!ok) {
+            return;
+          }
+#if __APPLE__
+          ok = prev.mach.setNonRealTime();
+          if(!ok) {
+            std::cerr << "could not set non realtime" << std::endl;
+          }
+#else
+          ok = prev.write();
+          if(!ok) {
+            std::cerr << "could not set previous priority" << std::endl;
+          }
+#endif
+        }
+        
+      private:
+        bool ok;
+        SchedParams prev, cur;
+      };
 
-        private:
-            bool ok;
-            SchedParams prev, cur;
-        };
+
+      struct ScopedRTPriority {
+        ScopedRTPriority() {
+          ctrl.lock();
+        }
+        
+        ~ScopedRTPriority() {
+          ctrl.unlock();
+        }
+        
+      private:
+        CtrlRTPriority ctrl;
+      };
+      
     }
 }

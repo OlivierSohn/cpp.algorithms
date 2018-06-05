@@ -96,6 +96,7 @@
 #include "gen.names.h"
 #include "available_indexes.hpp"
 #include "cyclic.h"
+#include "fifo.hpp"
 #include "slidingsum.h"
 #include "slidingaverage.h"
 #include "meta.hpp"

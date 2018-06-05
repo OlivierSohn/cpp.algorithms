@@ -5,7 +5,7 @@ namespace imajuscule {
     namespace freelist {
         template<typename FREELIST>
         void testNoSublists() {
-            auto size = FREELIST::size;
+            auto size = FREELIST::sizeBlock;
             std::vector<typename FREELIST::value_type*> values;
 
             FREELIST l;
@@ -28,7 +28,7 @@ namespace imajuscule {
 
         template<typename FREELIST>
         void testSublists() {
-            auto size = FREELIST::size;
+            auto size = FREELIST::sizeBlock;
             std::vector<typename FREELIST::value_type*> values;
 
             FREELIST l;
@@ -44,20 +44,22 @@ namespace imajuscule {
             // return all values, in random order:
             Shuffle(values);
             for(int i=0; i<values.size(); ++i) {
-                l.Return(ret);
+                l.Return(values[i]);
             }
 
             // by now the free list is empty.
 
             std::vector<typename FREELIST::value_type*> newValues;
 
-            FREELIST l;
             for(size_t i=0; i<4*size; ++i) {
                 newValues.push_back(l.Take());
             }
+            
+            StdSort(values);
+            StdSort(newValues);
 
             // verify that taking the values again will give the same results (modulo sorting):
-            EXPECT_EQ(StdSort(values), StdSort(newValues));
+            EXPECT_EQ(values, newValues);
         }
     }
 }

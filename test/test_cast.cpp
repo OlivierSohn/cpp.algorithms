@@ -8,21 +8,21 @@ TEST(Cast, safe_cast) {
         ASSERT_EQ(3, j);
     }
     {
-        struct C {
-            virtual ~C() = default;
+        struct C_ {
+            virtual ~C_() = default;
         };
 
-        struct D: public C {
+        struct D: public C_ {
         };
         
-        C c;
+        C_ c;
         
         // cast to references
         {
-            auto c1 = dynamic_cast<C&>(c);
+            auto c1 = dynamic_cast<C_&>(c);
         }
         {
-            auto c1 = safe_cast<C&>(c);
+            auto c1 = safe_cast<C_&>(c);
         }
         {
             ASSERT_THROW(auto c_as_D = dynamic_cast<D&>(c), std::bad_cast);
@@ -36,22 +36,22 @@ TEST(Cast, safe_cast) {
         
         // cast to pointers, from null
         {
-            C*null_c = nullptr;
+            C_*null_c = nullptr;
 #ifndef NDEBUG
-            EXPECT_DEBUG_ASSERT(safe_cast<C*>(null_c));
+            EXPECT_DEBUG_ASSERT(safe_cast<C_*>(null_c));
 #else
             // in release, safe_cast is a safe_cast
-            auto ptr_c = safe_cast<C*>(null_c);
+            auto ptr_c = safe_cast<C_*>(null_c);
             ASSERT_EQ(nullptr, ptr_c);
 #endif
         }
         {
             void* null_void = nullptr;
 #ifndef NDEBUG
-            EXPECT_DEBUG_ASSERT(safe_cast<C*>(null_void));
+            EXPECT_DEBUG_ASSERT(safe_cast<C_*>(null_void));
 #else
             // in release, safe_cast is a safe_cast
-            auto ptr_c = safe_cast<C*>(null_void);
+            auto ptr_c = safe_cast<C_*>(null_void);
             ASSERT_EQ(nullptr, ptr_c);
 #endif
 
@@ -59,11 +59,11 @@ TEST(Cast, safe_cast) {
         
         // cast to pointers, from non-null
         {
-            auto ptr_c = dynamic_cast<C*>(&c);
+            auto ptr_c = dynamic_cast<C_*>(&c);
             ASSERT_NE(nullptr, ptr_c);
         }
         {
-            auto ptr_c = safe_cast<C*>(&c);
+            auto ptr_c = safe_cast<C_*>(&c);
             ASSERT_NE(nullptr, ptr_c);
         }
         

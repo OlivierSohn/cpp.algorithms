@@ -1,6 +1,6 @@
 
 
-TEST(SlidingAverage, test) {
+TEST(Fifo1, test) {
     using namespace imajuscule;
     fifo1<int> f;
     EXPECT_TRUE(f.empty());

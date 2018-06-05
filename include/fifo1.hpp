@@ -67,6 +67,11 @@ namespace imajuscule {
       }
 
     private:
+      // using an optional because: (http://en.cppreference.com/w/cpp/utility/optional)
+      //
+      // If an optional<T> contains a value, the value is guaranteed to be allocated
+      // as part of the optional object footprint, i.e. no dynamic memory allocation
+      // ever takes place.
       Optional<T> v;
     };
 

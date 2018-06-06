@@ -11,14 +11,19 @@ namespace imajuscule {
 #define COUT_TYPE(x) std::string str_##x; TYPE_TO_STR(x, str_##x); debugging::simplifySymbol(str_##x); std::cout << str_##x;
     
     std::string demangle(const char * type_name, bool remove_namespace = true);
-    
+  
     template<typename T>
     struct type_to_string
     {
         template<typename U>
         std::string operator()(void(*)(U))
         {
-            return demangle(typeid(U).name(), false);
+// TODO support all compilers, see GTEST_HAS_RTTI in gtest-port.h
+#ifdef __GXX_RTTI
+          return demangle(typeid(U).name(), false);
+#else
+          return "no-rtti";
+#endif
         }
     };
 }

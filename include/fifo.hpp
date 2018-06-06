@@ -22,17 +22,18 @@ namespace imajuscule {
     template< typename T >
     struct fifo {
       using container = std::vector<T>;
+      using value_type = typename container::value_type;
       using iterator = typename container::iterator;
-      
+
       static constexpr auto min_capacity = 1;
-      
+
       fifo(int initialCapacity = 10) {
         // we must have at least one element in the vector so that full() has a valid implementation.
         int capacity = 1 + std::max(0, initialCapacity);
         v.resize(capacity);
         read = write = v.begin();
       }
-      
+
       /*
        * It is very important that this function doesn't free or allocate any memory.
        */
@@ -106,9 +107,9 @@ namespace imajuscule {
           }
           return v.size() - std::distance(write, read);
       }
-      
-      std::size_t underlying_container_capacity() const { return v.capacity(); }
-      
+
+      int32_t underlyingContainerCapacity() const { return v.capacity(); }
+
       /*
        * Before calling this method, please make sure the fifo is not full.
        *
@@ -135,21 +136,22 @@ namespace imajuscule {
         std::swap(read, other.read);
         std::swap(write, other.write);
       }
-      
-      /*
-       * The original storage will be returned in c.
-       *
-       * If the vector passed as parameter has not a bigger capacity than the current vector, the function does nothing.
-       */
-      void swapStorage(container & c) {
 
-        Assert(c.capacity() > v.capacity());
+      /*
+       * This method will swap the underlying container if the passed container has
+       * a strictly bigger capacity than the original one.
+       *
+       * @Returns true if the swap has been done, false otherwise.
+       *
+       * If the swap was done, the original storage is returned in c.
+       */
+      bool trySwapUnderlyingContainer(container & c) {
         Assert(c.size() == 0);
-        
+
         if(c.capacity() <= v.capacity()) {
-          return;
+          return false;
         }
-        
+
         // move the elements to the new container
         if(read <= write) {
           std::move(read,write,std::back_insert_iterator(c));
@@ -163,11 +165,12 @@ namespace imajuscule {
         Assert(write < c.end()); // because c.capacity() > v.capacity()
         read = c.begin();
         std::swap(c,v);
+        return true;
       }
 
     private:
       iterator read, write;
-        
+
       container v;
 
       void inc (iterator&i) {
@@ -177,68 +180,6 @@ namespace imajuscule {
         }
       }
     };
-  
-  namespace detail {
-    /*
-     * In a multiple-producers / multiple consumers context, the non-const
-     * queue methods will be protected by a lock.
-     */
-    template<typename T, typename Lock>
-    void makeSomeRoom(int n, std::size_t cap1, fifo<T> & q, Lock & l)
-    {
-      {
-        static constexpr auto growth_factor = 2;
-        std::vector<T> newStorage;
-        
-        // allocation happens outside the lock scope:
-        newStorage.reserve(std::min(cap1 + 1, growth_factor * cap1));
-        
-        l.lock();
-        
-        auto cap2 = q.underlying_container_capacity();
-        
-        if(newStorage.capacity() > cap2) {
-          q.swapStorage(newStorage);
-        }
-
-        l.unlock();
-
-        // deallocation happens outside the lock scope:
-        newStorage = std::vector<T>{}; // we make vector desctruction explicit for clarity but removing this line is just as good.
-      }
-      
-      l.lock();
-
-      if(auto amount = q.shouldGrow(n)) {
-        auto cap3 = q.underlying_container_capacity();
-        l.unlock();
-        
-        makeSomeRoom(n, cap3+amount, q, l);
-      }
-    }
-  }
-
-  /*
-   * Reallocates, if needed, the underlying container of the queue so that 'n'
-   * additional elements can be pushed. When this function returns, the lock 'l'
-   * is being taken, hence it will be safe to add the elements right after this call,
-   * and then the caller should release the lock.
-   *
-   * 'n' : the number of elements that we want to be able to add to the queue.
-   */
-  template<typename T, typename Lock>
-  void reserveAndLock(int n, fifo<T> & q, Lock & l) {
-    l.lock();
-    
-    if(auto amount = q.shouldGrow(n)) {
-      auto cap1 = q.underlying_container_capacity();
-      
-      l.unlock();
-      
-      detail::makeSomeRoom(n, cap1+amount, q, l);
-      // the lock was taken by the previous call.
-    }
-  }
 
   /*
    * Adds an element to the fifo queue (using emplace) after having made sure
@@ -254,7 +195,7 @@ namespace imajuscule {
   template<typename T, typename Lock>
   void safeEmplace(fifo<T> & q, Lock & l, T && v) {
     reserveAndLock(1,q,l);
-    
+
     q.emplace(std::move(v));
 
     l.unlock();

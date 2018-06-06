@@ -89,6 +89,7 @@
 #include "indentedStream.h"
 #include "logging.h"
 #include "log.stack.h"
+#include "container.hpp"
 #include "optional.h"
 #include "fifo1.hpp"
 #include "object.h"

@@ -97,7 +97,7 @@ TEST(Fifo, testMultipleEltSimple) {
   
   EXPECT_TRUE(f.full());
   
-  f.swapStorage(s);
+  f.trySwapUnderlyingContainer(s);
   
   EXPECT_FALSE(f.full());
   
@@ -174,7 +174,7 @@ TEST(Fifo, testMultipleEltConsumeInbetween) {
   
   EXPECT_TRUE(f.full());
   
-  f.swapStorage(s);
+  f.trySwapUnderlyingContainer(s);
   
   EXPECT_FALSE(f.full());
   

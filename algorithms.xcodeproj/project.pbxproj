@@ -87,6 +87,7 @@
 
 /* Begin PBXFileReference section */
 		090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS10.2.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		0910E37E20C823850094EE76 /* container.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = container.hpp; path = include/container.hpp; sourceTree = "<group>"; };
 		0912152A1E0861CB00B860CB /* measure_containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = measure_containers.cpp; path = test/measure_containers.cpp; sourceTree = "<group>"; };
 		0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = allocator.adaptive_stack.hpp; path = include/allocator.adaptive_stack.hpp; sourceTree = "<group>"; };
 		0912152D1E096DD900B860CB /* pool.adaptive_stack.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = pool.adaptive_stack.h; path = include/pool.adaptive_stack.h; sourceTree = "<group>"; };
@@ -410,6 +411,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				0910E37E20C823850094EE76 /* container.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,

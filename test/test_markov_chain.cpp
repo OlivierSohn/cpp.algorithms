@@ -9,9 +9,9 @@ TEST(MarkovChain_, one_node) {
     int n = 0;
     int balance = 0;
     
-    auto unique_node = mc.emplace([&](Move const m, MarkovNode&me, MarkovNode&from_to){
+    auto unique_node = mc.emplace([&](MarkovMove const m, MarkovNode&me, MarkovNode&from_to){
         ++n;
-        if(m==Move::ENTER) {
+        if(m==MarkovMove::ENTER_NODE) {
             balance++;
         }
         else {
@@ -44,10 +44,10 @@ TEST(MarkovChain_, two_nodes) {
     MarkovChain mc;
     
     auto n = 0;
-    auto node1 = mc.emplace([&](Move const m, MarkovNode&me, MarkovNode&from_to){
+    auto node1 = mc.emplace([&](MarkovMove const m, MarkovNode&me, MarkovNode&from_to){
         ++n;
     });
-    auto node2 = mc.emplace([&](Move const m, MarkovNode&me, MarkovNode&from_to){
+    auto node2 = mc.emplace([&](MarkovMove const m, MarkovNode&me, MarkovNode&from_to){
     });
 
     constexpr auto transition_p = 0.1f;

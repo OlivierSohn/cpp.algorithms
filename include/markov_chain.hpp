@@ -1,14 +1,12 @@
 namespace imajuscule {
 
-  enum class Move {
-        CREATE,
-        DELETE,
-        ENTER,
-        LEAVE
+  enum class MarkovMove {
+        ENTER_NODE,
+        LEAVE_NODE
     };
     
     struct MarkovNode {
-        using f = std::function<void(Move, MarkovNode&me, MarkovNode&from_to)>;
+        using f = std::function<void(MarkovMove, MarkovNode&me, MarkovNode&from_to)>;
 
         MarkovNode(f func) : on_state_change(std::move(func)) {}
 
@@ -85,8 +83,8 @@ namespace imajuscule {
             }
             assert(to);
             if(exec == ExecuteLambdas::Yes) {
-                current->on_state_change(Move::LEAVE, *current, *to);
-                to->on_state_change(Move::ENTER, *to, *current);
+                current->on_state_change(MarkovMove::LEAVE_NODE, *current, *to);
+                to->on_state_change(MarkovMove::ENTER_NODE, *to, *current);
             }
             current = to;
             return current;

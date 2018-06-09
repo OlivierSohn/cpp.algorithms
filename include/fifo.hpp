@@ -127,11 +127,7 @@ namespace imajuscule {
         inc(read);
       }
 
-      void swap( fifo& other )
-        noexcept (
-          std::is_nothrow_swappable<container>::value &&
-          std::is_nothrow_swappable<iterator>::value
-                 ) {
+      void swap( fifo& other ) noexcept {
         std::swap(v, other.v);
         std::swap(read, other.read);
         std::swap(write, other.write);

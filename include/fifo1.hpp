@@ -67,7 +67,7 @@ namespace imajuscule {
         v = {};
       }
 
-      void swap( fifo1& other ) noexcept(std::is_nothrow_swappable<T>::value) {
+      void swap( fifo1& other ) noexcept {
         std::swap(v, other.v);
       }
 

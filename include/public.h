@@ -80,6 +80,10 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
+#define  _USE_MATH_DEFINES
+#include "math.h" // M_PI
+
+
 #include "../../cpp.os.logs/include/public.h"
 
 #include "imj.assert.h"

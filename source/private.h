@@ -6,5 +6,7 @@
 
 #include "../include/public.h"
 
-#include <execinfo.h>
-#include <cxxabi.h>
+#ifndef _WIN32
+#  include <execinfo.h>
+#  include <cxxabi.h>
+#endif

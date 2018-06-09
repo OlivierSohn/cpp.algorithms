@@ -6,7 +6,19 @@
 
 #include "../include/public.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#  include <process.h>
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <Windows.h>
+#  include "dbghelp.h"
+#  pragma comment(lib, "Dbghelp.lib")
+#  include <cstdlib>
+#  include <stdio.h>
+#  include <stdlib.h>
+#  include <unistd.h>
+#else
 #  include <execinfo.h>
 #  include <cxxabi.h>
 #endif

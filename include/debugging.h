@@ -24,8 +24,7 @@ namespace imajuscule
 
 #ifndef _WIN32
         std::vector<std::string> getProgramStack(int n_removed = 0);
-#endif
-        
+      
         template<typename T>
         struct DumpObjectsOrigins {
             void add(T*o) {
@@ -68,5 +67,7 @@ namespace imajuscule
                 }
             }
         };        
+#endif
+
     }
 }

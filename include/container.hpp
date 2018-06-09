@@ -113,7 +113,7 @@ namespace imajuscule {
       }
 
       // move the elements to the new container
-      std::move(v.begin(),v.end(),std::back_insert_iterator(c));
+      std::move(v.begin(),v.end(),std::back_insert_iterator<container>(c));
       std::swap(c,v);
       return true;
     }

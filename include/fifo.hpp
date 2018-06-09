@@ -154,11 +154,11 @@ namespace imajuscule {
 
         // move the elements to the new container
         if(read <= write) {
-          std::move(read,write,std::back_insert_iterator(c));
+          std::move(read,write,std::back_insert_iterator<container>(c));
         }
         else {
-          std::move(read,v.end(),std::back_insert_iterator(c));
-          std::move(v.begin(),write,std::back_insert_iterator(c));
+          std::move(read,v.end(),std::back_insert_iterator<container>(c));
+          std::move(v.begin(),write,std::back_insert_iterator<container>(c));
         }
         write = c.end();
         c.resize(c.capacity());

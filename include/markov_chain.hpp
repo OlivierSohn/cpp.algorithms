@@ -17,8 +17,8 @@ namespace imajuscule {
     };
     
     /*
-     * a markov chain where each node has a probability to transition towards a neighbour,
-     * and a lambda to let the user program stuff during transitions
+     * A markov chain where each node has a probability to transition towards a neighbour,
+     * and a lambda executed on transitions.
      */
     
     enum Probabilities {

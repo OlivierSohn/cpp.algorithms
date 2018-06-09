@@ -47,18 +47,23 @@ namespace imajuscule {
                 return nullptr;
             }
             
-            void* ptr = nullptr;
-            int rc = posix_memalign(&ptr, align, size);
-            
-            if (rc != 0) {
-                return nullptr;
+          void* ptr;
+#ifndef _WIN32
+            if (int rc = posix_memalign(&ptr, align, size)) {
+                ptr = nullptr;
             }
-            
+#else
+            _aligned_malloc(size,align);
+#endif
             return ptr;
         }
 
         static inline void deallocate_aligned_memory(void* ptr) noexcept {
-            return free(ptr);
+#ifndef _WIN32
+          return free(ptr);
+#else
+          return _aligned_free(ptr);
+#endif
         }
     }
     

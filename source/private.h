@@ -19,6 +19,10 @@
 #  include <stdlib.h>
 #  include <unistd.h>
 #else
+#  include <dirent.h>
+#  include <sys/types.h>
+#  include <unistd.h>
+#  include <pwd.h>
 #  include <execinfo.h>
 #  include <cxxabi.h>
 #endif

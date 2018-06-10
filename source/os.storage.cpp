@@ -338,11 +338,7 @@ int WritableStorage::FlushData()
 }
 
 namespace imajuscule {
-    
-    DirectoryPath DirectoryPath::root() {
-        return Platform::user_path() + "grid3d";
-    }
-    
+        
     namespace StorageStuff {
     const char * FileOperationToString(WritableStorage::FileMode op)
     {

@@ -14,6 +14,7 @@
 #  include <Windows.h>
 #  include "dbghelp.h"
 #  pragma comment(lib, "Dbghelp.lib")
+#  include <strsafe.h>      // for StringCchPrintfW
 #  include <cstdlib>
 #  include <stdio.h>
 #  include <stdlib.h>

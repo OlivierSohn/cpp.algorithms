@@ -26,3 +26,5 @@
 #  include <execinfo.h>
 #  include <cxxabi.h>
 #endif
+
+#include <sys/stat.h>

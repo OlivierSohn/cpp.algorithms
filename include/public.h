@@ -8,6 +8,7 @@
 
 #define  _USE_MATH_DEFINES
 #include "math.h" // M_PI
+#include <cmath>
 
 #ifdef _WIN32
 #  ifndef NOMINMAX

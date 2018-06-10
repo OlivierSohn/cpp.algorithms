@@ -1,9 +1,3 @@
-/* Copyright (C) Olivier Sohn - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
- */
-
 namespace imajuscule
 {
     struct tm * getTime() {
@@ -20,4 +14,14 @@ namespace imajuscule
 #endif
         return pTime;
     }
+  
+  void ReplaceStringInPlace(std::string& subject, const std::string& search,
+                            const std::string& replace) {
+    size_t pos = 0;
+    while ((pos = subject.find(search, pos)) != std::string::npos) {
+      subject.replace(pos, search.length(), replace);
+      pos += replace.length();
+    }
+  }
+
 }

@@ -178,6 +178,8 @@
 		098DC8BE1F65AE3000C5A8B2 /* matrix.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = matrix.hpp; path = include/matrix.hpp; sourceTree = "<group>"; };
 		098DC8EE1F65B55500C5A8B2 /* color.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = color.cpp; path = source/color.cpp; sourceTree = "<group>"; };
 		098DC8EF1F65B56200C5A8B2 /* color.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = color.h; path = include/color.h; sourceTree = "<group>"; };
+		0993AE5920CDA5E900E2AE89 /* os.storage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = os.storage.cpp; path = source/os.storage.cpp; sourceTree = "<group>"; };
+		0993AE5A20CDA5EA00E2AE89 /* file2string.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = file2string.cpp; path = source/file2string.cpp; sourceTree = "<group>"; };
 		099467E71ED062C000375322 /* scoped.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scoped.h; path = include/scoped.h; sourceTree = "<group>"; };
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
@@ -293,11 +295,13 @@
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
+				0993AE5A20CDA5EA00E2AE89 /* file2string.cpp */,
 				09F1577920C6AA0300662939 /* gen.names.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 				09C257991EEB028400608C56 /* indentedStream.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
 				09FC7DEE20BAD5A50037B04C /* log.stack.cpp */,
+				0993AE5920CDA5E900E2AE89 /* os.storage.cpp */,
 				0912152F1E09941800B860CB /* pool.adaptive_stack.cpp */,
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,

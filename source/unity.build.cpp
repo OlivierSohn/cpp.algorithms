@@ -34,3 +34,5 @@ namespace imajuscule {
 #include "indentedStream.cpp"
 #include "color.cpp"
 #include "gen.names.cpp"
+#include "os.storage.cpp"
+#include "file2string.cpp"

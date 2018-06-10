@@ -118,6 +118,9 @@ namespace imajuscule
     T lines(Args... args) {
         return {{ (std::string(args) + '\n') }...};
     }
+  
+  void ReplaceStringInPlace(std::string& subject, const std::string& search,
+                            const std::string& replace);
     
     std::string generateGuid();
 }

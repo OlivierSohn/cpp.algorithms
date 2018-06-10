@@ -31,6 +31,7 @@
 #include <cxxabi.h>
 #include <functional>
 #include <fstream>
+#include <initializer_list>
 #include <iomanip>
 #include <iostream>
 #include <iterator>
@@ -43,6 +44,7 @@
 #include <random>
 #include <set>
 #include <sstream>
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
 #include <type_traits>
@@ -159,6 +161,12 @@
 #include "interpolation.h"
 #include "scheduler.h"
 #include "scoped.h"
+#include "file2string.h"
+#include "os.storage.h"
+#include "bsonutils.hpp"
+#include "utf8.hpp"
+#include "bsonparser.hpp"
+#include "bsonwriter.hpp"
 
 
 #if __APPLE__

@@ -16,17 +16,15 @@
 #  pragma comment(lib, "Dbghelp.lib")
 #  include <strsafe.h>      // for StringCchPrintfW
 #  include <cstdlib>
-#  include <stdio.h>
 #  include <stdlib.h>
 #else
 #  include <execinfo.h>
 #endif
 
 #if !defined (_MSC_VER)
-#include <dirent.h>
-#include <sys/types.h>
-//#include <pwd.h>
-#include <cxxabi.h>
+#  include <dirent.h>
+#  include <sys/types.h>
+#  include <cxxabi.h>
 #endif
 
 #include <unistd.h>

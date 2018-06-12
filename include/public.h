@@ -18,13 +18,6 @@
 #include "Objbase.h"
 #endif
 
-#if defined (_MSC_VER)
-#elif __ANDROID__
-#else
-#  include <uuid/uuid.h>
-#endif
-
-
 #include <array>
 #include <algorithm>
 #include <cassert>

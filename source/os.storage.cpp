@@ -494,7 +494,7 @@ namespace imajuscule {
         bool isRegularFile(struct dirent &dir) {
 #  ifdef _WIN32
             struct stat file_info;
-            lstat(dir.d_name, &file_info);
+            stat(dir.d_name, &file_info);
             return S_ISREG(file_info.st_mode);
 #  else
             return dir.d_type == DT_REG;
@@ -503,7 +503,7 @@ namespace imajuscule {
         bool isDirectory(struct dirent &dir) {
 #  ifdef _WIN32
             struct stat file_info;
-            lstat(dir.d_name, &file_info);
+            stat(dir.d_name, &file_info);
             return S_ISDIR(file_info.st_mode);
 #  else
             return dir.d_type == DT_DIR;

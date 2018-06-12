@@ -16,9 +16,12 @@
 #  endif
 #include "Windows.h"
 #include "Objbase.h"
+#endif
+
+#if defined (_MSC_VER)
 #elif __ANDROID__
 #else
-#include <uuid/uuid.h>
+#  include <uuid/uuid.h>
 #endif
 
 

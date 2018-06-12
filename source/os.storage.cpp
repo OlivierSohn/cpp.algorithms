@@ -466,7 +466,11 @@ namespace imajuscule {
 #else
 
         int ret;
+#  ifdef _WIN32 // for mingw
+        ret = _mkdir(path.c_str());
+#  else // for
         ret = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+#  endif
         if (ret != 0)
         {
             if( unlikely(errno != EEXIST))
@@ -486,6 +490,26 @@ namespace imajuscule {
         return res;
     }
 
+#if !defined (_MSC_VER)
+        bool isRegularFile(struct dirent &dir) {
+#  ifdef _WIN32
+            struct stat file_info;
+            lstat(dir.d_name, &file_info);
+            return S_ISREG(file_info.st_mode);
+#  else
+            return dir.d_type == DT_REG;
+#  endif
+        }
+        bool isDirectory(struct dirent &dir) {
+#  ifdef _WIN32
+            struct stat file_info;
+            lstat(dir.d_name, &file_info);
+            return S_ISDIR(file_info.st_mode);
+#  else
+            return dir.d_type == DT_DIR;
+#  endif
+        }
+#endif
 
         std::vector< std::string > listFilenames( const DirectoryPath & path ) {
             return listFilenames(path.toString());
@@ -508,7 +532,7 @@ namespace imajuscule {
             TCHAR tstrTo[MAX_PATH*2];
             const int nMax = sizeof(tstrTo) / sizeof(tstrTo[0]);
             int tstrLen;
-#ifdef UNICODE
+#  ifdef UNICODE
             tstrLen = MultiByteToWideChar(CP_ACP, 0, path.c_str(), strlen(path.c_str()), nullptr, 0);
             if ( unlikely(tstrLen >= nMax) ) {
                 LG(ERR, "listFilenames : string %s is tool long", path.c_str());
@@ -517,7 +541,7 @@ namespace imajuscule {
             }
             tstrTo[tstrLen] = 0;
             MultiByteToWideChar(CP_ACP, 0, path.c_str(), strlen(path.c_str()), tstrTo, tstrLen);
-#else
+#  else
             int err = strcpy_s( tstrTo, nMax, path.c_str() );
             if ( err != 0 )
             {
@@ -526,7 +550,7 @@ namespace imajuscule {
                 return filenames;
             }
             tstrLen = strlen( tstrTo );
-#endif
+#  endif
 
             HRESULT hr=StringCchLength(tstrTo, MAX_PATH, &length_of_arg);
 
@@ -586,7 +610,7 @@ namespace imajuscule {
             {
                 while ((dir = readdir(d)) != nullptr)
                 {
-                    if (dir->d_type == DT_REG)
+                    if (isRegularFile(*dir))
                     {
                         filenames.push_back(dir->d_name);
                     }
@@ -621,7 +645,7 @@ namespace imajuscule {
                     if(!strcmp(dir->d_name, ".")) {
                         continue;
                     }
-                    if (dir->d_type == DT_DIR)
+                    if (isDirectory(*dir))
                     {
                         dirnames.push_back(dir->d_name);
                     }

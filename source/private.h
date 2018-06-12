@@ -6,7 +6,7 @@
 
 #include "../include/public.h"
 
-#ifdef _WIN32
+#ifdef _WIN32 // dbg stack
 #  include <process.h>
 #  ifndef NOMINMAX
 #    define NOMINMAX
@@ -22,7 +22,7 @@
 #endif
 
 #if !defined (_MSC_VER)
-#  if defined _WIN32 // for mingw
+#  if defined _WIN32 // mingw
 #    include <direct.h>
 #  endif
 

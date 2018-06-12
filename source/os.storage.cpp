@@ -466,7 +466,7 @@ namespace imajuscule {
 #else
 
         int ret;
-#  ifdef _WIN32 // for mingw
+#  ifdef _WIN32 // mingw
         ret = _mkdir(path.c_str());
 #  else // for
         ret = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
@@ -492,7 +492,7 @@ namespace imajuscule {
 
 #if !defined (_MSC_VER)
         bool isRegularFile(struct dirent &dir) {
-#  ifdef _WIN32
+#  ifdef _WIN32 // mingw
             struct stat file_info;
             stat(dir.d_name, &file_info);
             return S_ISREG(file_info.st_mode);
@@ -501,7 +501,7 @@ namespace imajuscule {
 #  endif
         }
         bool isDirectory(struct dirent &dir) {
-#  ifdef _WIN32
+#  ifdef _WIN32 // mingw
             struct stat file_info;
             stat(dir.d_name, &file_info);
             return S_ISDIR(file_info.st_mode);

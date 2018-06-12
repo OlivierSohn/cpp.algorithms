@@ -6,17 +6,11 @@
 
 #pragma once
 
-#define  _USE_MATH_DEFINES
+#ifndef _USE_MATH_DEFINES
+#  define  _USE_MATH_DEFINES
+#endif
 #include "math.h" // M_PI
 #include <cmath>
-
-#ifdef _WIN32
-#  ifndef NOMINMAX
-#    define NOMINMAX
-#  endif
-#include "Windows.h"
-#include "Objbase.h"
-#endif
 
 #include <array>
 #include <algorithm>

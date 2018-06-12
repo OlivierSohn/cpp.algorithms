@@ -10,7 +10,7 @@ namespace imajuscule
         static void simplifySymbol(std::string & subTrace)
         {
             std::string s = "imajuscule::";
-            
+
             while(1)
             {
                 auto i = subTrace.find(s);
@@ -20,11 +20,11 @@ namespace imajuscule
                 subTrace.erase(i, s.length());
             };
         }
-        
 
-#ifndef _WIN32
+
+#ifndef _WIN32 // dbg stack
         std::vector<std::string> getProgramStack(int n_removed = 0);
-      
+
         template<typename T>
         struct DumpObjectsOrigins {
             void add(T*o) {
@@ -39,7 +39,7 @@ namespace imajuscule
                 }
                 writeFile();
             }
-            
+
             void remove(T*o) {
                 for(auto & s : map) {
                     if(s.second.erase(o)) {
@@ -49,10 +49,10 @@ namespace imajuscule
                 }
                 assert(!"an element was not found");
             }
-            
+
         private:
             std::map<std::vector<std::string>, std::set<T*>> map;
-            
+
             void writeFile() const {
                 ScopedFileWrite f("stacks.txt", false);
                 for(auto const & p : map) {
@@ -66,7 +66,7 @@ namespace imajuscule
                     }
                 }
             }
-        };        
+        };
 #endif
 
     }

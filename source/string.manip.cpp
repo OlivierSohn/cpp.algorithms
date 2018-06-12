@@ -5,7 +5,7 @@ namespace imajuscule
         result = time(nullptr);
 
         struct tm * pTime = nullptr;
-#ifdef _WIN32
+#ifdef _WIN32 // localtime_s
         thread_local struct tm time;
         pTime = &time;
         localtime_s(pTime, &result);

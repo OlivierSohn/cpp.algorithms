@@ -2,10 +2,10 @@
 
 namespace imajuscule
 {
-#ifdef _WIN32
+#ifdef _WIN32 // dbg stack
     static void CreateMiniDump(EXCEPTION_POINTERS* pep)
     {
-        // Open the file 
+        // Open the file
 
         LG(ERR, "writing minidump...");
         HANDLE hFile = CreateFile(L"MiniDump.dmp", GENERIC_READ | GENERIC_WRITE,
@@ -13,7 +13,7 @@ namespace imajuscule
 
         if ( (hFile != nullptr) && (hFile != INVALID_HANDLE_VALUE) )
         {
-            // Create the minidump 
+            // Create the minidump
 
             MINIDUMP_EXCEPTION_INFORMATION mdei;
 
@@ -29,7 +29,7 @@ namespace imajuscule
             if ( !rv )
                 LG(ERR,"MiniDumpWriteDump failed. Error: %u", GetLastError());
 
-            // Close the file 
+            // Close the file
 
             CloseHandle(hFile);
 
@@ -43,11 +43,11 @@ namespace imajuscule
 
     void logStack()
 {
-#ifdef _WIN32
+#ifdef _WIN32 // dbg stack
     CreateMiniDump(0);
     return;
 #else
-    
+
     const char * lineS =  "    ----------------------------------------------------------------------------------------------";
     const char * Header = "                                           STACK BEGIN";
     const char * Footer = "                                           STACK END";
@@ -58,18 +58,18 @@ namespace imajuscule
     << Header << std::endl
     << pipesS << std::endl
     << std::endl;
-    
+
     constexpr auto n_remove = 1; // for this function
     for(auto & t : debugging::getProgramStack(n_remove)) {
         std::cout << t << std::endl;
     }
-    
+
     std::cout << std::endl
     << pipesS << std::endl
     << Footer << std::endl
     << lineS << std::endl
     << std::endl;
-    
+
 #endif
 
 	}

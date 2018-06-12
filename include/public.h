@@ -6,12 +6,6 @@
 
 #pragma once
 
-#ifndef _USE_MATH_DEFINES
-#  define  _USE_MATH_DEFINES
-#endif
-#include "math.h" // M_PI
-#include <cmath>
-
 #include <array>
 #include <algorithm>
 #include <cassert>

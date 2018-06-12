@@ -5,7 +5,7 @@ using namespace StorageStuff;
 namespace imajuscule {
     DirectoryPath DirectoryPath::referentiablesPath;
     DirectoryPath DirectoryPath::capturePath;
-    
+
     bool split_path(std::string const & str, DirectoryPath & dir, FileName & filename)
     {
         using namespace std;
@@ -17,7 +17,7 @@ namespace imajuscule {
         filename = std::string(str.begin()+pos+1, str.end());
         return true;
     }
-    
+
     std::string getParentDirectory(std::string path)
     {
         using namespace std;
@@ -81,11 +81,11 @@ void WritableStorage::Finalize()
 eResult ReadableStorage::OpenFileForOperation(const std::string & sFilePath, FileMode op)
 {
     //LG(INFO, "WritableStorage::OpenFileForOperation( %s, %s) begin", sFilePath.c_str(), FileOperationToString(op));
-    
+
     CloseFile();
-    
+
     m_pFile = fopen(sFilePath.c_str(), op == FileMode::READ ? "rb" : "wb");
-    
+
     if ( unlikely(!m_pFile)) {
         LG(ERR, "WritableStorage::OpenFileForOperation : fopen failed : %d", errno);
         return ILE_BAD_PARAMETER;
@@ -100,13 +100,13 @@ eResult ReadableStorage::OpenFileForOperation(const std::string & sFilePath, Fil
 eResult ReadableStorage::OpenForRead()
 {
     std::string filePath;
-    
+
     for( auto const & directory_name : m_directoryPath)
     {
         filePath.append(directory_name);
         filePath.append("/");
     }
-    
+
     filePath.append(m_filename);
     ReplaceStringInPlace(filePath, "//", "/" );
     eResult ret = OpenFileForOperation(filePath, FileMode::READ);
@@ -114,7 +114,7 @@ eResult ReadableStorage::OpenForRead()
     {
         LG(ERR, "WritableStorage::OpenForRead : OpenFileForOperation returned %d", ret);
     }
-    
+
     return ret;
 }
 eResult WritableStorage::OpenForWrite()
@@ -134,29 +134,29 @@ eResult WritableStorage::OpenForWrite()
             }
         }
     }
-    
+
     m_filePath.append(m_filename);
-    
+
     auto it2 = g_openedForWrite.find(m_filePath);
     if(it2 != g_openedForWrite.end())
     {
         return ILE_RECURSIVITY;
     }
     g_openedForWrite.insert(m_filePath);
-    
+
     ret = OpenFileForOperation(m_filePath, FileMode::WRITE);
     if ( unlikely(ret != ILE_SUCCESS))
     {
         LG(ERR, "WritableStorage::OpenForWrite : OpenFileForOperation returned %d", ret);
     }
-    
+
     return ret;
 }
 
 eResult WritableStorage::Save()
 {
     m_filePath.clear();
-    
+
     eResult ret = doSaveBegin();
     if (ret != ILE_SUCCESS)
     {
@@ -165,16 +165,16 @@ eResult WritableStorage::Save()
         }
         return ret;
     }
-    
+
     ret = doSave();
     if (unlikely(ret != ILE_SUCCESS))
     {
         LG(ERR, "WritableStorage::Save : doSave returned %d", ret);
         return ret;
     }
-    
+
     doSaveEnd();
-    
+
     return ILE_SUCCESS;
 }
 
@@ -189,10 +189,10 @@ eResult WritableStorage::doSaveBegin()
             return ret;
         }
     }
-    
+
     // to reserve the header space (it will be overwritten in ::SaveEnd())
     DoUpdateFileHeader();
-    
+
     return ILE_SUCCESS;
 }
 eResult WritableStorage::doSave()
@@ -201,7 +201,7 @@ eResult WritableStorage::doSave()
 }
 void WritableStorage::doSaveEnd()
 {
-    UpdateFileHeader();    
+    UpdateFileHeader();
 }
 
 void WritableStorage::UpdateFileHeader()
@@ -212,24 +212,24 @@ void WritableStorage::UpdateFileHeader()
     }
     // write the data for this frame
     FlushMyBuffer();
-    
+
     // now that the data has been written, we can modify the file position
     fpos_t curPos;
     if (!fgetpos((FILE*)m_pFile, &curPos))
     {
         rewind((FILE*)m_pFile);
-        
+
         DoUpdateFileHeader();
-        
+
         int ret = FlushData();
         if (unlikely(ret))
         {
             LG(ERR, "WritableStorage::UpdateFileHeader : FlushData returned %d", ret );
         }
-        
+
         if (likely(!fsetpos((FILE*)m_pFile, &curPos)))
         {
-            
+
         }
         else
         {
@@ -249,18 +249,18 @@ void WritableStorage::FlushMyBuffer()
     size_t count = m_writeBuffer.size();
     if (count == 0)
         return;
-#ifdef _WIN32
+#if defined (_MSC_VER)
     _fwrite_nolock(m_writeBuffer.data(), 1, count, (FILE*)m_pFile);
 #else
     fwrite(m_writeBuffer.data(), 1, count, (FILE*)m_pFile);
 #endif
-    
+
     m_writeBuffer.clear();
 }
 
 void ReadableStorage::ReadToBuffer()
 {
-#ifdef _WIN32
+#if defined (_MSC_VER)
     auto result = _fread_nolock(m_freadBuffer, 1, SIZE_READ_BUFFER, (FILE*)m_pFile);
 #else
     auto result = fread(m_freadBuffer, 1, SIZE_READ_BUFFER, (FILE*)m_pFile);
@@ -272,50 +272,50 @@ void ReadableStorage::ReadToBuffer()
 void ReadableStorage::ReadData(void * p, size_t size, size_t count)
 {
     //LG(INFO, "WritableStorage::ReadData(%x, %d, %d)", p, size, count);
-    
+
     size_t total = size * count;
-    
+
     do
     {
         //LG(INFO, "WritableStorage::ReadData m_bufferReadPos = %d", m_bufferReadPos);
-        
+
         size_t max = m_bufferReadPos + total;
-        
+
         //LG(INFO, "WritableStorage::ReadData max = %d", max);
-        
+
         long secondRead = max - SIZE_READ_BUFFER;
-        
+
         //LG(INFO, "WritableStorage::ReadData secondRead = %d", secondRead);
-        
+
         if (secondRead > 0)
         {
             //LG(INFO, "WritableStorage::ReadData secondRead > 0");
-            
+
             long i = SIZE_READ_BUFFER - m_bufferReadPos;
-            
+
             memcpy(p, &m_freadBuffer[m_bufferReadPos], i);
-            
+
             m_bufferReadPos = 0;
-            
+
             //LG(INFO, "WritableStorage::ReadData before ReadToBuffer");
             ReadToBuffer();
             //LG(INFO, "WritableStorage::ReadData after ReadToBuffer");
-            
+
             total -= i;
             p = (char*)p + i;
         }
         else
         {
             //LG(INFO, "WritableStorage::ReadData secondRead < 0");
-            
+
             memcpy(p, &m_freadBuffer[m_bufferReadPos], total);
             m_bufferReadPos = max;
-            
+
             break;
         }
     }
     while(total>0);
-    
+
     //LG(INFO, "WritableStorage::ReadData end");
 }
 
@@ -329,8 +329,8 @@ int WritableStorage::WriteData(void const * p, size_t size, size_t count)
 int WritableStorage::FlushData()
 {
     FlushMyBuffer();
-    
-#ifdef _WIN32
+
+#if defined (_MSC_VER)
     return _fflush_nolock((FILE*)m_pFile);
 #else
     return fflush((FILE*)m_pFile);
@@ -338,7 +338,7 @@ int WritableStorage::FlushData()
 }
 
 namespace imajuscule {
-        
+
     namespace StorageStuff {
     const char * FileOperationToString(WritableStorage::FileMode op)
     {
@@ -355,7 +355,7 @@ namespace imajuscule {
                 break;
         }
     }
-    
+
 #ifdef _WIN32
     void string_cast(const wchar_t* pSource, unsigned int codePage, std::string & oCast)
     {
@@ -374,39 +374,39 @@ namespace imajuscule {
         }
     }
 #endif
-    
+
     bool dirExists(const std::string & path)
     {
         //LG(INFO, "dirExists(%s)", (path.c_str() ? path.c_str() : "nullptr"));
         bool bExists = false;
-        
+
         struct stat info;
         bExists = ((stat(path.c_str(), &info) == 0) && (info.st_mode & S_IFDIR));
-        
+
         //LG(INFO, "dirExists(%s) returns %s", (path.c_str() ? path.c_str() : "nullptr"), (bExists ? "true" : "false"));
         return bExists;
     }
-    
+
     bool fileExists(const std::string & path)
     {
         //LG(INFO, "fileExists(%s)", (path.c_str() ? path.c_str() : "nullptr"));
         bool bExists = false;
-        
+
         struct stat info;
         bExists = (stat(path.c_str(), &info) == 0) && !(info.st_mode & S_IFDIR);
-        
+
         //LG(INFO, "fileExists(%s) returns %s", (path.c_str() ? path.c_str() : "nullptr"), (bExists ? "true" : "false"));
         return bExists;
     }
-    
+
     bool fileCreationDate(const std::string & path, std::string & oDate)
     {
         //LG(INFO, "fileCreationDate(%s)", (path.c_str() ? path.c_str() : "nullptr"));
-        
+
         oDate.clear();
-        
+
         bool bExists = false;
-        
+
         struct stat info;
         bExists = (stat(path.c_str(), &info) == 0) && !(info.st_mode & S_IFDIR);
         if (likely(bExists))
@@ -419,11 +419,11 @@ namespace imajuscule {
             LG(ERR, "fileCreationDate : file does not exist");
             oDate.assign("../../.. ..:..:..");
         }
-        
+
         //LG(INFO, "fileCreationDate(%s) returns %s", (path.c_str() ? path.c_str() : "nullptr"), (bExists ? "true" : "false"));
         return bExists;
     }
-    
+
         eResult removeDir(const std::string & path)
         {
             if(rmdir(path.c_str())) {
@@ -440,12 +440,12 @@ namespace imajuscule {
             }
             return ILE_SUCCESS;
         }
-        
+
     eResult makeDir(const std::string & path)
     {
         //LG(INFO, "makeDir(%s)", (path.c_str() ? path.c_str() : "nullptr"));
         eResult res = ILE_SUCCESS;
-        
+
 #ifdef _WIN32
         std::wstring swName = std::wstring(path.begin(), path.end());
         const wchar_t * pwStr = swName.c_str();
@@ -464,7 +464,7 @@ namespace imajuscule {
             }
         }
 #else
-        
+
         int ret;
         ret = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
         if (ret != 0)
@@ -479,14 +479,14 @@ namespace imajuscule {
                 //LG(INFO, "makeDir : directory already exists");
             }
         }
-        
+
 #endif
-        
+
         //LG(INFO, "makeDir(%s) returns %d", (path.c_str() ? path.c_str() : "nullptr"), res);
         return res;
     }
-    
-        
+
+
         std::vector< std::string > listFilenames( const DirectoryPath & path ) {
             return listFilenames(path.toString());
         }
@@ -494,17 +494,17 @@ namespace imajuscule {
         {
             //LG(INFO, "listFilenames(%s)", (path.c_str() ? path.c_str() : "nullptr"));
             std::vector<std::string> filenames;
-            
+
 #ifdef _WIN32
             WIN32_FIND_DATA ffd;
             TCHAR szDir[MAX_PATH];
             size_t length_of_arg;
             HANDLE hFind = INVALID_HANDLE_VALUE;
             DWORD dwError = 0;
-            
+
             // Check that the input path plus 3 is not longer than MAX_PATH.
             // Three characters are for the "\*" plus nullptr appended below.
-            
+
             TCHAR tstrTo[MAX_PATH*2];
             const int nMax = sizeof(tstrTo) / sizeof(tstrTo[0]);
             int tstrLen;
@@ -527,9 +527,9 @@ namespace imajuscule {
             }
             tstrLen = strlen( tstrTo );
 #endif
-            
+
             HRESULT hr=StringCchLength(tstrTo, MAX_PATH, &length_of_arg);
-            
+
             if (unlikely(FAILED(hr)))
             {
                 LG(ERR, "listFilenames : StringCchLength failed (%x)", hr);
@@ -543,14 +543,14 @@ namespace imajuscule {
             {
                 // Prepare string for use with FindFile functions.  First, copy the
                 // string to a buffer, then append '\*' to the directory name.
-                
+
                 StringCchCopy(szDir, MAX_PATH, tstrTo);
                 StringCchCat(szDir, MAX_PATH, TEXT("\\*"));
-                
+
                 // Find the first file in the directory.
-                
+
                 hFind = FindFirstFile(szDir, &ffd);
-                
+
                 if (unlikely(INVALID_HANDLE_VALUE == hFind))
                 {
                     LG(INFO, "listFilenames : FindFirstFile returned INVALID_HANDLE_VALUE");
@@ -558,7 +558,7 @@ namespace imajuscule {
                 else
                 {
                     // List all the files in the directory with some info about them.
-                    
+
                     do
                     {
                         if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
@@ -568,7 +568,7 @@ namespace imajuscule {
                             filenames.push_back(cast);
                         }
                     } while (FindNextFile(hFind, &ffd) != 0);
-                    
+
                     dwError = GetLastError();
                     if (unlikely(dwError != ERROR_NO_MORE_FILES))
                     {
@@ -577,7 +577,7 @@ namespace imajuscule {
                 }
                 FindClose(hFind);
             }
-            
+
 #else
             DIR           *d;
             struct dirent *dir;
@@ -591,23 +591,23 @@ namespace imajuscule {
                         filenames.push_back(dir->d_name);
                     }
                 }
-                
+
                 closedir(d);
             }
 #endif
-            
+
             //LG(INFO, "listFilenames(%s) found %d files and returns %s", (path.c_str() ? path.c_str() : "nullptr"), filenames.size(), (bExists ? "true" : "false"));
             return filenames;
         }
 
-        
+
         std::vector< std::string > listDirectories( const DirectoryPath & path ) {
             return listDirectories(path.toString());
         }
         std::vector< std::string > listDirectories( const std::string & path )
         {
             std::vector<std::string> dirnames;
-            
+
 #ifdef _WIN32
             throw std::logic_error("not implemented on windows");
 #else
@@ -626,26 +626,26 @@ namespace imajuscule {
                         dirnames.push_back(dir->d_name);
                     }
                 }
-                
+
                 closedir(d);
             }
 #endif
-            
+
             return dirnames;
         }
-        
+
 
     bool isGUID(std::string const & str)
     {
         bool bIsGUID = true;
-        
+
         int count = -1;
         int idx_parenthesis_open = -1;
         int idx_parenthesis_close = -1;
         for(char const &c:str)
         {
             count++;
-            
+
             switch(c)
             {
                 case '0':
@@ -697,7 +697,7 @@ namespace imajuscule {
                 break;
             }
         }
-        
+
         if(bIsGUID) {
             if( idx_parenthesis_close != -1 ) {
                 if( idx_parenthesis_open != -1 ) {
@@ -713,7 +713,7 @@ namespace imajuscule {
         }
         return bIsGUID;
     }
-    
+
     } // namespace StorageStuff
 } // namespace imajuscule
 
@@ -741,11 +741,11 @@ std::string DirectoryPath::toString() const
         ret.append(st);
         ret.append("/");
     }
-    
+
     if(ret.size() > 1) {
         // remove trailing '/'
         ret.pop_back();
     }
-    
+
     return ret;
 }

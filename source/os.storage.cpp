@@ -495,7 +495,7 @@ namespace imajuscule {
             //LG(INFO, "listFilenames(%s)", (path.c_str() ? path.c_str() : "nullptr"));
             std::vector<std::string> filenames;
 
-#ifdef _WIN32
+#if defined (_MSC_VER)
             WIN32_FIND_DATA ffd;
             TCHAR szDir[MAX_PATH];
             size_t length_of_arg;

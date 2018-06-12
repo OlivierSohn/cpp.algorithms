@@ -22,6 +22,10 @@
 #endif
 
 #if !defined (_MSC_VER)
+#  if defined _WIN32 // for mingw
+#    include <direct.h>
+#  endif
+
 #  include <dirent.h>
 #  include <sys/types.h>
 #  include <cxxabi.h>

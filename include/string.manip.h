@@ -122,5 +122,4 @@ namespace imajuscule
   void ReplaceStringInPlace(std::string& subject, const std::string& search,
                             const std::string& replace);
     
-    std::string generateGuid();
 }

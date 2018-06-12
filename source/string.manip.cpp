@@ -3,10 +3,10 @@ namespace imajuscule
     struct tm * getTime() {
         time_t result;
         result = time(nullptr);
-        
+
         struct tm * pTime = nullptr;
 #ifdef _WIN32
-        static struct tm time;
+        thread_local struct tm time;
         pTime = &time;
         localtime_s(pTime, &result);
 #else
@@ -14,7 +14,7 @@ namespace imajuscule
 #endif
         return pTime;
     }
-  
+
   void ReplaceStringInPlace(std::string& subject, const std::string& search,
                             const std::string& replace) {
     size_t pos = 0;

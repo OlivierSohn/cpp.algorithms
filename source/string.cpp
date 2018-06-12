@@ -8,7 +8,7 @@ namespace imajuscule
 {
     void AppendTime(tm*time, std::string&str) {
         str.reserve(str.size() + 8);
-        
+
         if (!time) {
             str += "..:..:..";
             return;
@@ -33,7 +33,7 @@ namespace imajuscule
         }
         str += sSecond;
     }
-    
+
     void FormatDate(tm*time, std::string&oDate)
     {
         if (!time) {
@@ -48,31 +48,31 @@ namespace imajuscule
             auto sDay = std::to_string(day);
             auto sMonth = std::to_string(month);
             auto sYear = std::to_string(year);
-            
+
             oDate.append(sYear.c_str());
-            
+
             oDate.append("/");
-            
+
             if (month < 10)
                 oDate.append(sZero.c_str());
             oDate.append(sMonth.c_str());
-            
+
             oDate.append("/");
-            
+
             if (day < 10)
                 oDate.append(sZero.c_str());
             oDate.append(sDay.c_str());
-            
+
             oDate.append(" ");
-            
+
             AppendTime(time, oDate);
         }
     }
-    
+
     void FormatDateForComparison(std::string & date)
     {
         const char * numbers = "0123456789";
-        
+
         if (11 >= date.size()) {
             return;
         }
@@ -92,14 +92,14 @@ namespace imajuscule
         newDate.append(date.substr(3, 2));
         newDate.append("/");
         newDate.append(date.substr(0, 2));
-        
+
         newDate.append(date.substr(10));
-        
+
         assert(newDate.size() == date.size());
-        
+
         date.swap(newDate);
     }
-    
+
     void split_in_lines(const std::string &s, char delim, std::vector<std::string> &elems, postProcessing pp) {
         std::stringstream ss(s);
         std::string item;
@@ -122,7 +122,7 @@ namespace imajuscule
         split_in_lines(s, delim, elems);
         return elems;
     }
-    
+
     inline void add(std::vector<std::string> & vec, std::string && s, postProcessing pp) {
         if(pp == postProcessing::TRIMMED) {
             trim(s);
@@ -136,12 +136,12 @@ namespace imajuscule
     {
         using sz = std::string::size_type;
         auto const end = std::string::npos;
-        
+
         std::vector<std::string> tokens;
-        
+
         sz lastPos = str.find_first_not_of(delimiters, 0);
         sz pos = str.find_first_of(delimiters, lastPos);
-        
+
         while ( pos != end || lastPos != end)
         {
             // Found a token, add it to the vector.
@@ -151,7 +151,7 @@ namespace imajuscule
         }
         return tokens;
     }
-    
+
     std::vector<std::string> TokenizeMulti(const std::string& str, const std::string& delimiter, postProcessing pp)
     {
         std::vector<std::string> tokens;
@@ -161,10 +161,10 @@ namespace imajuscule
             }
             return tokens;
         }
-        
+
         using sz = std::string::size_type;
         auto const end = std::string::npos;
-        
+
         sz lastPos = 0;
         while (str.compare(lastPos, delimiter.size(), delimiter) == 0)
         {
@@ -174,16 +174,16 @@ namespace imajuscule
         if(lastPos == str.size()) {
             return {};
         }
-        
+
         // lastPos is the first position where we have NOT a delimiter
-        
+
         sz pos = str.find(delimiter, lastPos);
         if(lastPos == 0 && pos == end) {
             return {};
         }
-        
+
         // pos is the position AFTER lastPos where we have a delimiter
-        
+
         assert(pos >lastPos);
         while ( pos != end || lastPos != end)
         {
@@ -201,12 +201,12 @@ namespace imajuscule
             if(lastPos == str.size()) {
                 return tokens;
             }
-            
+
             pos = str.find(delimiter, lastPos);
         }
         return tokens;
     }
-    
+
     bool iequals(const std::string& a, const std::string& b, int nCharacters)
     {
         int sz = (int)a.size();
@@ -226,7 +226,7 @@ namespace imajuscule
         }
         return true;
     }
-    
+
     bool equals(const std::string& a, const std::string& b, int nCharacters)
     {
         int sz = (int)a.size();
@@ -246,7 +246,7 @@ namespace imajuscule
         }
         return true;
     }
-    
+
     bool findCorrespondantLocation(std::string const & text, const char c1, const int index1, const char c2, Correspondance & correspondance, int & index2)
     {
         if(correspondance == CORRESPONDS_ANY) { // let's resolve the correspondance
@@ -270,15 +270,15 @@ namespace imajuscule
             }
             return true;
         }
-        
+
         int length = (int) text.length();
         int i = index1;
-        
+
         int countInBetween = 1;
         while (true)
         {
             // 1. in(de)crement iterator and break loop if it is out of bounds
-            
+
             if (correspondance == CORRESPONDS_FORWARD)
             {
                 ++i;
@@ -291,13 +291,13 @@ namespace imajuscule
                     break;
                 --i;
             }
-            
+
             // 2. the new iterator is valid
-            
+
             char c = text[i];
-            
+
             // 3. update "countInBetween" according to found char
-            
+
             if(c1 == c2 && c == c1) {
                 --countInBetween;
             }
@@ -307,21 +307,21 @@ namespace imajuscule
             else if (c == c2) {
                 --countInBetween;
             }
-            
+
             if (0 == countInBetween) {
                 // found it
                 index2 = i;
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     bool canCorrespond(const char c, char &cCorrespondant, Correspondance & correspondance)
     {
         correspondance = CORRESPONDS_FORWARD;
-        
+
         switch (c)
         {
             case '(':
@@ -342,9 +342,9 @@ namespace imajuscule
                 correspondance = CORRESPONDS_ANY;
                 return true;
         }
-        
+
         correspondance = CORRESPONDS_BACKWARD;
-        
+
         switch (c)
         {
             case ')':
@@ -357,21 +357,21 @@ namespace imajuscule
                 cCorrespondant = '{';
                 return true;
         }
-        
+
         correspondance = NOT_CORRESPONDING;
         return false;
     }
-    
+
    int begins_with(std::string const& s, std::string begin) {
         auto size_comparison = (int)begin.size();
         return equals(std::move(begin), s, size_comparison) ? size_comparison : 0;
     }
-    
+
     int ibegins_with(std::string const& s, std::string begin) {
         auto size_comparison = (int)begin.size();
         return iequals(std::move(begin), s, size_comparison) ? size_comparison : 0;
     }
-    
+
     void rtrim(std::string &s) {
         s.erase(std::find_if(s.rbegin(),
                              s.rend(),
@@ -379,7 +379,7 @@ namespace imajuscule
                              ).base(),
                 s.end());
     }
-    
+
     int ltrim(std::string &s) {
         auto beg = s.begin();
         auto first_non_space = std::find_if(beg, s.end(), [](char c) {return !std::isspace(c);});
@@ -387,7 +387,7 @@ namespace imajuscule
         s.erase(beg, first_non_space);
         return range;
     }
-    
+
     bool rtrim(std::string &s, char c, int maxCount) {
         int size = (int)s.size();
         int i = size - 1;
@@ -405,7 +405,7 @@ namespace imajuscule
         s.erase(i+1, n);
         return true;
     }
-    
+
     int ltrim(std::string &s, char c, int maxCount) {
         int size = (int)s.size();
         int i=0;
@@ -421,7 +421,7 @@ namespace imajuscule
         s.erase(0, i);
         return i;
     }
-    
+
     bool before_after(std::string & input_then_before, std::string const delimiter, std::string & after)
     {
         auto v = TokenizeMulti(input_then_before, delimiter, TRIMMED);
@@ -443,18 +443,18 @@ namespace imajuscule
         after = v[1];
         return true;
     }
-    
+
     static bool isCharContiguous(char c)
     {
         assert(c != '\n'); // precondition
         return c != ' ';
     }
-    
+
     bool isAName(std::string const & name) {
         if(name.empty()) {
             return false;
         }
-        
+
         bool first = true;
         for(auto c : name) {
             if(first) {
@@ -468,11 +468,11 @@ namespace imajuscule
             }
             return false;
         }
-        
+
         return true;
     }
 
-    
+
     int format_one_line(int const chars_per_line, int i, std::string & str) {
         int line_beginning = i;
         i += chars_per_line-1;
@@ -513,7 +513,7 @@ namespace imajuscule
         }
         assert(chosen >= 0);
         assert(chosen < safe_cast<int>(str.size()));
-        
+
         if(' ' == str[chosen]) {
             str[chosen] = '\n';
         }
@@ -522,19 +522,19 @@ namespace imajuscule
         }
         return chosen + 1;
     }
-    
+
     std::string auto_format(std::string str, int const chars_per_line_total, std::string const line1prefix, std::string const lineNprefix) {
         std::replace(str.begin(), str.end(), '\n', ' ');
         int i{0};
         while(true)
         {
             assert(i == 0 || str[i-1] == '\n'); // assert that i is at the beginning of a line
-            
+
             if(i == str.size()) {
                 return str;
             }
             std::string const * prefix = (i==0) ? &line1prefix : &lineNprefix;
-            
+
             int chars_per_line = chars_per_line_total - prefix->size();
 
             str.insert(str.begin() + i, prefix->begin(), prefix->end());
@@ -552,11 +552,11 @@ namespace imajuscule
             i = format_one_line(chars_per_line, i, str);
         }
     }
-    
+
     std::string plural_of_(std::string const & text) {
         return text.empty() ? text : (text + "s");
     }
-    
+
     std::string opposite_of_( std::string const & s ) {
         return "-(" + s + ")";
     }
@@ -565,14 +565,14 @@ namespace imajuscule
         s.erase(std::remove_if(s.begin(), s.end(), std::not1(std::function<int(int)>((int(*)(int))std::isalnum))), s.end());
         return s;
     }
-    
-    
+
+
     std::string generateGuid()
     {
         std::string sGuid;
         sGuid.reserve(32);
-        
-#ifdef _WIN32
+
+#if defined (_MSC_VER)
         GUID guid;
         HRESULT hr = CoCreateGuid(&guid);
         if (unlikely(FAILED(hr)))
@@ -581,7 +581,7 @@ namespace imajuscule
             Assert(0);
             return sGuid;
         }
-        
+
         OLECHAR* bstrGuid;
         hr = StringFromCLSID(guid, &bstrGuid);
         if (unlikely(FAILED(hr)))
@@ -590,7 +590,7 @@ namespace imajuscule
             Assert(0);
             return sGuid;
         }
-        
+
         // First figure out our required buffer size.
         int cbData = WideCharToMultiByte(CP_ACP, 0, bstrGuid/*pszDataIn*/, -1, nullptr, 0, nullptr, nullptr);
         hr = (cbData == 0) ? HRESULT_FROM_WIN32(GetLastError()) : S_OK;
@@ -621,7 +621,7 @@ namespace imajuscule
                 }
             }
         }
-        
+
         // ensure memory is freed
         ::CoTaskMemFree(bstrGuid);
 #elif __ANDROID__
@@ -643,10 +643,9 @@ namespace imajuscule
             }
         }
 #endif
-        
+
         assert(sGuid.size() == 32);
         return std::move(sGuid);
     }
 
 }
-

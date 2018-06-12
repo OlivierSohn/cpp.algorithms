@@ -356,7 +356,7 @@ namespace imajuscule {
         }
     }
 
-#ifdef _WIN32
+#if defined (_MSC_VER)
     void string_cast(const wchar_t* pSource, unsigned int codePage, std::string & oCast)
     {
         Assert(pSource != 0);
@@ -446,7 +446,7 @@ namespace imajuscule {
         //LG(INFO, "makeDir(%s)", (path.c_str() ? path.c_str() : "nullptr"));
         eResult res = ILE_SUCCESS;
 
-#ifdef _WIN32
+#if defined (_MSC_VER)
         std::wstring swName = std::wstring(path.begin(), path.end());
         const wchar_t * pwStr = swName.c_str();
         //LG(INFO, "makeDir : before CreateDirectory");
@@ -608,8 +608,8 @@ namespace imajuscule {
         {
             std::vector<std::string> dirnames;
 
-#ifdef _WIN32
-            throw std::logic_error("not implemented on windows");
+#if defined (_MSC_VER)
+            throw std::logic_error("not implemented on msvc");
 #else
             DIR           *d;
             struct dirent *dir;

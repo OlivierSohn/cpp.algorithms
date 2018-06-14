@@ -70,7 +70,7 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
-#include "../../cpp.os.logs/include/public.h"
+#include "../../cpp.os.log/include/public.h"
 
 #include "imj.assert.h"
 #include "convex_hull.h"

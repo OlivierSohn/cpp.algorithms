@@ -223,7 +223,7 @@
 		09F1577920C6AA0300662939 /* gen.names.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gen.names.cpp; path = source/gen.names.cpp; sourceTree = "<group>"; };
 		09F1577C20C6AA2500662939 /* fifo1.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo1.hpp; path = include/fifo1.hpp; sourceTree = "<group>"; };
 		09F1577D20C6AA3C00662939 /* test_fifo1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo1.cpp; path = test/test_fifo1.cpp; sourceTree = "<group>"; };
-		09F1577F20C6ABD200662939 /* os.log.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = os.log.xcodeproj; path = ../cpp.os.logs/os.log.xcodeproj; sourceTree = "<group>"; };
+		09F1577F20C6ABD200662939 /* os.log.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = os.log.xcodeproj; path = ../cpp.os.log/os.log.xcodeproj; sourceTree = "<group>"; };
 		09F1578E20C6B7B900662939 /* fifo.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.hpp; path = include/fifo.hpp; sourceTree = "<group>"; };
 		09F1578F20C6C28000662939 /* test_fifo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo.cpp; path = test/test_fifo.cpp; sourceTree = "<group>"; };
 		09FC7DEA20BAD5910037B04C /* gen.names.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gen.names.h; path = include/gen.names.h; sourceTree = "<group>"; };

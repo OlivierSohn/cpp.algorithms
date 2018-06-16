@@ -55,10 +55,18 @@ namespace imajuscule {
                 ptr = nullptr;
             }
 #endif
+
+#ifdef IMJ_LOG_MEMORY
+            std::printf("+++ %p, size = %zu, alignment = %lu\n",ptr, size, align);
+#endif
             return ptr;
         }
 
         static inline void deallocate_aligned_memory(void* ptr) noexcept {
+#ifdef IMJ_LOG_MEMORY
+          std::printf("--- %p, alignment = ?\n", ptr);
+#endif
+
 #ifdef _WIN32 // posix_memalign replacement
           return _aligned_free(ptr);
 #else

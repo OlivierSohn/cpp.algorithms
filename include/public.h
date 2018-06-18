@@ -114,6 +114,8 @@
 #include "allocator.aligned.hpp"
 #include "allocated_containers.h"
 #include "static_vector.h"
+#include "pair.array.hpp"
+#include "lockfree.array.hpp"
 #include "string.manip.h"
 #include "iter_range.hpp"
 #include "sort_utils.hpp"

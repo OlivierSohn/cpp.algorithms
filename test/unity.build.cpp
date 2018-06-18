@@ -10,6 +10,8 @@
 
 #include <thread>
 
+#include "test_lockfree_array.cpp"
+#include "test_pair_array.cpp"
 #include "test_fifo.cpp"
 #include "test_fifo1.cpp"
 #include "test_angles.cpp"

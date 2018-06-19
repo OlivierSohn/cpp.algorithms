@@ -16,6 +16,7 @@ namespace imajuscule {
     }
 }
 
+#include "log.cpp"
 #include "log.stack.cpp"
 #include "thread.cpp"
 #include "profiling.cpp"

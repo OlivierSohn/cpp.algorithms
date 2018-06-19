@@ -1,48 +1,51 @@
-TEST(LockFreeArray, singleThread_0_elt) {
+TEST(LockFreeStaticVector, singleThread_0_elt) {
   using namespace imajuscule;
   
-  lockfree::Array<int> a(0);
+  lockfree::static_vector<int> a(0);
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       ++n;
       return true;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(0,n);
   }
   
-  EXPECT_FALSE(a.addValue(1));
+  EXPECT_FALSE(a.tryInsert(1));
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       ++n;
       return true;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(0,n);
   }
 }
 
-TEST(LockFreeArray, singleThread_1_elt) {
+TEST(LockFreeStaticVector, singleThread_1_elt) {
   using namespace imajuscule;
   
-  lockfree::Array<int> a(1);
+  lockfree::static_vector<int> a(1);
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       ++n;
       return true;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(0,n);
   }
   
-  EXPECT_TRUE(a.addValue(1)); // add an element
+  EXPECT_TRUE(a.tryInsert(1)); // add an element
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 1) {
         elt = 8;
         ++n;
@@ -50,68 +53,73 @@ TEST(LockFreeArray, singleThread_1_elt) {
       }
       return false;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(1,n);
   }
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 8) {
         ++n;
         return false; // delete the element
       }
       return true;
     });
+    EXPECT_EQ(1,nRemoved);
     EXPECT_EQ(1,n);
   }
-
-  {
-    int n = 0;
-    a.forEach([&n](int & elt) {
-      ++n;
-      return true;
-    });
-    EXPECT_EQ(0,n); // because the element was deleted
-  }
-
-  EXPECT_TRUE(a.addValue(4)); // add an element
-  EXPECT_FALSE(a.addValue(5)); // add an element
-  EXPECT_FALSE(a.addValue(6)); // add an element
-  EXPECT_FALSE(a.addValue(7)); // add an element
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
+      ++n;
+      return true;
+    });
+    EXPECT_EQ(0,nRemoved);
+    EXPECT_EQ(0,n); // because the element was deleted
+  }
+  
+  EXPECT_TRUE(a.tryInsert(4)); // add an element
+  EXPECT_FALSE(a.tryInsert(5)); // add an element
+  EXPECT_FALSE(a.tryInsert(6)); // add an element
+  EXPECT_FALSE(a.tryInsert(7)); // add an element
+  
+  {
+    int n = 0;
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 4) {
         ++n;
         return true;
       }
       return false;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(1,n);
   }
-
+  
 }
 
-TEST(LockFreeArray, singleThread_2_elts) {
+TEST(LockFreeStaticVector, singleThread_2_elts) {
   using namespace imajuscule;
   
-  lockfree::Array<int> a(2);
+  lockfree::static_vector<int> a(2);
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       ++n;
       return true;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(0,n);
   }
   
-  EXPECT_TRUE(a.addValue(1)); // add an element
+  EXPECT_TRUE(a.tryInsert(1)); // add an element
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 1) {
         elt = 8;
         ++n;
@@ -119,14 +127,15 @@ TEST(LockFreeArray, singleThread_2_elts) {
       }
       return false;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(1,n);
   }
   
-  EXPECT_TRUE(a.addValue(2)); // add another element
+  EXPECT_TRUE(a.tryInsert(2)); // add another element
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 2) {
         elt = 9;
         ++n;
@@ -139,39 +148,42 @@ TEST(LockFreeArray, singleThread_2_elts) {
       }
       return false;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(2,n);
   }
-
+  
   
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 10) {
         ++n;
         return false; // delete the first element
       }
       return true;
     });
+    EXPECT_EQ(1,nRemoved);
     EXPECT_EQ(1,n);
   }
-
+  
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 9) {
         ++n;
         return true;
       }
       return false;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(1,n);
   }
-
-  EXPECT_TRUE(a.addValue(3)); // add another element
-
+  
+  EXPECT_TRUE(a.tryInsert(3)); // add another element
+  
   {
     int n = 0;
-    a.forEach([&n](int & elt) {
+    int nRemoved = a.forEach([&n](int & elt) {
       if(elt == 9) {
         ++n;
         return true;
@@ -182,9 +194,18 @@ TEST(LockFreeArray, singleThread_2_elts) {
       }
       return false;
     });
+    EXPECT_EQ(0,nRemoved);
     EXPECT_EQ(2,n);
   }
-
+  {
+    int n = 0;
+    int nRemoved = a.forEach([&n](int & elt) {
+      ++n;
+      return false;
+    });
+    EXPECT_EQ(2,nRemoved);
+    EXPECT_EQ(2,n);
+  }
 }
 
 namespace imajuscule {
@@ -192,6 +213,12 @@ namespace imajuscule {
   // To make the test more relevant,
   // we use this type whose reads / writes are not atomic
   struct RepeatInt {
+    RepeatInt() {
+      for(size_t i=0; i<is.size(); ++i) {
+        is[i] = i;
+      }
+    }
+
     RepeatInt(int i) {
       set(i);
     }
@@ -203,7 +230,7 @@ namespace imajuscule {
     void set(int i) {
       is.fill(i);
     }
-
+    
     bool isValid() const {
       for(auto v : is) {
         if(v!= is[0]) {
@@ -216,7 +243,7 @@ namespace imajuscule {
     bool operator < (RepeatInt const & other) const {
       return is[0] < other.is[0];
     }
-
+    
   private:
     std::array<int,1000> is;
   };
@@ -228,7 +255,7 @@ void testLFASlowConsumer() {
   
   LG(INFO,"using array size %d", arraySz);
   
-  lockfree::Array<T> a(arraySz);
+  lockfree::static_vector<T> a(arraySz);
   
   constexpr auto nthreads = 20;
   
@@ -249,7 +276,7 @@ void testLFASlowConsumer() {
       for(auto e : v) {
         bool res;
         do {
-          res = a.addValue({e});
+          res = a.tryInsert({e});
         } while(!res); // repeat until we succeed.
       }
       LG(INFO,".");
@@ -263,8 +290,10 @@ void testLFASlowConsumer() {
   received.reserve(nNumbers * nthreads);
   valid.reserve(nNumbers * nthreads);
   
+  int nDeleted = 0;
+  
   while(received.size() < received.capacity()) {
-    a.forEach([&received, &valid](auto & ri) {
+    nDeleted += a.forEach([&received, &valid](auto & ri) {
       
       if(rand() % 100) {
         return true; // 99% of the time, we skip the value
@@ -280,6 +309,8 @@ void testLFASlowConsumer() {
       return false; // delete the element
     });
   }
+  
+  EXPECT_EQ(nDeleted, received.size());
   
   for(auto & t: v_threads) {
     t.join();
@@ -307,7 +338,7 @@ void testLFAFastConsumer() {
   
   LG(INFO,"using array size %d and scheduling", arraySz);
   
-  lockfree::Array<T> a(arraySz);
+  lockfree::static_vector<T> a(arraySz);
   
   constexpr auto nthreads = 20;
   
@@ -331,7 +362,7 @@ void testLFAFastConsumer() {
         bool res;
         do {
           if(run) {
-            res = a.addValue({e});
+            res = a.tryInsert({e});
           }
           else {
             res = false;
@@ -358,8 +389,10 @@ void testLFAFastConsumer() {
   received.reserve(nNumbers * nthreads);
   valid.reserve(nNumbers * nthreads);
   
+  int nDeleted = 0;
+
   while(received.size() < received.capacity()) {
-    a.forEach([&received, &valid](auto & ri) {
+    nDeleted += a.forEach([&received, &valid](auto & ri) {
       if constexpr (std::is_same_v<T, RepeatInt>) {
         valid.push_back(ri.isValid());
         received.push_back(ri.get());
@@ -371,6 +404,8 @@ void testLFAFastConsumer() {
       return false; // delete the element
     });
   }
+  
+  EXPECT_EQ(nDeleted, received.size());
   
   for(auto & t: v_threads) {
     t.join();
@@ -398,12 +433,12 @@ void testLFA() {
   using namespace imajuscule;
   testLFASlowConsumer<arraySz, int>();
   testLFAFastConsumer<arraySz, int>();
-
+  
   testLFASlowConsumer<arraySz, RepeatInt>();
   testLFAFastConsumer<arraySz, RepeatInt>();
 }
 
-TEST(LockFreeArray, multiThread) {
+TEST(LockFreeStaticVector, multiThread) {
   testLFA<1>();
   testLFA<10>();
   testLFA<100>();
@@ -411,4 +446,122 @@ TEST(LockFreeArray, multiThread) {
   testLFA<10000>();
   testLFA<100000>();
 }
+
+namespace imajuscule {
+  struct Destructible {
+
+    Destructible() {
+      countLiveObjects()++;
+    }
+    
+    Destructible ( const Destructible & ) {
+      countLiveObjects()++;
+    }
+
+    ~Destructible() {
+      countLiveObjects()--;
+    }
+    
+    static int & countLiveObjects() {
+      static int n = 0;
+      return n;
+    }
+  };
+  
+  static inline int nLiveObjects() {
+    return Destructible::countLiveObjects();
+  }
+}
+TEST(LockFreeStaticVector, OnRemovalAssignFromDefault_UP) {
+  using namespace imajuscule;
+  
+  EXPECT_EQ(0,nLiveObjects());
+  {
+    lockfree::static_vector<std::unique_ptr<Destructible>, lockfree::OnRemoval::AssignFromDefault> a(10);
+    
+    a.tryInsert(std::make_unique<Destructible>());
+    EXPECT_EQ(1,nLiveObjects());
+    a.tryInsert(std::make_unique<Destructible>());
+    EXPECT_EQ(2,nLiveObjects());
+    
+    a.forEach([](auto &){ return false; });
+    EXPECT_EQ(0,nLiveObjects());
+  }
+  EXPECT_EQ(0,nLiveObjects());
+}
+
+TEST(LockFreeStaticVector, OnRemovalAssignFromDefault) {
+  using namespace imajuscule;
+
+  EXPECT_EQ(0,nLiveObjects());
+  {
+    lockfree::static_vector<Destructible, lockfree::OnRemoval::AssignFromDefault> a(10);
+    
+    a.tryInsert({});
+    EXPECT_EQ(10,nLiveObjects());
+    a.tryInsert({});
+    EXPECT_EQ(10,nLiveObjects());
+    
+    // remove all elements
+    a.forEach([](auto){ return false; });
+    EXPECT_EQ(10,nLiveObjects());
+  }
+  EXPECT_EQ(0,nLiveObjects());
+}
+
+
+TEST(LockFreeStaticVector, OnRemovalDoNothing_UP) {
+  using namespace imajuscule;
+  
+  EXPECT_EQ(0,nLiveObjects());
+  {
+    lockfree::static_vector<std::unique_ptr<Destructible>, lockfree::OnRemoval::DoNothing> a(10);
+    
+    a.tryInsert(std::make_unique<Destructible>());
+    EXPECT_EQ(1,nLiveObjects());
+    a.tryInsert(std::make_unique<Destructible>());
+    EXPECT_EQ(2,nLiveObjects());
+    
+    a.forEach([](auto &){ return false; });
+    EXPECT_EQ(2,nLiveObjects()); // the removal hasn't changed the number of live objects
+    
+    // the next 2 inserts will succeed and not change the number of live objects
+    EXPECT_TRUE(a.tryInsert(std::make_unique<Destructible>()));
+    EXPECT_EQ(2,nLiveObjects());
+    EXPECT_TRUE(a.tryInsert(std::make_unique<Destructible>()));
+    EXPECT_EQ(2,nLiveObjects());
+
+    // subsequent inserts will change the number of live objects
+    EXPECT_TRUE(a.tryInsert(std::make_unique<Destructible>()));
+    EXPECT_EQ(3,nLiveObjects());
+    EXPECT_TRUE(a.tryInsert(std::make_unique<Destructible>()));
+    EXPECT_EQ(4,nLiveObjects());
+  }
+  EXPECT_EQ(0,nLiveObjects());
+}
+
+TEST(LockFreeStaticVector, OnRemovalDoNothing) {
+  using namespace imajuscule;
+  
+  EXPECT_EQ(0,nLiveObjects());
+  {
+    lockfree::static_vector<Destructible, lockfree::OnRemoval::DoNothing> a(10);
+    
+    a.tryInsert({});
+    EXPECT_EQ(10,nLiveObjects());
+    a.tryInsert({});
+    EXPECT_EQ(10,nLiveObjects());
+    
+    // remove all elements
+    a.forEach([](auto){ return false; });
+    EXPECT_EQ(10,nLiveObjects());
+
+    a.tryInsert({});
+    EXPECT_EQ(10,nLiveObjects());
+    a.tryInsert({});
+    EXPECT_EQ(10,nLiveObjects());
+  }
+  EXPECT_EQ(0,nLiveObjects());
+}
+
 

@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <array>
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <cstring>
@@ -32,6 +33,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <typeinfo>
 #include <unordered_map>
@@ -70,8 +72,9 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
-#include "../../cpp.os.log/include/public.h"
-
+#include "likely.h"
+#include "spinlock.h"
+#include "log.h"
 #include "imj.assert.h"
 #include "convex_hull.h"
 #include "color.h"
@@ -115,7 +118,7 @@
 #include "allocated_containers.h"
 #include "static_vector.h"
 #include "pair.array.hpp"
-#include "lockfree.array.hpp"
+#include "lockfree.staticvector.hpp"
 #include "string.manip.h"
 #include "iter_range.hpp"
 #include "sort_utils.hpp"

@@ -15,6 +15,7 @@ TEST(PairArray, simple) {
 namespace imajuscule {
 
   struct BigAlignment {
+    BigAlignment() = default;
     BigAlignment(double d) {
       v = d;
     }

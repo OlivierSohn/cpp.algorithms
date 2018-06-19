@@ -36,6 +36,8 @@ namespace imajuscule {
     
     // the type of elements that are stored at the beginning of the array
     using BeginT = std::conditional_t<order == Order::As_Bs, A, B>;
+    // the type of elements that are stored at the end of the array
+    using EndT = std::conditional_t<order == Order::As_Bs, B, A>;
     
     // Assumes that there will be no gap between elements in the buffer:
     // this is true because the smaller alignment is divisible by the bigger one,
@@ -48,8 +50,38 @@ namespace imajuscule {
     }
     
   public:
+    // TODO should I call constructors? destructors? (on every element)
+
+    PairArray(int countPairs) :
+    count(countPairs)
+    , buf(allocateBuffer(countPairs))
+    {
+      for(auto it = lefts(), end = lefts_end(); it != end; ++it) {
+        new (it) BeginT;
+      }
+      for(auto it = rights(), end = rights_end(); it != end; ++it) {
+        new (it) EndT;
+      }
+    }
+    
+    ~PairArray() {
+      for(auto it = lefts(), end = lefts_end(); it != end; ++it) {
+        it->~BeginT();
+      }
+      for(auto it = rights(), end = rights_end(); it != end; ++it) {
+        it->~EndT();
+      }
+      detail::deallocate_aligned_memory(buf);
+    }
+
     template<typename A_, typename B_>
     PairArray(int countPairs, A_ && a, B_ && b) : PairArray(countPairs)
+    {
+      fill(a,b);
+    }
+    
+    template<typename A_, typename B_>
+    void fill(A_ && a, B_ && b)
     {
       for(auto it = firsts(), end = firsts_end(); it != end; ++it) {
         *it = a;
@@ -58,17 +90,7 @@ namespace imajuscule {
         *it = b;
       }
     }
-    
-    PairArray(int countPairs) :
-    count(countPairs)
-    , buf(allocateBuffer(countPairs))
-    {
-    }
-    
-    ~PairArray() {
-      detail::deallocate_aligned_memory(buf);
-    }
-    
+        
     int size() const {
       return count;
     }
@@ -121,6 +143,41 @@ namespace imajuscule {
     // allocate_aligned_memory
     int count;
     BeginT * buf;
+    
+    auto * lefts() {
+      if constexpr (order == Order::As_Bs) {
+        return firsts();
+      }
+      else {
+        return seconds();
+      }
+    }
 
+    auto * rights() {
+      if constexpr (order == Order::As_Bs) {
+        return seconds();
+      }
+      else {
+        return firsts();
+      }
+    }
+
+    auto * lefts_end() {
+      if constexpr (order == Order::As_Bs) {
+        return firsts_end();
+      }
+      else {
+        return seconds_end();
+      }
+    }
+    
+    auto * rights_end() {
+      if constexpr (order == Order::As_Bs) {
+        return seconds_end();
+      }
+      else {
+        return firsts_end();
+      }
+    }
   };
 }

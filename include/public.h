@@ -10,6 +10,7 @@
 #include <array>
 #include <atomic>
 #include <cassert>
+#include <cctype>
 #include <chrono>
 #include <cstring>
 #include <cstddef>
@@ -22,6 +23,7 @@
 #include <iostream>
 #include <iterator>
 #include <list>
+#include <locale>
 #include <map>
 #include <mutex>
 #include <new>
@@ -30,6 +32,7 @@
 #include <random>
 #include <set>
 #include <sstream>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string>

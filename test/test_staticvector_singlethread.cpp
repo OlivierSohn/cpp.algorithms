@@ -1,4 +1,4 @@
-TEST(StaticVectorSingleThreadSCMP, singleThread_0_elt) {
+TEST(StaticVectorSingleThread, singleThread_0_elt) {
   using namespace imajuscule;
   
   singlethread::static_vector<int> a(0);
@@ -26,7 +26,7 @@ TEST(StaticVectorSingleThreadSCMP, singleThread_0_elt) {
   }
 }
 
-TEST(StaticVectorSingleThreadSCMP, singleThread_1_elt) {
+TEST(StaticVectorSingleThread, singleThread_1_elt) {
   using namespace imajuscule;
   
   singlethread::static_vector<int> a(1);
@@ -100,7 +100,7 @@ TEST(StaticVectorSingleThreadSCMP, singleThread_1_elt) {
   
 }
 
-TEST(StaticVectorSingleThreadSCMP, singleThread_2_elts) {
+TEST(StaticVectorSingleThread, singleThread_2_elts) {
   using namespace imajuscule;
   
   singlethread::static_vector<int> a(2);
@@ -208,7 +208,7 @@ TEST(StaticVectorSingleThreadSCMP, singleThread_2_elts) {
   }
 }
 
-TEST(StaticVectorSingleThreadSCMP, OnRemovalAssignFromDefault_UP) {
+TEST(StaticVectorSingleThread, OnRemovalAssignFromDefault_UP) {
   using namespace imajuscule;
   
   EXPECT_EQ(0,nLiveObjects());
@@ -226,7 +226,7 @@ TEST(StaticVectorSingleThreadSCMP, OnRemovalAssignFromDefault_UP) {
   EXPECT_EQ(0,nLiveObjects());
 }
 
-TEST(StaticVectorSingleThreadSCMP, OnRemovalAssignFromDefault) {
+TEST(StaticVectorSingleThread, OnRemovalAssignFromDefault) {
   using namespace imajuscule;
 
   EXPECT_EQ(0,nLiveObjects());
@@ -246,7 +246,7 @@ TEST(StaticVectorSingleThreadSCMP, OnRemovalAssignFromDefault) {
 }
 
 
-TEST(StaticVectorSingleThreadSCMP, OnRemovalDoNothing_UP) {
+TEST(StaticVectorSingleThread, OnRemovalDoNothing_UP) {
   using namespace imajuscule;
   
   EXPECT_EQ(0,nLiveObjects());
@@ -276,7 +276,7 @@ TEST(StaticVectorSingleThreadSCMP, OnRemovalDoNothing_UP) {
   EXPECT_EQ(0,nLiveObjects());
 }
 
-TEST(StaticVectorSingleThreadSCMP, OnRemovalDoNothing) {
+TEST(StaticVectorSingleThread, OnRemovalDoNothing) {
   using namespace imajuscule;
   
   EXPECT_EQ(0,nLiveObjects());

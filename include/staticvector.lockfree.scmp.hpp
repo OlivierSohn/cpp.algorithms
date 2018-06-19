@@ -2,7 +2,8 @@
 
 namespace imajuscule {
   namespace lockfree {
-    
+    namespace scmp {
+
     /*
      
      'static_vector' is a lock-free variable-size container with fixed-capacity.
@@ -81,6 +82,8 @@ struct static_vector {
         Empty     = 0b100, // the slot is empty.
       };
 
+      static_assert(std::atomic<SlotState>::is_always_lock_free);
+
       // We use 'PairArray<...>' instead of 'std::vector<std::pair<...>>'
       // because it has a better memory layout.
       template<typename T>
@@ -114,7 +117,7 @@ struct static_vector {
         upperBoundCount.store(0,std::memory_order_release);
       }
       
-      // Thread-safe insertion.
+      // Many threads can call this method concurrently.
       //
       // Returns true if the insertion succeeded, false otherwise.
       bool tryInsert(value_type v) {
@@ -156,12 +159,11 @@ struct static_vector {
         } while(retry);
         return false;
       }
-      
-      // !!! Not thread safe !!!
-      //
+
       // This method allows to read, modify, remove the elements present in the static_vector
       //   "at the beginning of the call".
-      // It should be called from a single thread at a time.
+      //
+      // A single thread (at a time) is allowed to call this method. Reentrancy is not supported.
       //
       // Elements that are potentially added to the static_vector "during the call"
       // are not guaranteed to be traversed, but will be traversed during subsequent calls.
@@ -232,5 +234,7 @@ struct static_vector {
       // An upper bound of the count of full slots.
       std::atomic<int> upperBoundCount;
     };
+      
+    }
   }
 }

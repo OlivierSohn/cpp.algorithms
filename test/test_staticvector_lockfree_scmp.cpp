@@ -1,7 +1,7 @@
 TEST(LockFreeStaticVector, singleThread_0_elt) {
   using namespace imajuscule;
   
-  lockfree::static_vector<int> a(0);
+  lockfree::scmp::static_vector<int> a(0);
   
   {
     int n = 0;
@@ -29,7 +29,7 @@ TEST(LockFreeStaticVector, singleThread_0_elt) {
 TEST(LockFreeStaticVector, singleThread_1_elt) {
   using namespace imajuscule;
   
-  lockfree::static_vector<int> a(1);
+  lockfree::scmp::static_vector<int> a(1);
   
   {
     int n = 0;
@@ -103,7 +103,7 @@ TEST(LockFreeStaticVector, singleThread_1_elt) {
 TEST(LockFreeStaticVector, singleThread_2_elts) {
   using namespace imajuscule;
   
-  lockfree::static_vector<int> a(2);
+  lockfree::scmp::static_vector<int> a(2);
   
   {
     int n = 0;
@@ -255,7 +255,7 @@ void testLFASlowConsumer() {
   
   LG(INFO,"using array size %d", arraySz);
   
-  lockfree::static_vector<T> a(arraySz);
+  lockfree::scmp::static_vector<T> a(arraySz);
   
   constexpr auto nthreads = 20;
   
@@ -338,7 +338,7 @@ void testLFAFastConsumer() {
   
   LG(INFO,"using array size %d and scheduling", arraySz);
   
-  lockfree::static_vector<T> a(arraySz);
+  lockfree::scmp::static_vector<T> a(arraySz);
   
   constexpr auto nthreads = 20;
   
@@ -477,7 +477,7 @@ TEST(LockFreeStaticVector, OnRemovalAssignFromDefault_UP) {
   
   EXPECT_EQ(0,nLiveObjects());
   {
-    lockfree::static_vector<std::unique_ptr<Destructible>, lockfree::OnRemoval::AssignFromDefault> a(10);
+    lockfree::scmp::static_vector<std::unique_ptr<Destructible>, lockfree::scmp::OnRemoval::AssignFromDefault> a(10);
     
     a.tryInsert(std::make_unique<Destructible>());
     EXPECT_EQ(1,nLiveObjects());
@@ -495,7 +495,7 @@ TEST(LockFreeStaticVector, OnRemovalAssignFromDefault) {
 
   EXPECT_EQ(0,nLiveObjects());
   {
-    lockfree::static_vector<Destructible, lockfree::OnRemoval::AssignFromDefault> a(10);
+    lockfree::scmp::static_vector<Destructible, lockfree::scmp::OnRemoval::AssignFromDefault> a(10);
     
     a.tryInsert({});
     EXPECT_EQ(10,nLiveObjects());
@@ -515,7 +515,7 @@ TEST(LockFreeStaticVector, OnRemovalDoNothing_UP) {
   
   EXPECT_EQ(0,nLiveObjects());
   {
-    lockfree::static_vector<std::unique_ptr<Destructible>, lockfree::OnRemoval::DoNothing> a(10);
+    lockfree::scmp::static_vector<std::unique_ptr<Destructible>, lockfree::scmp::OnRemoval::DoNothing> a(10);
     
     a.tryInsert(std::make_unique<Destructible>());
     EXPECT_EQ(1,nLiveObjects());
@@ -545,7 +545,7 @@ TEST(LockFreeStaticVector, OnRemovalDoNothing) {
   
   EXPECT_EQ(0,nLiveObjects());
   {
-    lockfree::static_vector<Destructible, lockfree::OnRemoval::DoNothing> a(10);
+    lockfree::scmp::static_vector<Destructible, lockfree::scmp::OnRemoval::DoNothing> a(10);
     
     a.tryInsert({});
     EXPECT_EQ(10,nLiveObjects());

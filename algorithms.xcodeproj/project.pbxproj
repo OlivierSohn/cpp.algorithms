@@ -71,7 +71,7 @@
 		091771511EAE73070074ACEC /* profiling.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = profiling.h; path = include/profiling.h; sourceTree = "<group>"; };
 		091771521EAE733D0074ACEC /* profiling.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = profiling.cpp; path = source/profiling.cpp; sourceTree = "<group>"; };
 		09186B091E8670DE00E5BEC9 /* logging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logging.h; path = include/logging.h; sourceTree = "<group>"; };
-		091AF71A1E27A295004B554F /* static_vector.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = static_vector.h; path = include/static_vector.h; sourceTree = "<group>"; };
+		091AF71A1E27A295004B554F /* stackvector.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = stackvector.hpp; path = include/stackvector.hpp; sourceTree = "<group>"; };
 		091AF71B1E27A295004B554F /* allocated_containers.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = allocated_containers.h; path = include/allocated_containers.h; sourceTree = "<group>"; };
 		091AF71C1E27DC24004B554F /* markov_chain.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = markov_chain.hpp; path = include/markov_chain.hpp; sourceTree = "<group>"; };
 		091AF71D1E27DC58004B554F /* test_markov_chain.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_markov_chain.cpp; path = test/test_markov_chain.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -96,6 +96,9 @@
 		093239D11DB54D18003C168E /* hash_table.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = hash_table.cpp; path = source/hash_table.cpp; sourceTree = "<group>"; };
 		093239D31DB55C1D003C168E /* math.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = math.hpp; path = include/math.hpp; sourceTree = "<group>"; };
 		093239D81DB5651B003C168E /* libalgorithms.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libalgorithms.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		09338B5920D91E75004F5A8A /* staticvector.singlethread.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.singlethread.hpp; path = include/staticvector.singlethread.hpp; sourceTree = "<group>"; };
+		09338B5A20D9239D004F5A8A /* staticvector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.hpp; path = include/staticvector.hpp; sourceTree = "<group>"; };
+		09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_singlethread.cpp; path = test/test_staticvector_singlethread.cpp; sourceTree = "<group>"; };
 		09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.ios.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		093A7BF11EB2A5DB00CBDD97 /* thread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = thread.h; path = include/thread.h; sourceTree = "<group>"; };
 		093A7BF21EB2A7B500CBDD97 /* thread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = thread.cpp; path = source/thread.cpp; sourceTree = "<group>"; };
@@ -145,7 +148,7 @@
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
-		09807B7520D7B09A009732BD /* lockfree.staticvector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = lockfree.staticvector.hpp; path = include/lockfree.staticvector.hpp; sourceTree = "<group>"; };
+		09807B7520D7B09A009732BD /* staticvector.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.lockfree.scmp.hpp; path = include/staticvector.lockfree.scmp.hpp; sourceTree = "<group>"; };
 		09807B7620D7E2B9009732BD /* bsonparser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = bsonparser.hpp; path = include/bsonparser.hpp; sourceTree = "<group>"; };
 		09807B7720D7E2B9009732BD /* bsonwriter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = bsonwriter.hpp; path = include/bsonwriter.hpp; sourceTree = "<group>"; };
 		09807B7820D7E2BA009732BD /* pair.array.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = pair.array.hpp; path = include/pair.array.hpp; sourceTree = "<group>"; };
@@ -153,7 +156,7 @@
 		09807B7A20D7E2BA009732BD /* bsonutils.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = bsonutils.hpp; path = include/bsonutils.hpp; sourceTree = "<group>"; };
 		09807B7B20D7E2BD009732BD /* file2string.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = file2string.h; path = include/file2string.h; sourceTree = "<group>"; };
 		09807B7C20D7F03E009732BD /* test_pair_array.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pair_array.cpp; path = test/test_pair_array.cpp; sourceTree = "<group>"; };
-		09807B7D20D82006009732BD /* test_lockfree_staticvector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_lockfree_staticvector.cpp; path = test/test_lockfree_staticvector.cpp; sourceTree = "<group>"; };
+		09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_lockfree_scmp.cpp; path = test/test_staticvector_lockfree_scmp.cpp; sourceTree = "<group>"; };
 		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
 		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
 		0983C7371F254C5D00EE86C1 /* test_angles.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_angles.cpp; path = test/test_angles.cpp; sourceTree = "<group>"; };
@@ -379,7 +382,6 @@
 				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
 				096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
-				09807B7D20D82006009732BD /* test_lockfree_staticvector.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,
 				093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */,
@@ -389,6 +391,8 @@
 				0999CE481EB926C100309E86 /* test_rng.cpp */,
 				09E641631ED0661B00BF54A5 /* test_scoped.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
+				09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */,
+				09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
@@ -442,7 +446,6 @@
 				09BA14C51E387E4200A05F83 /* interpolation.h */,
 				09EF8F301DB3E89B00DC7342 /* iter_range.hpp */,
 				0975EADB20D8E94400468667 /* likely.h */,
-				09807B7520D7B09A009732BD /* lockfree.staticvector.hpp */,
 				0975EADA20D8E94300468667 /* log.h */,
 				09FC7DEC20BAD5910037B04C /* log.stack.h */,
 				09FC7DEB20BAD5910037B04C /* logger.h */,
@@ -476,7 +479,10 @@
 				096C7DBC1EB2140F00DDEB20 /* slidingsum.h */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 				0975EADD20D8EAA700468667 /* spinlock.h */,
-				091AF71A1E27A295004B554F /* static_vector.h */,
+				091AF71A1E27A295004B554F /* stackvector.hpp */,
+				09338B5A20D9239D004F5A8A /* staticvector.hpp */,
+				09807B7520D7B09A009732BD /* staticvector.lockfree.scmp.hpp */,
+				09338B5920D91E75004F5A8A /* staticvector.singlethread.hpp */,
 				09BA14CC1E388C4400A05F83 /* string.manip.h */,
 				092EAA8F1E2A4733006C11E9 /* strplot.h */,
 				093A7BF11EB2A5DB00CBDD97 /* thread.h */,

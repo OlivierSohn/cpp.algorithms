@@ -10,7 +10,8 @@
 
 #include <thread>
 
-#include "test_lockfree_staticvector.cpp"
+#include "test_staticvector_lockfree_scmp.cpp"
+#include "test_staticvector_singlethread.cpp"
 #include "test_pair_array.cpp"
 #include "test_fifo.cpp"
 #include "test_fifo1.cpp"

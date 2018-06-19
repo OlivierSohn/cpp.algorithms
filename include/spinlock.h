@@ -5,7 +5,7 @@ namespace imajuscule {
 
     void lock() noexcept {
       bool current = false;
-      while (l.compare_exchange_weak(current,true,std::memory_order_acq_rel)) {
+      while (!l.compare_exchange_weak(current,true,std::memory_order_acq_rel)) {
         std::this_thread::yield();
       }
     }

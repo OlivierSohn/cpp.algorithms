@@ -1,4 +1,4 @@
-TEST(LockFreeStaticVector, singleThread_0_elt) {
+TEST(StaticVectorLockFreeSCMP, singleThread_0_elt) {
   using namespace imajuscule;
   
   lockfree::scmp::static_vector<int> a(0);
@@ -26,7 +26,7 @@ TEST(LockFreeStaticVector, singleThread_0_elt) {
   }
 }
 
-TEST(LockFreeStaticVector, singleThread_1_elt) {
+TEST(StaticVectorLockFreeSCMP, singleThread_1_elt) {
   using namespace imajuscule;
   
   lockfree::scmp::static_vector<int> a(1);
@@ -100,7 +100,7 @@ TEST(LockFreeStaticVector, singleThread_1_elt) {
   
 }
 
-TEST(LockFreeStaticVector, singleThread_2_elts) {
+TEST(StaticVectorLockFreeSCMP, singleThread_2_elts) {
   using namespace imajuscule;
   
   lockfree::scmp::static_vector<int> a(2);
@@ -438,7 +438,7 @@ void testLFA() {
   testLFAFastConsumer<arraySz, RepeatInt>();
 }
 
-TEST(LockFreeStaticVector, multiThread) {
+TEST(StaticVectorLockFreeSCMP, multiThread) {
   testLFA<1>();
   testLFA<10>();
   testLFA<100>();
@@ -472,7 +472,7 @@ namespace imajuscule {
     return Destructible::countLiveObjects();
   }
 }
-TEST(LockFreeStaticVector, OnRemovalAssignFromDefault_UP) {
+TEST(StaticVectorLockFreeSCMP, OnRemovalAssignFromDefault_UP) {
   using namespace imajuscule;
   
   EXPECT_EQ(0,nLiveObjects());
@@ -490,7 +490,7 @@ TEST(LockFreeStaticVector, OnRemovalAssignFromDefault_UP) {
   EXPECT_EQ(0,nLiveObjects());
 }
 
-TEST(LockFreeStaticVector, OnRemovalAssignFromDefault) {
+TEST(StaticVectorLockFreeSCMP, OnRemovalAssignFromDefault) {
   using namespace imajuscule;
 
   EXPECT_EQ(0,nLiveObjects());
@@ -510,7 +510,7 @@ TEST(LockFreeStaticVector, OnRemovalAssignFromDefault) {
 }
 
 
-TEST(LockFreeStaticVector, OnRemovalDoNothing_UP) {
+TEST(StaticVectorLockFreeSCMP, OnRemovalDoNothing_UP) {
   using namespace imajuscule;
   
   EXPECT_EQ(0,nLiveObjects());
@@ -540,7 +540,7 @@ TEST(LockFreeStaticVector, OnRemovalDoNothing_UP) {
   EXPECT_EQ(0,nLiveObjects());
 }
 
-TEST(LockFreeStaticVector, OnRemovalDoNothing) {
+TEST(StaticVectorLockFreeSCMP, OnRemovalDoNothing) {
   using namespace imajuscule;
   
   EXPECT_EQ(0,nLiveObjects());

@@ -1,26 +1,28 @@
 namespace imajuscule {
 
   struct LockCtrl {
-    LockCtrl( std::atomic_bool & l ) noexcept : l(l) {}
-
+  public:
+    LockCtrl(std::atomic_flag & f) noexcept : lock_(f) {}
+    
+    LockCtrl(const LockCtrl &) = delete;
+    LockCtrl &operator=(const LockCtrl &) = delete;
+    
     void lock() noexcept {
-      bool current = false;
-      while (!l.compare_exchange_weak(current,true,std::memory_order_acq_rel)) {
+      while (lock_.test_and_set(std::memory_order_acquire)) {
         std::this_thread::yield();
       }
     }
-
-    void unlock() noexcept {
-      l.store(false, std::memory_order_release);
-    }
+    
+    void unlock() noexcept { lock_.clear(std::memory_order_release); }
+    
   private:
-    std::atomic_bool & l;
+    std::atomic_flag & lock_;
   };
 
 
   class LockGuard {
   public:
-    LockGuard( std::atomic_bool & l ) noexcept : ctrl(l) {
+    LockGuard( std::atomic_flag & l ) noexcept : ctrl(l) {
       ctrl.lock();
     }
     ~LockGuard() noexcept {

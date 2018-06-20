@@ -10,16 +10,25 @@
  */
 
 namespace imajuscule {
+
+  enum class AssignSeconds;
   
-  
+  namespace detail {
+
   enum class Order {
     As_Bs, // As are first
     Bs_As  // Bs are first
   };
-
   
-  template<typename A, typename B>
+  enum class ArrayLocality {
+      Local
+    , Distant
+  };
+  
+  template<typename A, typename B, ArrayLocality Loc, int szLocalArray>
   struct PairArray {
+    static_assert(szLocalArray >= 0);
+    static_assert(szLocalArray == 0 || Loc == ArrayLocality::Local);
 
     // We store the elements that have the biggest alignment constraint first.
     static constexpr auto order =
@@ -30,56 +39,119 @@ namespace imajuscule {
   private:
     static_assert(is_power_of_two(alignof(A)));
     static_assert(is_power_of_two(alignof(B)));
-
+    
     static constexpr auto buf_align = std::max(sizeof(void*),std::max(alignof(A), alignof(B)));
     static constexpr auto sizeof_AB = sizeof(A) + sizeof(B);
-    
+
     // the type of elements that are stored at the beginning of the array
     using BeginT = std::conditional_t<order == Order::As_Bs, A, B>;
     // the type of elements that are stored at the end of the array
     using EndT = std::conditional_t<order == Order::As_Bs, B, A>;
-    
+
     // Assumes that there will be no gap between elements in the buffer:
     // this is true because the smaller alignment is divisible by the bigger one,
     // and elements having the bigger alignment are stored first in the buffer.
     static constexpr size_t bufferSize(int countPairs) {
       return countPairs * sizeof_AB;
     }
+
     static BeginT * allocateBuffer(int countPairs) {
       return reinterpret_cast<BeginT*>(detail::allocate_aligned_memory(buf_align, bufferSize(countPairs)));
     }
+
+    struct DistantArray {
+
+      DistantArray(int countPairs) :
+      count(countPairs),
+      data(allocateBuffer(countPairs))
+      {}
+      
+      ~DistantArray() {
+        detail::deallocate_aligned_memory(data);
+      }
+      
+      BeginT * buf() { return data; }
+      auto size() const { return count; }
+
+    private:
+      int count;
+      BeginT * data;
+    };
+    
+    struct LocalArray {
+      BeginT * buf() { return reinterpret_cast<BeginT*>(a.data()); }
+      constexpr auto size() const { return szLocalArray; }
+    private:
+
+      alignas(buf_align) std::array<char,bufferSize(szLocalArray)> a;
+    };
+    static_assert(alignof(LocalArray) == buf_align);
+
+    using Arr = std::conditional_t<Loc==ArrayLocality::Distant, DistantArray, LocalArray>;
+    
     
   public:
-    // TODO should I call constructors? destructors? (on every element)
-
-    PairArray(int countPairs) :
-    count(countPairs)
-    , buf(allocateBuffer(countPairs))
+    
+    template<ArrayLocality L = Loc
+    , std::enable_if_t<
+        L == ArrayLocality::Distant &&
+        std::is_constructible_v<A> &&
+        std::is_constructible_v<B>>...>
+    PairArray(int countPairs) : arr{countPairs}
     {
-      for(auto it = lefts(), end = lefts_end(); it != end; ++it) {
-        new (it) BeginT;
-      }
-      for(auto it = rights(), end = rights_end(); it != end; ++it) {
-        new (it) EndT;
-      }
+      static_assert(Loc == ArrayLocality::Distant);
+      initialize();
     }
     
-    ~PairArray() {
-      for(auto it = lefts(), end = lefts_end(); it != end; ++it) {
-        it->~BeginT();
-      }
-      for(auto it = rights(), end = rights_end(); it != end; ++it) {
-        it->~EndT();
-      }
-      detail::deallocate_aligned_memory(buf);
-    }
-
-    template<typename A_, typename B_>
+    template<typename A_, typename B_, ArrayLocality L = Loc
+    , typename std::enable_if<L == ArrayLocality::Distant>::type...>
     PairArray(int countPairs, A_ && a, B_ && b) : PairArray(countPairs)
     {
       fill(a,b);
     }
     
+    template<ArrayLocality L = Loc
+    , std::enable_if_t<
+        L == ArrayLocality::Local &&
+        std::is_constructible_v<A> &&
+        std::is_constructible_v<B>>...>
+    PairArray()
+    {
+      static_assert(Loc == ArrayLocality::Local);
+      initialize();
+    }
+    
+    template<typename A_, typename B_, ArrayLocality L = Loc
+    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    PairArray( A_ && a, B_ && b) : PairArray()
+    {
+      fill(a,b);
+    }
+    
+    template<typename A_, typename B_, ArrayLocality L = Loc
+    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    PairArray(A_ && a, std::array<B_, szLocalArray> & bs)
+    {
+      initialize_a(std::move(a));
+      initialize_bs(bs);
+    }
+
+    template<typename A_, typename B_, ArrayLocality L = Loc
+    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    PairArray(std::array<A_, szLocalArray> & as, B_ && b)
+    {
+      initialize_as(as);
+      initialize_b(std::move(b));
+    }
+    
+    template<typename A_, typename B_, ArrayLocality L = Loc
+    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    PairArray(std::array<A_, szLocalArray> & as, std::array<B_, szLocalArray> & bs)
+    {
+      initialize_as(as);
+      initialize_bs(bs);
+    }
+
     template<typename A_, typename B_>
     void fill(A_ && a, B_ && b)
     {
@@ -90,9 +162,67 @@ namespace imajuscule {
         *it = b;
       }
     }
-        
+    
+  private:
+    void initialize()
+    {
+      for(auto it = lefts(), end = lefts_end(); it != end; ++it) {
+        new (it) BeginT;
+      }
+      for(auto it = rights(), end = rights_end(); it != end; ++it) {
+        new (it) EndT;
+      }
+    }
+
+    template<typename A_>
+    void initialize_as(std::array<A_, szLocalArray> & as)
+    {
+      auto a = as.begin();
+      for(auto it = firsts(), end = firsts_end(); it != end; ++it, ++a) {
+        new (it) A{*a};
+      }
+    }
+    
+    template<typename B_>
+    void initialize_bs(std::array<B_, szLocalArray> & bs)
+    {
+      auto b = bs.begin();
+      for(auto it = seconds(), end = seconds_end(); it != end; ++it, ++b) {
+        new (it) B{*b};
+      }
+    }
+    
+    template<typename A_>
+    void initialize_a(A_ && a)
+    {
+      for(auto it = firsts(), end = firsts_end(); it != end; ++it) {
+        new (it) A;
+        *it = a;
+      }
+    }
+    
+    template<typename B_>
+    void initialize_b(B_ && b)
+    {
+      for(auto it = seconds(), end = seconds_end(); it != end; ++it) {
+        new (it) B;
+        *it = b;
+      }
+    }
+    
+  public:
+    ~PairArray() {
+      for(auto it = lefts(), end = lefts_end(); it != end; ++it) {
+        it->~BeginT();
+      }
+      for(auto it = rights(), end = rights_end(); it != end; ++it) {
+        it->~EndT();
+      }
+    }
+
+
     int size() const {
-      return count;
+      return arr.size();
     }
     
     // should we provide an indexing operator that works with std::pair<A,B> ?
@@ -102,47 +232,45 @@ namespace imajuscule {
     // returns the pointer to the portion of the buffer containing the first elements
     A * firsts() {
       if constexpr (order == Order::As_Bs) {
-        return buf;
+        return arr.buf();
       }
       else {
-        return reinterpret_cast<A*>(buf + count);
+        return reinterpret_cast<A*>(arr.buf() + arr.size());
       }
     }
     
     // returns the pointer to the portion of the buffer containing the second elements
     B * seconds() {
       if constexpr (order == Order::Bs_As) {
-        return buf;
+        return arr.buf();
       }
       else {
-        return reinterpret_cast<B*>(buf + count);
+        return reinterpret_cast<B*>(arr.buf() + arr.size());
       }
     }
     
     // returns the pointer to the end of the portion of the buffer containing the first elements
     A * firsts_end() {
       if constexpr (order == Order::As_Bs) {
-        return buf + count;
+        return arr.buf() + arr.size();
       }
       else {
-        return reinterpret_cast<A*>(reinterpret_cast<char*>(buf) + count * sizeof_AB);
+        return reinterpret_cast<A*>(reinterpret_cast<char*>(arr.buf()) + arr.size() * sizeof_AB);
       }
     }
     
     // returns the pointer to the end of the portion of the buffer containing the second elements
     B * seconds_end() {
       if constexpr (order == Order::Bs_As) {
-        return buf + count;
+        return arr.buf() + arr.size();
       }
       else {
-        return reinterpret_cast<B*>(reinterpret_cast<char*>(buf) + count * sizeof_AB);
+        return reinterpret_cast<B*>(reinterpret_cast<char*>(arr.buf()) + arr.size() * sizeof_AB);
       }
     }
     
   private:
-    // allocate_aligned_memory
-    int count;
-    BeginT * buf;
+    Arr arr;
     
     auto * lefts() {
       if constexpr (order == Order::As_Bs) {
@@ -180,4 +308,13 @@ namespace imajuscule {
       }
     }
   };
+  } // detail
+  
+  // The array memory is local
+  template<typename A, typename B, int N>
+  using LocalPairArray = detail::PairArray<A,B,detail::ArrayLocality::Local,N>;
+
+  // The array memory is distant (a pointer is used to point to the array)
+  template<typename A, typename B>
+  using DistantPairArray = detail::PairArray<A,B,detail::ArrayLocality::Distant, 0>;
 }

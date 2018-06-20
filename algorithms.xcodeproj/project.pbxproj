@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		090DAD201EA56E9200ACBBA9 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */; };
-		09168FD21E099D78005DD50F /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09168FD11E099D78005DD50F /* unity.build.cpp */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
 		093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
@@ -16,10 +15,11 @@
 		093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C71DB3F3CE003C168E /* gtest-all.cc */; };
 		093239E61DB56557003C168E /* libalgorithms.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 093239D81DB5651B003C168E /* libalgorithms.a */; };
 		09367D6C1E2E29330095BF20 /* libalgorithms.ios.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 09168FC61E099C42005DD50F /* libalgorithms.ios.a */; };
-		09367D721E2E29ED0095BF20 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09168FD11E099D78005DD50F /* unity.build.cpp */; };
 		09367D731E2E2A240095BF20 /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
 		09367D741E2E2A240095BF20 /* gtest-all.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C71DB3F3CE003C168E /* gtest-all.cc */; };
 		09367D751E2E2A290095BF20 /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
+		0947FDB320DA75DB00BC4141 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09168FD11E099D78005DD50F /* unity.build.cpp */; };
+		0947FDB420DA75DC00BC4141 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09168FD11E099D78005DD50F /* unity.build.cpp */; };
 		09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09A2EC281EA2C48100D94138 /* Accelerate.framework */; };
 		09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
 		09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
@@ -108,6 +108,10 @@
 		093F0A1E1E9AB399004432C2 /* peaks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = peaks.hpp; path = include/peaks.hpp; sourceTree = "<group>"; };
 		093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_peaks.cpp; path = test/test_peaks.cpp; sourceTree = "<group>"; };
 		094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.benchmarks.hpp; path = include/dsp.convolution.benchmarks.hpp; sourceTree = "<group>"; };
+		0947FDB020D9671200BC4141 /* maybe.atomic.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = maybe.atomic.hpp; path = include/maybe.atomic.hpp; sourceTree = "<group>"; };
+		0947FDB120DA73C400BC4141 /* test_pair_array_local.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pair_array_local.cpp; path = test/test_pair_array_local.cpp; sourceTree = "<group>"; };
+		0947FDB220DA747E00BC4141 /* test.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = test.h; sourceTree = "<group>"; };
+		0947FDC420DABAC900BC4141 /* test_locks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_locks.cpp; path = test/test_locks.cpp; sourceTree = "<group>"; };
 		094DE2381F69C10A007191A0 /* convex_hull.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = convex_hull.h; path = include/convex_hull.h; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
@@ -155,7 +159,7 @@
 		09807B7920D7E2BA009732BD /* os.storage.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = os.storage.h; path = include/os.storage.h; sourceTree = "<group>"; };
 		09807B7A20D7E2BA009732BD /* bsonutils.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = bsonutils.hpp; path = include/bsonutils.hpp; sourceTree = "<group>"; };
 		09807B7B20D7E2BD009732BD /* file2string.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = file2string.h; path = include/file2string.h; sourceTree = "<group>"; };
-		09807B7C20D7F03E009732BD /* test_pair_array.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pair_array.cpp; path = test/test_pair_array.cpp; sourceTree = "<group>"; };
+		09807B7C20D7F03E009732BD /* test_pair_array_distant.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pair_array_distant.cpp; path = test/test_pair_array_distant.cpp; sourceTree = "<group>"; };
 		09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_lockfree_scmp.cpp; path = test/test_staticvector_lockfree_scmp.cpp; sourceTree = "<group>"; };
 		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
 		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
@@ -361,6 +365,7 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				0947FDC420DABAC900BC4141 /* test_locks.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
@@ -385,7 +390,8 @@
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,
 				093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */,
-				09807B7C20D7F03E009732BD /* test_pair_array.cpp */,
+				09807B7C20D7F03E009732BD /* test_pair_array_distant.cpp */,
+				0947FDB120DA73C400BC4141 /* test_pair_array_local.cpp */,
 				093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */,
 				096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */,
 				0999CE481EB926C100309E86 /* test_rng.cpp */,
@@ -396,6 +402,7 @@
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
+				0947FDB220DA747E00BC4141 /* test.h */,
 			);
 			name = test;
 			sourceTree = "<group>";
@@ -453,6 +460,7 @@
 				091AF71C1E27DC24004B554F /* markov_chain.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
 				098DC8BE1F65AE3000C5A8B2 /* matrix.hpp */,
+				0947FDB020D9671200BC4141 /* maybe.atomic.hpp */,
 				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
 				0996F3E81E2EF3030053B30B /* meta.hpp */,
@@ -669,8 +677,8 @@
 				09367D751E2E2A290095BF20 /* GoogleTests.mm in Sources */,
 				09367D731E2E2A240095BF20 /* gtest_main.cc in Sources */,
 				09367D741E2E2A240095BF20 /* gtest-all.cc in Sources */,
+				0947FDB320DA75DB00BC4141 /* unity.build.cpp in Sources */,
 				09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */,
-				09367D721E2E29ED0095BF20 /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -681,8 +689,8 @@
 				093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */,
 				093239C91DB3F3CE003C168E /* gtest-all.cc in Sources */,
 				093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */,
+				0947FDB420DA75DC00BC4141 /* unity.build.cpp in Sources */,
 				09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */,
-				09168FD21E099D78005DD50F /* unity.build.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

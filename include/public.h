@@ -75,6 +75,7 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
+#include "maybe.atomic.hpp"
 #include "likely.h"
 #include "spinlock.h"
 #include "log.h"

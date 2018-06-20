@@ -8,14 +8,18 @@
 
 #include "public.h"
 
+#include "test.h"
+
 #include <thread>
 
 #include "test_staticvector_lockfree_scmp.cpp"
 #include "test_staticvector_singlethread.cpp"
-#include "test_pair_array.cpp"
+#include "test_pair_array_distant.cpp"
+#include "test_pair_array_local.cpp"
 #include "test_fifo.cpp"
 #include "test_fifo1.cpp"
 #include "test_angles.cpp"
+#include "test_locks.cpp"
 #include "test_rng.cpp"
 #include "test_containers.cpp"
 #include "test_math.cpp"

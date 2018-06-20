@@ -81,10 +81,10 @@ struct static_vector {
         Empty     = 0b100, // the slot is empty.
       };
 
-      // We use 'PairArray<...>' instead of 'std::vector<std::pair<...>>'
+      // We use 'DistantPairArray<...>' instead of 'std::vector<std::pair<...>>'
       // because it has a better memory layout.
       template<typename T>
-      using slots = PairArray<SlotState,T>;
+      using slots = DistantPairArray<SlotState,T>;
 
       template<typename T>
       auto * states(slots<T> & s) { return s.firsts(); }

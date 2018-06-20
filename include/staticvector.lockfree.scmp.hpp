@@ -84,10 +84,10 @@ struct static_vector {
 
       static_assert(std::atomic<SlotState>::is_always_lock_free);
 
-      // We use 'PairArray<...>' instead of 'std::vector<std::pair<...>>'
+      // We use 'DistantPairArray<...>' instead of 'std::vector<std::pair<...>>'
       // because it has a better memory layout.
       template<typename T>
-      using slots = PairArray<std::atomic<SlotState>,T>;
+      using slots = DistantPairArray<std::atomic<SlotState>,T>;
 
       template<typename T>
       auto * states(slots<T> & s) { return s.firsts(); }
@@ -229,10 +229,9 @@ struct static_vector {
       
 
     private:
-      detail::slots<value_type> s;
-
       // An upper bound of the count of full slots.
       std::atomic<int> upperBoundCount;
+      detail::slots<value_type> s;
     };
       
     }

@@ -30,9 +30,9 @@ namespace imajuscule
         size_t idx;
     };
   
-    std::atomic_bool & logLock() {
-      static std::atomic_bool b = false;
-      return b;
+    std::atomic_flag & logLock() {
+      static std::atomic_flag f = ATOMIC_FLAG_INIT;
+      return f;
     }
 
     static void getThreadData(ThreadData *& data) {

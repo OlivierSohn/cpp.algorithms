@@ -104,7 +104,7 @@ namespace imajuscule {
     }
     
     template<typename A_, typename B_, ArrayLocality L = Loc
-    , typename std::enable_if<L == ArrayLocality::Distant>::type...>
+    , std::enable_if_t<L == ArrayLocality::Distant>...>
     PairArray(int countPairs, A_ && a, B_ && b) : PairArray(countPairs)
     {
       fill(a,b);
@@ -122,14 +122,14 @@ namespace imajuscule {
     }
     
     template<typename A_, typename B_, ArrayLocality L = Loc
-    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    , std::enable_if_t<L == ArrayLocality::Local>...>
     PairArray( A_ && a, B_ && b) : PairArray()
     {
       fill(a,b);
     }
     
     template<typename A_, typename B_, ArrayLocality L = Loc
-    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    , std::enable_if_t<L == ArrayLocality::Local>...>
     PairArray(A_ && a, std::array<B_, szLocalArray> & bs)
     {
       initialize_a(std::move(a));
@@ -137,7 +137,7 @@ namespace imajuscule {
     }
 
     template<typename A_, typename B_, ArrayLocality L = Loc
-    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    , std::enable_if_t<L == ArrayLocality::Local>...>
     PairArray(std::array<A_, szLocalArray> & as, B_ && b)
     {
       initialize_as(as);
@@ -145,7 +145,7 @@ namespace imajuscule {
     }
     
     template<typename A_, typename B_, ArrayLocality L = Loc
-    , typename std::enable_if<L == ArrayLocality::Local>::type...>
+    , std::enable_if_t<L == ArrayLocality::Local>...>
     PairArray(std::array<A_, szLocalArray> & as, std::array<B_, szLocalArray> & bs)
     {
       initialize_as(as);

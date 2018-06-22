@@ -6,7 +6,7 @@
 
 namespace imajuscule {
     /*
-     * FIFO queue of unlimited size, based on a vector, which performs no
+     * Non-thread-safe, FIFO queue of unlimited size, based on a vector, which performs no
      * dynamic memory allocation / deallocation within its methods: the
      * trick is that the caller of methods whose names are 'unsafe'-prefixed
      * are responsible for giving the queue its new underlying container,

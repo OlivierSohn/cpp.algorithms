@@ -1,8 +1,6 @@
 
 
-namespace imajuscule {
-  namespace lockfree {
-    namespace scmp {
+namespace imajuscule::lockfree::scmp {
 
     /*
      
@@ -43,8 +41,8 @@ namespace imajuscule {
 /*
      'static_vector' synopsis
 
-namespace imajuscule {
- 
+ namespace imajuscule::lockfree::scmp {
+
 template<typename T, OnRemoval DP=OnRemoval::DoNothing>
 struct static_vector {
  
@@ -62,7 +60,7 @@ struct static_vector {
      int forEach(F f);
 };
 
-} // imajuscule
+} // imajuscule::lockfree::scmp
 
 */
 
@@ -74,34 +72,8 @@ struct static_vector {
       DoNothing,
     };
 
-    namespace detail {
-      enum class SlotState : int {
-        Full      =   0b0, // the slot is full.
-        SoonFull  =   0b1, // the slot is being filled.
-        SoonEmpty =  0b10, // the slot is being emptied.
-        Empty     = 0b100, // the slot is empty.
-      };
-
-      static_assert(std::atomic<SlotState>::is_always_lock_free);
-
-      // We use 'DistantPairArray<...>' instead of 'std::vector<std::pair<...>>'
-      // because it has a better memory layout.
-      template<typename T>
-      using slots = DistantPairArray<std::atomic<SlotState>,T>;
-
-      template<typename T>
-      auto * states(slots<T> & s) { return s.firsts(); }
-      template<typename T>
-      auto * states_end(slots<T> & s) { return s.firsts_end(); }
-      template<typename T>
-      auto * values(slots<T> & s) { return s.seconds(); }
-      template<typename T>
-      auto * values_end(slots<T> & s) { return s.seconds_end(); }
-    }
-      
     template<typename T, OnRemoval DP=OnRemoval::DoNothing>
     struct static_vector {
-
       using value_type = T;
 
       static_assert(DP == OnRemoval::DoNothing ||
@@ -110,8 +82,7 @@ struct static_vector {
       static_vector(int capacity) :
         s(capacity)
       {
-        using namespace detail;
-        for(auto it = states(s), end = states_end(s); it != end; ++it) {
+        for(auto it = states(), end = states_end(); it != end; ++it) {
           it->store(SlotState::Empty, std::memory_order_release);
         }
         upperBoundCount.store(0,std::memory_order_release);
@@ -121,9 +92,8 @@ struct static_vector {
       //
       // Returns true if the insertion succeeded, false otherwise.
       bool tryInsert(value_type v) {
-        using namespace detail;
-        auto begin = states(s);
-        auto end = states_end(s);
+        auto begin = states();
+        auto end = states_end();
 
         bool retry = false;
         do {
@@ -133,10 +103,10 @@ struct static_vector {
               // update the corresponding value
               auto index = state - begin;
               if constexpr (std::is_move_assignable_v<value_type>) {
-                values(s)[index] = std::move(v);
+                values()[index] = std::move(v);
               }
               else {
-                values(s)[index] = v;
+                values()[index] = v;
               }
               
               // and change the atomic flag (by design, no other thread can have changed it in-between).
@@ -179,7 +149,6 @@ struct static_vector {
       // @returns the number of elements that were removed from the static_vector.
       template<typename F>
       int forEach(F f) {
-        using namespace detail;
         int nMax = upperBoundCount.load(std::memory_order_seq_cst);
         if(nMax == 0) {
           // the static_vector is empty
@@ -187,9 +156,9 @@ struct static_vector {
         }
         Assert(nMax > 0);
         // the static_vector may be non empty.
-        auto begin = states(s);
-        auto end = states_end(s);
-        auto begin_values = values(s);
+        auto begin = states();
+        auto end = states_end();
+        auto begin_values = values();
         auto val = begin_values;
         int nSeen = 0;
         int nRemoved = 0;
@@ -217,7 +186,7 @@ struct static_vector {
             // Some elements have been added
             // between the beginning of the iteration and now,
             // so we continue. Note that we may need to traverse
-            // the whole underlying container, in case the added element(s) have
+            // the whole underlying container, in case the added element() have
             // been missed by this loop.
           }
         }
@@ -227,13 +196,28 @@ struct static_vector {
         return nRemoved;
       }
       
-
     private:
+      enum class SlotState : int {
+        Full      =   0b0, // the slot is full.
+        SoonFull  =   0b1, // the slot is being filled.
+        SoonEmpty =  0b10, // the slot is being emptied.
+        Empty     = 0b100, // the slot is empty.
+      };
+      
+      static_assert(std::atomic<SlotState>::is_always_lock_free);
+      
+      // We use 'DistantPairArray<...>' instead of 'std::vector<std::pair<...>>'
+      // because it has a better memory layout.
+      using slots = DistantPairArray<std::atomic<SlotState>,T>;
+      
       // An upper bound of the count of full slots.
       std::atomic<int> upperBoundCount;
-      detail::slots<value_type> s;
+      slots s;
+    
+      auto * states() { return s.firsts(); }
+      auto * states_end() { return s.firsts_end(); }
+      auto * values() { return s.seconds(); }
+      auto * values_end() { return s.seconds_end(); }
     };
       
-    }
-  }
 }

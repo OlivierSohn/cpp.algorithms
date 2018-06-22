@@ -141,6 +141,8 @@
 		096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_global_search.cpp; path = test/test_global_search.cpp; sourceTree = "<group>"; };
 		096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.ranged.hpp; path = include/optimization.local.ranged.hpp; sourceTree = "<group>"; };
 		096C7DBC1EB2140F00DDEB20 /* slidingsum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = slidingsum.h; path = include/slidingsum.h; sourceTree = "<group>"; };
+		0972455020DC76BF005003B9 /* fifo.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.lockfree.scmp.hpp; path = include/fifo.lockfree.scmp.hpp; sourceTree = "<group>"; };
+		0972455120DC7D4B005003B9 /* test_fifo_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo_lockfree_scmp.cpp; path = test/test_fifo_lockfree_scmp.cpp; sourceTree = "<group>"; };
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
 		0972720A1E1B678B00532772 /* test_cpp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cpp.cpp; path = test/test_cpp.cpp; sourceTree = "<group>"; };
@@ -365,7 +367,6 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
-				0947FDC420DABAC900BC4141 /* test_locks.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
@@ -381,12 +382,14 @@
 				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
 				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
+				0972455120DC7D4B005003B9 /* test_fifo_lockfree_scmp.cpp */,
 				09F1578F20C6C28000662939 /* test_fifo.cpp */,
 				09F1577D20C6AA3C00662939 /* test_fifo1.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
 				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
 				096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
+				0947FDC420DABAC900BC4141 /* test_locks.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,
 				093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */,
@@ -401,8 +404,8 @@
 				09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
-				09168FD11E099D78005DD50F /* unity.build.cpp */,
 				0947FDB220DA747E00BC4141 /* test.h */,
+				09168FD11E099D78005DD50F /* unity.build.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";
@@ -439,6 +442,7 @@
 				09A2EC2B1EA2F1FE00D94138 /* fft.interface.hpp */,
 				092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */,
 				09F1578E20C6B7B900662939 /* fifo.hpp */,
+				0972455020DC76BF005003B9 /* fifo.lockfree.scmp.hpp */,
 				09F1577C20C6AA2500662939 /* fifo1.hpp */,
 				09807B7B20D7E2BD009732BD /* file2string.h */,
 				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,

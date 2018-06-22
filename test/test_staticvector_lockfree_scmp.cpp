@@ -208,47 +208,6 @@ TEST(StaticVectorLockFreeSCMP, singleThread_2_elts) {
   }
 }
 
-namespace imajuscule {
-  
-  // To make the test more relevant,
-  // we use this type whose reads / writes are not atomic
-  struct RepeatInt {
-    RepeatInt() {
-      for(size_t i=0; i<is.size(); ++i) {
-        is[i] = i;
-      }
-    }
-
-    RepeatInt(int i) {
-      set(i);
-    }
-    
-    int get() const {
-      return is[0];
-    }
-    
-    void set(int i) {
-      is.fill(i);
-    }
-    
-    bool isValid() const {
-      for(auto v : is) {
-        if(v!= is[0]) {
-          return false;
-        }
-      }
-      return true;
-    }
-    
-    bool operator < (RepeatInt const & other) const {
-      return is[0] < other.is[0];
-    }
-    
-  private:
-    std::array<int,1000> is;
-  };
-}
-
 template<int arraySz, typename T>
 void testLFASlowConsumer() {
   using namespace imajuscule;
@@ -262,7 +221,11 @@ void testLFASlowConsumer() {
   std::vector<std::thread> v_threads;
   v_threads.reserve(nthreads);
   
+#ifdef NDEBUG
   constexpr auto nNumbers = 10000;
+#else
+  constexpr auto nNumbers = 100;
+#endif
   std::vector<int> values(nNumbers);
   std::iota(values.begin(), values.end(), 0);
   
@@ -272,12 +235,8 @@ void testLFASlowConsumer() {
       auto v = values;
       Shuffle(v);
       LG(INFO,"X");
-      
       for(auto e : v) {
-        bool res;
-        do {
-          res = a.tryInsert({e});
-        } while(!res); // repeat until we succeed.
+        while(!a.tryInsert({e})); // repeat until we succeed.
       }
       LG(INFO,".");
     }});
@@ -345,7 +304,11 @@ void testLFAFastConsumer() {
   std::vector<std::thread> v_threads;
   v_threads.reserve(nthreads);
   
+#ifdef NDEBUG
   constexpr auto nNumbers = 10000;
+#else
+  constexpr auto nNumbers = 100;
+#endif
   std::vector<int> values(nNumbers);
   std::iota(values.begin(), values.end(), 0);
   std::atomic<bool> run = false;
@@ -359,15 +322,7 @@ void testLFAFastConsumer() {
       LG(INFO,"X");
       
       for(auto e : v) {
-        bool res;
-        do {
-          if(run) {
-            res = a.tryInsert({e});
-          }
-          else {
-            res = false;
-          }
-        } while(!res); // repeat until we succeed.
+        while(!(run && a.tryInsert({e}))); // repeat until we succeed.
       }
       LG(INFO,".");
     }});
@@ -447,31 +402,6 @@ TEST(StaticVectorLockFreeSCMP, multiThread) {
   testLFA<100000>();
 }
 
-namespace imajuscule {
-  struct Destructible {
-
-    Destructible() {
-      countLiveObjects()++;
-    }
-    
-    Destructible ( const Destructible & ) {
-      countLiveObjects()++;
-    }
-
-    ~Destructible() {
-      countLiveObjects()--;
-    }
-    
-    static int & countLiveObjects() {
-      static int n = 0;
-      return n;
-    }
-  };
-  
-  static inline int nLiveObjects() {
-    return Destructible::countLiveObjects();
-  }
-}
 TEST(StaticVectorLockFreeSCMP, OnRemovalAssignFromDefault_UP) {
   using namespace imajuscule;
   

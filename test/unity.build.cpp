@@ -12,6 +12,7 @@
 
 #include <thread>
 
+#include "test_fifo_lockfree_scmp.cpp"
 #include "test_staticvector_lockfree_scmp.cpp"
 #include "test_staticvector_singlethread.cpp"
 #include "test_pair_array_distant.cpp"

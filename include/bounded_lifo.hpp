@@ -7,7 +7,7 @@
 namespace imajuscule {
 
     /*
-    * Fast "Last-in First-out" queue, with following restrictions:
+    * Non thread-safe, Fast "Last-in First-out" queue, with following restrictions:
     *
     * - During the entire lifecycle of this object, the number of calls to 'push_back'
     *       should not be greater than the size of the underlying container associated 

@@ -125,6 +125,7 @@
 #include "staticvector.lockfree.scmp.hpp"
 #include "staticvector.singlethread.hpp"
 #include "staticvector.hpp"
+#include "fifo.lockfree.scmp.hpp"
 #include "string.manip.h"
 #include "iter_range.hpp"
 #include "sort_utils.hpp"

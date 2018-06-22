@@ -1,7 +1,6 @@
 
 
-namespace imajuscule {
-  namespace singlethread {
+namespace imajuscule::singlethread {
     
     /*
      
@@ -44,7 +43,7 @@ namespace imajuscule {
 /*
      'static_vector' synopsis
 
-namespace imajuscule {
+namespace imajuscule::singlethread {
  
 template<typename T, OnRemoval DP=OnRemoval::DoNothing>
 struct static_vector {
@@ -63,7 +62,7 @@ struct static_vector {
      int forEach(F f);
 };
 
-} // imajuscule
+} // imajuscule::singlethread
 
 */
 
@@ -214,5 +213,5 @@ struct static_vector {
       // The count of full slots.
       int count;
     };
-  }
+
 }

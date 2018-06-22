@@ -7,7 +7,7 @@
 namespace imajuscule {
 
     /*
-    * FIFO queue containing at most a - single - element.
+    * Non-thread-safe FIFO queue containing at most a - single - element.
     *
     * It performs no dynamic allocation.
     *

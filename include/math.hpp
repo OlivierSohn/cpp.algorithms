@@ -6,6 +6,13 @@
 
 namespace imajuscule {
 
+  constexpr bool is_even(unsigned int i) {
+    return (i & 1) == 0;
+  }
+  constexpr bool is_odd(unsigned int i) {
+    return !is_even(i);
+  }
+  
     constexpr unsigned int relevantBits(unsigned int v) {
         unsigned int n = 0;
         while(v) {

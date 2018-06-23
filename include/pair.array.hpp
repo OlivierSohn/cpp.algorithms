@@ -89,7 +89,6 @@ namespace imajuscule {
 
     using Arr = std::conditional_t<Loc==ArrayLocality::Distant, DistantArray, LocalArray>;
     
-    
   public:
     
     template<ArrayLocality L = Loc
@@ -269,6 +268,16 @@ namespace imajuscule {
       }
     }
     
+    A& corresponding(B const &b) {
+      auto i = &b - seconds();
+      return firsts()[i];
+    }
+    
+    B& corresponding(A const &a) {
+      auto i = &a - firsts();
+      return seconds()[i];
+    }
+
   private:
     Arr arr;
     
@@ -317,4 +326,32 @@ namespace imajuscule {
   // The array memory is distant (a pointer is used to point to the array)
   template<typename A, typename B>
   using DistantPairArray = detail::PairArray<A,B,detail::ArrayLocality::Distant, 0>;
+  
+  // range iteration
+  template <typename T>
+  class Range
+  {
+  public:
+    Range(T* collection, size_t size) :
+    mCollection(collection), mSize(size)
+    {
+    }
+    
+    T* begin() { return &mCollection[0]; }
+    T* end() { return &mCollection[mSize]; }
+    
+  private:
+    T* mCollection;
+    size_t mSize;
+  };
+
+  template<typename A, typename B, detail::ArrayLocality Loc, int szLocalArray>
+  auto firsts(detail::PairArray<A,B,Loc,szLocalArray> & a) {
+    return Range(a.firsts(), a.size());
+  }
+
+  template<typename A, typename B, detail::ArrayLocality Loc, int szLocalArray>
+  auto seconds(detail::PairArray<A,B,Loc,szLocalArray> & a) {
+    return Range(a.seconds(), a.size());
+  }
 }

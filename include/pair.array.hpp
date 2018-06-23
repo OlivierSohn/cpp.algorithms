@@ -71,6 +71,7 @@ namespace imajuscule {
       }
       
       BeginT * buf() { return data; }
+      BeginT const * buf() const { return data; }
       auto size() const { return count; }
 
     private:
@@ -80,6 +81,7 @@ namespace imajuscule {
     
     struct LocalArray {
       BeginT * buf() { return reinterpret_cast<BeginT*>(a.data()); }
+      BeginT const * buf() const { return reinterpret_cast<BeginT const*>(a.data()); }
       constexpr auto size() const { return szLocalArray; }
     private:
 
@@ -238,8 +240,26 @@ namespace imajuscule {
       }
     }
     
+    A const * firsts() const {
+      if constexpr (order == Order::As_Bs) {
+        return arr.buf();
+      }
+      else {
+        return reinterpret_cast<A*>(arr.buf() + arr.size());
+      }
+    }
+    
     // returns the pointer to the portion of the buffer containing the second elements
     B * seconds() {
+      if constexpr (order == Order::Bs_As) {
+        return arr.buf();
+      }
+      else {
+        return reinterpret_cast<B*>(arr.buf() + arr.size());
+      }
+    }
+    
+    B const * seconds() const {
       if constexpr (order == Order::Bs_As) {
         return arr.buf();
       }
@@ -329,10 +349,10 @@ namespace imajuscule {
   
   // range iteration
   template <typename T>
-  class Range
+  class RangeIter
   {
   public:
-    Range(T* collection, size_t size) :
+    RangeIter(T* collection, size_t size) :
     mCollection(collection), mSize(size)
     {
     }
@@ -345,13 +365,14 @@ namespace imajuscule {
     size_t mSize;
   };
 
-  template<typename A, typename B, detail::ArrayLocality Loc, int szLocalArray>
-  auto firsts(detail::PairArray<A,B,Loc,szLocalArray> & a) {
-    return Range(a.firsts(), a.size());
+  template<typename T>
+  auto firsts(T && a) {
+    return RangeIter(a.firsts(), a.size());
+  }
+  
+  template<typename T>
+  auto seconds(T && a) {
+    return RangeIter(a.seconds(), a.size());
   }
 
-  template<typename A, typename B, detail::ArrayLocality Loc, int szLocalArray>
-  auto seconds(detail::PairArray<A,B,Loc,szLocalArray> & a) {
-    return Range(a.seconds(), a.size());
-  }
 }

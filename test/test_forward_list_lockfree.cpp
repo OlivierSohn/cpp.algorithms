@@ -1,5 +1,5 @@
 TEST(ForwardListLockfree, simple) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   forward_list<int> l;
   
   EXPECT_FALSE(l.try_pop_front());
@@ -106,7 +106,7 @@ TEST(ForwardListLockfree, simple) {
 }
 
 TEST(ForwardListLockfree, garbage_pop1) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -153,7 +153,7 @@ TEST(ForwardListLockfree, garbage_pop1) {
 
 
 TEST(ForwardListLockfree, garbage_pop1_) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -199,7 +199,7 @@ TEST(ForwardListLockfree, garbage_pop1_) {
 
 
 TEST(ForwardListLockfree, garbage_pop3) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -243,7 +243,7 @@ TEST(ForwardListLockfree, garbage_pop3) {
 
 
 TEST(ForwardListLockfree, garbage_popMid) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -290,7 +290,7 @@ TEST(ForwardListLockfree, garbage_popMid) {
 
 
 TEST(ForwardListLockfree, garbage_popAntiMid) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -339,7 +339,7 @@ TEST(ForwardListLockfree, garbage_popAntiMid) {
 
 
 TEST(ForwardListLockfree, garbage_pop4) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -393,7 +393,7 @@ TEST(ForwardListLockfree, garbage_pop4) {
 
 
 TEST(ForwardListLockfree, garbage_popAll) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   EXPECT_EQ(0, Destructible::countLiveObjects());
@@ -445,13 +445,14 @@ TEST(ForwardListLockfree, garbage_popAll) {
 
 
 TEST(ForwardListLockfree, consumerProducer) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
 
   std::atomic_bool run = true;
   forward_list<int> l;
 
   bool ok = true;
   std::thread produce([&ok, &l, &run](){
+    
     int n=0;
     while(run) {
       l.emplace_front(n);
@@ -483,7 +484,7 @@ TEST(ForwardListLockfree, consumerProducer) {
 
 
 TEST(ForwardListLockfree, consumerProducerBig) {
-  using namespace imajuscule::lockfree;
+  using namespace imajuscule::lockfree::scmp;
   using namespace imajuscule;
   
   std::atomic_bool run = true;
@@ -514,7 +515,6 @@ TEST(ForwardListLockfree, consumerProducerBig) {
     l.forEach([&read](auto & i) {
       EXPECT_TRUE(i.isValid());
       read.push_back(i.get());
-      
     });
   }
   
@@ -522,4 +522,102 @@ TEST(ForwardListLockfree, consumerProducerBig) {
   schedule.join();
   
   EXPECT_TRUE(ok);
+}
+
+
+TEST(ForwardListLockfree, consumerProducers) {
+  using namespace imajuscule::lockfree::scmp;
+  
+  std::atomic_bool run = true;
+  forward_list<int> l;
+  
+  constexpr auto nthreads = 20;
+  
+  std::vector<std::thread> v_threads;
+  v_threads.reserve(nthreads);
+  
+  for(int i=0; i<nthreads; ++i) {
+    // producers
+    v_threads.emplace_back(std::thread{[&l, &run](){
+      int n=0;
+      while(run) {
+        l.emplace_front(n);
+        // this 'try_pop_front' is not guaranteed to succeed
+        // because it may not be the first
+        // 'try_pop_front' since the last 'emplace_front'
+        l.try_pop_front();
+        ++n;
+      }
+    }});
+  }
+
+  std::vector<int> read;
+  read.reserve(1000000);
+  
+  std::thread schedule([&run](){
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    run = false;
+  });
+  
+  
+  while(run) {
+    l.forEach([&read](int i) { read.push_back(i); });
+  }
+  
+  for(auto & t: v_threads) {
+    t.join();
+  }
+  schedule.join();
+  
+}
+
+
+TEST(ForwardListLockfree, consumerProducersBig) {
+  using namespace imajuscule::lockfree::scmp;
+  using namespace imajuscule;
+  
+  std::atomic_bool run = true;
+  forward_list<RepeatInt> l;
+  
+  constexpr auto nthreads = 20;
+  
+  std::vector<std::thread> v_threads;
+  v_threads.reserve(nthreads);
+  
+  for(int i=0; i<nthreads; ++i) {
+    // producers
+    v_threads.emplace_back(std::thread{[&l, &run](){
+      int n=0;
+      while(run) {
+        l.emplace_front(n);
+        // this 'try_pop_front' is not guaranteed to succeed
+        // because it may not be the first
+        // 'try_pop_front' since the last 'emplace_front'
+        l.try_pop_front();
+        ++n;
+      }
+    }});
+  }
+  
+  std::vector<int> read;
+  read.reserve(1000000);
+  
+  std::thread schedule([&run](){
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    run = false;
+  });
+  
+  
+  while(run) {
+    l.forEach([&read](auto & i) {
+      EXPECT_TRUE(i.isValid());
+      read.push_back(i.get());
+    });
+  }
+  
+  for(auto & t: v_threads) {
+    t.join();
+  }
+  schedule.join();
+  
 }

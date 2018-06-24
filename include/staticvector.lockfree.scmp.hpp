@@ -1,43 +1,50 @@
 
 
 namespace imajuscule::lockfree::scmp {
-
-    /*
-     
-     'static_vector' is a lock-free variable-size container with fixed-capacity.
-     
+  
+  /*
+   
+   'static_vector' is a lock-free variable-size container with fixed-capacity.
+   
    -- Thread-safety --
-     
-     Multiple threads are allowed to call 'tryInsert' to add new elements.
-     
-     A single thread is allowed to call 'forEach' to read / modify / remove
-     the elements.
-     
+   
+   Multiple threads call 'tryInsert' concurrently to add new elements.
+   
+   A single thread calls 'forEach' to read / modify / remove
+   the elements.
+   
    -- Lifecycle of the elements of the underlying container --
-     
-     When a 'static_vector' is constructed,
-      the elements of the underlying container are default-constructed.
-
-     When a new element is added to a 'static_vector', using 'tryInsert',
-      the corresponding element of the underlying container is either
-       'assigned to' or 'move-assigned to' from the new element.
-
-     When an element is removed from a 'static_vector', using 'forEach',
-      depending on the 'OnRemoval' template parameter,
-       the corresponding element of the underlying container is either:
-        left as-is, or
-        'assigned to' from a default-constructed element.
-
-     When a 'static_vector' is destructed,
-      the elements of the underlying container are destructed.
-
+   
+   When a 'static_vector' is constructed,
+   the elements of the underlying container are default-constructed.
+   
+   When a new element is added to a 'static_vector', using 'tryInsert',
+   the corresponding element of the underlying container is either
+   'assigned to' or 'move-assigned to' from the new element.
+   
+   When an element is removed from a 'static_vector', using 'forEach',
+   depending on the 'OnRemoval' template parameter,
+   the corresponding element of the underlying container is either:
+   left as-is, or
+   'assigned to' from a default-constructed element.
+   
+   When a 'static_vector' is destructed,
+   the elements of the underlying container are destructed.
+   
    -- Memory usage --
-     
-     The memory overhead compared to std::vector of the same capacity
-     is 'sizeof(std::atomic<int>)' per element.
-     
-     */
-    
+   
+   The memory overhead compared to std::vector of the same capacity
+   is 'sizeof(std::atomic<int>)' per element.
+   
+   -- See also --
+   
+   'imajuscule::lockfree::scmp::forward_list' which :
+   - has unbounded capacity
+   - but uses dynamically allocated memory for its elements,
+   hence element construction may be slower that static_vector
+   
+   */
+  
 /*
      'static_vector' synopsis
 

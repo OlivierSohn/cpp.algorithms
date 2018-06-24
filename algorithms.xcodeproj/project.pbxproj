@@ -143,7 +143,7 @@
 		096C7DBC1EB2140F00DDEB20 /* slidingsum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = slidingsum.h; path = include/slidingsum.h; sourceTree = "<group>"; };
 		0972455020DC76BF005003B9 /* fifo.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.lockfree.scmp.hpp; path = include/fifo.lockfree.scmp.hpp; sourceTree = "<group>"; };
 		0972455120DC7D4B005003B9 /* test_fifo_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo_lockfree_scmp.cpp; path = test/test_fifo_lockfree_scmp.cpp; sourceTree = "<group>"; };
-		0972455220DFBDBA005003B9 /* forward.list.lockfree.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = forward.list.lockfree.hpp; path = include/forward.list.lockfree.hpp; sourceTree = "<group>"; };
+		0972455220DFBDBA005003B9 /* forward.list.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = forward.list.lockfree.scmp.hpp; path = include/forward.list.lockfree.scmp.hpp; sourceTree = "<group>"; };
 		0972455320DFE57D005003B9 /* test_forward_list_lockfree.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_forward_list_lockfree.cpp; path = test/test_forward_list_lockfree.cpp; sourceTree = "<group>"; };
 		0972718C1E1B325200532772 /* safe_cast.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = safe_cast.hpp; path = include/safe_cast.hpp; sourceTree = "<group>"; };
 		0972718D1E1B4AFD00532772 /* test_cast.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cast.cpp; path = test/test_cast.cpp; sourceTree = "<group>"; };
@@ -449,7 +449,7 @@
 				09F1577C20C6AA2500662939 /* fifo1.hpp */,
 				09807B7B20D7E2BD009732BD /* file2string.h */,
 				0929F1DE1E70CAE600605F6D /* flt_math.hpp */,
-				0972455220DFBDBA005003B9 /* forward.list.lockfree.hpp */,
+				0972455220DFBDBA005003B9 /* forward.list.lockfree.scmp.hpp */,
 				0996F3EB1E2F7FFB0053B30B /* freelist.hpp */,
 				09FC7DEA20BAD5910037B04C /* gen.names.h */,
 				093239CE1DB5327E003C168E /* hash_table.hpp */,

@@ -1,20 +1,35 @@
 
 
-namespace imajuscule::lockfree {
+namespace imajuscule::lockfree::scmp {
 
   /*
    
    'forward_list' is a forward-linked-list with :
-     - "one thread at-a-time" ** atomic ** [insertion or removal] at the beginning
+     - Concurrent atomic insertion at the beginning ............... (O(1))
+     = Concurrent atomic removal of the last inserted element ..... (O(1))
    
-   In practice, a consumer thread can traverse the list and modify its elements
-   while a producer thread atomically adds / removes elements at the beginning.
+   -- Thread-safety --
+   
+   Multiple threads call 'emplace_front', 'try_pop_front' concurrently to add / remove elements
+   
+   A single thread calls 'forEach' to traverse the list and read / modify its elements.
+   
+   -- Lifecycle of elements --
+   
+   This ensures that an element is never deleted while being traversed:
 
-   Implementation details:
-    Internally, a 3-step removal procedure ensures that an element is never deleted while being traversed:
-     1. 'try_pop_front' marks the front element to be deleted.
-     2. 'forEach' puts any element marked to be deleted in a garbage forward list.
-     3. 'emplace_front' or 'try_pop_front' flush the garbage list.
+   1. Elements are constructed on dynamically allocated memory during 'emplace_front'.
+   2. The next 'try_pop_front' marks the front element to be deleted.
+   3. The next 'forEach' puts elements marked to be deleted in a garbage forward list.
+   4. The next 'emplace_front' or 'try_pop_front' or 'collect_garbage' flushes the garbage list,
+        the element is destroyed, and the dynamic memory returned to the system.
+   
+   -- See also --
+
+   'imajuscule::lockfree::scmp::static_vector' which :
+   - has an underlying container with contiguous memory,
+   - is fixed-capacity,
+   - may have faster element construction because the memory is statically allocated.
   
    */
   
@@ -30,11 +45,11 @@ struct forward_list {
    using value_type = T;
    using reference = value_type &;
 
-   // atomic element insertion at the beginning (should be called by a single thread at a time):
+   // atomic element insertion at the beginning (concurrent calls supported)
    template <class... Args>
    reference emplace_front(Args&&... args);
 
-   // atomic first element removal (should be called by a single thread at a time)
+   // atomic first element removal (concurrent calls supported)
    void try_pop_front();
 
    // element read/write access (should be called by a single thread at a time)
@@ -42,7 +57,7 @@ struct forward_list {
    void forEach(F f);
 };
 
-} // imajuscule::lockfree
+ } // imajuscule::lockfree::scmp
 
 */
 
@@ -100,7 +115,9 @@ struct forward_list {
       destroy(garbage.load(std::memory_order_acquire));
     }
     
-    // atomic element insertion at the beginning (should be called by a single producer thread):
+    // Atomic element insertion at the beginning.
+    //
+    // Can be called concurrently by multiple threads.
     template <class... Args>
     value_type& emplace_front(Args&&... args) {
       CollectGarbageOnExit c(*this);
@@ -119,7 +136,7 @@ struct forward_list {
     //   - it is the first 'try_pop_front' call since the last 'emplace_front' call
     //   - or if 'forEach' was called, and returned, since the last 'try_pop_front' call returned.
     //
-    // Should be called by a single producer thread.
+    // Can be called concurrently by multiple threads.
     //
     // @returns true if an element was removed, false otherwise.
     //   Note that it can returns false on a non-empty list (cf. documentation above)
@@ -134,15 +151,13 @@ struct forward_list {
       CollectGarbageOnExit c(*this);
       
       auto * f = first.load(std::memory_order_acquire);
-      bool res = false;
-      if(f) {
-        auto expected = ElementFlag::Present;
-        res = f->flag.compare_exchange_strong(expected, ElementFlag::ShouldBeRemoved, std::memory_order_relaxed);
+      if(!f) {
+        return false;
       }
-      // The following call to 'collect_garbage' collects the flagged element
-      // only if the consumer thread has started and completed a 'forEach'
-      // call while we were suspended here. (it is very unlikely)
-      return res;
+      auto expected = ElementFlag::Present;
+      // Note that we could use std::memory_order_release, the only downside could be that the method returns sometimes
+      // true for an element that already had the flag set to 'ElementFlag::ShouldBeRemoved'.
+      return f->flag.compare_exchange_strong(expected, ElementFlag::ShouldBeRemoved, std::memory_order_acq_rel);
     }
     
     // element read/write access (should be called by a single thread at a time)

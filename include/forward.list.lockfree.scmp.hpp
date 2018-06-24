@@ -3,19 +3,19 @@
 namespace imajuscule::lockfree::scmp {
 
   /*
-   
+
    'forward_list' is a forward-linked-list with :
      - Concurrent atomic insertion at the beginning ............... (O(1))
      = Concurrent atomic removal of the last inserted element ..... (O(1))
-   
+
    -- Thread-safety --
-   
+
    Multiple threads call 'emplace_front', 'try_pop_front' concurrently to add / remove elements
-   
+
    A single thread calls 'forEach' to traverse the list and read / modify its elements.
-   
+
    -- Lifecycle of elements --
-   
+
    This ensures that an element is never deleted while being traversed:
 
    1. Elements are constructed on dynamically allocated memory during 'emplace_front'.
@@ -23,16 +23,16 @@ namespace imajuscule::lockfree::scmp {
    3. The next 'forEach' puts elements marked to be deleted in a garbage forward list.
    4. The next 'emplace_front' or 'try_pop_front' or 'collect_garbage' flushes the garbage list,
         the element is destroyed, and the dynamic memory returned to the system.
-   
+
    -- See also --
 
    'imajuscule::lockfree::scmp::static_vector' which :
    - has an underlying container with contiguous memory,
    - is fixed-capacity,
    - may have faster element construction because the memory is statically allocated.
-  
+
    */
-  
+
 /*
      'forward_list' synopsis
 
@@ -40,7 +40,7 @@ namespace imajuscule::lockfree {
 
 template<typename T>
 struct forward_list {
- 
+
    // types:
    using value_type = T;
    using reference = value_type &;
@@ -68,12 +68,13 @@ struct forward_list {
 
   template<typename T>
   struct forward_list {
-    
+
     using value_type = T;
+
+    using value_flag = std::pair<value_type&, std::atomic<ElementFlag>&>;
 
   private:
     struct list_elt {
-
       template <class... Args>
       list_elt(ElementFlag f, list_elt * elt, Args&&... args) :
       v(std::forward<Args>(args)...),
@@ -94,13 +95,7 @@ struct forward_list {
       }
       forward_list&u;
     };
-  public:
 
-    forward_list() {
-      first.store(nullptr, std::memory_order_relaxed);
-      garbage.store(nullptr, std::memory_order_relaxed);
-    }
-    
     static void destroy(list_elt * e) {
       auto * p = e;
       while(p) {
@@ -109,17 +104,31 @@ struct forward_list {
         p = next;
       }
     }
-    
-    ~forward_list() {
-      destroy(first.load(std::memory_order_acquire));
-      destroy(garbage.load(std::memory_order_acquire));
+  public:
+
+    forward_list() {
+      first.store(nullptr, std::memory_order_relaxed);
+      garbage.store(nullptr, std::memory_order_relaxed);
     }
-    
+
+    ~forward_list() {
+      clear();
+    }
+
+    // This method can be called only when the list is not traversed.
+    void clear() {
+      destroy(  first.exchange(nullptr, std::memory_order_acq_rel));
+      destroy(garbage.exchange(nullptr, std::memory_order_acq_rel));
+    }
+
     // Atomic element insertion at the beginning.
     //
     // Can be called concurrently by multiple threads.
+    //
+    // @returns a reference to the inserted value, and a reference to the atomic flag
+    // allowing to mark the element for removal.
     template <class... Args>
-    value_type& emplace_front(Args&&... args) {
+    value_flag emplace_front(Args&&... args) {
       CollectGarbageOnExit c(*this);
 
       // 1. create the new element
@@ -129,9 +138,12 @@ struct forward_list {
       while(!first.compare_exchange_strong(f,newElt, std::memory_order_acq_rel)) {
         newElt->p = f;
       }
-      return newElt->v;
+      return {
+        newElt->v,
+        newElt->flag
+      };
     }
-    
+
     // 'try_pop_front' removes the front element iff either:
     //   - it is the first 'try_pop_front' call since the last 'emplace_front' call
     //   - or if 'forEach' was called, and returned, since the last 'try_pop_front' call returned.
@@ -149,7 +161,7 @@ struct forward_list {
     //     I actually need it.
     bool try_pop_front() {
       CollectGarbageOnExit c(*this);
-      
+
       auto * f = first.load(std::memory_order_acquire);
       if(!f) {
         return false;
@@ -159,7 +171,7 @@ struct forward_list {
       // true for an element that already had the flag set to 'ElementFlag::ShouldBeRemoved'.
       return f->flag.compare_exchange_strong(expected, ElementFlag::ShouldBeRemoved, std::memory_order_acq_rel);
     }
-    
+
     // element read/write access (should be called by a single thread at a time)
     template<typename F>
     void forEach(F func) {
@@ -168,7 +180,7 @@ struct forward_list {
       list_elt * prevValid (nullptr);
       list_elt * firstValid = nullptr;
       bool need_relink = false;
-      
+
       auto * f = firstPtr;
       while(f) {
         if(unlikely(f->flag.load(std::memory_order_relaxed) == ElementFlag::ShouldBeRemoved)) {
@@ -198,17 +210,17 @@ struct forward_list {
           f = f->p;
         }
       }
-      
+
       if(prevValid && need_relink) {
         prevValid->p = nullptr;
       }
-      
+
       if(firstValid != firstPtr) {
         f = firstPtr;
         if(!first.compare_exchange_strong(f, firstValid, std::memory_order_acq_rel)) {
           // a concurrent 'emplace_front' call happenned, which changed 'first':
           // we walk the new elements, and update the one that needs to relink to firstValid.
-          
+
           while(1) {
             Assert(f); // if we don't find the element that needs to be relinked, we have a logic error.
             auto next = f->p;
@@ -236,13 +248,12 @@ struct forward_list {
     //
     // This method can be called concurrently.
     void collect_garbage() {
-      auto prevGarb = garbage.exchange(nullptr, std::memory_order_acq_rel);
-      destroy(prevGarb);
+      destroy(garbage.exchange(nullptr, std::memory_order_acq_rel));
     }
 
   private:
     std::atomic<list_elt *> first;
     std::atomic<list_elt *> garbage;
-    
+
   };
 }

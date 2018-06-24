@@ -52,18 +52,29 @@ namespace imajuscule {
     }
   }
 
+  enum class CanRealloc {
+    Yes,
+    No
+  };
+
   /*
    * Reallocates, if needed, the underlying container so that 'n'
    * additional elements can be pushed. When this function returns, the lock 'l'
    * is being taken.
    *
    * 'n' : the number of elements that we want to be able to add to the container.
+   *
+   * returns false if a reallocation is needed but canRealloc == CanRealloc::No
+   * hence it could not be done.
    */
-  template<typename C, typename Lock>
-  void reserveAndLock(int n, C & container, Lock & l) {
+  template<CanRealloc canRealloc, typename C, typename Lock>
+  [[nodiscard]] bool reserveAndLock(int n, C & container, Lock & l) {
     l.lock();
 
     if(auto amount = container.shouldGrow(n)) {
+      if constexpr (canRealloc == CanRealloc::No) {
+        return false;
+      }
       auto cap1 = container.underlyingContainerCapacity();
 
       l.unlock();
@@ -71,6 +82,7 @@ namespace imajuscule {
       detail::makeSomeRoom(n, cap1+amount, container, l);
       // the lock was taken by the previous call.
     }
+    return true;
   }
 
   template<typename T>

@@ -188,13 +188,16 @@ namespace imajuscule {
    * which makes this function suitable for use in a real-time context, provided that
    * lock / unlock functions can configure the thread priorities to avoid priority inversion.
    */
-  template<typename T, typename Lock>
-  void safeEmplace(fifo<T> & q, Lock & l, T && v) {
-    reserveAndLock(1,q,l);
-
-    q.emplace(std::move(v));
+  template<CanRealloc canRealloc, typename T, typename Lock>
+  [[nodiscard]] bool safeEmplace(fifo<T> & q, Lock & l, T && v) {
+    bool res = reserveAndLock<canRealloc>(1,q,l);
+    if(res) {
+      q.emplace(std::move(v));
+    }
 
     l.unlock();
+
+    return res;
   }
 
 } // NS imajuscule

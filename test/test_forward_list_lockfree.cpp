@@ -16,9 +16,9 @@ TEST(ForwardListLockfree, simple) {
     EXPECT_EQ(0,n);
   }
   
-  EXPECT_EQ(3,l.emplace_front(3));
-  EXPECT_EQ(4,l.emplace_front(4));
-  EXPECT_EQ(5,l.emplace_front(5));
+  EXPECT_EQ(3,l.emplace_front(3).first);
+  EXPECT_EQ(4,l.emplace_front(4).first);
+  EXPECT_EQ(5,l.emplace_front(5).first);
   
   {
     n = 0;
@@ -72,7 +72,7 @@ TEST(ForwardListLockfree, simple) {
     EXPECT_EQ(0,n);
   }
   
-  auto & r = l.emplace_front(8);
+  auto [r,rFlag] = l.emplace_front(8);
   
   {
     n = 0;
@@ -103,6 +103,15 @@ TEST(ForwardListLockfree, simple) {
     EXPECT_EQ(v2, v);
   }
   
+  rFlag = ElementFlag::ShouldBeRemoved;
+  
+  {
+    v.clear();
+    l.forEach(record);
+    auto v2 = std::vector<int>{10};
+    EXPECT_EQ(v2, v);
+  }
+
 }
 
 TEST(ForwardListLockfree, garbage_pop1) {

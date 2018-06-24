@@ -225,20 +225,20 @@ TEST(Container, grow) {
   EXPECT_TRUE(v.capacity() == 0);
   
   for(int i=0; i<10; ++i) {
-    reserveAndLock(0,w,l);
+    EXPECT_TRUE(reserveAndLock<CanRealloc::Yes>(0,w,l));
     EXPECT_TRUE(v.capacity() == 0);
     EXPECT_TRUE(l.locked);
     l.unlock();
   }
   
   for(int i=0; i<10; ++i) {
-    reserveAndLock(i,w,l);
+    EXPECT_TRUE(reserveAndLock<CanRealloc::Yes>(i,w,l));
     auto cap_now = v.capacity();
     EXPECT_LE(i,cap_now);
     EXPECT_TRUE(l.locked);
     l.unlock();
     
-    reserveAndLock(i,w,l);
+    EXPECT_TRUE(reserveAndLock<CanRealloc::Yes>(i,w,l));
     auto cap2 = v.capacity();
     EXPECT_EQ(cap2,cap_now);
     EXPECT_TRUE(l.locked);
@@ -262,13 +262,13 @@ TEST(Container, grow2) {
     EXPECT_TRUE(v.capacity() == cap);
     
     for(int i=0; i<100; ++i) {
-      reserveAndLock(i,w,l);
+      EXPECT_TRUE(reserveAndLock<CanRealloc::Yes>(i,w,l));
       auto cap_now = v.capacity();
       EXPECT_LE(cap+i,cap_now);
       EXPECT_TRUE(l.locked);
       l.unlock();
       
-      reserveAndLock(i,w,l);
+      EXPECT_TRUE(reserveAndLock<CanRealloc::Yes>(i,w,l));
       auto cap2 = v.capacity();
       EXPECT_EQ(cap2,cap_now);
       EXPECT_TRUE(l.locked);

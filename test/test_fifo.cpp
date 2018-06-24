@@ -199,17 +199,26 @@ TEST(Fifo, testMultipleEltConsumeInbetween) {
   EXPECT_TRUE(f.empty());
 }
 
+TEST(Fifo, testNoRealloc) {
+  using namespace imajuscule;
+  
+  fifo<int> f(0);
+  std::mutex m;
+  EXPECT_FALSE(safeEmplace<CanRealloc::No>(f, m, 48));
+  EXPECT_TRUE(f.empty());
+}
+
 TEST(Fifo, testLock) {
   using namespace imajuscule;
-
+  
   fifo<int> f;
   std::mutex m;
-
+  
   constexpr auto nElems = 1000;
   for(int i=0; i<nElems; ++i) {
-    safeEmplace(f, m, std::move(i));
+    EXPECT_TRUE(safeEmplace<CanRealloc::Yes>(f, m, std::move(i)));
   }
-
+  
   for(int i=0; i<nElems; ++i) {
     EXPECT_EQ(i, f.front());
     EXPECT_FALSE(f.empty());

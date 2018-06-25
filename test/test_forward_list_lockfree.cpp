@@ -72,7 +72,7 @@ TEST(ForwardListLockfree, simple) {
     EXPECT_EQ(0,n);
   }
   
-  auto [r,rFlag] = l.emplace_front(8);
+  auto [r,remover] = l.emplace_front(8);
   
   {
     n = 0;
@@ -103,7 +103,7 @@ TEST(ForwardListLockfree, simple) {
     EXPECT_EQ(v2, v);
   }
   
-  rFlag = ElementFlag::ShouldBeRemoved;
+  remover.flagForRemoval();
   
   {
     v.clear();

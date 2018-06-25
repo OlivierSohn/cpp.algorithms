@@ -101,6 +101,7 @@ struct forward_list {
   struct Remover {
     Remover (detail::flag_type&flag) : flag(flag) {}
 
+    // Flag the associated element for removal.
     void flagForRemoval(std::memory_order order = std::memory_order_release) {
       using namespace detail;
       flag.store(ElementFlag::ShouldBeRemoved, order);
@@ -148,8 +149,8 @@ struct forward_list {
     //
     // Can be called concurrently by multiple threads.
     //
-    // @returns a reference to the inserted value, and a reference to the atomic flag
-    // allowing to mark the element for removal.
+    // @returns a reference to the inserted value, and a 'Remover' that
+    // allows to mark the element for removal.
     template <class... Args>
     std::pair<value_type&, Remover> emplace_front(Args&&... args) {
       using namespace detail;

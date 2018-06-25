@@ -107,10 +107,9 @@ struct fifo {
           values()[writeIndex] = v;
         }
         states()[writeIndex].store(SlotState::Full, std::memory_order_release);
-        return true;
+        break;
       }
-      Assert(0);
-      return false;
+      return true;
     }
 
     /*

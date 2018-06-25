@@ -1,5 +1,26 @@
 
 
+TEST(Fifo1, cancelEmplace) {
+  using namespace imajuscule;
+  
+  fifo1<int> f;
+
+  f.emplace(3);
+  EXPECT_FALSE(f.empty());
+  EXPECT_TRUE(f.full());
+  f.cancel_emplace();
+  EXPECT_TRUE(f.empty());
+  EXPECT_FALSE(f.full());
+  
+  f.emplace(3);
+  EXPECT_FALSE(f.empty());
+  EXPECT_TRUE(f.full());
+  f.cancel_emplace();
+  EXPECT_TRUE(f.empty());
+  EXPECT_FALSE(f.full());
+  
+}
+
 TEST(Fifo1, test) {
     using namespace imajuscule;
     fifo1<int> f;

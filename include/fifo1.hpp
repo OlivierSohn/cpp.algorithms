@@ -61,6 +61,14 @@ namespace imajuscule {
         using namespace optional_ns;
         v = make_optional<T>(std::forward<Args>(args)...);
       }
+      
+      /*
+       * Removes the last added element.
+       */
+      void cancel_emplace() {
+        Assert(v);
+        v = {};
+      }
 
       void pop() {
         Assert(v);

@@ -120,6 +120,15 @@ namespace imajuscule {
         *write = std::move(value);
         inc(write);
       }
+      
+      /*
+       * Removes the last added element.
+       */
+      void cancel_emplace() {
+        Assert(!empty());
+        dec(write);
+        *write = {}; // to destroy the object
+      }
 
       void pop() {
         Assert(!empty());
@@ -174,6 +183,13 @@ namespace imajuscule {
         if(i==v.end()) {
           i = v.begin();
         }
+      }
+
+      void dec (iterator&i) {
+        if(i==v.begin()) {
+          i = v.end();
+        }
+        --i;
       }
     };
 

@@ -1,6 +1,9 @@
 TEST(ForwardListLockfree, simple) {
+  using namespace imajuscule;
   using namespace imajuscule::lockfree::scmp;
   forward_list<int> l;
+  
+  EXPECT_FALSE(l.maybe_front());
   
   EXPECT_FALSE(l.try_pop_front());
 
@@ -17,6 +20,9 @@ TEST(ForwardListLockfree, simple) {
   }
   
   EXPECT_EQ(3,l.emplace_front(3).first);
+  EXPECT_TRUE(l.maybe_front());
+  EXPECT_EQ(3, get_value(l.maybe_front()).first);
+  
   EXPECT_EQ(4,l.emplace_front(4).first);
   EXPECT_EQ(5,l.emplace_front(5).first);
   
@@ -32,6 +38,7 @@ TEST(ForwardListLockfree, simple) {
   }
   
   EXPECT_TRUE(l.try_pop_front());
+  EXPECT_FALSE(l.maybe_front()); // the front deleted element has not been garbage collected yet
   EXPECT_FALSE(l.try_pop_front());
 
   {
@@ -39,6 +46,7 @@ TEST(ForwardListLockfree, simple) {
     l.forEach(inc);
     EXPECT_EQ(2,n);
   }
+  EXPECT_TRUE(l.maybe_front()); // the front deleted element has been garbage collected
   {
     n = 0;
     l.forEach(inc);
@@ -54,7 +62,8 @@ TEST(ForwardListLockfree, simple) {
   }
   
   EXPECT_TRUE(l.try_pop_front());
-
+  EXPECT_FALSE(l.maybe_front()); // the list is empty
+  
   {
     n = 0;
     l.forEach(inc);

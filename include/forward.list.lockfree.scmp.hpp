@@ -151,6 +151,9 @@ struct forward_list {
     //
     // @returns a reference to the inserted value, and a 'Remover' that
     // allows to mark the element for removal.
+    //
+    // If you want to use the returned element, don't call 'try_pop_front' concurrently,
+    // or the element may already be deleted when you try to use it.
     template <class... Args>
     std::pair<value_type&, Remover> emplace_front(Args&&... args) {
       using namespace detail;
@@ -168,6 +171,26 @@ struct forward_list {
         {newElt->flag}
       };
     }
+    
+    // @returns the front element (and its 'Remover') iff the list is not empty, and:
+    //  - no element has ever been removed from the list, or
+    //  - 'forEach' has been called and returned since the last element removal.
+    //
+    // Can be called concurrently by multiple threads.
+    Optional<std::pair<value_type&, Remover>> maybe_front() {
+      using namespace detail;
+
+      if(auto * f = first.load(std::memory_order_acquire)) {
+        if(f->flag.load(std::memory_order_acquire) == ElementFlag::Present) {
+          return {{
+            f->v,
+            {f->flag}
+          }};
+        }
+      }
+      return {};
+    }
+
 
     // 'try_pop_front' removes the front element iff either:
     //   - it is the first 'try_pop_front' call since the last 'emplace_front' call

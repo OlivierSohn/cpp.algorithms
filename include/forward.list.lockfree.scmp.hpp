@@ -38,18 +38,22 @@ namespace imajuscule::lockfree::scmp {
 
 namespace imajuscule::lockfree {
 
+// element removal:
+struct Remover {
+ void flagForRemoval(std::memory_order order = std::memory_order_release);
+};
+
 template<typename T>
 struct forward_list {
 
    // types:
    using value_type = T;
-   using reference = value_type &;
 
-   // atomic element insertion at the beginning (concurrent calls supported)
+   // atomic element insertion at the beginning (can be called concurrently)
    template <class... Args>
-   reference emplace_front(Args&&... args);
+   std::pair<value_type&, Remover> emplace_front(Args&&... args);
 
-   // atomic first element removal (concurrent calls supported)
+   // atomic first element removal (can be called concurrently)
    void try_pop_front();
 
    // element read/write access (should be called by a single thread at a time)
@@ -60,10 +64,49 @@ struct forward_list {
  } // imajuscule::lockfree::scmp
 
 */
+  namespace detail {
+    enum class ElementFlag {
+      Present,
+      ShouldBeRemoved
+    };
 
-  enum class ElementFlag {
-    Present,
-    ShouldBeRemoved
+    using flag_type = std::atomic<ElementFlag>;
+
+    template<typename T>
+    struct list_elt {
+      template <class... Args>
+      list_elt(list_elt * elt, Args&&... args) :
+      v(std::forward<Args>(args)...),
+      p(elt)
+      {
+        flag.store(ElementFlag::Present, std::memory_order_relaxed);
+      }
+
+      flag_type flag;
+      list_elt * p;
+      T v;
+    };
+
+    template<typename T>
+    void destroy(list_elt<T> * e) {
+      auto * p = e;
+      while(p) {
+        auto next = p->p;
+        delete p;
+        p = next;
+      }
+    }
+  }
+
+  struct Remover {
+    Remover (detail::flag_type&flag) : flag(flag) {}
+
+    void flagForRemoval(std::memory_order order = std::memory_order_release) {
+      using namespace detail;
+      flag.store(ElementFlag::ShouldBeRemoved, order);
+    }
+  private:
+    detail::flag_type& flag;
   };
 
   template<typename T>
@@ -71,22 +114,9 @@ struct forward_list {
 
     using value_type = T;
 
-    using value_flag = std::pair<value_type&, std::atomic<ElementFlag>&>;
 
   private:
-    struct list_elt {
-      template <class... Args>
-      list_elt(ElementFlag f, list_elt * elt, Args&&... args) :
-      v(std::forward<Args>(args)...),
-      p(elt)
-      {
-        flag.store(f, std::memory_order_relaxed);
-      }
-
-      std::atomic<ElementFlag> flag;
-      list_elt * p;
-      value_type v;
-    };
+    using elt = detail::list_elt<value_type>;
 
     struct CollectGarbageOnExit {
       CollectGarbageOnExit(forward_list&u) : u(u) {}
@@ -96,14 +126,6 @@ struct forward_list {
       forward_list&u;
     };
 
-    static void destroy(list_elt * e) {
-      auto * p = e;
-      while(p) {
-        auto next = p->p;
-        delete p;
-        p = next;
-      }
-    }
   public:
 
     forward_list() {
@@ -117,6 +139,7 @@ struct forward_list {
 
     // This method can be called only when the list is not traversed.
     void clear() {
+      using namespace detail;
       destroy(  first.exchange(nullptr, std::memory_order_acq_rel));
       destroy(garbage.exchange(nullptr, std::memory_order_acq_rel));
     }
@@ -128,19 +151,20 @@ struct forward_list {
     // @returns a reference to the inserted value, and a reference to the atomic flag
     // allowing to mark the element for removal.
     template <class... Args>
-    value_flag emplace_front(Args&&... args) {
+    std::pair<value_type&, Remover> emplace_front(Args&&... args) {
+      using namespace detail;
       CollectGarbageOnExit c(*this);
 
       // 1. create the new element
       auto * f = first.load(std::memory_order_acquire);
-      auto * newElt = new list_elt(ElementFlag::Present, f, std::forward<Args>(args)...);
+      auto * newElt = new elt(f, std::forward<Args>(args)...);
       // 2. insert it
       while(!first.compare_exchange_strong(f,newElt, std::memory_order_acq_rel)) {
         newElt->p = f;
       }
       return {
         newElt->v,
-        newElt->flag
+        {newElt->flag}
       };
     }
 
@@ -161,9 +185,10 @@ struct forward_list {
     //     I actually need it.
     //
     // @ Question: How can I remove a specific element?
-    // @ Answer: If you kept the flag returned by its corresponding 'emplace_front',
-    //     you can flag it for removal.
+    // @ Answer: The corresponding 'emplace_front' returns a 'Remover' : use its
+    //     'flagForRemoval' method.
     bool try_pop_front() {
+      using namespace detail;
       CollectGarbageOnExit c(*this);
 
       auto * f = first.load(std::memory_order_acquire);
@@ -172,17 +197,18 @@ struct forward_list {
       }
       auto expected = ElementFlag::Present;
       // Note that we could use std::memory_order_release, the only downside could be that the method returns sometimes
-      // true for an element that already had the flag set to 'ElementFlag::ShouldBeRemoved'.
+      // true for an element that already had the flag set to 'detail::ElementFlag::ShouldBeRemoved'.
       return f->flag.compare_exchange_strong(expected, ElementFlag::ShouldBeRemoved, std::memory_order_acq_rel);
     }
 
     // element read/write access (should be called by a single thread at a time)
     template<typename F>
     void forEach(F func) {
-      list_elt * local_garbage = nullptr;
+      using namespace detail;
+      elt * local_garbage = nullptr;
       auto * firstPtr = first.load(std::memory_order_acquire);
-      list_elt * prevValid (nullptr);
-      list_elt * firstValid = nullptr;
+      elt * prevValid (nullptr);
+      elt * firstValid = nullptr;
       bool need_relink = false;
 
       auto * f = firstPtr;
@@ -202,7 +228,7 @@ struct forward_list {
           need_relink = true;
         }
         else {
-          func(f->v); // NOTE we could allow the function to remove elements
+          func(f->v); // NOTE we could allow the function to remove elements by returning false.
           if(!firstValid) {
             firstValid = f;
           }
@@ -252,12 +278,13 @@ struct forward_list {
     //
     // This method can be called concurrently.
     void collect_garbage() {
+      using namespace detail;
       destroy(garbage.exchange(nullptr, std::memory_order_acq_rel));
     }
 
   private:
-    std::atomic<list_elt *> first;
-    std::atomic<list_elt *> garbage;
+    std::atomic<elt *> first;
+    std::atomic<elt *> garbage;
 
   };
 }

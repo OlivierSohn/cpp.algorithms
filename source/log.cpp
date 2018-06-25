@@ -29,7 +29,7 @@ namespace imajuscule
         std::string str;
         size_t idx;
     };
-  
+
     std::atomic_flag & logLock() {
       static std::atomic_flag f = ATOMIC_FLAG_INIT;
       return f;
@@ -81,7 +81,7 @@ namespace imajuscule
         print_system_time();
 
         fprintf(((level == ERR) ? stderr : stdout),
-                "%d|%s|%s\n",
+                "%zu|%s|%s\n",
                 thread_data->idx,
                 levelToChar(level),
                 v.data());

@@ -5,8 +5,10 @@ namespace imajuscule::lockfree::scmp {
   /*
 
    'fifo' is a lock-free single consumer, multiple producer fifo queue
-   of fixed-capacity, optimized for the uncontended case (for example,
-   we don't take any precautions regarding false sharing).
+   of fixed-capacity, optimized for the uncontended case
+   (we don't take precautions regarding false sharing).
+   
+   The maximum capacity is '2^16 - 3' elements.
 
  -- Thread-safety --
 

@@ -159,6 +159,10 @@ struct forward_list {
     //     In my application(s), the guarantees provided by 'try_pop_front'
     //     are sufficient, so I'll take the time to write 'pop_front' only if
     //     I actually need it.
+    //
+    // @ Question: How can I remove a specific element?
+    // @ Answer: If you kept the flag returned by its corresponding 'emplace_front',
+    //     you can flag it for removal.
     bool try_pop_front() {
       CollectGarbageOnExit c(*this);
 

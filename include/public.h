@@ -12,12 +12,15 @@
 #include <cassert>
 #include <cctype>
 #include <chrono>
-#include <cstring>
 #include <cstddef>
+#ifdef IMJ_LOG_MEMORY
+#  include <cstdlib>
+#endif
+#include <cstring>
 #include <ctime>
 #include <cxxabi.h>
-#include <functional>
 #include <fstream>
+#include <functional>
 #include <initializer_list>
 #include <iomanip>
 #include <iostream>
@@ -25,10 +28,9 @@
 #include <list>
 #include <locale>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <new>
-#include <unordered_map>
-#include <memory>
 #include <random>
 #include <set>
 #include <sstream>
@@ -75,6 +77,7 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
+#include "log.stack.h"
 #include "maybe.atomic.hpp"
 #include "likely.h"
 #include "spinlock.h"
@@ -87,7 +90,6 @@
 #include "angles.h"
 #include "indentedStream.h"
 #include "logging.h"
-#include "log.stack.h"
 #include "container.hpp"
 #include "optional.h"
 #include "fifo1.hpp"

@@ -31,6 +31,32 @@ namespace imajuscule {
 #endif
     };
 
+#ifdef IMJ_LOG_MEMORY
+  /*
+  * Executes the passed callable only if memory logging is active.
+  */
+  template <typename Log>
+  void logMemory(Log l) {
+    using namespace imajuscule;
+    if(!shouldLogMemory()) {
+      return;
+    }
+    ScopedNoMemoryLogs s; // do not log the memory allocated / deallocated for the log itself.
+
+    if(threadNature() == ThreadNature::RealTime_OS) {
+      printf("** dynamic memory allocated / deallocated in a realtime thread, outside program reach:\n");
+    }
+    else if(threadNature() == ThreadNature::RealTime_Program) {
+      printf("******* Warning: dynamic memory allocated / deallocated in a realtime thread: *********\n");
+      logStack();
+    }
+    l();
+    if(threadNature() == ThreadNature::RealTime_Program) {
+      printf("******* ******* ********\n");
+    }
+  }
+#endif
+
     typedef enum logLevel
     {
         SCRIPT = 1,

@@ -5,6 +5,7 @@
 // TODO LOG : redirect std::out and std::err to android logging for android platform
 namespace imajuscule
 {
+#ifdef IMJ_LOG_MEMORY
   ThreadNature & threadNature() {
     thread_local ThreadNature rt = ThreadNature::Normal;
     return rt;
@@ -13,6 +14,7 @@ namespace imajuscule
     thread_local bool l = true;
     return l;
   }
+#endif
 
 #ifdef __ANDROID__
 	int toAndroid(logLevel i)

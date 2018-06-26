@@ -52,23 +52,24 @@ namespace imajuscule
     const char * Header = "                                           STACK BEGIN";
     const char * Footer = "                                           STACK END";
     const char * pipesS = "------------------------------------------------------------------------------------------------------";
+  const char* endl = "\n";
 
-    std::cout << std::endl
-    << lineS << std::endl
-    << Header << std::endl
-    << pipesS << std::endl
-    << std::endl;
+    std::cout << endl
+    << lineS << endl
+    << Header << endl
+    << pipesS << endl
+    << endl;
 
     constexpr auto n_remove = 1; // for this function
     for(auto & t : debugging::getProgramStack(n_remove)) {
-        std::cout << t << std::endl;
+        std::cout << t << endl;
     }
 
-    std::cout << std::endl
-    << pipesS << std::endl
-    << Footer << std::endl
-    << lineS << std::endl
-    << std::endl;
+    std::cout << endl
+    << pipesS << endl
+    << Footer << endl
+    << lineS << endl
+  << std::endl; // std::endl at the very end because it flushes.
 
 #endif
 

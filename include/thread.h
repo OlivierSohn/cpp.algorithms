@@ -111,12 +111,24 @@ namespace imajuscule
 #else
           ok = cur.write();
 #endif
+
+#ifdef IMJ_LOG_MEMORY
+          if(ok) {
+            backup_thread_nature = threadNature();
+            threadNature() = ThreadNature::RealTime_Program;
+          }
+#endif
         }
         
         void unlock() {
           if(!ok) {
             return;
           }
+
+#ifdef IMJ_LOG_MEMORY
+          threadNature() = backup_thread_nature;
+#endif
+
 #if __APPLE__
           ok = prev.mach.setNonRealTime();
           if(!ok) {
@@ -133,6 +145,9 @@ namespace imajuscule
       private:
         bool ok;
         SchedParams prev, cur;
+#ifdef IMJ_LOG_MEMORY
+        ThreadNature backup_thread_nature;
+#endif
       };
 
 

@@ -50,6 +50,16 @@ namespace imajuscule {
       printf("******* Warning: dynamic memory allocated / deallocated in a realtime thread: *********\n");
       logStack();
     }
+    else {
+      /*
+      using namespace std::chrono;
+      static auto startTime = high_resolution_clock::now();
+      auto timeNow = high_resolution_clock::now();
+      if(duration_cast<milliseconds>(timeNow-startTime).count() > 10 * 1000) {
+        logStack();
+      }
+       */
+    }
     l();
     if(threadNature() == ThreadNature::RealTime_Program) {
       printf("******* ******* ********\n");

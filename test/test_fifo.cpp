@@ -226,7 +226,7 @@ TEST(Fifo, testNoRealloc) {
   
   fifo<int> f(0);
   std::mutex m;
-  EXPECT_FALSE(safeEmplace<CanRealloc::No>(f, m, 48));
+  EXPECT_FALSE(safeTryEmplace<CanRealloc::No>(f, m, 48));
   EXPECT_TRUE(f.empty());
 }
 
@@ -238,7 +238,7 @@ TEST(Fifo, testLock) {
   
   constexpr auto nElems = 1000;
   for(int i=0; i<nElems; ++i) {
-    EXPECT_TRUE(safeEmplace<CanRealloc::Yes>(f, m, std::move(i)));
+    EXPECT_TRUE(safeTryEmplace<CanRealloc::Yes>(f, m, std::move(i)));
   }
   
   for(int i=0; i<nElems; ++i) {

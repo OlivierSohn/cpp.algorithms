@@ -15,7 +15,7 @@ namespace imajuscule {
      * This separation of concern allows to use the queue in a real-time context, where
      * dynamic allocations are forbidden.
      *
-     * @see safeEmplace
+     * @see safeTryEmplace
      *
      * The object T should be default-constructible.
     */
@@ -113,14 +113,14 @@ namespace imajuscule {
       /*
        * Before calling this method, please make sure the fifo is not full.
        *
-       * @See safeEmplace.
+       * @See safeTryEmplace.
        */
       void emplace( T&& value ) {
         Assert(!full());
         *write = std::move(value);
         inc(write);
       }
-      
+
       /*
        * Removes the last added element.
        */
@@ -197,15 +197,18 @@ namespace imajuscule {
    * Adds an element to the fifo queue (using emplace) after having made sure
    * that the fifo queue has enough room for it.
    *
-   * The potential lock protecting the queue writes is represented
-   * by the two functions passed as argument.
+   * The 'CanRealloc' template parameter controls wether the underlying container may be reallocated
+   * or not (if we are lockfree, we don't reallocate)
    *
-   * If needed, the allocation / deallocation of memory will happen outside the lock scope,
-   * which makes this function suitable for use in a real-time context, provided that
-   * lock / unlock functions can configure the thread priorities to avoid priority inversion.
+   * @param l : a potential lock (no-op if we are lockfree) protecting the queue writes.
+   *        The allocation / deallocation of memory will happen outside the lock scope,
+   *        which makes this function suitable for use in a real-time context, provided that
+   *        the lock can configure the thread priorities to avoid priority inversion.
+   *
+   * @returns wether or not the element was emplaced
    */
   template<CanRealloc canRealloc, typename T, typename Lock>
-  [[nodiscard]] bool safeEmplace(fifo<T> & q, Lock & l, T && v) {
+  [[nodiscard]] bool safeTryEmplace(fifo<T> & q, Lock & l, T && v) {
     bool res = reserveAndLock<canRealloc>(1,q,l);
     if(res) {
       q.emplace(std::move(v));

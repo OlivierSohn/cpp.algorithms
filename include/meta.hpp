@@ -10,13 +10,13 @@ void operator=(T const &t) = delete; \
 T(T &&) = delete;
 
 namespace imajuscule {
-  
+
   template <class... Formats, class T, size_t N, size_t... Is>
   std::tuple<Formats...> as_tuple_int(std::array<T, N> & arr,
                                       std::index_sequence<Is...>) {
     return std::make_tuple(Formats{arr[Is]}...);
   }
-  
+
   template <class... Formats, class T, size_t N,
   class = std::enable_if_t<(N == sizeof...(Formats))>>
   std::tuple<Formats...> as_tuple(std::array<T, N> & arr) {
@@ -33,6 +33,17 @@ namespace imajuscule {
     template<class F, class TUPLE>
     void for_each(TUPLE & tuple, F func){
         for_each(tuple, func, std::make_index_sequence<std::tuple_size<TUPLE>::value>());
+    }
+
+    template<class F, class TUPLE, std::size_t...Is>
+    void for_each_i(TUPLE & tuple, F func, std::index_sequence<Is...>){
+        using expander = int[];
+        (void)expander { 0, ((void)func(Is,std::get<Is>(tuple)), 0)... };
+    }
+
+    template<class F, class TUPLE>
+    void for_each_i(TUPLE & tuple, F func){
+        for_each_i(tuple, func, std::make_index_sequence<std::tuple_size<TUPLE>::value>());
     }
 
     template<int N, typename... Ts>

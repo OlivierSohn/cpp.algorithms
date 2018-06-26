@@ -11,21 +11,21 @@ namespace imajuscule
         HIGH_PASS,
         LOW_PASS
     };
-    
+
     template<FilterType KIND, int NDIMS, typename T>
     struct OrderState;
-    
+
     template<int NDIMS, typename T>
     struct OrderState<FilterType::LOW_PASS, NDIMS, T> {
         using Tr = NumTraits<T>;
         OrderState() {
             reset();
         }
-        
+
         void reset() {
             m_cur.fill({});
         }
-        
+
         void update(T const alpha, T raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = raw[i] * alpha + m_cur[i] * (Tr::one() - alpha);
@@ -33,19 +33,19 @@ namespace imajuscule
         }
         std::array<T, NDIMS> m_cur;
     };
-    
+
     template<int NDIMS, typename T>
     struct OrderState<FilterType::HIGH_PASS, NDIMS, T> {
         using Tr = NumTraits<T>;
         OrderState() {
             reset();
         }
- 
+
         void reset() {
             m_cur.fill({});
             m_last.fill({});
         }
-        
+
         void update(T const alpha, T raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = alpha * (m_cur[i] + raw[i] - m_last[i]);
@@ -64,7 +64,7 @@ namespace imajuscule
             return 1 + 1/square_ratio;
         }
     }
-    
+
     template<typename orderState, int NORDER>
     struct FixedOrderFilter {
         static_assert(NORDER >= 1);
@@ -72,36 +72,36 @@ namespace imajuscule
         int getOrder() const {
             return NORDER;
         }
-        
+
         std::array<orderState, NORDER> m_orders;
     };
-    
+
     template<typename orderState>
     struct VarOrderFilter_ {
         void setOrder(int n) {
             assert(n > 0);
             m_orders.resize(n);
         }
-        
+
         int getOrder() const {
             return static_cast<int>(m_orders.size());
         }
 
         std::vector<orderState> m_orders;
     };
-    
+
     template <class T, int NDIMS, FilterType KIND, typename Base>
     class FilterBase : public Base
     {
         using Base::m_orders;
         using Base::getOrder;
-        
+
         using Tr = NumTraits<T>;
-        
+
         static constexpr auto kAccelerometerMinStep	= 0.02f;
         static constexpr auto kAccelerometerNoiseAttenuation = 3.0f;
     public:
-        
+
         // not tested
         T square_magnitude(T rate, T freq) const {
             auto fcut = freq_from_cst(rate);
@@ -109,13 +109,13 @@ namespace imajuscule
             auto ratio = freq/fcut;
             return Tr::one() / get_inv_square_filter_magnitude<KIND>(ratio * ratio);
         }
-        
+
         void forgetPastSignals() {
             for(auto & o : m_orders) {
                 o.reset();
             }
         }
-        
+
         void initWithFreq(T rate, T cutOffFreq) {
             initWithAngleIncrement(Tr::two() * cutOffFreq / rate);
         }
@@ -124,7 +124,7 @@ namespace imajuscule
             auto im = inc * static_cast<T>(M_PI);
             auto denom = im + Tr::one();
             assert(denom);
-                                      
+
             if(KIND == FilterType::LOW_PASS) {
                 FilterConstant = im / denom;
             }
@@ -133,7 +133,7 @@ namespace imajuscule
             }
             assert(FilterConstant == FilterConstant);
         }
-        
+
         void feed(T raw[NDIMS]) {
             T alpha;
             // this template parameter was removed as it was not used
@@ -142,7 +142,7 @@ namespace imajuscule
                 T d = Clamp(fabs(Norm(state.m_cur) - Norm(raw)) / (T)kAccelerometerMinStep - Tr::one(),
                             Tr::zero(),
                             Tr::one());
-                
+
                 if(KIND == FilterType::LOW_PASS)
                 {
                     alpha = (Tr::one() - d) * FilterConstant / (T)kAccelerometerNoiseAttenuation + d * FilterConstant;
@@ -159,7 +159,7 @@ namespace imajuscule
             {
                 alpha = FilterConstant;
             }
-            
+
             {
                 auto array = raw;
                 for(auto & o : m_orders) {
@@ -168,15 +168,15 @@ namespace imajuscule
                 }
             }
         }
-        
+
         const T * filtered(int order = 0) const {
             int const o = order ? order : (getOrder()-1);
             return &m_orders[o].m_cur[0];
         }
-        
+
     private:
         T FilterConstant;
-        
+
         static T Norm(T v[NDIMS])
         {
             auto val = Tr::zero();
@@ -186,7 +186,7 @@ namespace imajuscule
             }
             return sqrt(val);
         }
-        
+
         static T Clamp(T v, T min, T max)
         {
             if(v > max)
@@ -196,7 +196,7 @@ namespace imajuscule
             else
                 return v;
         }
-        
+
         // not tested
         T freq_from_cst(T rate) const {
             if(KIND == FilterType::LOW_PASS) {
@@ -212,26 +212,26 @@ namespace imajuscule
     struct FilterSelector {
         using type = FilterBase<T, NDIMS, KIND, FixedOrderFilter<OrderState<KIND, NDIMS, T>, NORDER>>;
     };
-    
+
     template <class T, int NDIMS, FilterType KIND>
     struct FilterSelector<T, NDIMS, KIND, 0> {
         using type = FilterBase<T, NDIMS, KIND, VarOrderFilter_<OrderState<KIND, NDIMS, T>>>;
     };
-    
+
     static constexpr auto VariableOrder = 0;
 
     template <class T, int NDIMS, FilterType KIND, int NORDER=1>
     using Filter = typename FilterSelector<T, NDIMS, KIND, NORDER>::type;
-    
-    
+
+
     template<typename T>
     struct FIRFilter {
         using FPT = T;
-        
+
         FIRFilter() : FIRFilter(0) {}
-        
+
         FIRFilter(int size) : past(size, {}) {}
-        
+
         template<typename U>
         FIRFilter(std::vector<U> const & c) : FIRFilter(c.size()) {
             assert(c.size() == past.size());
@@ -240,30 +240,30 @@ namespace imajuscule
                 coefficients.push_back(coeff);
             }
         }
-        
+
         void setCoefficients(std::vector<T> v) {
             past.resize(v.size());
             coefficients = std::move(v);
         }
-                
+
         auto size() const { return coefficients.size(); }
-        
+
         bool empty() const { return coefficients.empty(); }
 
         void step(T val) {
             assert(size() != 0);
             past.feed(val);
         }
-        
+
         T get() const {
             auto res = T{};
-            int index = 0;
             // when coefficients are symmetrical it doesn't matter
             // if we are traversing forward or backward
             // but here we have no assumption:
-            past.for_each_bkwd([&res, &index, this](auto val) {
-                res += val * coefficients[index];
-                ++index;
+            auto it_coeff = coefficients.begin();
+            past.for_each_bkwd([&res, &it_coeff](auto val) {
+                res += val * *it_coeff;
+                ++it_coeff;
             });
             return res;
         }
@@ -272,7 +272,7 @@ namespace imajuscule
         std::vector<T> coefficients;
         cyclic<T> past;
     };
-    
+
     template<typename T>
     static void plotMagnitude(fft::FFTVec<T> const & v) {
         std::vector<T> mags;
@@ -284,14 +284,14 @@ namespace imajuscule
         plot.draw(mags);
         plot.log();
     }
-    
+
     template<typename Container, typename T, typename F>
     auto sample_frequencies(Container & res, bool const even_taps,
                             T const nyquist_freq, F getFreq) {
-    
+
         auto N = res.size();
         auto nyquist = N/2;
-        
+
         T RadPerSample = -M_PI;
         if(even_taps) {
             RadPerSample *= (N - 1.0)/N;
@@ -308,29 +308,29 @@ namespace imajuscule
         }
 
     }
-    
+
     template<typename T, typename F>
     auto fir_coefficients_by_f_sampling(T nyquist_freq, F getFreq, unsigned int fft_length, unsigned int NumTaps) {
         ScopedLog l("Compute", "FIR coeffs by freq. sampling");
         // according to http://iowahills.com/FIRFiltersByFreqSampling.html
         // with the same number of taps as of fft size (we could try less)
-        
+
         using namespace imajuscule::fft;
         assert(is_power_of_two(fft_length));
-        
+
         a64::vector<complex<T>> res, input;
         res.resize(fft_length);
         input.resize(fft_length);
-        
+
         sample_frequencies(input,
                            (0 == NumTaps%2),
                            nyquist_freq,
                            getFreq);
 
         forward_fft(fft_length, input, res);
-        
+
         auto inv_N = 1. / fft_length;
-        
+
         std::vector<T> v;
         v.reserve(NumTaps);
 
@@ -341,12 +341,12 @@ namespace imajuscule
         std::transform(fft_cut_begin, fft_cut_end,
                        std::back_inserter(v),
                        [inv_N](auto value) { return value.real()*inv_N; } );
-        
+
         apply_hann_window(v.begin(), v.end());
-        
+
         //plotMagnitude(res);
         return v;
     }
-    
-    
+
+
 }

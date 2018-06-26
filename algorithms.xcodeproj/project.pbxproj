@@ -153,6 +153,7 @@
 		0975EADB20D8E94400468667 /* likely.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = likely.h; path = include/likely.h; sourceTree = "<group>"; };
 		0975EADC20D8E99E00468667 /* log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = source/log.cpp; sourceTree = "<group>"; };
 		0975EADD20D8EAA700468667 /* spinlock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = spinlock.h; path = include/spinlock.h; sourceTree = "<group>"; };
+		0977D2D520E28E2C00145D0F /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = source/memory.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
@@ -283,6 +284,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				0977D2D520E28E2C00145D0F /* memory.cpp */,
 				0975EADC20D8E99E00468667 /* log.cpp */,
 				098DC8EE1F65B55500C5A8B2 /* color.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,

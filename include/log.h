@@ -4,6 +4,33 @@
 #endif
 
 namespace imajuscule {
+
+#ifdef IMJ_LOG_MEMORY
+  // initial value is true.
+  extern bool & shouldLogMemory();
+  // initial value is false.
+  enum class ThreadNature {
+    Normal,
+    RealTime_OS, // the audio callback thread, outside the callback
+    RealTime_Program // the audio callback thread, inside the callback.
+  };
+  extern ThreadNature & threadNature();
+#endif
+
+    struct ScopedNoMemoryLogs {
+#ifdef IMJ_LOG_MEMORY
+      ScopedNoMemoryLogs() : backup(shouldLogMemory())
+      {
+        shouldLogMemory() = false;
+      }
+      ~ScopedNoMemoryLogs() {
+        shouldLogMemory() = backup;
+      }
+    private:
+      bool backup;
+#endif
+    };
+
     typedef enum logLevel
     {
         SCRIPT = 1,
@@ -23,17 +50,17 @@ namespace imajuscule {
     void print_time(std::chrono::time_point<T> time) {
         using namespace std;
         using namespace std::chrono;
-        
+
         time_t curr_time = T::to_time_t(time);
         char sRep[100];
         // if needed use %Y-%m-%d for year / month / date
         strftime(sRep,sizeof(sRep),"%H:%M:%S",localtime(&curr_time));
-        
+
         typename T::duration since_epoch = time.time_since_epoch();
         seconds s = duration_cast<seconds>(since_epoch);
         since_epoch -= s;
         milliseconds milli = duration_cast<milliseconds>(since_epoch);
-        
+
         cout << sRep << ":";
         auto c = milli.count();
         if(c < 100) {
@@ -44,7 +71,7 @@ namespace imajuscule {
         }
         std::cout << c << "|";
     }
-    
+
     static inline void print_system_time() {
         print_time(std::chrono::system_clock::now());
     }

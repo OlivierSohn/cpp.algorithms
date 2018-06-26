@@ -5,6 +5,15 @@
 // TODO LOG : redirect std::out and std::err to android logging for android platform
 namespace imajuscule
 {
+  ThreadNature & threadNature() {
+    thread_local ThreadNature rt = ThreadNature::Normal;
+    return rt;
+  }
+  bool & shouldLogMemory() {
+    thread_local bool l = true;
+    return l;
+  }
+
 #ifdef __ANDROID__
 	int toAndroid(logLevel i)
 	{
@@ -24,18 +33,23 @@ namespace imajuscule
 
 	const char * levelToChar(logLevel level);
 
-    struct ThreadData {
-        ThreadData(size_t idx) : idx(idx) {}
-        std::string str;
-        size_t idx;
-    };
 
     std::atomic_flag & logLock() {
       static std::atomic_flag f = ATOMIC_FLAG_INIT;
       return f;
     }
 
-    static void getThreadData(ThreadData *& data) {
+  struct ThreadData {
+    ThreadData(size_t idx) : idx(idx) {}
+
+    // gets thread data for the current trhead.
+    static void getThreadData(ThreadData *& data);
+
+    std::string str;
+    size_t idx;
+  };
+
+    static ThreadData& getThreadData() {
         auto tid = pthread_self();
         static std::map<decltype(pthread_self()), ThreadData> threads;
       {
@@ -46,10 +60,10 @@ namespace imajuscule
         if (unlikely(it == threads.end()))
         {
           auto it = threads.emplace(tid, threads.size());
-          data = &it.first->second;
+          return it.first->second;
         }
         else {
-          data = &it->second;
+          return it->second;
         }
       }
     }
@@ -66,12 +80,11 @@ namespace imajuscule
         auto size = vsnprintf(nullptr, 0, format, args);
 		va_end(args);
 
-        ThreadData * thread_data;
-        getThreadData(thread_data);
+        ThreadData & thread_data = getThreadData();
 
         // to use a StackVector here we would need to have
         // one "stack" pool per thread
-        std::string & v = thread_data->str;
+        std::string & v = thread_data.str;
         v.resize(size+1);
 
         va_start(args, format);
@@ -82,7 +95,7 @@ namespace imajuscule
 
         fprintf(((level == ERR) ? stderr : stdout),
                 "%zu|%s|%s\n",
-                thread_data->idx,
+                thread_data.idx,
                 levelToChar(level),
                 v.data());
 #endif

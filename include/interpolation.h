@@ -117,7 +117,7 @@ namespace imajuscule
     }
 
     template<typename T>
-    static T interpolate( interpolation type, T t, T b, T c, T d)
+    static T interpolate( interpolation const type, T const t, T const b = static_cast<T>(0), T const c = static_cast<T>(1), T const d = static_cast<T>(1))
     {
       switch(type)
       {
@@ -191,7 +191,7 @@ namespace imajuscule
 
 
     template<typename T>
-    static T easeInOrd2(T t, T b, T c, T d) {
+    static T easeInOrd2(T t, T const b, T const c, T const d) {
       t /= d;
       return c*t*t + b;
     }
@@ -200,7 +200,7 @@ namespace imajuscule
     // quadratic easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutOrd2(T t, T b, T c, T d) {
+    static T easeOutOrd2(T t, T const b, T const c, T const d) {
       t /= d;
       return -c * t*(t-static_cast<T>(2)) + b;
     }
@@ -210,7 +210,7 @@ namespace imajuscule
     // quadratic easing In/Out - acceleration until halfway, then deceleration
 
     template<typename T>
-    static T easeInOutOrd2(T t, T b, T c, T d) {
+    static T easeInOutOrd2(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
       if (t < static_cast<T>(1)) return c/static_cast<T>(2)*t*t + b;
       t--;
@@ -221,7 +221,7 @@ namespace imajuscule
     // Ord3 easing In - accelerating from zero velocity
 
     template<typename T>
-    static T easeInOrd3(T t, T b, T c, T d) {
+    static T easeInOrd3(T t, T const b, T const c, T const d) {
       t /= d;
       return c*t*t*t + b;
     }
@@ -231,7 +231,7 @@ namespace imajuscule
     // Ord3 easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutOrd3(T t, T b, T c, T d) {
+    static T easeOutOrd3(T t, T const b, T const c, T const d) {
       t /= d;
       t--;
       return c*(t*t*t + static_cast<T>(1)) + b;
@@ -242,7 +242,7 @@ namespace imajuscule
     // Ord3 easing In/Out - acceleration until halfway, then deceleration
 
     template<typename T>
-    static T easeInOutOrd3(T t, T b, T c, T d) {
+    static T easeInOutOrd3(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
       if (t < static_cast<T>(1)) return c/static_cast<T>(2)*t*t*t + b;
       t -= static_cast<T>(2);
@@ -253,7 +253,7 @@ namespace imajuscule
     // quartic easing In - accelerating from zero velocity
 
     template<typename T>
-    static T easeInOrd4(T t, T b, T c, T d) {
+    static T easeInOrd4(T t, T const b, T const c, T const d) {
       t /= d;
       return c*t*t*t*t + b;
     }
@@ -263,7 +263,7 @@ namespace imajuscule
     // quartic easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutOrd4(T t, T b, T c, T d) {
+    static T easeOutOrd4(T t, T const b, T const c, T const d) {
       t /= d;
       t--;
       return -c * (t*t*t*t - static_cast<T>(1)) + b;
@@ -274,7 +274,7 @@ namespace imajuscule
     // quartic easing In/Out - acceleration until halfway, then deceleration
 
     template<typename T>
-    static T easeInOutOrd4(T t, T b, T c, T d) {
+    static T easeInOutOrd4(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
       if (t < static_cast<T>(1)) return c/static_cast<T>(2)*t*t*t*t + b;
       t -= static_cast<T>(2);
@@ -285,7 +285,7 @@ namespace imajuscule
     // quintic easing In - accelerating from zero velocity
 
     template<typename T>
-    static T easeInOrd5(T t, T b, T c, T d) {
+    static T easeInOrd5(T t, T const b, T const c, T const d) {
       t /= d;
       return c*t*t*t*t*t + b;
     }
@@ -295,7 +295,7 @@ namespace imajuscule
     // quintic easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutOrd5(T t, T b, T c, T d) {
+    static T easeOutOrd5(T t, T const b, T const c, T const d) {
       t /= d;
       t--;
       return c*(t*t*t*t*t + static_cast<T>(1)) + b;
@@ -306,7 +306,7 @@ namespace imajuscule
     // quintic easing In/Out - acceleration until halfway, then deceleration
 
     template<typename T>
-    static T easeInOutOrd5(T t, T b, T c, T d) {
+    static T easeInOutOrd5(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
       if (t < static_cast<T>(1)) return c/static_cast<T>(2)*t*t*t*t*t + b;
       t -= static_cast<T>(2);
@@ -317,7 +317,7 @@ namespace imajuscule
     // sinusoidal easing In - accelerating from zero velocity
 
     template<typename T>
-    static T easeInSine(T t, T b, T c, T d) {
+    static T easeInSine(T t, T const b, T const c, T const d) {
       return -c * std::cos(t/d * static_cast<T>(M_PI_2)) + c + b;
     }
 
@@ -326,7 +326,7 @@ namespace imajuscule
     // sinusoidal easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutSine(T t, T b, T c, T d) {
+    static T easeOutSine(T t, T const b, T const c, T const d) {
       return c * std::sin(t/d * static_cast<T>(M_PI_2)) + b;
     }
 
@@ -335,7 +335,7 @@ namespace imajuscule
     // sinusoidal easing In/Out - accelerating until halfway, then decelerating
 
     template<typename T>
-    static T easeInOutSine(T t, T b, T c, T d) {
+    static T easeInOutSine(T t, T const b, T const c, T const d) {
       return -c/static_cast<T>(2) * (std::cos(static_cast<T>(M_PI)*t/d) - static_cast<T>(1)) + b;
     }
 
@@ -344,7 +344,7 @@ namespace imajuscule
     // exponential easing In - accelerating from zero velocity
 
     template<typename T>
-    static T easeInExpo(T t, T b, T c, T d) {
+    static T easeInExpo(T t, T const b, T const c, T const d) {
       return c * std::pow( static_cast<T>(2), static_cast<T>(10) * (t/d - static_cast<T>(1)) ) + b;
     }
 
@@ -403,7 +403,7 @@ namespace imajuscule
     // exponential easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutExpo(T t, T b, T c, T d) {
+    static T easeOutExpo(T t, T const b, T const c, T const d) {
       return c * ( -std::pow( static_cast<T>(2), -static_cast<T>(10) * t/d ) + static_cast<T>(1) ) + b;
     }
 
@@ -412,7 +412,7 @@ namespace imajuscule
     // exponential easing In/Out - accelerating until halfway, then decelerating
 
     template<typename T>
-    static T easeInOutExpo(T t, T b, T c, T d) {
+    static T easeInOutExpo(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
       if (t < static_cast<T>(1)) return c/static_cast<T>(2) * std::pow( static_cast<T>(2), static_cast<T>(10) * (t - static_cast<T>(1)) ) + b;
       t--;
@@ -423,7 +423,7 @@ namespace imajuscule
     // circular easing In - accelerating from zero velocity
 
     template<typename T>
-    static T easeInCirc(T t, T b, T c, T d) {
+    static T easeInCirc(T t, T const b, T const c, T const d) {
       t /= d;
       return -c * (std::sqrt(static_cast<T>(1) - t*t) - static_cast<T>(1)) + b;
     }
@@ -433,7 +433,7 @@ namespace imajuscule
     // circular easing Out - decelerating to zero velocity
 
     template<typename T>
-    static T easeOutCirc(T t, T b, T c, T d) {
+    static T easeOutCirc(T t, T const b, T const c, T const d) {
       t /= d;
       t--;
       return c * std::sqrt(static_cast<T>(1) - t*t) + b;
@@ -444,7 +444,7 @@ namespace imajuscule
     // circular easing In/Out - acceleration until halfway, then deceleration
 
     template<typename T>
-    static T easeInOutCirc(T t, T b, T c, T d) {
+    static T easeInOutCirc(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
       if (t < static_cast<T>(1)) return -c/static_cast<T>(2) * (std::sqrt(static_cast<T>(1) - t*t) - static_cast<T>(1)) + b;
       t -= static_cast<T>(2);

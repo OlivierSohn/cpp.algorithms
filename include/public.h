@@ -83,6 +83,7 @@
 #include "spinlock.h"
 #include "log.h"
 #include "imj.assert.h"
+#include "cconstarray.hpp"
 #include "convex_hull.h"
 #include "color.h"
 #include "matrix.hpp"

@@ -13,6 +13,13 @@ namespace imajuscule
 
     auto begin() const { return buf; }
     auto end() const { return buf + sz; }
+
+    auto const & operator [] (int i) const {
+      Assert(i >= 0);
+      Assert(i < sz);
+      return buf[i];
+    }
+
   private:
     T const *buf;
     int sz;

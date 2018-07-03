@@ -1,16 +1,21 @@
-/* Copyright (C) Olivier Sohn - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
- */
 
 namespace imajuscule {
-    
+
     struct PreHash {
         int operator()(int i) {
             return i;
         }
     };
-    
-} // NS imajuscule
 
+  // from boost
+  template <typename T>
+  inline void hash_combine(std::size_t& seed, const T& val)
+  {
+    seed ^=
+      std::hash<T>()(val) +
+      0x9e3779b9 +
+      (seed << 6) +
+      (seed >> 2);
+  }
+
+} // NS imajuscule

@@ -10,14 +10,17 @@ namespace imajuscule::audio {
    * didn't change much, we use hysteresis.
    */
   struct Compressor {
-    static constexpr float compress   = 0.5f;
-    static constexpr float uncompress = 2.0f;
+    // compress == 0.5f was making a too big change in volume.
+    static constexpr float compress   = 0.8f;
+    static constexpr float uncompress = 1/compress;
 
     static constexpr float high = 0.7f;
     static constexpr float low  = 0.6f * compress;
-    
+
     static constexpr float compressMult   = 0.997f;
-    static constexpr float uncompressMult = 1.001f;
+
+    // = 2^(1/22050) so that the volume doubles every half second
+    static constexpr float uncompressMult = 1.00003f;
 
 
     static constexpr int safeDuration = 100000;
@@ -51,7 +54,7 @@ namespace imajuscule::audio {
         // the signal is normal, compression is good.
         safeSince = 0;
       }
-      
+
       // adjust the compression level
       if(likely(multiplicator == targetMultiplicator)) {
         // do nothing
@@ -64,7 +67,7 @@ namespace imajuscule::audio {
           multiplicator = std::max(multiplicator * compressMult, targetMultiplicator);
         }
       }
-      
+
       // compress the signal.
       for(auto & s : signal) {
         s *= multiplicator;
@@ -80,6 +83,6 @@ namespace imajuscule::audio {
     float targetMultiplicator = 1.f;
     // the multiplicator can go up, down, or be stationnary.
     int safeSince = 0;
-    
+
   };
 }

@@ -12,8 +12,8 @@
 
 #include <thread>
 
-#include "test_forward_list_lockfree.cpp"
 //*
+#include "test_forward_list_lockfree.cpp"
 #include "test_fifo_lockfree_scmp.cpp"
 #include "test_staticvector_lockfree_scmp.cpp"
 #include "test_staticvector_singlethread.cpp"
@@ -49,6 +49,7 @@
 #include "test_hash_table.cpp"
 //*/
 #if MEASURE_PERFS
+#  include "measure_sin.cpp"
 #  include "measure_containers.cpp"
 #  include "test_measure_multiplyadd_contiguity.cpp"
 #endif

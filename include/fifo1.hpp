@@ -38,6 +38,7 @@ namespace imajuscule {
       }
 
       bool empty() const { return !v; }
+      bool full() const { return !empty(); }
 
       std::size_t size() const {
         if(v) {

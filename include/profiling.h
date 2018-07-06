@@ -42,8 +42,8 @@ namespace imajuscule
             using time_point = typename Clock::time_point;
             using resolution = typename Clock::duration;
             
-            Timer(rep* duration) :
-            duration(duration) {
+            Timer(rep& duration) :
+            duration(&duration) {
                 startTime = Clock::now();
             }
             ~Timer() {
@@ -64,7 +64,7 @@ namespace imajuscule
 
             {
                 MakeRealTime rt;
-                Timer<Clock> t(&duration);
+                Timer<Clock> t(duration);
                 
                 f();
             }
@@ -85,7 +85,7 @@ namespace imajuscule
                 
                 {
                     MakeRealTime rt;
-                    Timer<Clock> t(&duration);
+                    Timer<Clock> t(duration);
                     f();
                 }
             }

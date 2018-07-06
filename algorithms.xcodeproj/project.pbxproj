@@ -154,6 +154,7 @@
 		0975EADC20D8E99E00468667 /* log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = source/log.cpp; sourceTree = "<group>"; };
 		0975EADD20D8EAA700468667 /* spinlock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = spinlock.h; path = include/spinlock.h; sourceTree = "<group>"; };
 		0977D2D520E28E2C00145D0F /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = source/memory.cpp; sourceTree = "<group>"; };
+		0979762120EF4E6500D586A5 /* measure_sin.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = measure_sin.cpp; path = test/measure_sin.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
@@ -373,6 +374,7 @@
 			children = (
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
+				0979762120EF4E6500D586A5 /* measure_sin.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
 				0983C7371F254C5D00EE86C1 /* test_angles.cpp */,

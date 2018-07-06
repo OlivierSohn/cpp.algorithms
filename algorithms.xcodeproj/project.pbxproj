@@ -155,6 +155,9 @@
 		0975EADD20D8EAA700468667 /* spinlock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = spinlock.h; path = include/spinlock.h; sourceTree = "<group>"; };
 		0977D2D520E28E2C00145D0F /* memory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = memory.cpp; path = source/memory.cpp; sourceTree = "<group>"; };
 		0979762120EF4E6500D586A5 /* measure_sin.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = measure_sin.cpp; path = test/measure_sin.cpp; sourceTree = "<group>"; };
+		0979762220EF5AD800D586A5 /* cconstarray.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = cconstarray.hpp; path = include/cconstarray.hpp; sourceTree = "<group>"; };
+		0979762320EF5AD800D586A5 /* dsp.compresser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.compresser.hpp; path = include/dsp.compresser.hpp; sourceTree = "<group>"; };
+		0979762420EF652F00D586A5 /* test_dsp.compress.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.compress.cpp; path = test/test_dsp.compress.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
@@ -383,6 +386,7 @@
 				09121CA61EAB957700BBC64B /* test_containers.cpp */,
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
 				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
+				0979762420EF652F00D586A5 /* test_dsp.compress.cpp */,
 				097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */,
 				097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */,
 				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
@@ -431,6 +435,7 @@
 				09807B7620D7E2B9009732BD /* bsonparser.hpp */,
 				09807B7A20D7E2BA009732BD /* bsonutils.hpp */,
 				09807B7720D7E2B9009732BD /* bsonwriter.hpp */,
+				0979762220EF5AD800D586A5 /* cconstarray.hpp */,
 				098DC8EF1F65B56200C5A8B2 /* color.h */,
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
 				0910E37E20C823850094EE76 /* container.hpp */,
@@ -441,6 +446,7 @@
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
+				0979762320EF5AD800D586A5 /* dsp.compresser.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,

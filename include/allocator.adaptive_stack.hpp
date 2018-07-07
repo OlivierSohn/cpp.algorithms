@@ -79,7 +79,7 @@ namespace imajuscule {
             }
             
             // size_request was too big to be handled by an overflow adaptive_stack.
-            // I think this happends when we reserve a vector that is already allocated for example.
+            // I think this happens when we reserve a vector that is already allocated for example.
             // Or when there is a design error, in that the allocator using this adaptive_stack is currently not the only user
             throw std::bad_alloc();
         };

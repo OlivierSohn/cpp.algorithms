@@ -11,6 +11,83 @@ T(T &&) = delete;
 
 namespace imajuscule {
 
+  //////////////////////////////////////////////////////////////////////////////
+  // fold
+  //////////////////////////////////////////////////////////////////////////////
+
+  template <typename Reducer,
+            template <typename> typename Accessor>
+  constexpr auto fold(typename Reducer::value_type m) {
+    return m;
+  }
+
+  template <typename Reducer,
+            template <typename> typename Accessor,
+            typename T1>
+  constexpr auto fold(typename Reducer::value_type m) {
+    return Reducer{}(m, Accessor<T1>::value());
+  }
+
+  template<typename Reducer,
+           template <typename> typename Accessor,
+           typename T1,
+           typename T2,
+           typename...TNs>
+  constexpr auto fold(typename Reducer::value_type m) {
+    return fold<Reducer, Accessor, T2, TNs...>(fold<Reducer, Accessor, T1>(m));
+  }
+
+  template <template <typename> typename Accessor, typename T1, typename ...TNs>
+  constexpr auto minValue() {
+    using V = decltype(Accessor<T1>::value());
+    struct Reducer {
+      using value_type = V;
+      constexpr V operator () (V a, V b) {
+        return std::min(a, b);
+      }
+    };
+    return fold<Reducer, Accessor, T1, TNs...>(std::numeric_limits<V>::max());
+  }
+
+  template <template <typename> typename Accessor, typename T1, typename ...TNs>
+  constexpr auto maxValue() {
+    using V = decltype(Accessor<T1>::value());
+    struct Reducer {
+      using value_type = V;
+      constexpr V operator () (V a, V b) {
+        return std::max(a, b);
+      }
+    };
+    return fold<Reducer, Accessor, T1, TNs...>(std::numeric_limits<V>::min());
+  }
+
+  template <template <typename> typename Accessor, typename T1, typename ...TNs>
+  constexpr auto sumValues() {
+    using V = decltype(Accessor<T1>::value());
+    struct Reducer {
+      using value_type = V;
+      constexpr V operator () (V a, V b) {
+        return a + b;
+      }
+    };
+    return fold<Reducer, Accessor, T1, TNs...>(0);
+  }
+
+  template <template <typename> typename Accessor, typename T1, typename ...TNs>
+  constexpr auto multiplyValues() {
+    using V = decltype(Accessor<T1>::value());
+    struct Reducer {
+      using value_type = V;
+      constexpr V operator () (V a, V b) {
+        return a * b;
+      }
+    };
+    return fold<Reducer, Accessor, T1, TNs...>(1);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+
   template <class... Formats, class T, size_t N, size_t... Is>
   std::tuple<Formats...> as_tuple_int(std::array<T, N> & arr,
                                       std::index_sequence<Is...>) {

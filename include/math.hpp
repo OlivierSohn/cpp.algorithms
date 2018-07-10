@@ -68,14 +68,14 @@ namespace imajuscule {
     
     constexpr bool is_power_of_two(size_t n) { return ((n != 0) && !(n & (n - 1))); }
     
-    static constexpr size_t pow2(int power) {
-        size_t res = (1 << power);
+    static constexpr size_t pow2(size_t power) {
+        size_t res = (static_cast<size_t>(1) << power);
         return res;
     }
     
-    template<int64_t power>
-    static constexpr int64_t pow2() {
-        constexpr int64_t res = (((int64_t)1) << power);
+    template<uint64_t power>
+    static constexpr uint64_t pow2() {
+        constexpr uint64_t res = (((uint64_t)1) << power);
         return res;
     }
     

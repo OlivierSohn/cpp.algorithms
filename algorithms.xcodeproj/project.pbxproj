@@ -113,6 +113,8 @@
 		0947FDB220DA747E00BC4141 /* test.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = test.h; sourceTree = "<group>"; };
 		0947FDC420DABAC900BC4141 /* test_locks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_locks.cpp; path = test/test_locks.cpp; sourceTree = "<group>"; };
 		094DE2381F69C10A007191A0 /* convex_hull.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = convex_hull.h; path = include/convex_hull.h; sourceTree = "<group>"; };
+		095B3E4A20F517D4001C378A /* split.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = split.hpp; path = include/split.hpp; sourceTree = "<group>"; };
+		095B3E4B20F5185C001C378A /* test_split.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_split.cpp; path = test/test_split.cpp; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
@@ -375,7 +377,6 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
-				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				0979762120EF4E6500D586A5 /* measure_sin.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
@@ -411,12 +412,14 @@
 				0999CE481EB926C100309E86 /* test_rng.cpp */,
 				09E641631ED0661B00BF54A5 /* test_scoped.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
+				095B3E4B20F5185C001C378A /* test_split.cpp */,
 				09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */,
 				09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
-				0947FDB220DA747E00BC4141 /* test.h */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
+				0947FDB220DA747E00BC4141 /* test.h */,
+				093239CA1DB3F3E7003C168E /* extern */,
 			);
 			name = test;
 			sourceTree = "<group>";
@@ -442,11 +445,11 @@
 				094DE2381F69C10A007191A0 /* convex_hull.h */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
+				0979762320EF5AD800D586A5 /* dsp.compresser.hpp */,
 				094713AC1EA25917005FC49D /* dsp.convolution.benchmarks.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
-				0979762320EF5AD800D586A5 /* dsp.compresser.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
@@ -505,6 +508,7 @@
 				096C7DBC1EB2140F00DDEB20 /* slidingsum.h */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 				0975EADD20D8EAA700468667 /* spinlock.h */,
+				095B3E4A20F517D4001C378A /* split.hpp */,
 				091AF71A1E27A295004B554F /* stackvector.hpp */,
 				09338B5A20D9239D004F5A8A /* staticvector.hpp */,
 				09807B7520D7B09A009732BD /* staticvector.lockfree.scmp.hpp */,

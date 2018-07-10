@@ -12,8 +12,9 @@
 
 #include <thread>
 
+#include "test_split.cpp"
+//*
 #include "test_dsp.compress.cpp"
-/*
 #include "test_forward_list_lockfree.cpp"
 #include "test_fifo_lockfree_scmp.cpp"
 #include "test_staticvector_lockfree_scmp.cpp"

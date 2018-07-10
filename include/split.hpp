@@ -3,10 +3,10 @@
 namespace imajuscule {
 
   /*
-   * 'Split' stores two values in the bits of a single underlying type.
+   * 'Split' stores two unsigned values in the bits of an underlying unsigned type.
    *
-   * We could deduce 'nLow' from 'U' and 'nHigh', but for code clarity, we prefer to let
-   * the user specify it. Then we static_assert that "nLow + nHigh == 4*sizeof(U)".
+   * for code clarity, we let the user specify both nHigh and nLow, and
+   * static_assert that "nLow + nHigh == 4*sizeof(U)".
    */
   template<typename U, U nHigh, U nLow>
   struct Split {
@@ -29,7 +29,7 @@ namespace imajuscule {
 
     // for safety, we mask 'low' so that it won't modify the bits where
     // 'high' is stored, if it's out of bounds.
-    Split(U high, U low) : raw((high << nLow) + (low & maxLow) {
+    Split(U high, U low) : raw((high << nLow) + (low & maxLow)) {
       Assert(low <= maxLow); // else, some information is lost
       Assert(high <= maxHigh); // else, some information is lost
     }

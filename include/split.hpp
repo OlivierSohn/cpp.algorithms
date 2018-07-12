@@ -41,7 +41,7 @@ namespace imajuscule {
     U getHigh() const {
       return raw >> nLow;
     }
-    U getLow() {
+    U getLow() const {
       return raw & maxLow;
     }
   private:

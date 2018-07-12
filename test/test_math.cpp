@@ -192,7 +192,9 @@ TEST(Math, IntDiv) {
 }
 
 
-TEST(UnsignedCyclicDist, simple) {
+TEST(UnsignedCyclicDist, simple)
+{
+  using namespace imajuscule;
   {
     unsigned int a = 3;
     unsigned int b = 5;
@@ -211,7 +213,9 @@ TEST(UnsignedCyclicDist, simple) {
     ASSERT_EQ(cyclic_unsigned_dist(a,b), 6);
     ASSERT_EQ(cyclic_unsigned_dist(b,a), 6);
   }
-  ASSERT_EQ(cyclic_unsigned_dist(1,1), 0);
-  ASSERT_EQ(cyclic_unsigned_dist(0,0), 0);
+  unsigned int const one = 1;
+  unsigned int const zero = 0;
+  ASSERT_EQ(cyclic_unsigned_dist(one,one), 0);
+  ASSERT_EQ(cyclic_unsigned_dist(zero,zero), 0);
   ASSERT_EQ(cyclic_unsigned_dist(std::numeric_limits<unsigned int>::max(),std::numeric_limits<unsigned int>::max()), 0);
 }

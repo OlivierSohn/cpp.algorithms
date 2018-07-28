@@ -65,6 +65,8 @@ namespace imajuscule
    */
   template <typename Parent>
   struct FinegrainedFFTConvolutionBase : public Parent {
+    friend class Test;
+
     using T = typename Parent::FPT;
     using FPT = T;
     using Tag = typename Parent::FFTTag;
@@ -137,6 +139,9 @@ namespace imajuscule
       grain_counter = 0;
     }
 
+  public:
+
+    // Just used for calibration
     void fastForwardToComputation(GrainType t, T val = 1) {
       switch(t) {
         case GrainType::FFT:
@@ -163,12 +168,11 @@ namespace imajuscule
       }
       assert(willComputeNextStep());
     }
-
+    // Just used for calibration
     bool willComputeNextStep() const {
       return (x.size() == getBlockSize()-1) || (grain_counter+1 == getBlockSize()/countGrains());
     }
 
-  public:
     void step(T val) {
       assert(isValid());
       x.emplace_back(val);

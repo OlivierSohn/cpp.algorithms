@@ -39,6 +39,12 @@ namespace imajuscule
   }
 
   struct FinegrainedSetupParam : public Cost {
+    FinegrainedSetupParam(int multiplication_group_size, int phase) :
+    Cost(),
+    multiplication_group_size(multiplication_group_size),
+    phase(phase)
+    {}
+
     void setPhase(int ph) { phase = ph; }
     void setGrainsCosts(GrainsCosts gcosts) { grains_costs = gcosts; }
 
@@ -244,7 +250,7 @@ namespace imajuscule
       ++it;
     }
 
-    T get() {
+    T get() const {
       assert(it < y.begin() + getBlockSize());
       assert(it >= y.begin());
       return get_signal(*it);
@@ -293,9 +299,13 @@ namespace imajuscule
     auto getBlockSize() const { return partition_size; }
     auto getLatency() const { return 2*partition_size; }
     auto getGranularMinPeriod() const { return getBlockSize() / countGrains(); }
-    bool isValid() const { return countGrains() <= getBlockSize(); }
+    bool isValid() const { return mult_grp_len > 0 && countGrains() <= getBlockSize(); }
 
     int countPartitions() const { return ffts_of_partitionned_h.size(); }
+
+    T getEpsilon() const {
+      return countPartitions() * fft::getFFTEpsilon<FPT>(get_fft_length());
+    }
 
   protected:
     void doSetMultiplicationGroupLength(int length) {

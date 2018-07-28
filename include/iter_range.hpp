@@ -62,4 +62,27 @@ private:
     int n;
     Container & c;
   };
+  
+  template<typename Container>
+  struct containerRange {
+    using It = typename Container::iterator;
+    auto begin() const { return b; }
+    auto end()   const { return e; }
+
+    containerRange(It b, It e) : b(b), e(e) {}
+    Container materialize() const {
+      return {b,e};
+    }
+  private:
+    It b,e;
+  };
+
+  template<typename Container>
+  std::pair<containerRange<Container>, containerRange<Container>> splitAt(int n, Container & c) {
+    auto b = c.begin();
+    auto e = c.end();
+    auto m = std::min(e, b+n);
+    return {{b,m},{m,e}};
+  }
+
 } // NS imajuscule

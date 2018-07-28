@@ -61,7 +61,7 @@ namespace imajuscule {
                 spatialize.step(input.data());
             }
 
-            auto eps = getEpsilon(spatialize);
+            auto eps = spatialize.getEpsilon();
             ASSERT_EQ(ear_signals[0].size(), results.size());
             for(auto j=0; j<results.size(); ++j) {
                 int i=0;

@@ -22,7 +22,8 @@ namespace imajuscule
         using Contexts = fft::Contexts_<Tag, FPT>;
 
         using Parent::get_fft_length;
-        using Parent::getBlockSize;
+      using Parent::getBlockSize;
+      using Parent::getEpsilon;
         using Parent::doSetCoefficients;
         using Parent::compute_convolution;
 
@@ -102,67 +103,13 @@ namespace imajuscule
             }
         }
 
-        T get() {
+        T get() const {
             assert(it < y.begin() + getBlockSize());
             assert(it >= y.begin());
             return get_signal(*it);
         }
 
     private:
-        Algo fft;
-        RealSignal x, y, result;
-        typename decltype(y)::iterator it;
-    };
-
-    struct SubConvolution {
-        using FPT = float;
-        int countPartitions() const { return 0; }
-        int get_fft_length() const { return 0; }
-    };
-
-    template<typename T, typename TAG>
-    struct FFTScalingConvolution {
-        using FPT = T;
-        using Tag = TAG;
-        static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
-        static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
-        static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;
-        using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
-        using Algo = typename fft::Algo_<Tag, FPT>;
-        using Contexts = fft::Contexts_<Tag, FPT>;
-
-        auto getBlockSize() const { return min_partition_size; }
-        auto getLatency() const { return min_partition_size; }
-
-        void set_partition_size(int sz) {
-            assert(sz > 0);
-            min_partition_size = sz;
-            assert(is_power_of_two(sz));
-        }
-
-        std::vector<SubConvolution> subs;
-
-        auto begin() const { return subs.begin(); }
-        auto end() const { return subs.end(); }
-        auto begin() { return subs.begin(); }
-        auto end() { return subs.end(); }
-
-        FFTScalingConvolution() {
-            it = y.end();
-        }
-
-        void setCoefficients(a64::vector<T> coeffs_) {
-        }
-
-        void step(T val) {
-
-        }
-
-        T get() {
-        }
-
-    private:
-        int min_partition_size;
         Algo fft;
         RealSignal x, y, result;
         typename decltype(y)::iterator it;
@@ -222,6 +169,11 @@ namespace imajuscule
             auto coeffs = makeRealSignal(std::move(coeffs_));
             fft.forward(coeffs, fft_of_h, fft_length);
         }
+
+      
+      FPT getEpsilon() const {
+        return countPartitions() * fft::getFFTEpsilon<FPT>(get_fft_length());
+      }
 
     protected:
 
@@ -351,6 +303,9 @@ namespace imajuscule
             assert(it_coeffs == coeffs_.end());
         }
 
+      FPT getEpsilon() const {
+        return countPartitions() * fft::getFFTEpsilon<FPT>(get_fft_length());
+      }
     protected:
 
         auto const & compute_convolution(Algo const & fft, RealSignal const & x)
@@ -582,9 +537,6 @@ namespace imajuscule
     template <typename T, typename FFTTag = fft::Fastest>
     using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, FFTTag> >;
 
-    template <typename T, typename FFTTag = fft::Fastest>
-    using ScalingPartitionnedFFTConvolution = FFTScalingConvolution<T, FFTTag>;
-
     template<typename SetupParam>
     struct PartitionningSpec {
         int size =  -1;
@@ -610,12 +562,7 @@ namespace imajuscule
     };
 
     template<typename T>
-    struct PartitionAlgo {
-        template<typename ...Args>
-        static PartitionningSpecs<float> run(Args... args) {
-            return {};
-        }
-    };
+    struct PartitionAlgo;
 
     template<typename T>
     struct PartitionAlgo< PartitionnedFFTConvolution<T> > {
@@ -649,31 +596,6 @@ namespace imajuscule
 
             return std::move(res);
         }
-    };
-
-
-    template<typename Convolution, typename T = typename Convolution::FPT>
-    struct Epsilon {
-        static T get(Convolution const & c) {
-            return c.countPartitions() * fft::getFFTEpsilon<T>(c.get_fft_length());
-        }
-    };
-
-    template<typename T, typename FFTTag>
-    struct Epsilon< ScalingPartitionnedFFTConvolution<T, FFTTag> > {
-        static T get(ScalingPartitionnedFFTConvolution<T, FFTTag> const & c) {
-            T eps{};
-            for(auto const & sub_c : c) {
-                eps += getEpsilon(sub_c);
-            }
-            return eps;
-        }
-    };
-
-    template<typename Convolution, typename T = typename Convolution::FPT>
-    T getEpsilon(Convolution const & c) {
-        return Epsilon<Convolution>::get(c);
-    }
-
+    };  
 
 }

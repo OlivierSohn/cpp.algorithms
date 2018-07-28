@@ -51,7 +51,7 @@ namespace imajuscule {
                 conv.step(0);
             }
 
-            auto eps = getEpsilon(conv);
+            auto eps = conv.getEpsilon();
             ASSERT_EQ(coefficients.size(), results.size());
             for(auto j=0; j<results.size(); ++j) {
                 ASSERT_NEAR(coefficients[j], results[j], eps);
@@ -139,12 +139,11 @@ namespace imajuscule {
         }
         
         template<typename Convolution>
-        void testDirac2(int coeffs_index) {
+        void testDirac2(int coeffs_index, Convolution & conv) {
             
             using T = typename Convolution::FPT;
             
             const auto coefficients = makeCoefficients<T>(coeffs_index);
-            Convolution conv;
             conv.setCoefficients(coefficients);
             
             test(conv, coefficients);
@@ -156,8 +155,30 @@ namespace imajuscule {
             for(int i=0; i<end_index; ++i) {
                 testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Tag>>(i);
-                testDirac2<FFTConvolution<float, Tag>>(i);
-                testDirac2<FFTConvolution<double, Tag>>(i);
+              {
+                auto c = NaiveConvolution<float>{};
+                testDirac2(i, c);
+              }
+              {
+                auto c = NaiveConvolution<double>{};
+                testDirac2(i, c);
+              }
+              {
+                auto c = FFTConvolution<float, Tag>{};
+                testDirac2(i, c);
+              }
+              {
+                auto c = FFTConvolution<double, Tag>{};
+                testDirac2(i, c);
+              }
+              {
+                auto c = mkRealTimeConvolution<float, Tag>(8);
+                testDirac2(i, c);
+              }
+              {
+                auto c = mkRealTimeConvolution<double, Tag>(8);
+                testDirac2(i, c);
+              }
                 testDiracPartitionned<PartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracPartitionned<PartitionnedFFTConvolution<double, Tag>>(i);
                 //testDiracPartitionned<ScalingPartitionnedFFTConvolution<float, Tag>>(i);

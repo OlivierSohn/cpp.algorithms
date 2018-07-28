@@ -21,7 +21,7 @@ namespace imajuscule
             using T = typename Convolution::FPT;
             using FPT = T;
             
-            FPT getEpsilon() const { return Epsilon<Convolution>::get(convs[0][0]); }
+            FPT getEpsilon() const { return convs[0][0].getEpsilon(); }
             
             void set_partition_size(int sz) {
                 size_partition = sz;
@@ -136,13 +136,5 @@ namespace imajuscule
             }
         };
     }
-
-    template<int N_EARS, typename Convolution>
-    struct Epsilon< audio::Spatializer<N_EARS, Convolution> > {
-        using T = typename Convolution::FPT;
-        static T get(audio::Spatializer<N_EARS, Convolution> const & c) {
-            return c.getEpsilon();
-        }
-    };
 
 }

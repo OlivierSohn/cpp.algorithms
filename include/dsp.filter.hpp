@@ -233,7 +233,7 @@ namespace imajuscule
         FIRFilter(int size) : past(size, {}) {}
 
         template<typename U>
-        FIRFilter(std::vector<U> const & c) : FIRFilter(c.size()) {
+        FIRFilter(a64::vector<U> const & c) : FIRFilter(c.size()) {
             assert(c.size() == past.size());
             coefficients.reserve(c.size());
             for(auto coeff : c) {
@@ -241,14 +241,24 @@ namespace imajuscule
             }
         }
 
-        void setCoefficients(std::vector<T> v) {
+        void setCoefficients(a64::vector<T> v) {
             past.resize(v.size());
             coefficients = std::move(v);
         }
 
-        auto size() const { return coefficients.size(); }
+      bool isValid() const {
+        return !coefficients.empty();
+      }
+      
+      constexpr int getLatency() const { return 0; }
+
+      auto size() const { return coefficients.size(); }
 
         bool empty() const { return coefficients.empty(); }
+      void clear() {
+        coefficients.clear();
+        past.resize(0);
+      }
 
         void step(T val) {
             assert(size() != 0);
@@ -259,7 +269,7 @@ namespace imajuscule
             auto res = T{};
             // when coefficients are symmetrical it doesn't matter
             // if we are traversing forward or backward
-            // but here we have no assumption:
+            // but here we make no assumption:
             auto it_coeff = coefficients.begin();
             past.for_each_bkwd([&res, &it_coeff](auto val) {
                 res += val * *it_coeff;
@@ -268,8 +278,12 @@ namespace imajuscule
             return res;
         }
 
+      T getEpsilon() const {
+        return std::numeric_limits<T>::epsilon() * coefficients.size();
+      }
+
     private:
-        std::vector<T> coefficients;
+        a64::vector<T> coefficients;
         cyclic<T> past;
     };
 
@@ -331,7 +345,7 @@ namespace imajuscule
 
         auto inv_N = 1. / fft_length;
 
-        std::vector<T> v;
+        a64::vector<T> v;
         v.reserve(NumTaps);
 
         // This is where the FIR taps are located in the FFT’s return.

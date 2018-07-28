@@ -30,7 +30,7 @@ namespace imajuscule
     template<class T, CyclicInitialization Init = CyclicInitialization::INITIAL_VALUES>
     struct cyclic
     {
-        using container = typename std::vector<T>;
+        using container = typename a64::vector<T>;
         using iterator = typename container::iterator;
         using const_iterator = typename container::const_iterator;
         using value_type = T;
@@ -224,8 +224,8 @@ namespace imajuscule
     }
 
     template<typename C, typename T = typename C::value_type>
-    std::vector<T> to_vector(C const & cyclic_) {
-        std::vector<T> vec;
+    a64::vector<T> to_vector(C const & cyclic_) {
+        a64::vector<T> vec;
         vec.reserve(cyclic_.size());
         auto cycleStart = cyclic_.cycleEnd();
         auto end = cyclic_.end();

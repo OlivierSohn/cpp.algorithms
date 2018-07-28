@@ -137,7 +137,7 @@ struct fifo {
 
      Applies the function f to the dequeued element.
 
-     Returns the number of elements that were dequeued.
+     Returns true if the element has been dequeued.
      */
     template<typename F>
     bool tryDequeue(F f) {

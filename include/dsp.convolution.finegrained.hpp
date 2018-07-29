@@ -592,8 +592,10 @@ namespace imajuscule
             ++max_n_grains_per_cb; // worst case, not avg
           }
 
-          cyclic<float> grains_costs(n_multiplicative_grains + n_non_multiplicative_grains,
-                                     multiplication_grain_time); // initialize with multiplicative grain times
+          cyclic<float> grains_costs(n_multiplicative_grains + n_non_multiplicative_grains);
+          // initialize with multiplicative grain times
+          std::fill(grains_costs.begin(), grains_costs.end(), multiplication_grain_time);
+
           for(auto t : fft_times) {
             grains_costs.feed(t);
           }

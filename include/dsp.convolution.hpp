@@ -266,7 +266,6 @@ namespace imajuscule
                 return n_partitions;
             }();
 
-            ffts_of_delayed_x.reset();
             ffts_of_delayed_x.resize(n_partitions);
             ffts_of_partitionned_h.resize(n_partitions);
 

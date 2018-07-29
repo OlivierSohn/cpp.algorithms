@@ -80,7 +80,7 @@ TEST(PhasedSum, test) {
     c.feed(4);
     c.feed(5);
 
-    cyclic<float> res;
+    cyclic<float> res(cyclic_size);
     {
         constexpr auto phase = 0;
         constexpr auto n_iterators = 2;

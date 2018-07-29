@@ -230,7 +230,7 @@ namespace imajuscule
 
         FIRFilter() : FIRFilter(0) {}
 
-        FIRFilter(int size) : past(size, {}) {}
+        FIRFilter(int size) : past(size) {}
 
         template<typename U>
         FIRFilter(a64::vector<U> const & c) : FIRFilter(c.size()) {
@@ -242,7 +242,7 @@ namespace imajuscule
         }
 
         void setCoefficients(a64::vector<T> v) {
-            past.Resize(v.size());
+            past.resize(v.size());
             coefficients = std::move(v);
         }
 
@@ -257,7 +257,7 @@ namespace imajuscule
         bool empty() const { return coefficients.empty(); }
       void clear() {
         coefficients.clear();
-        past.Resize(0);
+        past.resize(0);
       }
 
         void step(T val) {

@@ -150,11 +150,11 @@ namespace imajuscule {
         }
       
         template<typename T, typename FFTTag = fft::Fastest>
-        auto mkRealTimeConvolution(int split) {
+        auto mkRealTimeConvolution() {
           auto c = RealTimeConvolution<T, FFTTag>{};
           auto & b = c.editB();
-          b.set_partition_size(split/2);
-          c.applySetup({split,FinegrainedSetupParam{1,0}});
+          b.set_partition_size(4);
+          c.applySetup(FinegrainedSetupParam{1,0});
           return c;
         }
 
@@ -181,11 +181,11 @@ namespace imajuscule {
                 testDirac2(i, c);
               }
               {
-                auto c = mkRealTimeConvolution<float, Tag>(8);
+                auto c = mkRealTimeConvolution<float, Tag>();
                 testDirac2(i, c);
               }
               {
-                auto c = mkRealTimeConvolution<double, Tag>(8);
+                auto c = mkRealTimeConvolution<double, Tag>();
                 testDirac2(i, c);
               }
                 testDiracPartitionned<PartitionnedFFTConvolution<float, Tag>>(i);

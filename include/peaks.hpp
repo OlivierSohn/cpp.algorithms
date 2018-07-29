@@ -187,21 +187,6 @@ namespace imajuscule
         };
     }
     
-    template<typename ITER, typename F_WINDOW, typename VAL = typename ITER::value_type>
-    VAL avg_windowed_abs_integrated(ITER it, ITER end, int avg_size, F_WINDOW window) {
-        slidingWindowedAverage<VAL, CyclicInitialization::INITIAL_VALUES> avg(avg_size, window);
-        auto n = std::distance(it, end);
-        std::vector<VAL> avgs;
-        avgs.reserve(n);
-        
-        for(; it!=end; ++it) {
-            avg.feed(*it);
-            avgs.push_back(std::abs(avg.compute()));
-        }
-        
-        // to minimize numerical errors
-        return dichotomic_sum(avgs.begin(), avgs.end()) / avg.getWindowAverage();
-    }
     
 #ifdef __APPLE__
     template<typename CONTAINER, typename T = typename CONTAINER::value_type>

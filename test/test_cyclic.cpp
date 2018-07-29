@@ -3,7 +3,7 @@ using namespace imajuscule;
 
 TEST(Cyclic, traversal) {
     constexpr auto sz = 3;
-    cyclic<int> c(sz, {});
+    cyclic<int> c(sz);
     int i = 0;
     
     // fill-in the cycle
@@ -31,7 +31,7 @@ TEST(Cyclic, traversal) {
 
 TEST(Cyclic, traversalLeftRight) {
     constexpr auto sz = 10;
-    cyclic<int> c(sz, {});
+    cyclic<int> c(sz);
     int i = 0;
     
     // fill-in the cycle

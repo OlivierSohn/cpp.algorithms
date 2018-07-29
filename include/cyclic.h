@@ -6,12 +6,6 @@
 
 namespace imajuscule
 {
-    enum class CyclicInitialization
-    {
-        FIRST_FEED,
-        INITIAL_VALUES
-    };
-
     template<typename Iterator, typename Container>
     void next(Iterator & it_, Container & buf) {
         ++it_;
@@ -26,8 +20,8 @@ namespace imajuscule
         }
         --it_;
     }
-
-    template<class T, CyclicInitialization Init = CyclicInitialization::INITIAL_VALUES>
+  
+    template<class T>
     struct cyclic
     {
         using container = typename a64::vector<T>;
@@ -55,24 +49,20 @@ namespace imajuscule
         auto size() const { return buf.size(); }
         auto empty() const { return buf.empty(); }
 
-        cyclic() : isFirstFeed(true) {
-            it = buf.begin();
-        }
+      cyclic() {
+        it = buf.begin();
+      }
 
-        cyclic(size_t size, ParameterType initVals = {})
-        : initialValue(initVals), isFirstFeed(true) {
-            buf.resize(size, initVals);
-            it = buf.begin();
-        }
+      cyclic(size_t size) : buf(size) {
+        it = buf.begin();
+      }
 
         // not copyable
         cyclic(cyclic const &) = delete;
         cyclic& operator =(cyclic const &) = delete;
 
         // movable
-        cyclic(cyclic&&o) :
-        initialValue(std::move(o.initialValue)),
-        isFirstFeed(o.isFirstFeed)
+        cyclic(cyclic&&o)
         {
             auto d =  std::distance(o.buf.begin(), o.it);
             buf = std::move(o.buf);
@@ -80,49 +70,42 @@ namespace imajuscule
         }
 
         cyclic(container i)
-        : buf(std::move(i)), isFirstFeed(false) {
+        : buf(std::move(i)) {
             it = buf.begin();
-
         }
 
         cyclic & operator =(cyclic && o) {
             if(this != &o) {
                 buf = std::move(o.buf);
-                initialValue = std::move(o.initialValue);
-                isFirstFeed = o.isFirstFeed;
-
                 it = buf.begin() + std::distance(o.it, o.buf.begin());
             }
             return *this;
         }
 
-        // TODO once all clients have changed to the new API, revert to the old name (resize)
-        // Resize does what resize + reset were doing
-        void Resize(int sz) {
+        void resize(int sz) {
           assert(sz >= 0);
-          isFirstFeed = true;
-          it = buf.begin();
-          std::fill(it, std::min(it+sz, buf.end()), initialValue);
-          if(sz != buf.size()) {
-            buf.resize(sz, initialValue);
-            it = buf.begin();
-          }
+          buf.resize(sz);
+          reset();
         }
 
+      void reset() {
+        it = buf.begin();
+        std::fill(it, buf.end(), T{});
+      }
+      
         void grow(ParameterType && val) {
             auto dist = std::distance(buf.begin(), it);
             buf.push_back(std::move(val));
             it = buf.begin() + dist;
         }
+      
+      
+      void feedAndFill(ParameterType val) {
+        std::fill(buf.begin(), buf.end(), val);
+        advance();
+      }
 
         void feed(ParameterType val) {
-            if(isFirstFeed) {
-                if constexpr (Init == CyclicInitialization::FIRST_FEED) {
-                    std::fill(buf.begin(), buf.end(), val);
-                }
-                isFirstFeed = false;
-            }
-
             *it = std::move(val);
             advance();
         }
@@ -211,8 +194,6 @@ namespace imajuscule
     private:
         container buf;
         iterator it;
-        T initialValue;
-        bool isFirstFeed:1;
     };
 
     template<typename T>

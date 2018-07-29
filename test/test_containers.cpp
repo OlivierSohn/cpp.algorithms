@@ -1,73 +1,34 @@
 
 
 TEST(SlidingAverage, test) {
-    using namespace imajuscule;
-    {
-        slidingAverage<float> avg(3);
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        avg.feed(3.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        avg.feed(3.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(2.f, avg.compute());
-        EXPECT_FLOAT_EQ(2.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(1.f, avg.compute());
-        EXPECT_FLOAT_EQ(1.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-    }
-    {
-        slidingAverage<float, CyclicInitialization::INITIAL_VALUES> avg(3);
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        avg.feed(3.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(1.f, avg.compute());
-        EXPECT_FLOAT_EQ(1.f, avg.compute());
-        avg.feed(3.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(2.f, avg.compute());
-        EXPECT_FLOAT_EQ(2.f, avg.compute());
-        avg.feed(3.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        avg.feed(3.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        EXPECT_FLOAT_EQ(3.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(2.f, avg.compute());
-        EXPECT_FLOAT_EQ(2.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(1.f, avg.compute());
-        EXPECT_FLOAT_EQ(1.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        avg.feed(0.f);
-        EXPECT_EQ(3, avg.size());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-        EXPECT_FLOAT_EQ(0.f, avg.compute());
-    }
+  using namespace imajuscule;
+  slidingAverage<float> avg(3);
+  EXPECT_FLOAT_EQ(0.f, avg.compute());
+  EXPECT_FLOAT_EQ(0.f, avg.compute());
+  avg.feed(3.f);
+  EXPECT_EQ(3, avg.size());
+  EXPECT_FLOAT_EQ(3.f, avg.compute());
+  EXPECT_FLOAT_EQ(3.f, avg.compute());
+  avg.feed(3.f);
+  EXPECT_EQ(3, avg.size());
+  EXPECT_FLOAT_EQ(3.f, avg.compute());
+  EXPECT_FLOAT_EQ(3.f, avg.compute());
+  avg.feed(0.f);
+  EXPECT_EQ(3, avg.size());
+  EXPECT_FLOAT_EQ(2.f, avg.compute());
+  EXPECT_FLOAT_EQ(2.f, avg.compute());
+  avg.feed(0.f);
+  EXPECT_EQ(3, avg.size());
+  EXPECT_FLOAT_EQ(1.f, avg.compute());
+  EXPECT_FLOAT_EQ(1.f, avg.compute());
+  avg.feed(0.f);
+  EXPECT_EQ(3, avg.size());
+  EXPECT_FLOAT_EQ(0.f, avg.compute());
+  EXPECT_FLOAT_EQ(0.f, avg.compute());
+  avg.feed(0.f);
+  EXPECT_EQ(3, avg.size());
+  EXPECT_FLOAT_EQ(0.f, avg.compute());
+  EXPECT_FLOAT_EQ(0.f, avg.compute());
 }
 
 

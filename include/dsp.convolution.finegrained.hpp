@@ -39,8 +39,9 @@ namespace imajuscule
   }
 
   struct FinegrainedSetupParam : public Cost {
-    FinegrainedSetupParam(int multiplication_group_size, int phase) :
-    Cost(),
+    FinegrainedSetupParam() : Cost() {}
+
+    FinegrainedSetupParam(int multiplication_group_size, int phase) : Cost(),
     multiplication_group_size(multiplication_group_size),
     phase(phase)
     {}
@@ -364,8 +365,7 @@ namespace imajuscule
         return n_partitions;
       }();
 
-      ffts_of_delayed_x.reset();
-      ffts_of_delayed_x.resize(n_partitions);
+      ffts_of_delayed_x.Resize(n_partitions);
       ffts_of_partitionned_h.resize(n_partitions);
 
       auto const fft_length = get_fft_length();
@@ -616,7 +616,7 @@ namespace imajuscule
               // now cost is the 'phase == 0' cost
               result.phase = 0;
 
-              cyclic<float> phased_grains_costs;
+              cyclic<float> phased_grains_costs(grains_costs.size());
               for(int phase = 1; phase < grains_costs.size(); ++phase) {
                 compute_phased_sum(grains_costs,
                                    phase,

@@ -2,7 +2,7 @@
 namespace imajuscule {
     namespace testdspconv {
         constexpr auto end_index = 4;
-        
+
         template<typename T>
         a64::vector<T> makeCoefficients(int coeffs_index) {
             switch(coeffs_index) {
@@ -22,29 +22,29 @@ namespace imajuscule {
             }
             throw std::logic_error("coeff index too big");
         }
-        
+
         template<typename Convolution, typename Coeffs>
         void test(Convolution & conv, Coeffs const & coefficients) {
             using T = typename Convolution::FPT;
             using namespace fft;
-            
+
             if(!conv.isValid()) {
                 /*
                  std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
-                std::cout << std::endl << 
+                std::cout << std::endl <<
                 "coefficient size : " << coefficients.size() << std::endl <<
                 "partition size : " << conv.getBlockSize() << std::endl <<
                 "partition count : " << conv.countPartitions() << std::endl;
                  */
                 return;
             }
-            
+
             // feed a dirac
             conv.step(1);
             for(int i=1; i<conv.getLatency(); ++i) {
                 conv.step(0);
             }
-            
+
             std::vector<T> results;
             for(int i=0; i<coefficients.size(); ++i) {
                 results.push_back(conv.get());
@@ -57,11 +57,11 @@ namespace imajuscule {
                 ASSERT_NEAR(coefficients[j], results[j], eps);
             }
         }
-        
+
         template<typename T, typename F>
         void testPartitionned(int coeffs_index, F f) {
             const auto coefficients = makeCoefficients<T>(coeffs_index);
-            
+
             if(coefficients.size() < 1024) {
                 for(int i=0; i<5;i++)
                 {
@@ -74,20 +74,20 @@ namespace imajuscule {
                 f(part_size, coefficients);
             }
         }
-        
+
         enum class TestFinegrained {
             Begin,
-            
+
             Low = Begin,
             Med,
             High,
 
             End
         };
-        
+
         template<typename Convolution>
         void testDiracFinegrainedPartitionned(int coeffs_index) {
-            
+
             auto f = [](int part_size, auto const & coefficients)
             {
                 for(auto type = TestFinegrained::Begin;
@@ -95,15 +95,15 @@ namespace imajuscule {
                     increment(type))
                 {
                     Convolution conv;
-                    
+
                     conv.set_partition_size(part_size);
                     conv.setCoefficients(coefficients);
-                    
+
                     range<int> r {
                         conv.getLowestValidMultiplicationsGroupSize(),
                         conv.getHighestValidMultiplicationsGroupSize()
                     };
-                    
+
                     switch(type) {
                         case TestFinegrained::Low:
                             conv.setMultiplicationGroupLength(r.getMin());
@@ -120,35 +120,44 @@ namespace imajuscule {
                     test(conv, coefficients);
                 }
             };
-            
+
             testPartitionned<typename Convolution::FPT>(coeffs_index, f);
         }
-        
+
         template<typename Convolution>
         void testDiracPartitionned(int coeffs_index) {
-            
+
             auto f = [](int part_size, auto const & coefficients){
                 Convolution conv;
-                
+
                 conv.set_partition_size(part_size);
                 conv.setCoefficients(coefficients);
                 test(conv, coefficients);
             };
-            
+
             testPartitionned<typename Convolution::FPT>(coeffs_index, f);
         }
-        
+
         template<typename Convolution>
         void testDirac2(int coeffs_index, Convolution & conv) {
-            
+
             using T = typename Convolution::FPT;
-            
+
             const auto coefficients = makeCoefficients<T>(coeffs_index);
             conv.setCoefficients(coefficients);
-            
+
             test(conv, coefficients);
         }
-        
+      
+        template<typename T, typename FFTTag = fft::Fastest>
+        auto mkRealTimeConvolution(int split) {
+          auto c = RealTimeConvolution<T, FFTTag>{};
+          auto & b = c.editB();
+          b.set_partition_size(split/2);
+          c.applySetup({split,FinegrainedSetupParam{1,0}});
+          return c;
+        }
+
         template<typename Tag>
         bool testDirac() {
             using namespace fft;
@@ -192,9 +201,8 @@ namespace imajuscule {
 TEST(Convolution, dirac) {
     using namespace imajuscule;
     using namespace imajuscule::testdspconv;
-    
+
     for_each(fft::Tags, [](auto t) {
         testDirac<decltype(t)>();
     });
 }
-

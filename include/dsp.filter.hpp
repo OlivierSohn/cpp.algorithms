@@ -242,14 +242,14 @@ namespace imajuscule
         }
 
         void setCoefficients(a64::vector<T> v) {
-            past.resize(v.size());
+            past.Resize(v.size());
             coefficients = std::move(v);
         }
 
       bool isValid() const {
         return !coefficients.empty();
       }
-      
+
       constexpr int getLatency() const { return 0; }
 
       auto size() const { return coefficients.size(); }
@@ -257,7 +257,7 @@ namespace imajuscule
         bool empty() const { return coefficients.empty(); }
       void clear() {
         coefficients.clear();
-        past.resize(0);
+        past.Resize(0);
       }
 
         void step(T val) {

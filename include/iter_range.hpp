@@ -62,7 +62,7 @@ private:
     int n;
     Container & c;
   };
-  
+
   template<typename Container>
   struct containerRange {
     using It = typename Container::iterator;

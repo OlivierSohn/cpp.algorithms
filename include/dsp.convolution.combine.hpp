@@ -152,11 +152,23 @@ namespace imajuscule
     }
 
     auto get() const {
-      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.get(); });
+      FPT r{};
+      for(auto const & e : v) {
+        r += e.get();
+      }
+      return r;
+      // TODO replace once supported by gcc
+//      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.get(); });
     }
 
     auto getEpsilon() const {
-      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.getEpsilon(); });
+      FPT r{};
+      for(auto const & e : v) {
+        r += e.getEpsilon();
+      }
+      return r;
+      // TODO replace once supported by gcc
+//      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.getEpsilon(); });
     }
 
     auto getLatency() const { return 0; }

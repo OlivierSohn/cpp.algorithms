@@ -10,9 +10,9 @@ namespace imajuscule
     using FPT = typename A::FPT;
     using EarlyHandler = A;
     using LateHandler = B;
-    
+
     static_assert(std::is_same_v<FPT,typename B::FPT>);
-    
+
     bool empty() const {
       return a.empty() && b.empty();
     }
@@ -20,55 +20,55 @@ namespace imajuscule
       a.clear();
       b.clear();
     }
-    
+
     using SetupParam = typename B::SetupParam;
-    
+
     void set_partition_size(int sz) {
       b.set_partition_size(sz);
       split = b.getLatency() - a.getLatency();
     }
-    
+
     void setCoefficients(a64::vector<FPT> coeffs_) {
       auto [rangeA,rangeB] = splitAt(split, coeffs_);
       a.setCoefficients(rangeA.materialize());
       b.setCoefficients(rangeB.materialize());
     }
-    
+
     void applySetup(SetupParam const & p) {
       b.applySetup(p);
     }
-    
+
     auto getGranularMinPeriod() const {
       return b.getGranularMinPeriod();
     }
-    
+
     bool isValid() const {
       return a.isValid() && b.isValid();
     }
-    
+
     void step(FPT val) {
       a.step(val);
       b.step(val);
     }
-    
+
     auto get() const {
       return a.get() + b.get();
     }
-    
+
     auto getEpsilon() const {
       return a.getEpsilon() + b.getEpsilon();
     }
-    
+
     auto getLatency() const {
       return a.getLatency();
     }
-    
+
   private:
     int split; // we have 'split' ** early ** coefficients, the rest are ** late ** coefficients.
     A a;
     B b;
   };
-  
+
 
   /*
    * Creates a 0-latency convolution scheme by combining 'n' sub-schemes
@@ -77,7 +77,7 @@ namespace imajuscule
   template<typename A>
   struct ScaleConvolution {
     using FPT = typename A::FPT;
-    
+
     bool empty() const {
       return v.empty() || std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.empty(); });
     }
@@ -136,7 +136,7 @@ namespace imajuscule
     bool isValid() const {
       return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
-    
+
     void step(FPT val) {
       if(delayBuffer.zeroPeriod()) {
         // step all
@@ -150,33 +150,33 @@ namespace imajuscule
         delayBuffer.feed(val);
       }
     }
-    
+
     auto get() const {
       return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.get(); });
     }
-    
+
     auto getEpsilon() const {
       return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.getEpsilon(); });
     }
-    
+
     auto getLatency() const { return 0; }
-    
+
   private:
     std::vector<A> v;
     cyclic<FPT> delayBuffer; // used for the last convolution, to optimize padding.
                              // It emulates the effect of a bigger latency when using a bigger padding.
   };
-  
+
 
   template<typename T>
   using ZeroLatencyBruteConvolution = FIRFilter<T>;
 
   template<typename T, typename FFTTag = fft::Fastest>
   using ZeroLatencyBruteFineGrainedPartitionnedConvolution = SplitConvolution<ZeroLatencyBruteConvolution<T>,FinegrainedPartitionnedFFTConvolution<T, FFTTag>>;
-  
+
   template<typename T, typename FFTTag = fft::Fastest>
   using ZeroLatencyScaledFineGrainedPartitionnedConvolution = SplitConvolution<ScaleConvolution<FFTConvolution<T, FFTTag>>,FinegrainedPartitionnedFFTConvolution<T, FFTTag>>;
-  
+
 
   template<typename A, typename B>
   struct PartitionAlgo< SplitConvolution<A,B> > {
@@ -184,10 +184,10 @@ namespace imajuscule
     using Delegate = typename NonAtomicConvolution::LateHandler;
 
     using SetupParam = typename Delegate::SetupParam;
-    using PartitionningSpec = PartitionningSpec<SetupParam>;
-    using PartitionningSpecs = PartitionningSpecs<SetupParam>;
+    using PS = PartitionningSpec<SetupParam>;
+    using PSpecs = PartitionningSpecs<SetupParam>;
 
-    static PartitionningSpecs run(int n_channels, int n_audio_frames_per_cb, int size_impulse_response) {
+    static PSpecs run(int n_channels, int n_audio_frames_per_cb, int size_impulse_response) {
       return PartitionAlgo<Delegate>::run(n_channels, n_audio_frames_per_cb, size_impulse_response);
     }
   };

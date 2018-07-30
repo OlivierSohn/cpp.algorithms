@@ -31,6 +31,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <numeric>
 #include <random>
 #include <set>
 #include <sstream>

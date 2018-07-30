@@ -11,36 +11,36 @@ namespace imajuscule
         OutOfRange,
         NotEvaluated,
     };
-    
+
     /*
      Search over integral parameters
      */
-    
+
     template<typename Value>
     struct SearchMin {
         using FUNCTION = std::function<ParamState(int, Value&)>;
-        
+
         virtual ~SearchMin() = default;
-        
+
         SearchMin() = default;
         SearchMin(FUNCTION f) : f(f) {
         }
-        
+
         void stealFrom(SearchMin && other) {
             f = std::move(other.f);
             results = std::move(results);
         }
-        
+
         virtual void onFunctionChanged() {
         }
-        
+
         void verify_func_exists() {
             if(f) {
                 return;
             }
             throw std::logic_error("cannot run a gradient descent when there is no function");
         }
-        
+
         template<typename F>
         void setFunction(F func) {
             if(f) {
@@ -49,7 +49,7 @@ namespace imajuscule
             f = func;
             onFunctionChanged();
         }
-        
+
         auto begin() const { return results.begin(); }
         auto end() const { return results.end(); }
 
@@ -60,29 +60,28 @@ namespace imajuscule
             }
             return it->second.get_value();
         }
-        
+
         void plot(bool logdraw = true) const {
 
             if(results.empty()) {
                 std::cout << "empty" << std::endl;
                 return;
             }
-            
+
             auto range_index = range<int>{
                 results.begin()->first,
                 results.rbegin()->first
             };
-            
-            constexpr auto unevaluated_val = std::numeric_limits<float>::quiet_NaN();
+
             std::vector<float> values(range_index.getSpan() + 1,
-                                      unevaluated_val);
+                                      StringPlot::ignoredValue<float>());
 
             for(auto const & v : results) {
                 if(v.second.state == ParamState::Ok) {
                     values[v.first - range_index.getMin()] = v.second.val;
                 }
             }
-            
+
             constexpr auto height = 30;
             StringPlot p(height, values.size());
             if(logdraw) {
@@ -95,7 +94,7 @@ namespace imajuscule
 
         int make_exhaustive(range<int> const & r) {
             verify_func_exists();
-            
+
             Value min_before;
             auto index_min_before = getMinValue(min_before);
 
@@ -108,10 +107,10 @@ namespace imajuscule
                 auto res = f(i, val);
                 results[i] = {i, res, val};
             }
-            
+
             Value min_after;
             auto index_min_after = getMinValue(min_after);
-            
+
             if(index_min_after != index_min_before) {
                 using namespace std;
                 static auto count = 0;
@@ -122,10 +121,10 @@ namespace imajuscule
             }
             return index_min_after;
         }
-        
+
     protected:
         FUNCTION f;
-        
+
         struct Result {
             Value get_value() const {
                 if(state == ParamState::Ok) {
@@ -135,7 +134,7 @@ namespace imajuscule
                     return {};
                 }
             }
-            
+
             Value feed(ParamState s, Value value) {
                 if(state != s) {
                     throw std::runtime_error("different param states for the same index");
@@ -146,13 +145,13 @@ namespace imajuscule
                 val = std::min(val, value);
                 return val;
             }
-            
+
             int index;
             ParamState state = ParamState::NotEvaluated;
             Value val;
         };
         std::map<int, Result> results;
-        
+
         int getMinValue(Value & min_value) const
         {
             bool first = true;
@@ -173,17 +172,17 @@ namespace imajuscule
                     res = r.index;
                 }
             }
-            
+
             if(first) {
                 throw std::logic_error("no value worked");
             }
-            
+
             return res;
         }
-        
+
         ParamState eval(int param, Value & val) {
             auto res = f(param, val);
-            
+
             auto it = results.find(param);
             if(it == results.end()) {
                 results[param] = {param, res, val};

@@ -166,7 +166,7 @@ namespace imajuscule
             fft.forward(coeffs, fft_of_h, fft_length);
         }
 
-      
+
       FPT getEpsilon() const {
         return fft::getFFTEpsilon<FPT>(get_fft_length());
       }
@@ -542,9 +542,9 @@ namespace imajuscule
 
     template<typename SetupParam>
     struct PartitionningSpecs {
-        using PartitionningSpec = PartitionningSpec<SetupParam>;
+        using PS = PartitionningSpec<SetupParam>;
 
-        PartitionningSpec & getWithSpread(bool spread) {
+        PS & getWithSpread(bool spread) {
             if(spread) {
                 return with_spread.cost < without_spread.cost ? with_spread : without_spread;
             }
@@ -553,7 +553,7 @@ namespace imajuscule
             }
         }
 
-        PartitionningSpec with_spread, without_spread;
+        PS with_spread, without_spread;
     };
 
     template<typename T>
@@ -563,12 +563,12 @@ namespace imajuscule
     struct PartitionAlgo< PartitionnedFFTConvolution<T> > {
         using AtomicConvolution = PartitionnedFFTConvolution<T>;
         using SetupParam = typename AtomicConvolution::SetupParam;
-        using PartitionningSpec = PartitionningSpec<SetupParam>;
-        using PartitionningSpecs = PartitionningSpecs<SetupParam>;
+        using PS = PartitionningSpec<SetupParam>;
+        using PSpecs = PartitionningSpecs<SetupParam>;
 
-        static PartitionningSpecs run(int n_channels, int n_audio_cb_frames, int size_impulse_response) {
+        static PSpecs run(int n_channels, int n_audio_cb_frames, int size_impulse_response) {
             assert(n_channels > 0);
-            PartitionningSpecs res;
+            PSpecs res;
             {
                 auto & spec = res.without_spread;
                 spec.size = get_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(spec.gd,
@@ -591,6 +591,6 @@ namespace imajuscule
 
             return std::move(res);
         }
-    };  
+    };
 
 }

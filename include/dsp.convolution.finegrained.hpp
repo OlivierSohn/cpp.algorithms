@@ -759,12 +759,12 @@ namespace imajuscule
   struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T> > {
     using NonAtomicConvolution = FinegrainedPartitionnedFFTConvolution<T>;
     using SetupParam = typename NonAtomicConvolution::SetupParam;
-    using PartitionningSpec = PartitionningSpec<SetupParam>;
-    using PartitionningSpecs = PartitionningSpecs<SetupParam>;
+    using PS = PartitionningSpec<SetupParam>;
+    using PSpecs = PartitionningSpecs<SetupParam>;
 
-    static PartitionningSpecs run(int n_channels, int n_audio_frames_per_cb, int size_impulse_response) {
+    static PSpecs run(int n_channels, int n_audio_frames_per_cb, int size_impulse_response) {
       assert(n_channels > 0);
-      PartitionningSpecs res;
+      PSpecs res;
       {
         auto & spec = res.without_spread;
         spec.size = get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(spec.gd,

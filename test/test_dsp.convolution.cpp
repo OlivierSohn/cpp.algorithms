@@ -1,15 +1,26 @@
 
 namespace imajuscule {
     namespace testdspconv {
-        constexpr auto end_index = 4;
+        constexpr auto end_index = 15;
 
         template<typename T>
         a64::vector<T> makeCoefficients(int coeffs_index) {
             switch(coeffs_index) {
                 case 0: return {{ +1. }};
                 case 1: return {{ -1. }};
-                case 2: return {{ .9,.8,.7,.6,.3,.2,.1,0. }};
-                case 3: {
+              case 2: return {{ .9, }};
+              case 3: return {{ .9,.8 }};
+              case 4: return {{ .9,.8,.7 }};
+              case 5: return {{ .9,.8,.7,.6 }};
+              case 6: return {{ .9,.8,.7,.6,.5 }};
+              case 7: return {{ .9,.8,.7,.6,.5,.4 }};
+              case 8: return {{ .9,.8,.7,.6,.5,.4,.3 }};
+              case 9: return {{ .9,.8,.7,.6,.5,.4,.3,.2 }};
+              case 10: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1 }};
+              case 11: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05 }};
+              case 12: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025 }};
+              case 13: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025,.01 }};
+                case 14: {
                     constexpr auto sz = 2000;
                     a64::vector<T> v(sz);
                     auto index = 0;

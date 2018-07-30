@@ -71,14 +71,8 @@ namespace imajuscule
   
 
   /*
-   * Creates a 0-latency convolution scheme by combining 'n' fft-convolution schemes
-   * of sizes 2^k, where k is in [0,n-1].
-   *
-   * WARNING:
-   *
-   *   The count of coefficients is expected to be of the form
-   *     2^n - 1 ( = 2^0 + ... + 2^(n-1) )
-   *   else, the result of the convolution will be 0.
+   * Creates a 0-latency convolution scheme by combining 'n' sub-schemes
+   * of latencies 2^k-1, where k is in [0,n-1].
    */
   template<typename A>
   struct ScaleConvolution {
@@ -89,23 +83,20 @@ namespace imajuscule
     }
     void clear() {
       v.clear();
+      delayBuffer.resize(0);
     }
 
     /*
-     * The size of 'coeffs_' must be of the form "2^n-1".
+     *   Unless the count of coefficients is of the form
+     *     2^n - 1, some padding occurs.
      */
     void setCoefficients(a64::vector<FPT> coeffs_) {
-      v.clear();
+      clear();
       auto s = coeffs_.size();
       if( s == 0 ) {
         return;
       }
-      if(!is_power_of_two( s+1 )) {
-        LG(ERR,"ScaleConvolution has wrong count of coefficients: %d", s);
-        Assert(0);
-        return;
-      }
-      auto n = power_of_two_exponent(s+1);
+      auto n = power_of_two_exponent(ceil_power_of_two(s+1));
       v.resize(n);
       auto it = coeffs_.begin();
       auto end = coeffs_.end();
@@ -114,11 +105,29 @@ namespace imajuscule
         auto start = it;
         auto sizeBlock = pow2(i);
         it += sizeBlock;
-        v[i].setCoefficients({start,std::min(end, it)});
+        if(it > end) {
+          Assert(i == n-1);
+          auto withPadding = a64::vector<FPT>{start,end};
+          // We could do naive padding, up-to sizeBlock, but to be
+          // more efficient, memory- and time-wise, we pad
+          // up to the power of 2 following std::distance(start,end),
+          // and emulate the missing latency by buffering the values.
+          auto nextPowOf2 = ceil_power_of_two(withPadding.size());
+          withPadding.resize(nextPowOf2);
+          Assert(sizeBlock >= nextPowOf2);
+          delayBuffer.resize(sizeBlock-nextPowOf2);
+          LG(INFO,"ScaleConvolution : delay buffer of period %d for the last convolution", delayBuffer.period());
+          v[i].setCoefficients(withPadding);
+          sizeBlock = withPadding.size();
+        }
+        else {
+          v[i].setCoefficients({start,it});
+        }
         if(v[i].getLatency() != sizeBlock - 1) {
-          // for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable.
+          // This breaks the class logic, and would lead to wrong results.
+          //   (for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.)
           LG(ERR,"ScaleConvolution is applied to a type that doesn't respect the latency constraints.");
-          v.clear();
+          delayBuffer.resize(0);
           return;
         }
       }
@@ -129,7 +138,17 @@ namespace imajuscule
     }
     
     void step(FPT val) {
-      std::for_each(v.begin(), v.end(), [val](auto & e) { e.step(val); });
+      if(delayBuffer.zeroPeriod()) {
+        // step all
+        std::for_each(v.begin(), v.end(), [val](auto & e) { e.step(val); });
+      }
+      else if(!v.empty()) {
+        // step all but the last one
+        std::for_each(v.begin(), v.end()-1, [val](auto & e) { e.step(val); });
+        // step the last one using the delayed value
+        v.back().step(*delayBuffer.cycleEnd());
+        delayBuffer.feed(val);
+      }
     }
     
     auto get() const {
@@ -144,6 +163,8 @@ namespace imajuscule
     
   private:
     std::vector<A> v;
+    cyclic<FPT> delayBuffer; // used for the last convolution, to optimize padding.
+                             // It emulates the effect of a bigger latency when using a bigger padding.
   };
   
 

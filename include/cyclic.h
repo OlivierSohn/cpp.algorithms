@@ -99,6 +99,13 @@ namespace imajuscule
             it = buf.begin() + dist;
         }
       
+      int period() const {
+        return buf.size();
+      }
+      
+      bool zeroPeriod() const {
+        return buf.empty();
+      }
       
       void feedAndFill(ParameterType val) {
         std::fill(buf.begin(), buf.end(), val);

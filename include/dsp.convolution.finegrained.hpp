@@ -22,7 +22,7 @@ namespace imajuscule
 
     float getCost() const { return cost; }
   private:
-    float cost = std::numeric_limits<float>::quiet_NaN();
+    float cost = std::numeric_limits<float>::max();
   };
 
   struct GrainsCosts {
@@ -602,7 +602,6 @@ namespace imajuscule
 
           float cost = computeMaxSlidingSum(grains_costs,
                                             max_n_grains_per_cb);
-
           if(constraint) {
             assert(n_channels >= 2);
             auto n_min_empty_cb_between_consecutive_grains = -1 + period / nAudioCbFrames;

@@ -47,7 +47,7 @@ namespace imajuscule {
             std::fill(input.begin(), input.end(), 1);
             
             spatialize.step(input.data());
-            for(int i=1; i<spatialize.getLatency(); ++i) {
+            for(int i=0; i<spatialize.getLatency(); ++i) {
                 std::fill(input.begin(), input.end(), 0);
                 spatialize.step(input.data());
             }

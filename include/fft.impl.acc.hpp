@@ -86,6 +86,7 @@ namespace imajuscule {
             }
             
             auto size() const { return buffer.size(); }
+          auto empty() const { return buffer.empty(); }
             
             auto vector_size() const { return buffer.size() / 2 - 1; }
             
@@ -272,7 +273,7 @@ namespace imajuscule {
                                1,
                                N/2);
                 
-                if(ffttype == FFTType::WithTmpBuffer) {
+                if constexpr (ffttype == FFTType::WithTmpBuffer) {
                     auto & buffer = getFFTTmp();
                     buffer.reserve(N * sizeof(T));
                     
@@ -305,7 +306,7 @@ namespace imajuscule {
 
                 auto Output = const_cast<RealFBins &>(const_output).get_hybrid_split();
                 
-                if(ffttype == FFTType::WithTmpBuffer) {
+                if constexpr (ffttype == FFTType::WithTmpBuffer) {
                     auto & buffer = getFFTTmp();
                     buffer.reserve(N * sizeof(T));
                     

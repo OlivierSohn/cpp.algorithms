@@ -34,10 +34,6 @@ namespace imajuscule
         }
 
         void setCoefficients(a64::vector<T> coeffs_) {
-
-            if(coeffs_.size() < 2) {
-                coeffs_.resize(2); // avoid ill-formed cases
-            }
             auto const N = coeffs_.size();
             auto const fft_length = get_fft_length(N);
             fft.setContext(Contexts::getInstance().getBySize(fft_length));
@@ -60,7 +56,7 @@ namespace imajuscule
         void step(T val) {
             x.emplace_back(val);
 
-            auto N = getBlockSize();
+            auto const N = getBlockSize();
             if(unlikely(x.size() == N)) {
                 // pad x
 
@@ -135,7 +131,7 @@ namespace imajuscule
     public:
 
         auto getBlockSize() const { return N; }
-        auto getLatency() const { return N; }
+        auto getLatency() const { return N-1; }
         auto getGranularMinPeriod() const { return getBlockSize(); }
         bool isValid() const { return true; }
 
@@ -144,7 +140,7 @@ namespace imajuscule
         bool empty() const { return fft_of_h.empty(); }
 
         auto get_fft_length(int N) const {
-            auto N_nonzero_y = 2 * N - 1;
+            auto N_nonzero_y = 2 * N;
             return ceil_power_of_two(N_nonzero_y);
         }
 
@@ -172,7 +168,7 @@ namespace imajuscule
 
       
       FPT getEpsilon() const {
-        return countPartitions() * fft::getFFTEpsilon<FPT>(get_fft_length());
+        return fft::getFFTEpsilon<FPT>(get_fft_length());
       }
 
     protected:
@@ -239,7 +235,7 @@ namespace imajuscule
 
         auto getBlockSize() const { return partition_size; }
         auto getGranularMinPeriod() const { return getBlockSize(); }
-        auto getLatency() const { return partition_size; }
+        auto getLatency() const { return partition_size-1; }
 
         bool isValid() const { return true; }
 

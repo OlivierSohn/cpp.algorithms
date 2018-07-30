@@ -24,7 +24,7 @@ namespace imajuscule {
   template<typename U>
   constexpr U cyclic_unsigned_dist(U a, U b) {
     static_assert(std::is_unsigned_v<U>);
-    return std::min(a-b, b-a); // it is inteded that one of them can underflow.
+    return std::min(a-b, b-a); // it is intended that one of them can underflow.
   }
 
   constexpr bool is_even(unsigned int i) {

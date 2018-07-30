@@ -41,7 +41,7 @@ namespace imajuscule {
 
             // feed a dirac
             conv.step(1);
-            for(int i=1; i<conv.getLatency(); ++i) {
+            for(int i=0; i<conv.getLatency(); ++i) {
                 conv.step(0);
             }
 
@@ -151,12 +151,20 @@ namespace imajuscule {
       
         template<typename T, typename FFTTag = fft::Fastest>
         auto mkRealTimeConvolution() {
-          auto c = RealTimeConvolution<T, FFTTag>{};
-          auto & b = c.editB();
-          b.set_partition_size(4);
+          auto c = ZeroLatencyBruteFineGrainedPartitionnedConvolution<T, FFTTag>{};
+          c.set_partition_size(4);
           c.applySetup(FinegrainedSetupParam{1,0});
           return c;
         }
+
+      
+      template<typename T, typename FFTTag = fft::Fastest>
+      auto mkRealTimeConvolution2() {
+        auto c = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>{};
+        c.set_partition_size(4);
+        c.applySetup(FinegrainedSetupParam{1,0});
+        return c;
+      }
 
         template<typename Tag>
         bool testDirac() {
@@ -165,11 +173,11 @@ namespace imajuscule {
                 testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Tag>>(i);
               {
-                auto c = NaiveConvolution<float>{};
+                auto c = ZeroLatencyBruteConvolution<float>{};
                 testDirac2(i, c);
               }
               {
-                auto c = NaiveConvolution<double>{};
+                auto c = ZeroLatencyBruteConvolution<double>{};
                 testDirac2(i, c);
               }
               {
@@ -188,6 +196,16 @@ namespace imajuscule {
                 auto c = mkRealTimeConvolution<double, Tag>();
                 testDirac2(i, c);
               }
+              LG(INFO,"2 ?");
+              {
+                auto c = mkRealTimeConvolution2<float, Tag>();
+                testDirac2(i, c);
+              }
+              {
+                auto c = mkRealTimeConvolution2<double, Tag>();
+                testDirac2(i, c);
+              }
+              LG(INFO,"2");
                 testDiracPartitionned<PartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracPartitionned<PartitionnedFFTConvolution<double, Tag>>(i);
                 //testDiracPartitionned<ScalingPartitionnedFFTConvolution<float, Tag>>(i);

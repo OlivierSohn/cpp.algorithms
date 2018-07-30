@@ -298,7 +298,7 @@ namespace imajuscule
     }
 
     auto getBlockSize() const { return partition_size; }
-    auto getLatency() const { return 2*partition_size; }
+    auto getLatency() const { return 2*partition_size - 1; }
     auto getGranularMinPeriod() const { return getBlockSize() / countGrains(); }
     bool isValid() const { return mult_grp_len > 0 && countGrains() <= getBlockSize(); }
 

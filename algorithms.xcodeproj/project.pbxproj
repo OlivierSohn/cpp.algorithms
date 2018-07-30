@@ -177,6 +177,7 @@
 		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
 		0983C7371F254C5D00EE86C1 /* test_angles.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_angles.cpp; path = test/test_angles.cpp; sourceTree = "<group>"; };
 		098473FB1E7FA8A10014465E /* test_cyclic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_cyclic.cpp; path = test/test_cyclic.cpp; sourceTree = "<group>"; };
+		0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.fir.hpp; path = include/dsp.filter.fir.hpp; sourceTree = "<group>"; };
 		098DC8BD1F64BBD500C5A8B2 /* binary.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = binary.h; path = include/binary.h; sourceTree = "<group>"; };
 		098DC8BE1F65AE3000C5A8B2 /* matrix.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = matrix.hpp; path = include/matrix.hpp; sourceTree = "<group>"; };
 		098DC8EE1F65B55500C5A8B2 /* color.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = color.cpp; path = source/color.cpp; sourceTree = "<group>"; };
@@ -451,6 +452,7 @@
 				09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
+				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,

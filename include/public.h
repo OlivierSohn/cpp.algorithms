@@ -155,6 +155,7 @@
 #include "peaks.hpp"
 #include "markov_chain.hpp"
 #include "dsp.filter.hpp"
+#include "dsp.filter.fir.hpp"
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.convolution.combine.hpp"

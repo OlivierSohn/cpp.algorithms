@@ -69,27 +69,28 @@ namespace imajuscule
     B b;
   };
 
-
   /*
-   * Creates a 0-latency convolution scheme by combining 'n' sub-schemes
+   * Creates a 0-latency convolution by combining 'n' sub-convolutions
    * of latencies 2^k-1, where k is in [0,n-1].
    */
   template<typename A>
   struct ScaleConvolution {
     using FPT = typename A::FPT;
-
+    
     bool empty() const {
       return v.empty() || std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.empty(); });
     }
     void clear() {
       v.clear();
-      delayBuffer.resize(0);
     }
-
+    
     /*
      *   Unless the count of coefficients is of the form
      *     2^n - 1, some padding occurs.
      */
+    // TODO we could require that 'A' tells what amount of underlying storage it will need, by number of coefficients,
+    // and then this class could allocate the memory in one big chunk, and split it among 'A's.
+    // This way, step / get could benefit from better memory locality, and memory accesses may be more predictable.
     void setCoefficients(a64::vector<FPT> coeffs_) {
       clear();
       auto s = coeffs_.size();
@@ -108,17 +109,11 @@ namespace imajuscule
         if(it > end) {
           Assert(i == n-1);
           auto withPadding = a64::vector<FPT>{start,end};
-          // We could do naive padding, up-to sizeBlock, but to be
-          // more efficient, memory- and time-wise, we pad
-          // up to the power of 2 following std::distance(start,end),
-          // and emulate the missing latency by buffering the values.
+          // We pad up-to sizeBlock. Benchmarks showed that this is time-wise better
+          // than padding to the next power of 2 + delaying input.
           auto nextPowOf2 = ceil_power_of_two(withPadding.size());
-          withPadding.resize(nextPowOf2);
-          Assert(sizeBlock >= nextPowOf2);
-          delayBuffer.resize(sizeBlock-nextPowOf2);
-          LG(INFO,"ScaleConvolution : delay buffer of period %d for the last convolution", delayBuffer.period());
+          withPadding.resize(sizeBlock);
           v[i].setCoefficients(withPadding);
-          sizeBlock = withPadding.size();
         }
         else {
           v[i].setCoefficients({start,it});
@@ -127,30 +122,20 @@ namespace imajuscule
           // This breaks the class logic, and would lead to wrong results.
           //   (for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.)
           LG(ERR,"ScaleConvolution is applied to a type that doesn't respect the latency constraints.");
-          delayBuffer.resize(0);
+          clear();
           return;
         }
       }
     }
-
+    
     bool isValid() const {
       return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
-
+    
     void step(FPT val) {
-      if(delayBuffer.zeroPeriod()) {
-        // step all
-        std::for_each(v.begin(), v.end(), [val](auto & e) { e.step(val); });
-      }
-      else if(!v.empty()) {
-        // step all but the last one
-        std::for_each(v.begin(), v.end()-1, [val](auto & e) { e.step(val); });
-        // step the last one using the delayed value
-        v.back().step(*delayBuffer.cycleEnd());
-        delayBuffer.feed(val);
-      }
+      std::for_each(v.begin(), v.end(), [val](auto & e) { e.step(val); });
     }
-
+    
     auto get() const {
       FPT r{};
       for(auto const & e : v) {
@@ -158,9 +143,9 @@ namespace imajuscule
       }
       return r;
       // TODO replace once supported by gcc
-//      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.get(); });
+      //      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.get(); });
     }
-
+    
     auto getEpsilon() const {
       FPT r{};
       for(auto const & e : v) {
@@ -168,17 +153,15 @@ namespace imajuscule
       }
       return r;
       // TODO replace once supported by gcc
-//      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.getEpsilon(); });
+      //      return std::transform_reduce(v.begin(), v.end(), FPT{}, std::plus<>(), [](auto & e) { return e.getEpsilon(); });
     }
-
+    
     auto getLatency() const { return 0; }
-
+    
   private:
     std::vector<A> v;
-    cyclic<FPT> delayBuffer; // used for the last convolution, to optimize padding.
-                             // It emulates the effect of a bigger latency when using a bigger padding.
   };
-
+  
 
   template<typename T>
   using ZeroLatencyBruteConvolution = FIRFilter<T>;

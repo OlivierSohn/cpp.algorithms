@@ -96,28 +96,26 @@ namespace imajuscule {
             {
                 typename std::remove_const<typename std::remove_reference<decltype(coefficients)>::type>::type zero_coeffs, opposite_coeffs;
                 zero_coeffs.resize(coefficients.size());
+              
+              std::pair<int,typename Convolution::SetupParam> setup {part_size,{}};
 
                 {
                     constexpr auto nOutMono = 1;
                     audio::Spatializer<nOutMono, Convolution> spatialized;
-                    
-                    spatialized.set_partition_size(part_size);
-                    
-                    spatialized.addSourceLocation({{coefficients}});
+                  
+                  spatialized.addSourceLocation({{coefficients}}, setup);
                     
                     test(spatialized, {{coefficients}});
                 }
                 {
                     constexpr auto nOutStereo = 2;
                     audio::Spatializer<nOutStereo, Convolution> spatialized;
-                    
-                    spatialized.set_partition_size(part_size);
-                    
+                  
                     // no cross-talk :
                     // source1 has only left component
                     // source2 has only right component
-                    spatialized.addSourceLocation({{coefficients, zero_coeffs}});
-                    spatialized.addSourceLocation({{zero_coeffs, coefficients}});
+                    spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup);
+                    spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
                     
                     test(spatialized, {{coefficients, coefficients}});
                 }
@@ -125,9 +123,7 @@ namespace imajuscule {
                 {
                     constexpr auto nOutStereo = 2;
                     audio::Spatializer<nOutStereo, Convolution> spatialized;
-                    
-                    spatialized.set_partition_size(part_size);
-
+                  
                     opposite_coeffs = coefficients;
                     for(auto & o : opposite_coeffs) {
                         o = -o;
@@ -135,8 +131,8 @@ namespace imajuscule {
                     // extreme cross-talk :
                     // source1 right component is the opposite of source 2
                     // source2 right component is the opposite of source 1
-                    spatialized.addSourceLocation({{coefficients, opposite_coeffs}});
-                    spatialized.addSourceLocation({{opposite_coeffs, coefficients}});
+                    spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
+                    spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup);
                     
                     test(spatialized, {{zero_coeffs,zero_coeffs}});
                 }
@@ -144,14 +140,13 @@ namespace imajuscule {
                     constexpr auto nOutStereo = 2;
                     audio::Spatializer<nOutStereo, Convolution> spatialized;
                     
-                    spatialized.set_partition_size(part_size);
                     opposite_coeffs = coefficients;
                     for(auto & o : opposite_coeffs) {
                         o = -o;
                     }
 
-                    spatialized.addSourceLocation({{coefficients, opposite_coeffs}});
-                    spatialized.addSourceLocation({{zero_coeffs, coefficients}});
+                    spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
+                    spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
                     
                     test(spatialized, {{coefficients,zero_coeffs}});
                 }

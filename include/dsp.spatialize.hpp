@@ -57,6 +57,7 @@ namespace imajuscule
                 });
             }
 
+          // for tests
             void setMaxMultiplicationGroupLength() {
                 forEachEar([](auto & convolutions) {
                     for(auto & c : convolutions) {

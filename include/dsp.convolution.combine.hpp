@@ -13,7 +13,7 @@ namespace imajuscule
     err += cont.size() * std::numeric_limits<FPT>::epsilon();
     return err;
   }
-  
+
   /*
    * Creates a convolution scheme by combining 2 convolution schemes,
    * where A handles ** early ** coefficients, and B handles ** late ** coefficients.
@@ -23,14 +23,14 @@ namespace imajuscule
     using FPT = typename A::FPT;
     using EarlyHandler = A;
     using LateHandler = B;
-    
+
     struct SetupParam {
       using AParam = typename EarlyHandler::SetupParam;
       using BParam = typename LateHandler::SetupParam;
       AParam aParams;
       BParam bParams;
     };
-    
+
     static constexpr int undefinedSplit = -1;
 
     static_assert(std::is_same_v<FPT,typename B::FPT>);
@@ -44,9 +44,7 @@ namespace imajuscule
     }
 
     void setSplit(int s) {
-      if(unlikely(split != undefinedSplit)) {
-        throw std::logic_error("split set twice");
-      }
+      Assert(s >= 0);
       split = s;
     }
 
@@ -83,7 +81,7 @@ namespace imajuscule
     auto getLatency() const {
       return a.getLatency();
     }
-    
+
     auto & getA() { return a; }
     auto & getB() { return b; }
 
@@ -103,14 +101,14 @@ namespace imajuscule
   template<typename A>
   struct ScaleConvolutionLegacy {
     using FPT = typename A::FPT;
-    
+
     bool empty() const {
       return v.empty() || std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.empty(); });
     }
     void clear() {
       v.clear();
     }
-    
+
     void setCoefficients(a64::vector<FPT> coeffs_) {
       clear();
       auto s = coeffs_.size();
@@ -142,15 +140,15 @@ namespace imajuscule
         }
       }
     }
-    
+
     bool isValid() const {
       return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
-    
+
     void step(FPT val) {
       std::for_each(v.begin(), v.end(), [val](auto & e) { e.step(val); });
     }
-    
+
     auto get() const {
       FPT r{};
       for(auto const & e : v) {
@@ -161,9 +159,9 @@ namespace imajuscule
     double getEpsilon() const {
       return epsilonOfNaiveSummation(v);
     }
-    
+
     auto getLatency() const { return 0; }
-    
+
   private:
     std::vector<A> v;
   };
@@ -180,12 +178,12 @@ namespace imajuscule
   struct ScaleConvolution {
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
-    
+
     struct SetupParam {
       int nDropped = 5; // see 'TEST(BenchmarkConvolutions, scaled_vs_brute)' :
       // 5 gives the fastest results on OSX / intel core i7.
     };
-    
+
     bool empty() const {
       return v.empty() || std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.empty(); });
     }
@@ -194,7 +192,7 @@ namespace imajuscule
       x.clear();
       progress = 0;
     }
-    
+
     /*
      * Sets the number of early convolutions that are dropped.
      * The coefficients associated to these dropped convolutions are typically handled
@@ -212,11 +210,11 @@ namespace imajuscule
       clear();
       nDroppedConvolutions = p.nDropped;
     }
-    
+
     int getEarlyDroppedConvolutions() const {
       return nDroppedConvolutions;
     }
-    
+
     /*
      *   Unless the count of coefficients is of the form
      *     2^n - 1, some padding occurs.
@@ -265,11 +263,11 @@ namespace imajuscule
       }
       x.resize(pow2(n)); // including padding for biggest convolution
     }
-    
+
     bool isValid() const {
       return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
-    
+
     void step(FPT val) {
       auto it = v.begin();
       auto end = v.end();
@@ -285,7 +283,7 @@ namespace imajuscule
         typename RealSignal::const_iterator xBegin = x.begin();
         auto xBeginPadding = xBegin + progress;
         auto endUpdate = it + nUpdates;
-        
+
         int lengthInputBeforePadding = pow2(nDroppedConvolutions);
         for(;it != endUpdate; ++it, lengthInputBeforePadding <<= 1) {
           // the start location should be 16 byte aligned for best performance.
@@ -297,7 +295,7 @@ namespace imajuscule
       for(; it!= end; ++it) {
         it->doStep();
       }
-      
+
       if(nUpdates == v.size()) {
         Assert(2*progress == x.size());
         // fill with zeros so that padding is appropriate in the future.
@@ -307,7 +305,7 @@ namespace imajuscule
         progress = 0;
       }
     }
-    
+
     auto get() const {
       FPT r{};
       for(auto const & e : v) {
@@ -318,28 +316,39 @@ namespace imajuscule
     double getEpsilon() const {
       return epsilonOfNaiveSummation(v);
     }
-    
+
     auto getLatency() const { return 0; }
-    
+
   private:
     std::vector<A> v;
     RealSignal x;
     unsigned int progress = 0;
     int nDroppedConvolutions = 0;
   };
- 
-  template<typename C>
-  void setPartitionSize(C & c, int sz) {
-    c.getB().set_partition_size(sz);
+
+
+  // TODO merge 'setPartitionSize' with 'applySetup'
+
+  template<typename A, typename B>
+  void setPartitionSize(SplitConvolution<A,B> & c, int sz) {
+    setPartitionSize(c.getB(), sz);
+    // We assume that partition size applies to the late handler only,
+    // hence this is commented out:
+    //setPartitionSize(c.getA(), sz);
     c.setSplit( c.getB().getLatency() - c.getA().getLatency() );
   }
 
-  
+  template<typename T, typename U>
+  void setPartitionSize(FinegrainedPartitionnedFFTConvolution<T,U> & c, int sz) {
+    c.set_partition_size(sz);
+  }
+
+
   template<typename C, typename SetupParam>
   void applySetup(C&c, SetupParam const & p) {
     c.applySetup(p);
   }
-  
+
   template<typename A, typename B, typename SetupParam>
   void applySetup(SplitConvolution<A,B> &c, SetupParam const & p) {
     applySetup(c.getA(), p.aParams);

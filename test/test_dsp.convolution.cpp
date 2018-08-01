@@ -160,18 +160,9 @@ namespace imajuscule {
             test(conv, coefficients);
         }
       
-        template<typename T, typename FFTTag = fft::Fastest>
-        auto mkRealTimeConvolution() {
-          using C = ZeroLatencyBruteFineGrainedPartitionnedConvolution<T, FFTTag>;
-          auto c = C{};
-          setPartitionSize(c,4);
-          applySetup(c,typename C::SetupParam{{},FinegrainedSetupParam{1,0}});
-          return c;
-        }
-
       
       template<typename T, typename FFTTag = fft::Fastest>
-      auto mkRealTimeConvolution2() {
+      auto mkRealTimeConvolution() {
         using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>;
         auto c = C{};
         setPartitionSize(c,4);
@@ -186,11 +177,11 @@ namespace imajuscule {
                 testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Tag>>(i);
               {
-                auto c = ZeroLatencyBruteConvolution<float>{};
+                auto c = FIRFilter<float>{};
                 testDirac2(i, c);
               }
               {
-                auto c = ZeroLatencyBruteConvolution<double>{};
+                auto c = FIRFilter<double>{};
                 testDirac2(i, c);
               }
               {
@@ -209,16 +200,6 @@ namespace imajuscule {
                 auto c = mkRealTimeConvolution<double, Tag>();
                 testDirac2(i, c);
               }
-              LG(INFO,"2 ?");
-              {
-                auto c = mkRealTimeConvolution2<float, Tag>();
-                testDirac2(i, c);
-              }
-              {
-                auto c = mkRealTimeConvolution2<double, Tag>();
-                testDirac2(i, c);
-              }
-              LG(INFO,"2");
                 testDiracPartitionned<PartitionnedFFTConvolution<float, Tag>>(i);
                 testDiracPartitionned<PartitionnedFFTConvolution<double, Tag>>(i);
                 //testDiracPartitionned<ScalingPartitionnedFFTConvolution<float, Tag>>(i);

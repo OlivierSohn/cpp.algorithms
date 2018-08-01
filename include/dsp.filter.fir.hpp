@@ -2,36 +2,11 @@
 
 namespace imajuscule
 {
-/*
- 
-TODO replace usages of FIRFilter by the more performant:
-
-SplitConvolution <
-  FIRFilter<T>,
-  ScaleConvolution <
-    FFTConvolutionCore<T, FFTTag>
-  >
->
-
-*/
-  
+  // Always prefer using 'OptimizedFIRFilter' which scales better with the number of coefficients.
   template<typename T>
   struct FIRFilter {
     using FPT = T;
     struct SetupParam {};
-    
-    FIRFilter() : FIRFilter(0) {}
-    
-    FIRFilter(int size) : past(size) {}
-    
-    template<typename U>
-    FIRFilter(a64::vector<U> const & c) : FIRFilter(c.size()) {
-      assert(c.size() == past.size());
-      coefficients.reserve(c.size());
-      for(auto coeff : c) {
-        coefficients.push_back(coeff);
-      }
-    }
     
     void applySetup(SetupParam const &) const {}
     

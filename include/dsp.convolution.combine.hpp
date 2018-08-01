@@ -344,39 +344,97 @@ namespace imajuscule
   }
 
 
-  template<typename C, typename SetupParam>
-  void applySetup(C&c, SetupParam const & p) {
+  template<typename C>
+  void applySetup(C&c, typename C::SetupParam const & p) {
     c.applySetup(p);
   }
 
-  template<typename A, typename B, typename SetupParam>
-  void applySetup(SplitConvolution<A,B> &c, SetupParam const & p) {
+  template<typename A, typename B>
+  void applySetup(SplitConvolution<A,B> &c, typename SplitConvolution<A,B>::SetupParam const & p) {
     applySetup(c.getA(), p.aParams);
     applySetup(c.getB(), p.bParams);
   }
-  template<typename A, typename B, typename SetupParam>
-  void applySetup(SplitConvolution<A,ScaleConvolution<B>> &c, SetupParam const & p) {
+  template<typename A, typename B>
+  void applySetup(SplitConvolution<A,ScaleConvolution<B>> &c,
+                  typename SplitConvolution<A,ScaleConvolution<B>>::SetupParam const & p) {
     applySetup(c.getA(), p.aParams);
     applySetup(c.getB(), p.bParams);
     c.setSplit(pow2(c.getB().getEarlyDroppedConvolutions()) - 1);
   }
+  
+  /*
+   
+   On filters, and how to chose them (here, filter and convolution means the same thing).
 
+   Summary
+   -------
 
-  template<typename T>
-  using ZeroLatencyBruteConvolution = FIRFilter<T>;
+   ********************************************************************************
+   *
+   * For ** live ** audio processing, use 'ZeroLatencyScaledFineGrainedPartitionnedConvolution':
+   *   it has the smallest worst cost per audio callback.
+   *
+   * For ** offline ** audio processing, use 'OptimizedFIRFilter':
+   *   it has the smallest average cost per sample.
+   *
+   * Both of them are 0-latency and are designed to scale both for very high and very low count of coefficients.
+   ********************************************************************************
+
+   Details
+   -------
+
+   There are 3 metrics that can be optimized:
+
+   - average cost :
+   How much CPU will I need, on average, to compute a single sample?
+   This metric should be minimized when doing offline audio processing, so as to ensure that
+   the task is executed as fast as possible.
+   
+   - "worst audiocallback" cost :
+   How much CPU will I need, at worst, during a single audio callback, to compute the corresponding samples?
+   Note that the size of the audio callback is important here.
+   This metric should be optimized when doing live audio processing,
+   to ensure that the audio callback meets its deadline.
+
+   - latency :
+   does my filter / convolution induce any latency?
+   This metric should be optimized when doing live audio processing
+   with an instrumentist playing a virtual instrument, because
+   it's very hard / unpleasant to play an instrument that has noticeable latency.
+
+   Here is the mapping from filter type to the kind of metric that is optimized by that filter:
+
+   |----------------------------------------------------|----------------------------|-----------|
+   |                                                    |     Optimal time cost      |           |
+   |                                                    |----------------------------|           |
+   |                                                    | on average | in worst case |           |
+   | Filter type                                        | per sample | per callback  | 0-latency |
+   |----------------------------------------------------|------------|---------------|-----------|
+   | FIRFilter                                          |     .      |       .       |    X      |
+   | OptimizedFIRFilter                                 |     X      |       .       |    X      |
+   | FinegrainedPartitionnedFFTConvolution              |     .      |       X       |    .      |
+   | ZeroLatencyScaledFineGrainedPartitionnedConvolution|     .      |       X       |    X      |
+   |----------------------------------------------------|------------|---------------|-----------|
+
+   */
 
   template<typename T, typename FFTTag = fft::Fastest>
-  using ZeroLatencyBruteFineGrainedPartitionnedConvolution = SplitConvolution<ZeroLatencyBruteConvolution<T>,FinegrainedPartitionnedFFTConvolution<T, FFTTag>>;
+  using OptimizedFIRFilter =
+    SplitConvolution <
+  // handle the first coefficients using brute force convolution (memory locality makes it faster than ScaleConvolution):
+      FIRFilter<T>,
+  // handle subsequent coefficients using FFTs, where each successive FFT doubles in size:
+      ScaleConvolution <
+        FFTConvolutionCore<T, FFTTag>
+      >
+    >;
 
   template<typename T, typename FFTTag = fft::Fastest>
   using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
     SplitConvolution<
-      SplitConvolution<
-        FIRFilter<T>,
-        ScaleConvolution<
-          FFTConvolutionCore<T, FFTTag>
-        >
-      >,
+  // handle the first coefficients using a zero-latency filter:
+      OptimizedFIRFilter<T, FFTTag>,
+  // handle subsequent coefficients using a filter optimized for worst audio callback cost:
       FinegrainedPartitionnedFFTConvolution<T, FFTTag>
   >;
 
@@ -394,4 +452,29 @@ namespace imajuscule
       return PartitionAlgo<Delegate>::run(n_channels, n_audio_frames_per_cb, size_impulse_response);
     }
   };
+
+  
+  enum class AudioProcessing {
+    Callback, // here, we want 0 latency and the smallest worst case cost per audio callback.
+    Offline // here, we want the smallest averaged cost per sample.
+  };
+  
+  namespace detail {
+    template<typename T, AudioProcessing P>
+    struct OptimalFilter_;
+    
+    template<typename T>
+    struct OptimalFilter_<T, AudioProcessing::Callback> {
+      using type = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T>;
+    };
+    
+    template<typename T>
+    struct OptimalFilter_<T, AudioProcessing::Offline> {
+      using type = OptimizedFIRFilter<T>;
+    };
+  }
+  
+  template<typename T, AudioProcessing P>
+  using ZeroLatencyFilter = typename detail::OptimalFilter_<T,P>::type;
+  
 }

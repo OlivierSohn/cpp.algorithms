@@ -2,10 +2,61 @@
 namespace imajuscule
 {
   /*
-  * (See doc of dsp.convolution.hpp for the basic algorithm.)
+  * In dsp.convolution.hpp we see this algorithm:
   *
-  * Here, to even the cost per audio callback, we split the computation of a single partition
-  * into several "grains":
+   * The impulse response h is split in parts of equal length h1, h2, ... hn
+   *
+   *                     FFT(h1)
+   *                        v
+   *       +-----+    +-----------+  +-----+  +------+
+   * x +-->| FFT |-|->| cplx mult |->| Add |->| IFFT |--> y
+   *       +-----+ v  +-----------+  +-----+  +------+
+   *          +--------+               ^
+   *          |Delay(N)| FFT(h2)       |
+   *          +--------+    v          |
+   *               |  +-----------+    |
+   *               |->| cplx mult |----|
+   *               |  +-----------+    |
+   *               .         .         .
+   *               .         .         .
+   *               .                   .
+   *               v                   |
+   *          +--------+               |
+   *          |Delay(N)| FFT(hn)       |
+   *          +----+---+    v          |
+   *               |  +-----------+    |
+   *               -->| cplx mult |----|
+   *                  +-----------+
+   *
+   * 'PartitionnedFFTConvolutionCRTP' carries this monolithic computation
+   * when needed, with no buffering, with a latency of the size of a partition.
+   *
+   * When partition sizes are an order of magnitude bigger than the audio callback buffer
+   * (it is a very common case, since large partition
+   * sizes is what makes this algorithm efficient on average),
+   * many successive callback calls have very little work to do, and suddenly
+   * a single callback call has to perform this huge monolithic computation.
+   *
+   * This is problematic because this audio callback can miss its deadline,
+   * and then we'll hear a loud audio crack.
+   *
+   * To fix this, at the cost of a longer latency (twice the size of a partition size),
+   * here we split the computation in several "grains" that can be computed at different times:
+   *
+   * - First there is the "FFT" grain which computes the fft of a chunk of the input signal
+   *     (and does a little more than that, see the code)
+   * - Then there are "multiplication" grains, where we multiply a delayed FFT of the input signal
+   *    by the FFT of the impulse response. These grains will be grouped because individually
+   *    they are cheap to compute.
+   * - Finally there is the "IFFT" grain where we sum the results of the multiplications
+   *    and do its inverse fft.
+   *
+   * An optimization algorithm computes
+   * the cost of each grain, and based on a callback buffer size which we assume
+   * will not change in the future, gives a scheduling of granular computations
+   * that minimizes the worst case cost for a single callback, thus sharing the work optimally.
+   *
+   * This optimization algorithm also defines the size of the multiplication groups.
   */
 
   enum class GrainType {
@@ -64,12 +115,6 @@ namespace imajuscule
     return os;
   }
 
-  /* TODO doc:
-   int grain_counter = 0;
-   Algo fft;
-   RealSignal x, y, result;
-   typename decltype(y)::iterator it;
-   */
   template <typename Parent>
   struct FinegrainedFFTConvolutionBase : public Parent {
     friend class Test;
@@ -187,6 +232,8 @@ namespace imajuscule
       auto const block_size = getBlockSize();
       auto const sz = x.size();
       if(unlikely(sz == block_size)) {
+        //////////////////////// FFT grain /////////////////////////////////////
+
         // pad x
 
         x.resize(get_fft_length());
@@ -236,9 +283,11 @@ namespace imajuscule
         auto cur_grain = getGrainNumber();
         assert(cur_grain <= n_grains);
         if( cur_grain < n_grains - 1 ) {
+          //////////////////////// Multiplicative grain ////////////////////////
           do_some_multiply_add();
         }
         else if(cur_grain == n_grains - 1) {
+          /////////////////////// IFFT grain ///////////////////////////////////
           fft.inverse(get_multiply_add_result(),
                       result,
                       get_fft_length());
@@ -264,15 +313,6 @@ namespace imajuscule
     typename decltype(y)::iterator it;
   };
 
-  /* TODO doc:
-   int mult_grp_len = 0;
-   int partition_size = -1;
-   int grain_number = 0;
-   cyclic<CplxFreqs> ffts_of_delayed_x;
-   std::vector<CplxFreqs> ffts_of_partitionned_h;
-
-   CplxFreqs work;
-   */
   template <typename T, typename Tag>
   struct FinegrainedPartitionnedFFTConvolutionCRTP {
     using FPT = T;

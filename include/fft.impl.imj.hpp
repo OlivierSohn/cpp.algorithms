@@ -211,13 +211,13 @@ namespace imajuscule {
                 context = c;
             }
 
-            void forward(RealInput const & input,
+          void forward(typename RealInput::const_iterator inputBegin,
                          RealFBins & output,
                          unsigned int N) const
             {
                 constexpr auto stride = 1;
                 tukeyCooley<FftType::FORWARD>(context.getRoots()->begin(),
-                                              input.begin(),
+                                              inputBegin,
                                               output.begin(),
                                               N/2,
                                               stride);

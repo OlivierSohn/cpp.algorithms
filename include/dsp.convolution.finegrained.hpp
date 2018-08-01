@@ -304,8 +304,8 @@ namespace imajuscule
 
     int countPartitions() const { return ffts_of_partitionned_h.size(); }
 
-    T getEpsilon() const {
-      return countPartitions() * fft::getFFTEpsilon<FPT>(get_fft_length());
+    double getEpsilon() const {
+      return countPartitions() * (fft::getFFTEpsilon<FPT>(get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
     }
 
   protected:
@@ -395,7 +395,7 @@ namespace imajuscule
 
           // coeffs_slice is padded with 0, because it is bigger than partition_size
           // and initialized with zeros.
-          fft.forward(coeffs_slice, fft_of_partitionned_h, fft_length);
+          fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
         }
       }
       assert(it_coeffs == coeffs_.end());
@@ -411,7 +411,7 @@ namespace imajuscule
       auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
       auto const fft_length = get_fft_length();
       assert(fft_length == oldest_fft_of_delayed_x.size());
-      fft.forward(x, oldest_fft_of_delayed_x, fft_length);
+      fft.forward(x.begin(), oldest_fft_of_delayed_x, fft_length);
       ffts_of_delayed_x.advance();
     }
 
@@ -504,7 +504,7 @@ namespace imajuscule
       struct Test {
         using T = typename NonAtomicConvolution::FPT;
         Test(size_t partition_size, int length_impulse) {
-          pfftcv.set_partition_size(partition_size);
+          setPartitionSize(pfftcv, partition_size);
           pfftcv.setCoefficients(a64::vector<T>(length_impulse));
 
           // the value is not very important it will be overriden later on,

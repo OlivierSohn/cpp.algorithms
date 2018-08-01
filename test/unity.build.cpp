@@ -12,8 +12,8 @@
 
 #include <thread>
 
-#include "test_split.cpp"
 //*
+#include "test_split.cpp"
 #include "test_dsp.compress.cpp"
 #include "test_forward_list_lockfree.cpp"
 #include "test_fifo_lockfree_scmp.cpp"
@@ -33,7 +33,6 @@
 #include "test_vdsp.cpp"
 #include "test_dsp.convolution.cpp"
 #include "test_dsp.spatialize.cpp"
-#include "test_benchmark.cpp"
 #include "test_range_search.cpp"
 #include "test_global_search.cpp"
 #include "test_gradient_descent.cpp"
@@ -51,6 +50,7 @@
 #include "test_hash_table.cpp"
 //*/
 #if MEASURE_PERFS
+#  include "test_benchmark.cpp"
 #  include "measure_sin.cpp"
 #  include "measure_containers.cpp"
 #  include "test_measure_multiplyadd_contiguity.cpp"

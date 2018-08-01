@@ -162,18 +162,20 @@ namespace imajuscule {
       
         template<typename T, typename FFTTag = fft::Fastest>
         auto mkRealTimeConvolution() {
-          auto c = ZeroLatencyBruteFineGrainedPartitionnedConvolution<T, FFTTag>{};
-          c.set_partition_size(4);
-          c.applySetup(FinegrainedSetupParam{1,0});
+          using C = ZeroLatencyBruteFineGrainedPartitionnedConvolution<T, FFTTag>;
+          auto c = C{};
+          setPartitionSize(c,4);
+          applySetup(c,typename C::SetupParam{{},FinegrainedSetupParam{1,0}});
           return c;
         }
 
       
       template<typename T, typename FFTTag = fft::Fastest>
       auto mkRealTimeConvolution2() {
-        auto c = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>{};
-        c.set_partition_size(4);
-        c.applySetup(FinegrainedSetupParam{1,0});
+        using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>;
+        auto c = C{};
+        setPartitionSize(c,4);
+        applySetup(c,typename C::SetupParam{{{},{}},FinegrainedSetupParam{1,0}});
         return c;
       }
 

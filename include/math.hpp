@@ -89,13 +89,13 @@ namespace imajuscule {
 
     constexpr bool is_power_of_two(size_t n) { return ((n != 0) && !(n & (n - 1))); }
 
-    static constexpr size_t pow2(size_t power) {
+    static constexpr inline size_t pow2(size_t power) {
         size_t res = (static_cast<size_t>(1) << power);
         return res;
     }
 
     template<uint64_t power>
-    static constexpr uint64_t pow2() {
+    static constexpr inline uint64_t pow2() {
         constexpr uint64_t res = (((uint64_t)1) << power);
         return res;
     }
@@ -114,7 +114,8 @@ namespace imajuscule {
     // count trailing zeroes
     static inline uint32_t count_trailing_zeroes(uint32_t x)
     {
-        return 32 - count_leading_zeroes(~x & (x-1));
+      return __builtin_ctz(x);
+//        return 32 - count_leading_zeroes(~x & (x-1));
     }
 
     template <typename T>

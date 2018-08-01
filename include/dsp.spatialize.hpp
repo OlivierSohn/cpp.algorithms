@@ -7,7 +7,6 @@
 namespace imajuscule
 {
     namespace audio {
-        
         /*
          * Naïve unoptimized version, to test functionnality.
          *
@@ -21,7 +20,7 @@ namespace imajuscule
             using T = typename Convolution::FPT;
             using FPT = T;
             
-            FPT getEpsilon() const { return convs[0][0].getEpsilon(); }
+          double getEpsilon() const { return epsilonOfNaiveSummation(convs[0]); }
             
             void set_partition_size(int sz) {
                 size_partition = sz;

@@ -26,7 +26,7 @@ namespace imajuscule {
 #endif
         
         template<typename T>
-        constexpr auto getFFTEpsilon(int N) {
+        constexpr double getFFTEpsilon(int N) {
             return power_of_two_exponent(N) * std::numeric_limits<T>::epsilon(); // worst case error propagation is O(log N)
         }
 
@@ -47,7 +47,7 @@ namespace imajuscule {
             
             ScopedContext<FPT> scoped_context(fft_length);
             Algo<FPT> fft(scoped_context.get());
-            fft.forward(signal, result, fft_length);
+            fft.forward(signal.begin(), result, fft_length);
         }
         
         template<typename T>

@@ -144,7 +144,7 @@ namespace imajuscule {
 
             Algo fft_algo(setup.get());
             
-            fft_algo.forward(input, output, N);
+            fft_algo.forward(input.begin(), output, N);
             
             { verifyFrequencies<Tag, T>(output, N); }
         }
@@ -181,7 +181,7 @@ namespace imajuscule {
             
             Algo fft_algo(setup.get());
             
-            fft_algo.forward(input, output, N);
+            fft_algo.forward(input.begin(), output, N);
             
             { verifyFrequencies<Tag, T>(output, N); }
             
@@ -221,7 +221,7 @@ namespace imajuscule {
             
             Algo fft_algo(setup.get());
             
-            fft_algo.forward(input, output, N);
+            fft_algo.forward(input.begin(), output, N);
             
             fft_algo.inverse(output, reconstructed_input, N);
             

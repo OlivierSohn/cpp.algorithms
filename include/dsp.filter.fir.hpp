@@ -2,9 +2,23 @@
 
 namespace imajuscule
 {
+/*
+ 
+TODO replace usages of FIRFilter by the more performant:
+
+SplitConvolution <
+  FIRFilter<T>,
+  ScaleConvolution <
+    FFTConvolutionCore<T, FFTTag>
+  >
+>
+
+*/
+  
   template<typename T>
   struct FIRFilter {
     using FPT = T;
+    struct SetupParam {};
     
     FIRFilter() : FIRFilter(0) {}
     
@@ -18,6 +32,8 @@ namespace imajuscule
         coefficients.push_back(coeff);
       }
     }
+    
+    void applySetup(SetupParam const &) const {}
     
     void setCoefficients(a64::vector<T> v) {
       past.resize(v.size());
@@ -39,7 +55,9 @@ namespace imajuscule
     }
     
     void step(T val) {
-      assert(size() != 0);
+      if(unlikely(empty())) {
+        return;
+      }
       past.feed(val);
     }
     
@@ -56,8 +74,8 @@ namespace imajuscule
       return res;
     }
     
-    T getEpsilon() const {
-      return std::numeric_limits<T>::epsilon() * coefficients.size();
+    double getEpsilon() const {
+      return 2 * std::numeric_limits<FPT>::epsilon() * coefficients.size();
     }
     
   private:

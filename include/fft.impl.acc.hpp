@@ -259,7 +259,7 @@ namespace imajuscule {
                 context = c;
             }
             
-            void forward(RealInput const & input,
+          void forward(typename RealInput::const_iterator inputBegin,
                          RealFBins & output,
                          unsigned int N) const
             {
@@ -267,7 +267,7 @@ namespace imajuscule {
                 auto Output = output.get_hybrid_split();
                 
                 constexpr auto inputStride = 1;
-                API<T>::f_ctoz(reinterpret_cast<Complex<T> const *>(input.data()),
+                API<T>::f_ctoz(reinterpret_cast<Complex<T> const *>(inputBegin.base()),
                                inputStride * 2,
                                &Output,
                                1,

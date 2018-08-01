@@ -160,7 +160,6 @@
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.convolution.combine.hpp"
-#include "dsp.convolution.benchmarks.hpp"
 #include "dsp.spatialize.hpp"
 #include "dsp.compresser.hpp"
 #include "enum.h"

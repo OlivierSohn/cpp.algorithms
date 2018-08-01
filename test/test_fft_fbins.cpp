@@ -127,7 +127,7 @@ namespace imajuscule {
                 typename FBins::type f(size_fft);
                 ScopedContext_<Tag, T> sc(size_fft);
                 a.setContext(sc.get());
-                a.forward(highest_sine,f,size_fft);
+                a.forward(highest_sine.begin(),f,size_fft);
                 auto p = FBins::getMaxSquaredAmplitude(f);
                 EXPECT_EQ(0, p.first);
                 EXPECT_EQ(1, p.second);
@@ -142,7 +142,7 @@ namespace imajuscule {
                 typename FBins::type f(size_fft);
                 ScopedContext_<Tag, T> sc(size_fft);
                 a.setContext(sc.get());
-                a.forward(highest_sine,f,size_fft);
+                a.forward(highest_sine.begin(),f,size_fft);
                 auto p = FBins::getMaxSquaredAmplitude(f);
                 EXPECT_EQ(nyquist_bin_index, p.first);
                 EXPECT_EQ(1, p.second);
@@ -157,7 +157,7 @@ namespace imajuscule {
                 typename FBins::type f(size_fft);
                 ScopedContext_<Tag, T> sc(size_fft);
                 a.setContext(sc.get());
-                a.forward(highest_sine,f,size_fft);
+                a.forward(highest_sine.begin(),f,size_fft);
                 auto p = FBins::getMaxSquaredAmplitude(f);
                 EXPECT_EQ(nyquist_bin_index/2, p.first);
                 EXPECT_EQ(0.25, p.second);
@@ -171,7 +171,7 @@ namespace imajuscule {
                 typename FBins::type f(size_fft);
                 ScopedContext_<Tag, T> sc(size_fft);
                 a.setContext(sc.get());
-                a.forward(highest_sine,f,size_fft);
+                a.forward(highest_sine.begin(),f,size_fft);
                 auto p = FBins::getMaxSquaredAmplitude(f);
                 EXPECT_TRUE(1 == p.first || 7 == p.first);
             }

@@ -54,7 +54,7 @@ namespace imajuscule {
         template<typename T>
         void draw(T const & container, char c = default_curve_char, bool include_zero = true) {
             if(container.empty()) {
-                throw "cannot draw empty container";
+                //throw "cannot draw empty container";
                 return;
             }
 

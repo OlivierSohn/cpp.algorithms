@@ -5,7 +5,7 @@ namespace imajuscule
      * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method
      */
     template <typename Parent>
-    struct FFTConvolutionBase : public Parent {
+    struct FFTConvolutionIntermediate : public Parent {
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
@@ -29,75 +29,59 @@ namespace imajuscule
 
         static constexpr bool is_atomic = true;
 
-        FFTConvolutionBase() {
+        FFTConvolutionIntermediate() {
             it = y.end();
         }
 
-        void setCoefficients(a64::vector<T> coeffs_) {
+        void setCoefficients2(a64::vector<T> coeffs_) {
             auto const N = coeffs_.size();
             auto const fft_length = get_fft_length(N);
             fft.setContext(Contexts::getInstance().getBySize(fft_length));
 
             result.resize(fft_length);
-            x.clear();
-            x.reserve(fft_length);
-            {
-                y.resize(fft_length);
-                it = y.begin();
-            }
+
+            y.resize(fft_length);
+            it = y.begin();
 
             doSetCoefficients(fft, std::move(coeffs_));
         }
 
-        bool willComputeNextStep() const {
-            return x.size() == getBlockSize()-1;
-        }
-
-        void step(T val) {
-            x.emplace_back(val);
-
-            auto const N = getBlockSize();
-            if(unlikely(x.size() == N)) {
-                // pad x
-
-                x.resize(get_fft_length());
-
-                auto const & frequencies = compute_convolution(fft, x);
-
-                fft.inverse(frequencies, result, get_fft_length());
-
-                auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
-
-                auto it_res = result.begin();
-                auto it_y = y.begin();
-                auto it_y_prev = it_y + N;
-
-                // y = mix first part of result with second part of previous result
-                //
-                // 'first part of y' = factor * ('second part of y' + 'first part of result')
-                add_scalar_multiply(it_y, /* = */
-                                    /* ( */ it_res, /* + */ it_y_prev /* ) */, /* x */ factor,
-                                    N);
-
-                // store second part of result for later
-                //
-                // 'second part of y' = 'second part of result'
-                copy(it_y   + N,
-                     it_res + N,
-                     N);
-
-                // reset 'it' so that the results are accessible in get() method
-                assert(it == y.begin() + N-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
-                it = y.begin();
-
-                // clear 'x'
-
-                x.clear();
-            }
-            else {
-                ++it;
-            }
-        }
+      void doStep() {
+        ++it;
+      }
+      
+      // the input vector is expected to be padded.
+      void doStep(typename RealSignal::const_iterator xBegin)
+      {
+        auto const N = getBlockSize();
+        auto const & frequencies = compute_convolution(fft, xBegin);
+        
+        fft.inverse(frequencies, result, get_fft_length());
+        
+        auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
+        
+        auto it_res = result.begin();
+        auto it_y = y.begin();
+        auto it_y_prev = it_y + N;
+        
+        // y = mix first part of result with second part of previous result
+        //
+        // 'first part of y' = factor * ('second part of y' + 'first part of result')
+        add_scalar_multiply(it_y, /* = */
+                            /* ( */ it_res, /* + */ it_y_prev /* ) */, /* x */ factor,
+                            N);
+        
+        // store second part of result for later
+        //
+        // 'second part of y' = 'second part of result'
+        copy(it_y   + N,
+             it_res + N,
+             N);
+        
+        // reset 'it' so that the results are accessible in get() method
+        assert(it == y.begin() + N-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
+        it = y.begin();
+      }
 
         T get() const {
             assert(it < y.begin() + getBlockSize());
@@ -107,9 +91,58 @@ namespace imajuscule
 
     private:
         Algo fft;
-        RealSignal x, y, result;
+        RealSignal y, result;
         typename decltype(y)::iterator it;
     };
+
+  template <typename Parent>
+  struct FFTConvolutionBase : public Parent {
+    using T = typename Parent::FPT;
+    using FPT = T;
+    using Tag = typename Parent::FFTTag;
+    
+    using SetupParam = float;
+    
+    void applySetup(SetupParam const & p) const {}
+    
+    using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+    
+    using Parent::get_fft_length;
+    using Parent::getBlockSize;
+    using Parent::getEpsilon;
+    using Parent::doStep;
+    using Parent::setCoefficients2;
+    
+    static constexpr bool is_atomic = true;
+    
+    void setCoefficients(a64::vector<T> coeffs_) {
+      x.clear();
+      auto const fft_length = get_fft_length(coeffs_.size());
+      x.reserve(fft_length);
+      setCoefficients2(std::move(coeffs_));
+    }
+    
+    bool willComputeNextStep() const {
+      return x.size() == getBlockSize()-1;
+    }
+    
+    void step(T val) {
+      x.emplace_back(val);
+      
+      if(x.size() == getBlockSize()) {
+        // pad x
+        x.resize(get_fft_length());
+        doStep(x.begin());
+        x.clear();
+      }
+      else {
+        doStep();
+      }
+    }
+    
+  private:
+    RealSignal x;
+  };
 
     template <typename T, typename Tag>
     struct FFTConvolutionCRTP {
@@ -139,13 +172,13 @@ namespace imajuscule
 
         bool empty() const { return fft_of_h.empty(); }
 
-        auto get_fft_length(int N) const {
-            auto N_nonzero_y = 2 * N;
+        auto get_fft_length(int n) const {
+            auto N_nonzero_y = 2 * n;
             return ceil_power_of_two(N_nonzero_y);
         }
 
         auto get_fft_length() const {
-            return fft_of_x.size();
+            return fft_of_h.size();
         }
 
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
@@ -163,17 +196,17 @@ namespace imajuscule
 
             // compute fft of padded impulse response
             auto coeffs = makeRealSignal(std::move(coeffs_));
-            fft.forward(coeffs, fft_of_h, fft_length);
+            fft.forward(coeffs.begin(), fft_of_h, fft_length);
         }
 
 
-      FPT getEpsilon() const {
-        return fft::getFFTEpsilon<FPT>(get_fft_length());
+      double getEpsilon() const {
+        return fft::getFFTEpsilon<FPT>(get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon();
       }
 
     protected:
 
-        auto const & compute_convolution(Algo const & fft, RealSignal const & x) {
+      auto const & compute_convolution(Algo const & fft, typename RealSignal::const_iterator x) {
             // do fft of x
 
             fft.forward(x, fft_of_x, get_fft_length());
@@ -292,25 +325,25 @@ namespace imajuscule
 
                     // coeffs_slice is padded with 0, because it is bigger than partition_size
                     // and initialized with zeros.
-                    fft.forward(coeffs_slice, fft_of_partitionned_h, fft_length);
+                    fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
                 }
             }
             assert(it_coeffs == coeffs_.end());
         }
 
-      FPT getEpsilon() const {
-        return countPartitions() * fft::getFFTEpsilon<FPT>(get_fft_length());
+      double getEpsilon() const {
+        return countPartitions() * (fft::getFFTEpsilon<FPT>(get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
       }
     protected:
 
-        auto const & compute_convolution(Algo const & fft, RealSignal const & x)
+        auto const & compute_convolution(Algo const & fft, typename RealSignal::const_iterator & xBegin)
         {
             // do fft of x
             {
                 auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
                 auto const fft_length = get_fft_length();
                 assert(fft_length == oldest_fft_of_delayed_x.size());
-                fft.forward(x, oldest_fft_of_delayed_x, fft_length);
+                fft.forward(xBegin, oldest_fft_of_delayed_x, fft_length);
                 ffts_of_delayed_x.advance();
             }
 
@@ -505,8 +538,10 @@ namespace imajuscule
      *
      * optimization : H and A are fixed so we cannot optimize this algorithm
      */
-    template <typename T, typename FFTTag = fft::Fastest>
-    using FFTConvolution = FFTConvolutionBase< FFTConvolutionCRTP<T, FFTTag> >;
+  template <typename T, typename FFTTag = fft::Fastest>
+  using FFTConvolutionCore = FFTConvolutionIntermediate < FFTConvolutionCRTP<T, FFTTag> >;
+  template <typename T, typename FFTTag = fft::Fastest>
+  using FFTConvolution = FFTConvolutionBase< FFTConvolutionCore<T, FFTTag> >;
 
     /*
      * runtime complexity:
@@ -530,7 +565,7 @@ namespace imajuscule
      *
      */
     template <typename T, typename FFTTag = fft::Fastest>
-    using PartitionnedFFTConvolution = FFTConvolutionBase< PartitionnedFFTConvolutionCRTP<T, FFTTag> >;
+    using PartitionnedFFTConvolution = FFTConvolutionBase< FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> > >;
 
     template<typename SetupParam>
     struct PartitionningSpec {

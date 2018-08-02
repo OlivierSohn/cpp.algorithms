@@ -87,8 +87,9 @@ namespace imajuscule
             }
 
             void get(T * samples, T const dry, T const wet) {
+              Assert(dry == 0 || getLatency() == 0); // else dry and wet signals are out of sync
                 forEachEar(samples, [dry, wet](auto & earConvs, auto & s) {
-                    auto wetSignal = 0;
+                    T wetSignal = 0.;
                     for(auto & c : earConvs) {
                         wetSignal += c.get();
                     }

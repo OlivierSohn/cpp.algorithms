@@ -522,7 +522,6 @@ namespace imajuscule
      The computations are based on the fact that an fft of an S-long signal costs S*lg(S)
      */
 
-    // for convolution reverbs, most of the time we have A << H
     /*
      * runtime complexity:
      *

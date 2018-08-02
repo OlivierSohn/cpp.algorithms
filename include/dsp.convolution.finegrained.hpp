@@ -46,17 +46,19 @@ namespace imajuscule
    * - First there is the "FFT" grain which computes the fft of a chunk of the input signal
    *     (and does a little more than that, see the code)
    * - Then there are "multiplication" grains, where we multiply a delayed FFT of the input signal
-   *    by the FFT of the impulse response. These grains will be grouped because individually
-   *    they are cheap to compute.
+   *    by the FFT of the impulse response.
    * - Finally there is the "IFFT" grain where we sum the results of the multiplications
    *    and do its inverse fft.
    *
-   * An optimization algorithm computes
-   * the cost of each grain, and based on a callback buffer size which we assume
-   * will not change in the future, gives a scheduling of granular computations
-   * that minimizes the worst case cost for a single callback, thus sharing the work optimally.
-   *
-   * This optimization algorithm also defines the size of the multiplication groups.
+   * An optimization algorithm minimizes the worst case cost for a single callback,
+   * based on :
+   *  - The callback buffer size (which we assume will not change in the future)
+   *  - The count of simultaneous convolutions happening in a callback
+   * the optimization algorithm gives the optimal parameters:
+   *  - The size of the partitions
+   *  - The count of multiplications per multiplication grain
+   *  - The "phasing" of simultaneous convolutions to best interleave
+   *      high-cost grains.
   */
 
   enum class GrainType {
@@ -545,7 +547,15 @@ namespace imajuscule
         using T = typename NonAtomicConvolution::FPT;
         Test(size_t partition_size, int length_impulse) {
           setPartitionSize(pfftcv, partition_size);
-          pfftcv.setCoefficients(a64::vector<T>(length_impulse));
+
+          a64::vector<T> coeffs;
+          coeffs.reserve(length_impulse);
+          std::array<T,4> values {0.9,0.5,-0.2,-0.5};
+          for(int i=0; i<length_impulse; ++i) {
+            coeffs.push_back(values[i%values.size()]);
+          }
+
+          pfftcv.setCoefficients(std::move(coeffs));
 
           // the value is not very important it will be overriden later on,
           // but we need to set something valid
@@ -580,6 +590,7 @@ namespace imajuscule
       vector<Test> tests;
       tests.reserve(n_tests);
       for(int i=0; i<n_tests;++i) {
+        // TODO [early coefficients cost] substract the early coefficients from length_impulse
         tests.emplace_back(partition_size, length_impulse);
         if(!tests[i].isValid()) {
           //cout << "invalid test" << endl;
@@ -639,6 +650,14 @@ namespace imajuscule
           for(auto t : fft_times) {
             grains_costs.feed(t);
           }
+
+          // TODO [early coefficients cost] we should have a sample-unit cyclic, and put one grain cost
+          // every period
+
+          // Also, by now, the order is:
+          // fft, ifft, m1, m2, ... mn
+          // but it should be:
+          // fft,       m1, m2, ... mn, ifft
 
           float cost = computeMaxSlidingSum(grains_costs,
                                             max_n_grains_per_cb);
@@ -717,6 +736,8 @@ namespace imajuscule
         auto multiplication_grain_time = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
                                                                                prepare,
                                                                                measure)) / static_cast<float>(tests.size());
+
+        // TODO [early coefficients cost] we should pass a vector of additional costs (where we take into account the early coefficient handling)
 
         cost_evaluator.evaluate(multiplication_grain_time,
                                 tests[0].countMultiplicativeGrains(),

@@ -1,26 +1,34 @@
-/* Copyright (C) Olivier Sohn - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
- */
 
 namespace imajuscule {
     constexpr float FLOAT_EPSILON = 0.000001f;
     constexpr float FLOAT_ONE_MIN_EPSILON = 1.f - FLOAT_EPSILON;
 
-    inline bool same_sign_strict(float a, float b) {
-        return (a > 0.f && b > 0.f) || (a < 0.f && b < 0.f);
+    template<typename T>
+    inline bool same_sign_strict(T a, T b) {
+        return (a > static_cast<T>(0) && b > static_cast<T>(0)) || (a < static_cast<T>(0) && b < static_cast<T>(0));
     }
-    
-    constexpr float clamp(float v, float v1, float v2) {
-        if(v < v1) {
-            return v1;
-        }
-        if(v > v2) {
-            return v2;
-        }
-        return v;
-    }
-    
-} // NS imajuscule
 
+    template<typename T>
+    [[nodiscard]] constexpr T clamp_ret(T const v, T const v1, T const v2) {
+      Assert(v1 <= v2);
+      if(v < v1) {
+          return v1;
+      }
+      if(v > v2) {
+          return v2;
+      }
+      return v;
+    }
+
+    template< typename T>
+    void clamp_inplace(T & v, T const m, T const M) {
+        assert(m <= M);
+        if(v > M) {
+            v = M;
+        }
+        else if(v < m) {
+            v = m;
+        }
+    }
+
+} // NS imajuscule

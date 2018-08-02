@@ -75,9 +75,9 @@ struct fifo {
     // @ param capacity : The number of elements in the queue when it is full.
     //                    This is not counting the "separator" element.
     //                    If you pass a capacity that is bigger than 'maxCapacity'
-    //                      it will be silently trimmed to maxCapacity.
+    //                      it will be silently set to maxCapacity.
     //                    If you pass a capacity that is smaller than 1
-    //                      it will be silently trimmed to 1.
+    //                      it will be silently set to 1.
     fifo(int capacity) :
     s(trimCapacity(capacity+1)), // we add one because when the queue is full, it has 's.size()-1' full slots.
     nextReadnextWrite(0)

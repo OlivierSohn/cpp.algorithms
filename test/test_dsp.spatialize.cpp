@@ -41,35 +41,36 @@ namespace imajuscule {
         return;
       }
       
-      auto lat = spatialize.getLatency();
-      int sampleIdx = -1;
+      int lat = spatialize.getLatency();
       
       std::vector<std::array<T, nEars>> results;
       
       // feed a dirac
-      std::vector<T> input;
-      input.resize(spatialize.countSources());
-      std::fill(input.begin(), input.end(), 1);
-      
-      spatialize.step(input.data());
-      ++sampleIdx;
-      
-      std::fill(input.begin(), input.end(), 0);
-      while(results.size() < ear_signals[0].size()) {
-        if(sampleIdx >= lat) { // wait 'latency' frames
-          results.emplace_back();
-          spatialize.get(results.back().data(), 0., 1.);
-        }
-        spatialize.step(input.data());
-        ++sampleIdx;
+      results.emplace_back();
+      std::fill(results.back().begin(), results.back().end(), 1);
+
+      while(results.size() < lat + ear_signals[0].size()) {
+        results.emplace_back();
+        std::fill(results.back().begin(), results.back().end(), 0);
+      }
+
+      // process the dirac
+      for(auto & r : results) {
+        spatialize.step(r.data(), 0., 1.);
       }
       
       auto eps = spatialize.getEpsilon();
-      ASSERT_EQ(ear_signals[0].size(), results.size());
-      for(auto j=0; j<results.size(); ++j) {
+      for(int j=0; j<lat; ++j) {
         int i=0;
         for(auto r : results[j]) {
-          ASSERT_NEAR(ear_signals[i][j], r, eps);
+          ASSERT_NEAR(0, r, eps);
+          ++i;
+        }
+      }
+      for(int j=lat; j<results.size(); ++j) {
+        int i=0;
+        for(auto r : results[j]) {
+          ASSERT_NEAR(ear_signals[i][j-lat], r, eps);
           ++i;
         }
       }

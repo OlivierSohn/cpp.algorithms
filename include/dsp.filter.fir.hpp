@@ -29,19 +29,18 @@ namespace imajuscule
       past.resize(0);
     }
     
-    void step(T val) {
+    T step(T val) {
       if(unlikely(empty())) {
-        return;
+        return {};
       }
       past.feed(val);
-    }
-    
-    T get() const {
+
       auto res = T{};
       // when coefficients are symmetrical it doesn't matter
       // if we are traversing forward or backward
       // but here we make no assumption:
       auto it_coeff = coefficients.begin();
+      // TODO vectorize this (maybe reverse the cycle, so that we can "go forward" in both the input and the coefficients)
       past.for_each_bkwd([&res, &it_coeff](auto val) {
         res += val * *it_coeff;
         ++it_coeff;

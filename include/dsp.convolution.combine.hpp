@@ -65,13 +65,8 @@ namespace imajuscule
       return a.isValid() && b.isValid();
     }
 
-    void step(FPT val) {
-      a.step(val);
-      b.step(val);
-    }
-
-    auto get() const {
-      return a.get() + b.get();
+    FPT step(FPT val) {
+      return a.step(val) + b.step(val);
     }
 
     double getEpsilon() const {
@@ -268,16 +263,17 @@ namespace imajuscule
       return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
 
-    void step(FPT val) {
+    FPT step(FPT val) {
       auto it = v.begin();
       auto end = v.end();
       if(unlikely(it == end)) {
-        return;
+        return {};
       }
 
       x[progress] = typename RealSignal::value_type(val);
       ++progress;
 
+      FPT r{};
       int nUpdates = 1 + (static_cast<int>(count_trailing_zeroes(progress))) - nDroppedConvolutions;
       if(nUpdates > 0) {
         typename RealSignal::const_iterator xBegin = x.begin();
@@ -287,13 +283,13 @@ namespace imajuscule
         int lengthInputBeforePadding = pow2(nDroppedConvolutions);
         for(;it != endUpdate; ++it, lengthInputBeforePadding <<= 1) {
           // the start location should be 16 byte aligned for best performance.
-          it->doStep(xBeginPadding - lengthInputBeforePadding);
+          r += it->doStep(xBeginPadding - lengthInputBeforePadding);
           // and it's important that x[progress] to x[progress+lengthInputBeforePadding-1] are 0 (padding)
         }
       }
 
       for(; it!= end; ++it) {
-        it->doStep();
+        r += it->doStep();
       }
 
       if(nUpdates == v.size()) {
@@ -304,13 +300,7 @@ namespace imajuscule
         std::fill(start, end, typename RealSignal::value_type(0));
         progress = 0;
       }
-    }
 
-    auto get() const {
-      FPT r{};
-      for(auto const & e : v) {
-        r += e.get();
-      }
       return r;
     }
     double getEpsilon() const {

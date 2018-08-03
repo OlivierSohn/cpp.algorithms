@@ -76,25 +76,26 @@ namespace imajuscule
                 });
             }
 
-            void step(T const * vals) {
-                forEachEar([vals](auto & earConvs) {
-                    int i = 0;
-                    for(auto & c : earConvs) {
-                        c.step(vals[i]);
-                        ++i;
-                    }
-                });
-            }
-
-            void get(T * samples, T const dry, T const wet) {
+            void step(T * inout, T const dry, T const wet) {
               Assert(dry == 0 || getLatency() == 0); // else dry and wet signals are out of sync
-                forEachEar(samples, [dry, wet](auto & earConvs, auto & s) {
-                    T wetSignal = 0.;
-                    for(auto & c : earConvs) {
-                        wetSignal += c.get();
-                    }
-                    s = dry * s + wet * wetSignal;
-                });
+              
+              std::array<T, nEars> in;
+              for(int i=0; i<nEars; ++i) {
+                in[i] = inout[i];
+                inout[i] *= dry;
+              }
+
+              for(auto & earConvs : earsConvs) {
+
+                T wetSignal = 0.;
+                int i = 0;
+                for(auto & c : earConvs) {
+                  wetSignal += c.step(in[i]);
+                  ++i;
+                }
+                *inout += wet * wetSignal;
+                ++inout;
+              }
             }
 
             void dephaseComputations(int phase) {

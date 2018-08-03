@@ -227,7 +227,7 @@ namespace imajuscule
       return (x.size() == getBlockSize()-1) || (grain_counter+1 == getBlockSize()/countGrains());
     }
 
-    void step(T val) {
+    T step(T val) {
       assert(isValid());
       x.emplace_back(val);
 
@@ -268,41 +268,39 @@ namespace imajuscule
              it_res + block_size,
              block_size);
 
-        // reset 'it' so that the results are accessible in get() method
         assert(it == y.begin() + block_size-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
         it = y.begin();
         grain_counter = 0;
         increment_grain();
-        return;
       }
-      ++grain_counter;
-
-      auto const n_grains = countGrains();
-      auto const granularity = block_size/n_grains;
-      assert(granularity >= grain_counter);
-      if(grain_counter == granularity) {
-        grain_counter = 0;
-        auto cur_grain = getGrainNumber();
-        assert(cur_grain <= n_grains);
-        if( cur_grain < n_grains - 1 ) {
-          //////////////////////// Multiplicative grain ////////////////////////
-          do_some_multiply_add();
+      else {
+        ++grain_counter;
+        
+        auto const n_grains = countGrains();
+        auto const granularity = block_size/n_grains;
+        assert(granularity >= grain_counter);
+        if(grain_counter == granularity) {
+          grain_counter = 0;
+          auto cur_grain = getGrainNumber();
+          assert(cur_grain <= n_grains);
+          if( cur_grain < n_grains - 1 ) {
+            //////////////////////// Multiplicative grain ////////////////////////
+            do_some_multiply_add();
+          }
+          else if(cur_grain == n_grains - 1) {
+            /////////////////////// IFFT grain ///////////////////////////////////
+            fft.inverse(get_multiply_add_result(),
+                        result,
+                        get_fft_length());
+            increment_grain();
+          }
+          else {
+            // spread is not optimal
+          }
         }
-        else if(cur_grain == n_grains - 1) {
-          /////////////////////// IFFT grain ///////////////////////////////////
-          fft.inverse(get_multiply_add_result(),
-                      result,
-                      get_fft_length());
-          increment_grain();
-        }
-        else {
-          // spread is not optimal
-        }
+        ++it;
       }
-      ++it;
-    }
 
-    T get() const {
       assert(it < y.begin() + getBlockSize());
       assert(it >= y.begin());
       return get_signal(*it);
@@ -579,7 +577,6 @@ namespace imajuscule
         void run() {
           assert(pfftcv.willComputeNextStep());
           pfftcv.step(1.f);
-          pfftcv.get();
         }
       private:
         NonAtomicConvolution pfftcv;

@@ -46,12 +46,14 @@ namespace imajuscule
             doSetCoefficients(fft, std::move(coeffs_));
         }
 
-      void doStep() {
+      FPT doStep() {
         ++it;
+        assert(it < y.begin() + getBlockSize());
+        return get_signal(*it);
       }
 
       // the input vector is expected to be padded.
-      void doStep(typename RealSignal::const_iterator xBegin)
+      FPT doStep(typename RealSignal::const_iterator xBegin)
       {
         auto const N = getBlockSize();
         auto const & frequencies = compute_convolution(fft, xBegin);
@@ -78,16 +80,10 @@ namespace imajuscule
              it_res + N,
              N);
 
-        // reset 'it' so that the results are accessible in get() method
         assert(it == y.begin() + N-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
         it = y.begin();
+        return get_signal(*it);
       }
-
-        T get() const {
-            assert(it < y.begin() + getBlockSize());
-            assert(it >= y.begin());
-            return get_signal(*it);
-        }
 
     private:
         Algo fft;
@@ -126,17 +122,18 @@ namespace imajuscule
       return x.size() == getBlockSize()-1;
     }
 
-    void step(T val) {
+    T step(T val) {
       x.emplace_back(val);
 
       if(x.size() == getBlockSize()) {
         // pad x
         x.resize(get_fft_length());
-        doStep(x.begin());
+        auto res = doStep(x.begin());
         x.clear();
+        return res;
       }
       else {
-        doStep();
+        return doStep();
       }
     }
 
@@ -414,7 +411,6 @@ namespace imajuscule
                             throw logic_error("Wrong timing! Should stop earlier!");
                         }
                         pfftcv.step(0.f); // these do next to nothing...
-                        pfftcv.get();
                     }
                     if(!pfftcv.willComputeNextStep()) {
                         throw logic_error("Wrong timing! Should stop later!");
@@ -424,7 +420,6 @@ namespace imajuscule
                 void run() {
                     assert(pfftcv.willComputeNextStep());
                     pfftcv.step(0.f); // ... this one does the ffts
-                    pfftcv.get();
                 }
             private:
                 AtomicConvolution pfftcv;

@@ -75,7 +75,7 @@ namespace imajuscule {
         }
     }
 
-    template <typename T, Alignment Align = Alignment::CACHE_LINE>
+    template <typename T, Alignment Align>
     class AlignedAllocator
     {
     public:

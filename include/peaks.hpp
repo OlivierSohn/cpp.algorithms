@@ -15,12 +15,12 @@ namespace imajuscule
         }
         return it;
     }
-    
+
     template<typename ITER>
     ITER first_zero_crossing(ITER it, ITER end) {
         using VAL = typename ITER::value_type;
         using Tr = NumTraits<VAL>;
-        
+
         bool first = true;
         VAL prev;
         while(it != end) {
@@ -37,15 +37,15 @@ namespace imajuscule
             prev = cur;
             ++it;
         }
-        
+
         return it;
     }
-    
+
     template<typename ITER>
     ITER first_non_abs_decreasing(ITER it, ITER end) {
         using VAL = typename ITER::value_type;
         using Tr = NumTraits<VAL>;
-        
+
         bool first = true;
         VAL prev;
         auto prev_it = it;
@@ -61,17 +61,17 @@ namespace imajuscule
             prev_it = it;
             ++it;
         }
-        
+
         return prev_it;
     }
-    
+
     template<typename ITER>
     ITER first_non_abs_avg_decreasing(ITER it, ITER end, int avg_size) {
         using VAL = typename ITER::value_type;
         using Tr = NumTraits<VAL>;
-        
+
         slidingAverage<VAL> avg(avg_size);
-        
+
         bool first = true;
         VAL prev_avg;
         auto prev_it = it;
@@ -88,10 +88,10 @@ namespace imajuscule
             prev_it = it;
             ++it;
         }
-        
+
         return prev_it;
     }
-    
+
     template<typename ITER, typename VAL = typename ITER::value_type>
     ITER find_relevant_start(ITER it, ITER end, VAL abs_relevant_level) {
         auto it_relevant_value = first_relevant_value(it, end, abs_relevant_level);
@@ -106,7 +106,7 @@ namespace imajuscule
         // so rzero.base() is the iterator on the other side of the zero crossing
         return rzero.base();
     }
-    
+
     template<typename ITER, typename VAL = typename ITER::value_type>
     ITER find_relevant_start_relaxed(ITER it, ITER end, VAL abs_relevant_level, int sliding_avg_size) {
         auto it_relevant_value = first_relevant_value(it, end, abs_relevant_level);
@@ -121,12 +121,12 @@ namespace imajuscule
         // so rzero.base() is the iterator on the other side of the zero crossing
         return rzero.base();
     }
-    
+
     template<typename ITER, typename VAL = typename ITER::value_type>
     VAL max_abs_integrated_lobe(ITER it, ITER end) {
         using Tr = NumTraits<VAL>;
         VAL ret {}, sum {}, prev {};
-        
+
         for(; it != end; ++it) {
             auto cur = *it;
             // it's important to use 'sum' instead of 'prev' in the multiplication below
@@ -138,26 +138,26 @@ namespace imajuscule
             prev = cur;
         }
         ret = std::max(ret, std::abs(sum));
-        
+
         return ret;
     }
     template<typename ITER, typename VAL = typename ITER::value_type>
     VAL abs_integrated(ITER it, ITER end) {
         using Tr = NumTraits<VAL>;
         VAL ret {};
-        
+
         for(; it != end; ++it) {
             ret += std::abs(*it);
         }
-        
+
         return ret;
     }
-    
+
     struct FreqAmplitude {
         float relative_freq;
         float amplitude;
     };
-    
+
     template<typename ITER, typename VAL = typename ITER::value_type>
     FreqAmplitude max_freq_amplitude(ITER it, ITER end) {
         using namespace fft;
@@ -165,7 +165,7 @@ namespace imajuscule
         using Algo = Algo_<Tag, VAL>;
         using RealFBins = RealFBins_<Tag, VAL>;
         using ScopedContext = ScopedContext_<Tag, VAL>;
-        
+
         a64::vector<VAL> v;
         auto fft_length = ceil_power_of_two(std::distance(it, end));
         v.reserve(fft_length);
@@ -174,7 +174,7 @@ namespace imajuscule
         }
         v.resize(fft_length, VAL{0});
         auto signal = RealSignal_<Tag, VAL>::make(std::move(v));
-        
+
         typename RealFBins::type result(fft_length);
 
         ScopedContext scoped_context(fft_length);
@@ -186,23 +186,4 @@ namespace imajuscule
             std::sqrt(Max.second)
         };
     }
-    
-    
-#ifdef __APPLE__
-    template<typename CONTAINER, typename T = typename CONTAINER::value_type>
-    T max_auto_corr(CONTAINER const & c) {
-        CONTAINER input;
-        input.resize(2*c.size());
-        std::copy(c.begin(), c.end(), input.begin());
-
-        CONTAINER output;
-        output.resize(c.size());
-        accelerate::API<T>::f_conv(&*input.begin(), 1,
-                                   &*(c.end()-1), -1,
-                                   &*(output.begin()), 1, output.size(), c.size());
-        std::cout<< "";
-        assert(0); // not tested / implemented
-    }
-#endif
-    
 }

@@ -74,7 +74,7 @@ namespace imajuscule
             PosixSchedParams posix;
 #endif
         };
-        
+
         static inline bool priorityIsReadOnly() {
 #if __APPLE__
             return false;
@@ -101,7 +101,7 @@ namespace imajuscule
           cur.posix.setMaxPriority(SCHED_RR);
 #endif
         }
-        
+
         void lock() {
           if(!ok) {
             return;
@@ -118,8 +118,10 @@ namespace imajuscule
             threadNature() = ThreadNature::RealTime_Program;
           }
 #endif
+
+          std::this_thread::yield();
         }
-        
+
         void unlock() {
           if(!ok) {
             return;
@@ -140,8 +142,10 @@ namespace imajuscule
             std::cerr << "could not set previous priority" << std::endl;
           }
 #endif
+
+          std::this_thread::yield();
         }
-        
+
       private:
         bool ok;
         SchedParams prev, cur;
@@ -155,14 +159,14 @@ namespace imajuscule
         ScopedRTPriority() {
           ctrl.lock();
         }
-        
+
         ~ScopedRTPriority() {
           ctrl.unlock();
         }
-        
+
       private:
         CtrlRTPriority ctrl;
       };
-      
+
     }
 }

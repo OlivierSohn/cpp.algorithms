@@ -1,3 +1,5 @@
+#ifndef IMJ_USE_SLOW_FFT
+
 namespace imajuscule {
     namespace profiling {
         namespace measure_madd {
@@ -37,13 +39,13 @@ namespace imajuscule {
                     to[i] = std::min(to[i], o[i]);
                 }
             }
-            
+
             // the results could be more pronounced if using vectorize techniques here.
             template<typename ITER>
             void simple_multiply_add( ITER res, ITER i1, ITER i2, int N) {
                 using T = typename ITER::value_type;
                 using SC = accelerate::SplitComplex<T>;
-                
+
                 SC M1 {
                     &*i1,
                     (&*i1) + N/2
@@ -56,13 +58,13 @@ namespace imajuscule {
                     &*res,
                     (&*res) + N/2
                 };
-                
+
                 accelerate::API<T>::f_zvma(&M1, 1,
                                            &M2, 1,
                                            &Accum, 1,
                                            &Accum, 1, N/2);
-                
-                
+
+
 //                for(int i=0; i<N; ++i, ++res, ++i1, ++i2) {
   //                  *res += *i1 * *i2;
     //            }
@@ -76,22 +78,22 @@ namespace imajuscule {
                 using namespace std;
                 using namespace std::chrono;
                 auto block_sz = pow2(lg2BlockSize);
-                
+
                 using VCONTAINER = std::vector<CONTAINER>; // non contiguous
-                
+
                 //                auto lg2_n_blocks_max = 19 - lg2BlockSize;
                 auto lg2_n_blocks_max = 10;
-                
+
                 vector<float> times;
                 times.reserve(lg2_n_blocks_max);
-                
+
                 CONTAINER w;
                 w.resize(block_sz);
 
                 VCONTAINER v1, v2;
                 v1.reserve(pow2(lg2_n_blocks_max-1));
                 v2.resize(pow2(lg2_n_blocks_max-1));
-                
+
                 for(int lg2_n_blocks=0; lg2_n_blocks<lg2_n_blocks_max; ++lg2_n_blocks) {
                     //auto n_blocks = pow2(lg2_n_blocks);
                     auto n_blocks = lg2_n_blocks+1;
@@ -104,30 +106,30 @@ namespace imajuscule {
                     for(auto & v : v2) {
                         v.resize(block_sz);
                     }
-                    
+
                     auto wit = w.begin();
-                    
+
                     auto t = avg(measure_n<high_resolution_clock>(n_repeats, []{}, [wit,&v1,&v2]() {
                         auto n_blocks = v1.size();
                         for(int i=0; i<n_blocks; ++i) {
                             simple_multiply_add(wit, v1[i].begin(), v2[i].begin(), v1[i].size());
                         }
                     }));
-                    
+
                     //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
                     times.push_back( t );
                 }
                 return std::move(times);
             }
-            
+
             static inline auto testContiguous(int lg2BlockSize) {
                 using namespace std;
                 using namespace std::chrono;
                 auto block_sz = pow2(lg2BlockSize);
-                
+
                 //                auto lg2_n_blocks_max = 19 - lg2BlockSize;
                 auto lg2_n_blocks_max = 10;
-                
+
                 vector<float> times;
                 times.reserve(lg2_n_blocks_max);
 
@@ -137,11 +139,11 @@ namespace imajuscule {
                 CONTAINER v1, v2;
                 v1.reserve(pow2(lg2_n_blocks_max-1) * block_sz);
                 v2.reserve(pow2(lg2_n_blocks_max-1) * block_sz);
-                
+
                 for(int lg2_n_blocks=0; lg2_n_blocks<lg2_n_blocks_max; ++lg2_n_blocks) {
                     //auto n_blocks = pow2(lg2_n_blocks);
                     auto n_blocks = lg2_n_blocks+1;
-                    
+
                     v1.resize(n_blocks * block_sz);
                     v2.resize(n_blocks * block_sz);
                     auto it1 = v1.begin();
@@ -158,18 +160,18 @@ namespace imajuscule {
                             simple_multiply_add(wit, it1, it2, block_sz);
                         }
                     }));
-                    
+
                     //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
                     times.push_back( t );
                 }
                 return std::move(times);
             }
-            
+
             static inline void run_multiplyadd_test() {
                 using namespace imajuscule::profiling::measure_madd;
                 using namespace imajuscule;
                 using namespace std;
-                
+
                 for(int i=0; i<19; ++i) {
                     std::vector<float> contiguous, noncontiguous;
                     constexpr auto n_repeats = 15;
@@ -188,9 +190,9 @@ namespace imajuscule {
                     }
                 }
             }
-            
+
         }
     }
 }
 
-
+#endif

@@ -1,3 +1,4 @@
+#ifndef IMJ_USE_SLOW_FFT
 
 namespace imajuscule {
     // implementation of Accelerate vDSP fft
@@ -404,3 +405,5 @@ namespace imajuscule {
         } // NS fft
     }// NS accelerate
 }// NS imajuscule
+
+#endif

@@ -10,21 +10,25 @@ namespace imajuscule {
         /*
          on OSX, 'accelerate' fft is 20x faster than 'imj' fft
          */
-        
+
         constexpr std::tuple<
         imj::Tag            // cross-platform, 'straightforward', slow, large memory footprint
 #if __APPLE__
+#  ifndef IMJ_USE_SLOW_FFT
         , accelerate::Tag // osx / ios only, vectorized, fast, small memory footprint
+#  endif
 #endif // __APPLE__
         > Tags;
 
         using Fastest =
-#if __APPLE__
+#ifdef IMJ_USE_SLOW_FFT
+        imj::Tag;
+#elif __APPLE__
         accelerate::Tag;
 #else
         imj::Tag;
 #endif
-        
+
         template<typename T>
         constexpr double getFFTEpsilon(int N) {
             return power_of_two_exponent(N) * std::numeric_limits<T>::epsilon(); // worst case error propagation is O(log N)
@@ -35,26 +39,26 @@ namespace imajuscule {
 
         template<typename T>
         using FFTIter = typename FFTVec<T>::iterator;
-        
+
         template<typename CONTAINER1, typename CONTAINER2>
         void forward_fft(unsigned int fft_length,
                          CONTAINER1 & signal,
                          CONTAINER2 & result) {
             using T = typename CONTAINER1::value_type;
             using FPT = typename T::FPT;
-            
+
             using namespace imj::fft;
-            
+
             ScopedContext<FPT> scoped_context(fft_length);
             Algo<FPT> fft(scoped_context.get());
             fft.forward(signal.begin(), result, fft_length);
         }
-        
+
         template<typename T>
         struct FPT {
             using type = typename T::FPT;
         };
-        
+
         template<>
         struct FPT<double> {
             using type = double;
@@ -64,7 +68,7 @@ namespace imajuscule {
         struct FPT<float> {
             using type = float;
         };
-        
+
         template<typename ITER>
         void apply_hann_window(ITER it,
                                ITER end)
@@ -84,4 +88,3 @@ namespace imajuscule {
 
     } // NS fft
 } // NS imajuscule
-

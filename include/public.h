@@ -157,9 +157,111 @@
 #include "markov_chain.hpp"
 #include "dsp.filter.hpp"
 #include "dsp.filter.fir.hpp"
+#include "dsp.subsampled.hpp"
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.finegrained.hpp"
+#include "dsp.delayed.hpp"
 #include "dsp.convolution.combine.hpp"
+
+
+namespace imajuscule
+{
+  template<typename C>
+  void applySetup(C&c, typename C::SetupParam const & p) {
+    c.applySetup(p);
+  }
+  
+  template<typename C>
+  void applySetup(Delayed<C>&c, typename Delayed<C>::SetupParam const & p) {
+    c.setTheDelay(p.delay);
+    applySetup(c.getInner(),p.innerParams);
+  }
+  template<LatencySemantic L, typename C>
+  void applySetup(SubSampled<L, C>&c, typename C::SetupParam const & p) {
+    applySetup(c.getInner(), p);
+  }
+  
+  template<typename A, typename B>
+  void applySetup(SplitConvolution<A,B> &c, typename SplitConvolution<A,B>::SetupParam const & p) {
+    applySetup(c.getA(), p.aParams);
+    applySetup(c.getB(), p.bParams);
+    if(!c.getB().isValid()) { // handle case where lower resolution tail is not used
+      c.setSplit(noSplit);
+    }
+    else {
+      c.setSplit( c.getB().getLatency() - c.getA().getLatency() );
+    }
+  }
+  template<typename A, typename B>
+  void applySetup(SplitConvolution<A,ScaleConvolution<B>> &c,
+                  typename SplitConvolution<A,ScaleConvolution<B>>::SetupParam const & p) {
+    applySetup(c.getA(), p.aParams);
+    applySetup(c.getB(), p.bParams);
+    c.setSplit(pow2(c.getB().getEarlyDroppedConvolutions()) - 1);
+  }
+  
+  template<typename SP, typename T, typename FFTTag>
+  void prepare(SP const & params,
+               FinegrainedPartitionnedFFTConvolution<T,FFTTag> & rev,
+               int const n_scales,
+               int const scale_sz ) {    
+    assert(n_scales == 1);
+    applySetup(rev, params);
+  }
+  
+  template<typename SP, typename T, typename FFTTag>
+  void prepare(SP const & params,
+               ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> & rev,
+               int const n_scales,
+               int const scale_sz ) {
+    // split = latB - latA
+    // scale_sz = (1 + 2*(delay + latA)) - latA
+    // scale_sz - 1 = 2*delay + latA
+    // delay = 0.5 * (scale_sz - 1 - latA)
+    // delay = 0.5 * (scale_sz - 1 - (2*partition_sz-1))
+    // delay = (0.5 * scale_sz) - partition_sz
+    assert(0 == scale_sz % 2);
+    int const delay = (scale_sz / 2) - params.partition_size;
+    assert(delay >= 0);
+    
+    // set the delays
+    
+    // we disable the unused scales by setting the partition size to 0.
+    auto zero = SP::makeInactive();
+    std::array<SP, 4> ps {
+      params,
+      (n_scales >= 2)?params:zero,
+      (n_scales >= 3)?params:zero,
+      (n_scales >= 4)?params:zero
+    };
+    assert(n_scales <= 4);
+    applySetup(rev,
+               {
+                 {},
+                 {
+                   ps[0],
+                   {
+                     (n_scales >= 2)?delay:0,
+                     {
+                       ps[1],
+                       {
+                         (n_scales >= 3)?delay:0,
+                         {
+                           ps[2],
+                           {
+                             (n_scales >= 4)?delay:0,
+                             ps[3]
+                           }
+                         }
+                       }
+                     }
+                   }
+                 }
+               }
+               );
+  }
+}
+
 #include "dsp.spatialize.hpp"
 #include "dsp.compresser.hpp"
 #include "enum.h"

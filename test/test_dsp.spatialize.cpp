@@ -101,13 +101,13 @@ namespace imajuscule {
         typename std::remove_const<typename std::remove_reference<decltype(coefficients)>::type>::type zero_coeffs, opposite_coeffs;
         zero_coeffs.resize(coefficients.size());
         
-        std::pair<int,typename Convolution::SetupParam> setup {part_size,{}};
+        FinegrainedSetupParam setup {part_size,1,0};
         
         {
           constexpr auto nOutMono = 1;
           audio::Spatializer<nOutMono, Convolution> spatialized;
           
-          spatialized.addSourceLocation({{coefficients}}, setup);
+          spatialized.addSourceLocation({{coefficients}}, setup, 1, coefficients.size());
           
           test(spatialized, {{coefficients}});
         }
@@ -118,8 +118,8 @@ namespace imajuscule {
           // no cross-talk :
           // source1 has only left component
           // source2 has only right component
-          spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup);
-          spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
+          spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup, 1, coefficients.size());
+          spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, 1, coefficients.size());
           
           test(spatialized, {{coefficients, coefficients}});
         }
@@ -135,8 +135,8 @@ namespace imajuscule {
           // extreme cross-talk :
           // source1 right component is the opposite of source 2
           // source2 right component is the opposite of source 1
-          spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
-          spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup);
+          spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, 1, coefficients.size());
+          spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup, 1, coefficients.size());
           
           test(spatialized, {{zero_coeffs,zero_coeffs}});
         }
@@ -149,8 +149,8 @@ namespace imajuscule {
             o = -o;
           }
           
-          spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
-          spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
+          spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, 1, coefficients.size());
+          spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, 1, coefficients.size());
           
           test(spatialized, {{coefficients,zero_coeffs}});
         }

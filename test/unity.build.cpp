@@ -49,6 +49,7 @@
 #include "test_sort.cpp"
 #include "test_hash_table.cpp"
 //*/
+
 #if MEASURE_PERFS
 #  include "test_benchmark.cpp"
 #  include "measure_sin.cpp"

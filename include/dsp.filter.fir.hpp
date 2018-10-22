@@ -2,7 +2,11 @@
 
 namespace imajuscule
 {
-  // Always prefer using 'OptimizedFIRFilter' which scales better with the number of coefficients.
+  /*
+   Brute force filtering (no fft is used).
+   
+   Always prefer using 'OptimizedFIRFilter' which scales better with the number of coefficients.
+   */
   template<typename T>
   struct FIRFilter {
     using FPT = T;
@@ -22,15 +26,15 @@ namespace imajuscule
     constexpr int getLatency() const { return 0; }
     
     auto size()  const { return coefficients.size(); }
-    bool empty() const { return coefficients.empty(); }
+    bool isZero() const { return coefficients.empty(); }
 
-    void clear() {
+    void reset() {
       coefficients.clear();
       past.resize(0);
     }
     
     T step(T val) {
-      if(unlikely(empty())) {
+      if(unlikely(isZero())) {
         return {};
       }
       past.feed(val);

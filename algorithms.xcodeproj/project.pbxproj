@@ -215,6 +215,8 @@
 		09C02B051E98D0AD00E570F5 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scheduler.h; path = include/scheduler.h; sourceTree = "<group>"; };
 		09C257981EEB023800608C56 /* indentedStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = indentedStream.h; path = include/indentedStream.h; sourceTree = "<group>"; };
 		09C257991EEB028400608C56 /* indentedStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = indentedStream.cpp; path = source/indentedStream.cpp; sourceTree = "<group>"; };
+		09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.subsampled.hpp; path = include/dsp.subsampled.hpp; sourceTree = "<group>"; };
+		09D0464C217A675D00A00F70 /* dsp.delayed.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.delayed.hpp; path = include/dsp.delayed.hpp; sourceTree = "<group>"; };
 		09E641631ED0661B00BF54A5 /* test_scoped.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_scoped.cpp; path = test/test_scoped.cpp; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -450,9 +452,11 @@
 				09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
+				09D0464C217A675D00A00F70 /* dsp.delayed.hpp */,
 				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
+				09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
 				09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */,

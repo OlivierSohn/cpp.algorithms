@@ -10,9 +10,9 @@ namespace imajuscule
         using FPT = T;
         using Tag = typename Parent::FFTTag;
 
-        using SetupParam = float;
+      using SetupParam = typename Parent::SetupParam;
 
-        void applySetup(SetupParam const & p) const {}
+      void applySetup(SetupParam const & p) const {doAppluSetup(p); }
 
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
         static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
@@ -26,8 +26,6 @@ namespace imajuscule
       using Parent::getEpsilon;
         using Parent::doSetCoefficients;
         using Parent::compute_convolution;
-
-        static constexpr bool is_atomic = true;
 
         FFTConvolutionIntermediate() {
             it = y.end();
@@ -45,6 +43,15 @@ namespace imajuscule
 
             doSetCoefficients(fft, std::move(coeffs_));
         }
+      
+      void reset() {
+        y.clear();
+        result.clear();
+      }
+      
+      bool isZero() const {
+        return result.empty();
+      }
 
       FPT doStep() {
         ++it;
@@ -97,19 +104,23 @@ namespace imajuscule
     using FPT = T;
     using Tag = typename Parent::FFTTag;
 
-    using SetupParam = float;
+    struct SetupParam {
+      float cost;
+      typename Parent::SetupParam param;
+    };
 
-    void applySetup(SetupParam const & p) const {}
-
+    void applySetup(SetupParam const & p) {
+      doApplySetup(p.param);
+    }
+    
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
 
+    using Parent::doApplySetup;
     using Parent::get_fft_length;
     using Parent::getBlockSize;
     using Parent::getEpsilon;
     using Parent::doStep;
     using Parent::setCoefficients2;
-
-    static constexpr bool is_atomic = true;
 
     void setCoefficients(a64::vector<T> coeffs_) {
       x.clear();
@@ -153,6 +164,10 @@ namespace imajuscule
         static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
 
         using Algo = typename fft::Algo_<Tag, FPT>;
+      
+      struct SetupParam {};
+      
+      void doApplySetup(SetupParam const &) {}
 
     private:
         int N;
@@ -271,11 +286,17 @@ namespace imajuscule
 
         auto countPartitions() const { return ffts_of_partitionned_h.size(); }
 
-        void set_partition_size(int sz) {
-            assert(sz > 0);
-            partition_size = sz;
-            assert(is_power_of_two(sz));
-        }
+      
+      struct SetupParam {
+        int partition_size;
+      };
+
+      void doApplySetup(SetupParam const & p) {
+        auto sz = p.partition_size;
+        assert(sz > 0);
+        partition_size = sz;
+        assert(is_power_of_two(sz));
+      }
 
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
 
@@ -563,7 +584,6 @@ namespace imajuscule
 
     template<typename SetupParam>
     struct PartitionningSpec {
-        int size =  -1;
         SetupParam cost;
         float getCost() const { return static_cast<float>(cost); }
         GradientDescent<SetupParam> gd;
@@ -573,13 +593,8 @@ namespace imajuscule
     struct PartitionningSpecs {
         using PS = PartitionningSpec<SetupParam>;
 
-        PS & getWithSpread(bool spread) {
-            if(spread) {
-                return with_spread.cost < without_spread.cost ? with_spread : without_spread;
-            }
-            else {
-                return without_spread;
-            }
+        PS & getWithSpread() {
+            return with_spread.cost < without_spread.cost ? with_spread : without_spread;
         }
 
         PS with_spread, without_spread;

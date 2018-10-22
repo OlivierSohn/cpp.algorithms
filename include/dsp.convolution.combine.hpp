@@ -14,6 +14,9 @@ namespace imajuscule
     return err;
   }
 
+  static constexpr int undefinedSplit = -1;
+  static constexpr int noSplit = -2;
+
   /*
    * Creates a convolution scheme by combining 2 convolution schemes,
    * where A handles ** early ** coefficients, and B handles ** late ** coefficients.
@@ -31,20 +34,19 @@ namespace imajuscule
       BParam bParams;
     };
 
-    static constexpr int undefinedSplit = -1;
-
     static_assert(std::is_same_v<FPT,typename B::FPT>);
 
-    bool empty() const {
-      return a.empty() && b.empty();
+    bool isZero() const {
+      return a.isZero() && b.isZero();
     }
-    void clear() {
-      a.clear();
-      b.clear();
+    void reset() {
+      a.reset();
+      b.reset();
     }
 
+    // The split should be equal to "latency of B - latency of A"
+    // or negative to mean that no split exists.
     void setSplit(int s) {
-      Assert(s >= 0);
       split = s;
     }
 
@@ -54,19 +56,34 @@ namespace imajuscule
       }
       auto [rangeA,rangeB] = splitAt(split, coeffs_);
       a.setCoefficients(rangeA.materialize());
+      if(rangeB.empty()) {
+        b.reset();
+        assert(b.isZero());
+        return;
+      }
       b.setCoefficients(rangeB.materialize());
-    }
-
-    auto getGranularMinPeriod() const {
-      return b.getGranularMinPeriod();
+      assert(!b.isZero());
+      if(split + a.getLatency() == b.getLatency()) {
+        return;
+      }
+      LG(ERR, "split : %d, a lat: %d, b lat: %d", split, a.getLatency(), b.getLatency());
+      throw std::logic_error("inconsistent split (latencies are not adapted)");
     }
 
     bool isValid() const {
-      return a.isValid() && b.isValid();
+      return a.isValid() && (b.isValid() || b.isZero());
     }
 
     FPT step(FPT val) {
-      return a.step(val) + b.step(val);
+      auto res = a.step(val);
+      if(!b.isZero()) {
+        res += b.step(val);
+      }
+      return res;
+    }
+    
+    auto debugStep(FPT val) {
+      return std::make_pair(a.step(val), b.step(val));
     }
 
     double getEpsilon() const {
@@ -85,6 +102,16 @@ namespace imajuscule
     A a;
     B b;
   };
+
+  template<typename A, typename B>
+  static std::ostream& operator<<(std::ostream& os, const typename SplitConvolution<A,B>::SetupParam& p)
+  {
+    using namespace std;
+    os
+    << "aParams:" << endl << p.aParams << endl
+    << "bParams:" << endl << p.bParams << endl;
+    return os;
+  }
 
   /*
    * Creates a 0-latency convolution by combining 'n' sub-convolutions
@@ -179,10 +206,10 @@ namespace imajuscule
       // 5 gives the fastest results on OSX / intel core i7.
     };
 
-    bool empty() const {
-      return v.empty() || std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.empty(); });
+    bool isZero() const {
+      return v.empty();
     }
-    void clear() {
+    void reset() {
       v.clear();
       x.clear();
       progress = 0;
@@ -202,7 +229,7 @@ namespace imajuscule
      * TODO ideally this value should be a global, computed at initialization time.
      */
     void applySetup(SetupParam const & p) {
-      clear();
+      reset();
       nDroppedConvolutions = p.nDropped;
     }
 
@@ -218,7 +245,7 @@ namespace imajuscule
     // and then this class could allocate the memory in one big chunk, and split it among 'A's.
     // This way, step / get could benefit from better memory locality, and memory accesses may be more predictable.
     void setCoefficients(a64::vector<FPT> coeffs_) {
-      clear();
+      reset();
       auto s = coeffs_.size();
       if( s == 0 ) {
         return;
@@ -252,7 +279,7 @@ namespace imajuscule
           // This breaks the class logic, and would lead to wrong results.
           //   (for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.)
           LG(ERR,"ScaleConvolution is applied to a type that doesn't respect the latency constraints.");
-          clear();
+          reset();
           return;
         }
       }
@@ -307,7 +334,12 @@ namespace imajuscule
       return epsilonOfNaiveSummation(v);
     }
 
-    auto getLatency() const { return 0; }
+    auto getLatency() const {
+      if(v.empty()) {
+        return 0;
+      }
+      return v[0].getLatency();
+    }
 
   private:
     std::vector<A> v;
@@ -317,41 +349,6 @@ namespace imajuscule
   };
 
 
-  // TODO merge 'setPartitionSize' with 'applySetup'
-
-  template<typename A, typename B>
-  void setPartitionSize(SplitConvolution<A,B> & c, int sz) {
-    setPartitionSize(c.getB(), sz);
-    // We assume that partition size applies to the late handler only,
-    // hence this is commented out:
-    //setPartitionSize(c.getA(), sz);
-    c.setSplit( c.getB().getLatency() - c.getA().getLatency() );
-  }
-
-  template<typename T, typename U>
-  void setPartitionSize(FinegrainedPartitionnedFFTConvolution<T,U> & c, int sz) {
-    c.set_partition_size(sz);
-  }
-
-
-  template<typename C>
-  void applySetup(C&c, typename C::SetupParam const & p) {
-    c.applySetup(p);
-  }
-
-  template<typename A, typename B>
-  void applySetup(SplitConvolution<A,B> &c, typename SplitConvolution<A,B>::SetupParam const & p) {
-    applySetup(c.getA(), p.aParams);
-    applySetup(c.getB(), p.bParams);
-  }
-  template<typename A, typename B>
-  void applySetup(SplitConvolution<A,ScaleConvolution<B>> &c,
-                  typename SplitConvolution<A,ScaleConvolution<B>>::SetupParam const & p) {
-    applySetup(c.getA(), p.aParams);
-    applySetup(c.getB(), p.bParams);
-    c.setSplit(pow2(c.getB().getEarlyDroppedConvolutions()) - 1);
-  }
-  
   /*
    
    On filters, and how to chose them (here, filter and convolution means the same thing).
@@ -425,21 +422,104 @@ namespace imajuscule
   // handle the first coefficients using a zero-latency filter:
       OptimizedFIRFilter<T, FFTTag>,
   // handle subsequent coefficients using a filter optimized for worst audio callback cost:
-      FinegrainedPartitionnedFFTConvolution<T, FFTTag>
+  SplitConvolution<
+    FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // full resolution
+    SubSampled<
+      LatencySemantic::DiracPeak,
+      Delayed<
+
+  SplitConvolution<
+    FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // half resolution
+    SubSampled<
+      LatencySemantic::DiracPeak,
+      Delayed<
+
+  SplitConvolution<
+    FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // quarter resolution
+    SubSampled<
+      LatencySemantic::DiracPeak,
+      Delayed<
+
+  FinegrainedPartitionnedFFTConvolution<T, FFTTag> // heighth resolution
+  
+      >
+    >
+  >
+  
+      >
+    >
+  >
+
+      >
+    >
+  >
+
   >;
 
 
+  /*
+   Assuming that scales have resolutions of 1,2,4,8...
+   for every scale, the number of blocks = { N(k), k in 1 .. S }
+   N = sum (n in 0 .. (S-1)) 2^n N(k)
+   and since we want the number of blocks to be almost equal, we will solve this:
+   N = sum (n in 0 .. (S-1)) 2^n NF
+   NF = N / (2^S - 1)
+   */
+  static inline int get_sz_for_single_scale(int response_sz, int n_scales) {
+    int res = ceil(response_sz / static_cast<double>(pow2(n_scales) - 1));
+    // must be even !
+    if(res%2) {
+      return res + 1;
+    }
+    return res;
+  }
+
+  template<typename T>
+  struct EarlyestDeepest {
+    using type = T;
+  };
+
+  template<typename A, typename B>
+  struct EarlyestDeepest< SplitConvolution<A,B> > {
+    using type = typename EarlyestDeepest<A>::type;
+  };
+  template<typename A>
+  struct EarlyestDeepest< Delayed<A> > {
+    using type = typename EarlyestDeepest<A>::type;
+  };
+  template<LatencySemantic Lat, typename A>
+  struct EarlyestDeepest< SubSampled<Lat, A> > {
+    using type = typename EarlyestDeepest<A>::type;
+  };
+
+  
   template<typename A, typename B>
   struct PartitionAlgo< SplitConvolution<A,B> > {
     using NonAtomicConvolution = SplitConvolution<A,B>;
-    using Delegate = typename NonAtomicConvolution::LateHandler;
-
-    using SetupParam = typename Delegate::SetupParam;
+    
+  private:
+    using LateHandler = typename EarlyestDeepest<typename NonAtomicConvolution::LateHandler>::type;
+  public:
+    using SetupParam = typename LateHandler::SetupParam;
     using PS = PartitionningSpec<SetupParam>;
     using PSpecs = PartitionningSpecs<SetupParam>;
 
-    static PSpecs run(int n_channels, int n_audio_frames_per_cb, int size_impulse_response) {
-      return PartitionAlgo<Delegate>::run(n_channels, n_audio_frames_per_cb, size_impulse_response);
+    static PSpecs run(int n_channels, int n_audio_frames_per_cb, int total_response_size, int n_scales) {
+      auto late_handler_response_size_for_partition_size =
+      [total_response_size, n_scales](int partition_size) -> int {
+        // we substract the latency (that many coefficients will be handled by the early coefficients handler).
+        // it favors long partitions because we don't take into account
+        // the cost of the early coefficient handler, but for long responses, where optimization matters,
+        // it is negligible.
+        auto n_coeffs_early_handler = LateHandler::getLatencyForPartitionSize(partition_size);
+        auto late_response_sz = total_response_size - n_coeffs_early_handler;
+        // return the size for a single scale.
+        return get_sz_for_single_scale(late_response_sz, n_scales);
+      };
+      return PartitionAlgo<LateHandler>::run(n_channels,
+                                             n_scales,
+                                             n_audio_frames_per_cb,
+                                             late_handler_response_size_for_partition_size);
     }
   };
 
@@ -466,5 +546,21 @@ namespace imajuscule
   
   template<typename T, AudioProcessing P>
   using ZeroLatencyFilter = typename detail::OptimalFilter_<T,P>::type;
-  
+ 
+
+  template<typename Algo>
+  void debugSteps(Algo & c, int nMax=20) {
+    using namespace std;
+
+    cout << "--" << endl;
+
+    auto v = c.debugStep(1);
+    int k = 0;
+    cout << to_string(k) << " : " << to_string(v.first)<< " " << to_string(v.second) << endl;
+    ++k;
+    for(; k<nMax; ++k) {
+      v = c.debugStep(0);
+      cout << to_string(k) << " : " << to_string(v.first)<< " " << to_string(v.second) << endl;
+    }
+  }
 }

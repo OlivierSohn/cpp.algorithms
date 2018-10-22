@@ -73,6 +73,8 @@ private:
     Container materialize() const {
       return {b,e};
     }
+    
+    bool empty() const { return begin() == end(); }
   private:
     It b,e;
   };
@@ -81,7 +83,10 @@ private:
   std::pair<containerRange<Container>, containerRange<Container>> splitAt(int n, Container & c) {
     auto b = c.begin();
     auto e = c.end();
-    auto m = std::min(e, b+n);
+    auto m = e;
+    if(n >= 0 && b+n < e) {
+      m = b+n;
+    }
     return {{b,m},{m,e}};
   }
 

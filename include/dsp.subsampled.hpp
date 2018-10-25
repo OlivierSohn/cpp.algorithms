@@ -8,11 +8,29 @@ namespace imajuscule
     DiracPeak
   };
 
+  
+  /*
+   * To have a smooth transition between different sampling frequencies,
+   * we cross-fade the impulse response coefficients.
+   */
+  struct scaleFadeSz {
+    // expressed in number of periods at the higher frequency
+    static int constexpr inSmallerUnits = 40; // TODO adjust
+    static_assert(inSmallerUnits % 2 == 0);
+    // expressed in number of periods at the lower frequency
+    static int constexpr inBiggerUnits = inSmallerUnits/2;
+  };
+  
+
+  // we want to avoid approximations:
+  constexpr bool subSamplingAllowsEvenNumberOfCoefficients = false;
+
   /* The impulse response is downsampled by a factor of 2. */
   template <LatencySemantic Lat, typename Algo>
   struct SubSampled {
     using T = typename Algo::FPT;
     using FPT = T;
+    static constexpr int nCoefficientsFadeIn = scaleFadeSz::inSmallerUnits;
     
     using SetupParam = typename Algo::SetupParam;
  
@@ -29,10 +47,11 @@ namespace imajuscule
     }
     
     auto getLatency() const {
+      int const res = 2 * algo.getLatency();
       if constexpr (Lat == LatencySemantic::DiracPeak) {
-        return 1 + 2 * algo.getLatency();
+        return 1 + res;
       }
-      return 2 * algo.getLatency();
+      return res;
     }
     
     SubSampled() {
@@ -41,14 +60,15 @@ namespace imajuscule
     
     void setCoefficients(a64::vector<T> coeffs) {
       
-      assert(coeffs.size() % 2 == 0);
-      // ... but note that we could do this :
-       /*
-      if(coeffs.size()%2) {
-        // duplicate last coefficient.
-        coeffs.push_back(coeffs.back());
+      if constexpr (subSamplingAllowsEvenNumberOfCoefficients) {
+        if(coeffs.size()%2) {
+          // duplicate last coefficient.
+          coeffs.push_back(coeffs.back());
+        }
       }
-       */
+      else {
+        assert(coeffs.size() % 2 == 0);
+      }
 
       auto writeIt = coeffs.begin();
       {
@@ -75,6 +95,9 @@ namespace imajuscule
     
     FPT step(FPT input) {
       clock = !clock;
+      
+      // This branch will be badly predicted all the time
+      // because it changes every time it is taken
       if(clock) {
         prevInput = input;
         return prevOutput;
@@ -102,10 +125,9 @@ namespace imajuscule
 
   private:
     Algo algo;
-    bool clock; // not needed in branchless mode
+    bool clock;
     FPT prevOutput;
-    FPT prevInput; // not needed in branchless mode
-
+    FPT prevInput;
   };
   
 }

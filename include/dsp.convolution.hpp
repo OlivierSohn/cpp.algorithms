@@ -9,6 +9,7 @@ namespace imajuscule
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
+      static constexpr int nCoefficientsFadeIn = 0;
 
       using SetupParam = typename Parent::SetupParam;
 
@@ -104,6 +105,7 @@ namespace imajuscule
     using T = typename Parent::FPT;
     using FPT = T;
     using Tag = typename Parent::FFTTag;
+    static constexpr int nCoefficientsFadeIn = 0;
 
     struct SetupParam {
       float cost;

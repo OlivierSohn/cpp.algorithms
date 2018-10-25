@@ -24,7 +24,7 @@ namespace imajuscule
       c.setSplit(noSplit);
     }
     else {
-      c.setSplit( c.getB().getLatency() - c.getA().getLatency() );
+      c.setSplit( B::nCoefficientsFadeIn + c.getB().getLatency() - c.getA().getLatency() );
     }
   }
   template<typename A, typename B>
@@ -49,8 +49,11 @@ namespace imajuscule
                ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> & rev,
                int & n_scales,
                int const scale_sz ) {
-    int const delay = getDelaysForScaleAndPartitionSz(scale_sz, params.partition_size);
-    assert(n_scales <= 1 || delay > 0);
+    int delay = 0;
+    if(n_scales > 1) {
+      delay = SameSizeScales::getDelays(scale_sz, params.partition_size);
+      assert(delay > 0);
+    }
 
     // set the delays
     
@@ -63,30 +66,31 @@ namespace imajuscule
       (n_scales >= 4)?params:zero
     };
     assert(n_scales <= 4);
-    applySetup(rev,
-               {
-                 {},
-                 {
-                   ps[0],
-                   {
-                     (n_scales >= 2)?delay:0,
-                     {
-                       ps[1],
-                       {
-                         (n_scales >= 3)?delay:0,
-                         {
-                           ps[2],
-                           {
-                             (n_scales >= 4)?delay:0,
-                             ps[3]
-                           }
-                         }
-                       }
-                     }
-                   }
-                 }
-               }
-               );
+    typename ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>::SetupParam p
+    {
+      {},
+      {
+        ps[0],
+        {
+          (n_scales >= 2)?delay:0,
+          {
+            ps[1],
+            {
+              (n_scales >= 3)?delay:0,
+              {
+                ps[2],
+                {
+                  (n_scales >= 4)?delay:0,
+                  ps[3]
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+    applySetup(rev, p);
+    
   }
   
   

@@ -238,3 +238,27 @@ TEST(Container, grow2) {
   }
   
 }
+
+TEST(Containers, fadeIn) {
+  using namespace imajuscule;
+  std::vector<float> c1 {12.f,12.f,12.f,12.f,12.f};
+  
+  auto c = withLinearFadeIn(3, c1);
+  ASSERT_FLOAT_EQ(3.f, c[0]);
+  ASSERT_FLOAT_EQ(6.f, c[1]);
+  ASSERT_FLOAT_EQ(9.f, c[2]);
+  ASSERT_FLOAT_EQ(12.f, c[3]);
+  ASSERT_FLOAT_EQ(12.f, c[4]);
+}
+
+TEST(Containers, fadeOut) {
+  using namespace imajuscule;
+  std::vector<float> c1 {12.f,12.f,12.f,12.f,12.f};
+  
+  auto c = withLinearFadeOut(3, c1);
+  ASSERT_FLOAT_EQ(12.f, c[0]);
+  ASSERT_FLOAT_EQ(12.f, c[1]);
+  ASSERT_FLOAT_EQ(9.f, c[2]);
+  ASSERT_FLOAT_EQ(6.f, c[3]);
+  ASSERT_FLOAT_EQ(3.f, c[4]);
+}

@@ -10,6 +10,7 @@ namespace imajuscule
   template<typename T>
   struct FIRFilter {
     using FPT = T;
+    static constexpr int nCoefficientsFadeIn = 0;
     struct SetupParam {};
     
     void applySetup(SetupParam const &) const {}

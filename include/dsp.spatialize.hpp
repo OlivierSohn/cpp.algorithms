@@ -7,6 +7,79 @@
 namespace imajuscule
 {
   template<typename C>
+  int countScales(C & rev) {
+    auto & lateHandler = rev.getB();
+    {
+      auto & inner = lateHandler.getB().getInner().getInner();
+      if(inner.isZero()) {
+        return 1;
+      }
+    }
+    {
+      auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner();
+      if(inner.isZero()) {
+        return 2;
+      }
+    }
+    {
+      auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner().getB().getInner().getInner();
+      if(inner.isZero()) {
+        return 3;
+      }
+    }
+    return 4;
+  }
+  
+  template<typename C>
+  bool scalesAreValid(int n_scales, C & rev) {
+    auto & lateHandler = rev.getB();
+    for(int i=1; i<n_scales; ++i) {
+      // the top-most will be stepped 'base_phase' times,
+      // then each scale after that will be stepped by a quarter grain size.
+      // phases are cumulative, so stepping a scale also steps subsequent scales.
+      switch(i) {
+        case 1:
+        {
+          auto & inner = lateHandler.getB().getInner().getInner();
+          if(!inner.isValid()) {
+            return false;
+          }
+          if(inner.isZero()) {
+            return false;
+          }
+          break;
+        }
+        case 2:
+        {
+          auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner();
+          if(!inner.isValid()) {
+            return false;
+          }
+          if(inner.isZero()) {
+            return false;
+          }
+          break;
+        }
+        case 3:
+        {
+          auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner().getB().getInner().getInner();
+          if(!inner.isValid()) {
+            return false;
+          }
+          if(inner.isZero()) {
+            return false;
+          }
+          break;
+        }
+        default:
+          throw std::logic_error("out of bound");
+      }
+    }
+    
+    return true;
+  }
+  
+  template<typename C>
   void dephase(int phase, int n_scales, C & rev) {
     auto & lateHandler = rev.getB();
     for(int i=0; i<n_scales; ++i) {
@@ -23,6 +96,7 @@ namespace imajuscule
         {
           auto & inner = lateHandler.getB().getInner().getInner();
           assert(inner.isValid());
+          assert(!inner.isZero());
           int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
           for(int j=0; j<quarter_grain_size; ++j) {
             inner.step(0);
@@ -33,6 +107,7 @@ namespace imajuscule
         {
           auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner();
           assert(inner.isValid());
+          assert(!inner.isZero());
           int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
           for(int j=0; j<quarter_grain_size; ++j) {
             inner.step(0);
@@ -43,6 +118,7 @@ namespace imajuscule
         {
           auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner().getB().getInner().getInner();
           assert(inner.isValid());
+          assert(!inner.isZero());
           int quarter_grain_size = inner.getGranularMinPeriod() / 4;
           for(int j=0; j<quarter_grain_size; ++j) {
             inner.step(0);
@@ -90,6 +166,10 @@ namespace imajuscule
             int countSources() const {
               return earsConvs.empty() ? 0 : earsConvs[0].size();
             }
+          
+          int countScales() {
+            return (earsConvs.empty() || earsConvs[0].empty()) ? 0 : imajuscule::countScales(earsConvs[0][0]);
+          }
 
             int getLatency() const {
                 return (earsConvs.empty() || earsConvs[0].empty()) ? 0 : earsConvs[0][0].getLatency();

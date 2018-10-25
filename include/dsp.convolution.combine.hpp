@@ -26,6 +26,7 @@ namespace imajuscule
     using FPT = typename A::FPT;
     using EarlyHandler = A;
     using LateHandler = B;
+    static constexpr int nCoefficientsFadeIn = A::nCoefficientsFadeIn;
 
     struct SetupParam {
       using AParam = typename EarlyHandler::SetupParam;
@@ -56,18 +57,28 @@ namespace imajuscule
         throw std::logic_error("split was not set");
       }
       auto [rangeA,rangeB] = splitAt(split, coeffs_);
-      a.setCoefficients(rangeA.materialize());
+      
       if(rangeB.empty()) {
+        a.setCoefficients(rangeA.materialize());
         b.reset();
         assert(b.isZero());
         return;
       }
-      b.setCoefficients(rangeB.materialize());
+      else {
+        // prepend overlapping coefficients to b range:
+        rangeB.setBegin(rangeB.begin() - B::nCoefficientsFadeIn);
+        if(rangeB.begin() < rangeA.begin()) {
+          LG(ERR, "sz_coeffs: %d, split: %d, nFadeIn : %d", coeffs_.size(), split, B::nCoefficientsFadeIn);
+          throw std::logic_error("cannot cross-fade the coefficients");
+        }
+        a.setCoefficients(withLinearFadeOut(B::nCoefficientsFadeIn,rangeA.materialize()));
+        b.setCoefficients(withLinearFadeIn( B::nCoefficientsFadeIn,rangeB.materialize()));
+      }
       assert(!b.isZero());
-      if(split + a.getLatency() == b.getLatency()) {
+      if(split + a.getLatency() == B::nCoefficientsFadeIn + b.getLatency()) {
         return;
       }
-      LG(ERR, "split : %d, a lat: %d, b lat: %d", split, a.getLatency(), b.getLatency());
+      LG(ERR, "split : %d, a lat: %d, b lat: %d, b init: %d", split, a.getLatency(), b.getLatency(), B::nCoefficientsFadeIn);
       throw std::logic_error("inconsistent split (latencies are not adapted)");
     }
 
@@ -209,7 +220,9 @@ namespace imajuscule
   struct ScaleConvolution {
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
-    
+    static constexpr int nCoefficientsFadeIn = 0;
+    static_assert(A::nCoefficientsFadeIn == 0); // else we need to handle them
+
     struct SetupParam {
       /*
        * The number of early convolutions that are dropped.
@@ -461,39 +474,49 @@ namespace imajuscule
 
   >;
 
-
-  /*
-   Assuming that scales have resolutions of 1,2,4,8...
-   for every scale, the number of blocks = { N(k), k in 1 .. S }
-   N = sum (n in 0 .. (S-1)) 2^n N(k)
-   and since we want the number of blocks to be almost equal, we will solve this:
-   N = sum (n in 0 .. (S-1)) 2^n NF
-   NF = N / (2^S - 1)
-   */
-  static inline int get_sz_for_single_scale(int response_sz, int n_scales) {
-    assert(response_sz>=0);
-    int res = ceil(response_sz / static_cast<double>(pow2(n_scales) - 1));
-    // must be even !
-    if(res%2) {
-      return res + 1;
+  namespace SameSizeScales {
+    /*
+     Assuming that scales have resolutions of 1,2,4,8...
+     for every scale, the number of blocks = { N(k), k in 1 .. S }
+     Assuming that between scale i and (i+1) there are nOverlap*2^(i-1) blocks in common
+     N = sum (n in 0 .. (S-1)) 2^n N(n+1) + scaleFadeSz::inSmallerUnits * sum (n in 1.. (S-1)) 2^(n-1)
+     and since we want the number of blocks to be equal
+     (hence the namespace name 'SameSizeScales'), we will solve this:
+     N = NF * sum (n in 0 .. (S-1)) 2^n + scaleFadeSz::inSmallerUnits * sum (n in 0.. (S-2)) 2^n
+     N = NF * (2^S - 1) + scaleFadeSz::inSmallerUnits * (2^(S-1)-1)
+     NF = (N - scaleFadeSz::inSmallerUnits * (2^(S-1)-1)) / (2^S - 1)
+     */
+    static inline int get_scale_sz(int response_sz, int n_scales) {
+      assert(response_sz>=0);
+      int numerator = response_sz - static_cast<int>(scaleFadeSz::inSmallerUnits * (pow2(n_scales-1) - 1));
+      int denominator = pow2(n_scales) - 1;
+      int res = ceil(numerator / static_cast<double>(denominator));
+      if(subSamplingAllowsEvenNumberOfCoefficients || n_scales <= 1) {
+        return res;
+      }
+      if(res%2) {
+        return res + 1;
+      }
+      return res;
     }
-    return res;
-  }
-
-  int constexpr getDelaysForScaleAndPartitionSz(int scale_sz, int partition_sz) {
-    // split = latB - latA
-    // scale_sz = (1 + 2*(delay + latA)) - latA
-    // scale_sz - 1 = 2*delay + latA
-    // delay = 0.5 * (scale_sz - 1 - latA)
-    // delay = 0.5 * (scale_sz - 1 - (2*partition_sz-1))
-    // delay = (0.5 * scale_sz) - partition_sz
-    assert(0 == scale_sz % 2);
-    return (scale_sz / 2) - partition_sz;
+    static inline int get_max_response_sz(int n_scales, int sz_one_scale) {
+      return
+      sz_one_scale * (pow2(n_scales) - 1) +
+      scaleFadeSz::inSmallerUnits * (pow2(n_scales-1) - 1);
+    }
     
-    // delay >= 0
-    // scale_sz / 2 >= partition_sz
-    // scale_sz >=
-  }
+    int constexpr getDelays(int scale_sz, int partition_sz) {
+      // split = nFadeIn + latB - latA
+      // scale_sz = nFadeIn + (1 + 2*(delay + latA)) - latA
+      // scale_sz - 1 - nFadeIn = 2*delay + latA
+      // delay = 0.5 * (scale_sz - 1 - nFadeIn - latA)
+      // delay = 0.5 * (scale_sz - 1 - nFadeIn - (2*partition_sz-1))
+      // delay = (0.5 * (scale_sz - nFadeIn)) - partition_sz
+      assert(0 == (scale_sz-scaleFadeSz::inSmallerUnits) % 2);
+      return ((scale_sz-scaleFadeSz::inSmallerUnits) / 2) - partition_sz;
+    }
+  };
+
   
 
   template<typename T>
@@ -572,7 +595,7 @@ namespace imajuscule
 
         auto late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
 
-        auto scale_sz = get_sz_for_single_scale(late_response_sz, n_scales);
+        auto scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
         if(scale_sz <= 0) {
           return {};
         }
@@ -581,7 +604,7 @@ namespace imajuscule
           // verify that we can have more than one scale (i.e the delay needed to scale is strictly positive)
           // in theory we could relax the constraint (0 delays are ok but the implementation
           // doesn't support that).
-          if(getDelaysForScaleAndPartitionSz(scale_sz, partition_size) <= 0) {
+          if(SameSizeScales::getDelays(scale_sz, partition_size) <= 0) {
             return {};
           }
         }

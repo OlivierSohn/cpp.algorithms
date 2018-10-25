@@ -6,6 +6,7 @@ namespace imajuscule
   struct Delayed {
     using T = typename Algo::FPT;
     using FPT = T;
+    static constexpr int nCoefficientsFadeIn = Algo::nCoefficientsFadeIn;
     
     struct SetupParam {
       int delay;

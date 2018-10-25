@@ -86,6 +86,7 @@ namespace imajuscule {
       
       using Tr = ConvolutionTraits<Convolution>;
       
+      // at the dirac, it's 1:
       if(conv.getLatency()) {
         expectZero.push_back(conv.step(1));
       }
@@ -93,6 +94,7 @@ namespace imajuscule {
         results.push_back(conv.step(1));
       }
       
+      // after the dirac, it's 0:      
       for(int i=1; i<conv.getLatency(); ++i) {
         expectZero.push_back(conv.step(0));
       }
@@ -111,6 +113,9 @@ namespace imajuscule {
       for(auto j=0; j<results.size(); ++j) {
         if(!coeffMask[j]) {
           continue;
+        }
+        if(std::abs(coefficients[j] - results[j])>0.001) {
+          LG(INFO,"");
         }
         ASSERT_NEAR(coefficients[j], results[j], eps);
       }
@@ -272,141 +277,6 @@ namespace imajuscule {
     template<typename Tag>
     bool testDirac() {
       using namespace fft;
-
-      // crawl (A and B have non-overlapping output for a dirac)
-      {
-        using C = SplitConvolution<
-        FIRFilter<double>,                      // A
-        SubSampled<LatencySemantic::FirstNonZero, FFTConvolution<double, Tag>> // B
-        >;
-        
-        auto c = C{};
-        
-        auto coefficients = makeCoefficients<double>(11);
-        assert(coefficients.size() == 4 + 2*3);
-        
-        c.setSplit(4);
-        
-        using Tr = ConvolutionTraits<C>;
-        c.setCoefficients(coefficients);
-        
-        auto it = coefficients.begin()+4;
-        auto end = coefficients.end();
-        averageNeighbours(it,end);
-        
-        std::vector<bool> mask;
-        mask.reserve(coefficients.size());
-        for(int j=0; j<coefficients.size(); ++j) {
-          bool activate = true;
-          if(j>=4 && (0 == (j-4)%2)) {
-            activate = false;
-          }
-          mask.push_back(activate);
-        }
-        
-        test(c, coefficients, mask);
-      }
-      
-      // walk (A and B have 1 overlapping sample for a dirac input)
-      {
-        using C = SplitConvolution<
-        FinegrainedPartitionnedFFTConvolution<double, Tag>,   // A
-        SubSampled<
-          LatencySemantic::DiracPeak,
-          FinegrainedPartitionnedFFTConvolution<double, Tag>> // B
-        >;
-        
-        // A has a latency of 7  (peak latency of 7, too)
-        // B has a latency of 14 (peak latency of 15)
-        // Hence the split should be at 15 - 7, and there is one overlapping sample.
-        
-        auto c = C{};
-        applySetup(c,typename C::SetupParam{FinegrainedSetupParam{4,1,0},FinegrainedSetupParam{4,1,0}});
-
-        auto coefficients = makeCoefficients<double>(11);
-        assert(coefficients.size() == 4 + 2*3);
-        
-        c.setSplit(8); // B peak latency - A peak latency
-        
-        // so if we want to use a larger split, for example to have a better resolution for a longer time,
-        // we should manually delay the inputs of B.
-        
-        using Tr = ConvolutionTraits<C>;
-        c.setCoefficients(coefficients);
-        
-        auto it = coefficients.begin()+8;
-        auto end = coefficients.end();
-        averageNeighbours(it,end);
-        
-        std::vector<bool> mask;
-        mask.reserve(coefficients.size());
-        for(int j=0; j<coefficients.size(); ++j) {
-          bool activate = true;
-          if(j>=7 && (0 == (j-7)%2)) {
-            activate = false;
-          }
-          mask.push_back(activate);
-        }
-        
-        test(c, coefficients, mask);
-      }
-      
-      // run (with delay)
-      {
-        using C = SplitConvolution<
-        FinegrainedPartitionnedFFTConvolution<double, Tag>,            // A
-        SubSampled<
-          LatencySemantic::DiracPeak,
-          Delayed<FinegrainedPartitionnedFFTConvolution<double, Tag>>> // B
-        >;
-        
-        // A has a latency of 7  (peak latency of 7, too)
-        // B has a latency of 2*delay + 14 (peak latency of 2*delay + 15)
-        // Hence the split should be at 2*delay + 15 - 7, and there is one overlapping sample.
-        // 2*delay = split + 7 - 15
-        
-        auto c = C{};
-        // 4 is the min partition size to be valid
-        applySetup(c,typename C::SetupParam
-        {
-          FinegrainedSetupParam{4,4,0},
-          {
-            1, // delay in downsampled units
-            FinegrainedSetupParam{4,4,0}
-          }
-        });
-        
-        auto coefficients = makeCoefficients<double>(13);
-        assert(coefficients.size() == 12);
-        
-        auto constexpr split = 10;
-        
-        c.setSplit(split);
-        
-        // so if we want to use a larger split, for example to have a better resolution for a longer time,
-        // we should manually delay the inputs of B.
-        
-        using Tr = ConvolutionTraits<C>;
-        c.setCoefficients(coefficients);
-        
-        auto it = coefficients.begin()+split;
-        auto end = coefficients.end();
-        averageNeighbours(it,end);
-        
-        std::vector<bool> mask;
-        mask.reserve(coefficients.size());
-        for(int j=0; j<coefficients.size(); ++j) {
-          bool activate = true;
-          if(j>=(split-1) && (0 == (j-(split-1))%2)) {
-            activate = false;
-          }
-          mask.push_back(activate);
-        }
-        
-        test(c, coefficients, mask);
-      }
-      
-      
       
       for(int i=0; i<end_index; ++i) {
         testDiracFinegrainedPartitionned<float, Tag>(i);

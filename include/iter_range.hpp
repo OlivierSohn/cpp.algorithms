@@ -75,6 +75,9 @@ private:
     }
     
     bool empty() const { return begin() == end(); }
+    
+    void setBegin(It beg) { b = beg; }
+    void setEnd(It end) { e = end; }
   private:
     It b,e;
   };
@@ -90,4 +93,48 @@ private:
     return {{b,m},{m,e}};
   }
 
+  template<typename Container>
+  Container withLinearFadeIn(int fadeSz, Container c) {
+    // "0" and "1" values are before and after the 'fadeSz' values modified here.
+    if(fadeSz < 0) {
+      throw(std::logic_error("negative fade"));
+    }
+    if(c.size() < fadeSz) {
+      throw(std::logic_error("cannot fade tiny container"));
+    }
+    int nIntervals = fadeSz + 1;
+    using T = typename Container::value_type;
+    static_assert(std::is_floating_point_v<T>);
+
+    T step = 1 / static_cast<T>(nIntervals);
+    
+    for(int i=0; i<fadeSz; ++i) {
+      c[i] *= step * (i+1);
+    }
+    
+    return std::move(c);
+  }
+  
+  
+  template<typename Container>
+  Container withLinearFadeOut(int fadeSz, Container c) {
+    // "1" and "0" values are before and after the 'fadeSz' values modified here.
+    if(fadeSz < 0) {
+      throw(std::logic_error("negative fade"));
+    }
+    if(c.size() < fadeSz) {
+      throw(std::logic_error("cannot fade tiny container"));
+    }
+    int nIntervals = fadeSz + 1;
+    using T = typename Container::value_type;
+    static_assert(std::is_floating_point_v<T>);
+    
+    T step = 1 / static_cast<T>(nIntervals);
+    
+    for(int i=0; i<fadeSz; ++i) {
+      c[c.size()-1-i] *= step * (i+1);
+    }
+
+    return std::move(c);
+  }
 } // NS imajuscule

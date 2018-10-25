@@ -114,7 +114,7 @@ namespace imajuscule
   };
   
 
-  static std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
+  static inline std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
   {
     using namespace std;
     os
@@ -131,6 +131,8 @@ namespace imajuscule
     using T = typename Parent::FPT;
     using FPT = T;
     using Tag = typename Parent::FFTTag;
+
+    static constexpr int nCoefficientsFadeIn = 0;
 
     using SetupParam = FinegrainedSetupParam;
 
@@ -157,6 +159,7 @@ namespace imajuscule
     using Parent::getGranularMinPeriod;
     using Parent::doSetMultiplicationGroupLength;
     using Parent::isValid;
+    using Parent::clear;
     using Parent::countPartitions;
     using Parent::countGrains;
     using Parent::getGrainNumber;
@@ -187,13 +190,13 @@ namespace imajuscule
 
       doSetCoefficients(fft, std::move(coeffs_));
       reset_states();
-      LG(INFO,"%p setCoeffs", this);
     }
     
     void reset() {
       y.clear();
       result.clear();
       reset_states();
+      clear();
     }
     
     bool isZero() const {

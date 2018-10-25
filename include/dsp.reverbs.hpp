@@ -29,6 +29,16 @@ namespace imajuscule
     
     using SetupParam = typename ConvolutionReverb::SetupParam;
     using PS = typename PartitionAlgo<ConvolutionReverb>::PS;
+    
+    int countScales() {
+      if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0].isZero()) {
+        return imajuscule::countScales(conv_reverbs[0]);
+      }
+      else if(!spatializer.empty()) {
+        return spatializer.countScales();
+      }
+      return 0;
+    }
 
     void apply(double*buffer, int nFrames) {
       // raw convolutions and spatializer are mutually exclusive.
@@ -158,13 +168,13 @@ namespace imajuscule
                                                   lateHandlerLatency<ConvolutionReverb>(spec.cost->partition_size));
       int const total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
       int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
-      int const scale_sz = get_sz_for_single_scale(late_response_sz, n_scales);
+      int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
       
       cout << "scale size: " << scale_sz << endl;
       
       if(n_scales > 1) {
         // pad the coefficients so that all scales have the same rythm.
-        int const target_late_response_sz = scale_sz * (pow2(n_scales)-1);
+        int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
         for(auto & v : deinterlaced_coeffs) {
           v.resize(n_coeffs_early_handler + target_late_response_sz);
         }
@@ -182,7 +192,15 @@ namespace imajuscule
           prepare(*spec.cost, rev, n_scales, scale_sz);
           rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
           assert(rev.isValid());
-          
+          assert(scalesAreValid(n_scales, rev));
+          assert(imajuscule::countScales(rev) == n_scales);
+          // uncomment to debug
+          /*
+          while(!scalesAreValid(n_scales, rev)) {
+            rev.reset();
+            prepare(*spec.cost, rev, n_scales, scale_sz);
+            rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
+          }*/
           // to "spread" the computations of each channel's convolution reverbs
           // on different audio callback calls, we separate them as much as possible using a phase:
           dephase(n * spec.cost->phase, n_scales, rev);

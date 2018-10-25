@@ -46,6 +46,7 @@ namespace imajuscule
       
       void reset() {
         y.clear();
+        it = y.end();
         result.clear();
       }
       
@@ -584,8 +585,8 @@ namespace imajuscule
 
     template<typename SetupParam>
     struct PartitionningSpec {
-        SetupParam cost;
-        float getCost() const { return static_cast<float>(cost); }
+        Optional<SetupParam> cost;
+      float getCost() const { return cost ? static_cast<float>(*cost) : std::numeric_limits<float>::max(); }
         GradientDescent<SetupParam> gd;
     };
 
@@ -594,7 +595,13 @@ namespace imajuscule
         using PS = PartitionningSpec<SetupParam>;
 
         PS & getWithSpread() {
-            return with_spread.cost < without_spread.cost ? with_spread : without_spread;
+          if(with_spread.cost) {
+            if(without_spread.cost) {
+              return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
+            }
+            return with_spread;
+          }
+          return without_spread;
         }
 
         PS with_spread, without_spread;

@@ -154,7 +154,10 @@ namespace imajuscule {
         {
           FinegrainedPartitionnedFFTConvolution<T, Tag> conv;
           
-          applySetup(conv, {part_size, 1, 0});
+          applySetup(conv, {part_size, 1000, 0});
+          if(!conv.isValid()) {
+            continue;
+          }
           conv.setCoefficients(coefficients);
           
           range<int> r {
@@ -191,6 +194,9 @@ namespace imajuscule {
         PartitionnedFFTConvolution<T,Tag> conv;
         
         applySetup(conv, {1.f,{part_size}});
+        if(!conv.isValid()) {
+          return;
+        }
         conv.setCoefficients(coefficients);
 
         std::vector<bool> mask;
@@ -204,6 +210,10 @@ namespace imajuscule {
     
     template<typename Convolution>
     void testDirac2(int coeffs_index, Convolution & conv) {
+      
+      if(!conv.isValid()) {
+        return;
+      }
       
       using T = typename Convolution::FPT;
       
@@ -240,7 +250,7 @@ namespace imajuscule {
       {
         {{},{}},
         {
-          FinegrainedSetupParam{4,1,0},
+          FinegrainedSetupParam{4,1000,0},
           {
             0,
             {FinegrainedSetupParam{0,1,0},
@@ -359,10 +369,10 @@ namespace imajuscule {
         // 4 is the min partition size to be valid
         applySetup(c,typename C::SetupParam
         {
-          FinegrainedSetupParam{4,1,0},
+          FinegrainedSetupParam{4,4,0},
           {
             1, // delay in downsampled units
-            FinegrainedSetupParam{4,1,0}
+            FinegrainedSetupParam{4,4,0}
           }
         });
         

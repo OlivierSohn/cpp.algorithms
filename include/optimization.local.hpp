@@ -34,7 +34,7 @@ namespace imajuscule
             reset();
         }
         
-        int findLocalMinimum(int const n_iterations, int start_param, Value & min_val) {
+        Optional<int> findLocalMinimum(int const n_iterations, int start_param, Optional<Value> & min_val) {
             verify_func_exists();
             
             for(int i=0; i<n_iterations; ++i) {
@@ -49,8 +49,12 @@ namespace imajuscule
                         break;
                     }
                 }
-                min_val = this->min_value;
-                start_param = min_param;
+              if(min_value) {
+                min_val = *min_value;
+              }
+              if(min_param) {
+                start_param = *min_param;
+              }
             }
             
             return min_param;
@@ -62,7 +66,7 @@ namespace imajuscule
             plot(logdraw); // to see result before we add points
 
             auto const min_index = std::min(0, begin()->first);
-            auto const end_index = std::max(9, min_param + 5);
+          auto const end_index = std::max(9, (min_param?*min_param:0) + 5);
             
             auto const ret2 = make_exhaustive(range<int>{min_index, end_index-1});
             plot(logdraw);                        
@@ -71,18 +75,18 @@ namespace imajuscule
     private:
         int decreasing_direction;
         int first_param;
-        int min_param;
-        Value min_value;
+        Optional<int> min_param;
+        Optional<Value> min_value;
 
         void reset() { onFunctionChanged(); }
         
         void onFunctionChanged() override {
             Base::onFunctionChanged();
             decreasing_direction = 0;
-            min_param = -1;
+          min_param = {};
         }
         
-        int do_run(int param) {
+        int do_run(int const param) {
             Value val;
             auto res = eval(param, val);
             
@@ -90,7 +94,8 @@ namespace imajuscule
                 // we went too far
                 if(!decreasing_direction) {
                     if(first_param == param) {
-                        throw std::logic_error("the first parameter passed is out of range");
+                      LG(INFO,"the first parameter passed is out of range");
+                      return first_param;
                     }
                     // we want to go away from where we are
                     decreasing_direction = (first_param > param) ? 1 : -1;
@@ -166,10 +171,10 @@ namespace imajuscule
      * @return the 'x index' at which the 'y min_value' was found
      */
     template<typename F>
-    int findLocalMinimum(int n_iterations,
+    Optional<int> findLocalMinimum(int n_iterations,
                          int from,
                          F f,
-                         float & min_value)
+                         Optional<float> & min_value)
     {
         GradientDescent<float> gd(f);
         

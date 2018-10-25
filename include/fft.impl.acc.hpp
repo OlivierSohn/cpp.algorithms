@@ -89,8 +89,8 @@ namespace imajuscule {
 
             auto get_hybrid_split() {
                 return SC {
-                    buffer.data(),
-                    buffer.data() + buffer.size()/2
+                    &buffer[0],
+                    &buffer[0] + buffer.size()/2
                 };
             }
 
@@ -275,8 +275,8 @@ namespace imajuscule {
                     buffer.reserve(N * sizeof(T));
 
                     SplitComplex<T> buf {
-                        reinterpret_cast<T*>(buffer.data()),
-                        reinterpret_cast<T*>(buffer.data()) + N / 2
+                        reinterpret_cast<T*>(&buffer[0]),
+                        reinterpret_cast<T*>(&buffer[0]) + N / 2
                     };
 
                     API<T>::f_fft_zript(context,
@@ -308,8 +308,8 @@ namespace imajuscule {
                     buffer.reserve(N * sizeof(T));
 
                     SplitComplex<T> buf {
-                        reinterpret_cast<T*>(buffer.data()),
-                        reinterpret_cast<T*>(buffer.data()) + N / 2
+                        reinterpret_cast<T*>(&buffer[0]),
+                        reinterpret_cast<T*>(&buffer[0]) + N / 2
                     };
 
                     API<T>::f_fft_zript(context,
@@ -330,7 +330,7 @@ namespace imajuscule {
                 constexpr auto inputStride = 1;
                 API<T>::f_ztoc(&Output,
                                1,
-                               reinterpret_cast<Complex<T> *>(input.data()),
+                               reinterpret_cast<Complex<T> *>(&input[0]),
                                inputStride * 2,
                                N/2);
 

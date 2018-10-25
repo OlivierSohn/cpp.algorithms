@@ -40,9 +40,15 @@ namespace imajuscule
     }
     
     void setCoefficients(a64::vector<T> coeffs) {
-      reset();
       
       assert(coeffs.size() % 2 == 0);
+      // ... but note that we could do this :
+       /*
+      if(coeffs.size()%2) {
+        // duplicate last coefficient.
+        coeffs.push_back(coeffs.back());
+      }
+       */
 
       auto writeIt = coeffs.begin();
       {

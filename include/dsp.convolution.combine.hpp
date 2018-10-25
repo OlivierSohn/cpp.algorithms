@@ -42,6 +42,7 @@ namespace imajuscule
     void reset() {
       a.reset();
       b.reset();
+      split = undefinedSplit;
     }
 
     // The split should be equal to "latency of B - latency of A"
@@ -191,6 +192,14 @@ namespace imajuscule
 
 
   /*
+   * The default value is optimal for the system I developped on (OSX / Macbook Air 2015 / intel core i7).
+   * see 'TEST(BenchmarkConvolutions, scaled_vs_brute)' on how to determine the best value for a given system.
+   *
+   * TODO ideally this value should be a global, computed at initialization time.
+   */
+  constexpr int scaleConvolutionOptimalNDropped = 5;
+
+  /*
    * Creates a 0-latency convolution by combining 'n' sub-convolutions
    * of latencies 2^k-1, where k is in [0,n-1].
    *
@@ -200,10 +209,18 @@ namespace imajuscule
   struct ScaleConvolution {
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
-
+    
     struct SetupParam {
-      int nDropped = 5; // see 'TEST(BenchmarkConvolutions, scaled_vs_brute)' :
-      // 5 gives the fastest results on OSX / intel core i7.
+      /*
+       * The number of early convolutions that are dropped.
+       * The coefficients associated to these dropped convolutions are typically handled
+       * by another convolution handler. (there are '2^nDropped - 1' such coefficients)
+       *
+       * WARNING: Do not change the default value unless you know what you are doing:
+       * PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> >
+       * assumes that this value will be the default value.
+       */
+      int nDropped = scaleConvolutionOptimalNDropped;
     };
 
     bool isZero() const {
@@ -213,20 +230,11 @@ namespace imajuscule
       v.clear();
       x.clear();
       progress = 0;
+      nDroppedConvolutions = 0;
     }
 
     /*
-     * Sets the number of early convolutions that are dropped.
-     * The coefficients associated to these dropped convolutions are typically handled
-     * by another convolution handler. (there are '2^nDropped - 1' such coefficients)
      *
-     * Also calls 'clear'. Hence, if you want to set the number of dropped convolutions,
-     * you should do so before calling 'setCoefficients'.
-     *
-     * Note that the default value is optimal for the system I developped on.
-     * see 'TEST(BenchmarkConvolutions, scaled_vs_brute)' on how to determine the best value for a goven system.
-     *
-     * TODO ideally this value should be a global, computed at initialization time.
      */
     void applySetup(SetupParam const & p) {
       reset();
@@ -245,11 +253,8 @@ namespace imajuscule
     // and then this class could allocate the memory in one big chunk, and split it among 'A's.
     // This way, step / get could benefit from better memory locality, and memory accesses may be more predictable.
     void setCoefficients(a64::vector<FPT> coeffs_) {
-      reset();
       auto s = coeffs_.size();
-      if( s == 0 ) {
-        return;
-      }
+      assert( s > 0 );
       // note that these dropped coefficients are not passed to this function
       auto nFirstCoefficients = pow2(nDroppedConvolutions)-1;
       auto n = power_of_two_exponent(ceil_power_of_two(nFirstCoefficients+s+1));
@@ -279,7 +284,7 @@ namespace imajuscule
           // This breaks the class logic, and would lead to wrong results.
           //   (for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.)
           LG(ERR,"ScaleConvolution is applied to a type that doesn't respect the latency constraints.");
-          reset();
+          v.clear();
           return;
         }
       }
@@ -415,8 +420,8 @@ namespace imajuscule
         FFTConvolutionCore<T, FFTTag>
       >
     >;
-
-  template<typename T, typename FFTTag = fft::Fastest>
+  
+  template<typename T, typename FFTTag = fft::Fastest, LatencySemantic Lat = LatencySemantic::DiracPeak>
   using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
     SplitConvolution<
   // handle the first coefficients using a zero-latency filter:
@@ -425,19 +430,19 @@ namespace imajuscule
   SplitConvolution<
     FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // full resolution
     SubSampled<
-      LatencySemantic::DiracPeak,
+      Lat,
       Delayed<
 
   SplitConvolution<
     FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // half resolution
     SubSampled<
-      LatencySemantic::DiracPeak,
+      Lat,
       Delayed<
 
   SplitConvolution<
     FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // quarter resolution
     SubSampled<
-      LatencySemantic::DiracPeak,
+      Lat,
       Delayed<
 
   FinegrainedPartitionnedFFTConvolution<T, FFTTag> // heighth resolution
@@ -466,6 +471,7 @@ namespace imajuscule
    NF = N / (2^S - 1)
    */
   static inline int get_sz_for_single_scale(int response_sz, int n_scales) {
+    assert(response_sz>=0);
     int res = ceil(response_sz / static_cast<double>(pow2(n_scales) - 1));
     // must be even !
     if(res%2) {
@@ -473,6 +479,22 @@ namespace imajuscule
     }
     return res;
   }
+
+  int constexpr getDelaysForScaleAndPartitionSz(int scale_sz, int partition_sz) {
+    // split = latB - latA
+    // scale_sz = (1 + 2*(delay + latA)) - latA
+    // scale_sz - 1 = 2*delay + latA
+    // delay = 0.5 * (scale_sz - 1 - latA)
+    // delay = 0.5 * (scale_sz - 1 - (2*partition_sz-1))
+    // delay = (0.5 * scale_sz) - partition_sz
+    assert(0 == scale_sz % 2);
+    return (scale_sz / 2) - partition_sz;
+    
+    // delay >= 0
+    // scale_sz / 2 >= partition_sz
+    // scale_sz >=
+  }
+  
 
   template<typename T>
   struct EarlyestDeepest {
@@ -493,9 +515,32 @@ namespace imajuscule
   };
 
   
-  template<typename A, typename B>
-  struct PartitionAlgo< SplitConvolution<A,B> > {
-    using NonAtomicConvolution = SplitConvolution<A,B>;
+  constexpr int minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter = static_cast<int>(pow2(scaleConvolutionOptimalNDropped))-1;
+
+  template<typename C>
+  int constexpr lateHandlerLatency(int partition_sz) {
+    using LateHandler = typename EarlyestDeepest<typename C::LateHandler>::type;
+    auto res = LateHandler::getLatencyForPartitionSize(partition_sz);
+    return res;
+  }
+  
+  template<typename C>
+  int constexpr getLateHandlerMinLg2PartitionSz() {
+    using LateHandler = typename EarlyestDeepest<typename C::LateHandler>::type;
+
+    int partition_sz = 1;
+    for(;;partition_sz *= 2) {
+      if(LateHandler::getLatencyForPartitionSize(partition_sz) >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        break;
+      }
+    }
+    
+    return power_of_two_exponent(partition_sz);
+  }
+  
+  template<typename T, typename FFTTag>
+  struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> > {
+    using NonAtomicConvolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>;
     
   private:
     using LateHandler = typename EarlyestDeepest<typename NonAtomicConvolution::LateHandler>::type;
@@ -505,21 +550,48 @@ namespace imajuscule
     using PSpecs = PartitionningSpecs<SetupParam>;
 
     static PSpecs run(int n_channels, int n_audio_frames_per_cb, int total_response_size, int n_scales) {
+      if(total_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        // in that case there is no late handling at all.
+        PS ps;
+        ps.cost = FinegrainedSetupParam::makeInactive();
+        return {ps,ps};
+      }
       auto late_handler_response_size_for_partition_size =
-      [total_response_size, n_scales](int partition_size) -> int {
-        // we substract the latency (that many coefficients will be handled by the early coefficients handler).
+      [total_response_size, n_scales](int partition_size) -> Optional<int> {
+        if(LateHandler::getLatencyForPartitionSize(partition_size) < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+          // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
+          // this case doesn't happen on the first try.
+          return {};
+        }
+        // we substract the count of coefficients handled by the early coefficients handler.
         // it favors long partitions because we don't take into account
         // the cost of the early coefficient handler, but for long responses, where optimization matters,
-        // it is negligible.
-        auto n_coeffs_early_handler = LateHandler::getLatencyForPartitionSize(partition_size);
-        auto late_response_sz = total_response_size - n_coeffs_early_handler;
-        // return the size for a single scale.
-        return get_sz_for_single_scale(late_response_sz, n_scales);
+        // the induced bias is negligible.
+        int n_coeffs_early_handler = lateHandlerLatency<NonAtomicConvolution>(partition_size);
+        assert(n_coeffs_early_handler >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter);
+
+        auto late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
+
+        auto scale_sz = get_sz_for_single_scale(late_response_sz, n_scales);
+        if(scale_sz <= 0) {
+          return {};
+        }
+        // TODO return also the size of early coefficients, and take the early cost into account.
+        if(n_scales > 1) {
+          // verify that we can have more than one scale (i.e the delay needed to scale is strictly positive)
+          // in theory we could relax the constraint (0 delays are ok but the implementation
+          // doesn't support that).
+          if(getDelaysForScaleAndPartitionSz(scale_sz, partition_size) <= 0) {
+            return {};
+          }
+        }
+        return {scale_sz};
       };
       return PartitionAlgo<LateHandler>::run(n_channels,
                                              n_scales,
                                              n_audio_frames_per_cb,
-                                             late_handler_response_size_for_partition_size);
+                                             late_handler_response_size_for_partition_size,
+                                             getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>());
     }
   };
 

@@ -22,27 +22,35 @@ namespace imajuscule
         case 1:
         {
           auto & inner = lateHandler.getB().getInner().getInner();
+          assert(inner.isValid());
           int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
           for(int j=0; j<quarter_grain_size; ++j) {
             inner.step(0);
           }
+          break;
         }
         case 2:
         {
           auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner();
+          assert(inner.isValid());
           int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
           for(int j=0; j<quarter_grain_size; ++j) {
             inner.step(0);
           }
+          break;
         }
         case 3:
         {
           auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner().getB().getInner().getInner();
+          assert(inner.isValid());
           int quarter_grain_size = inner.getGranularMinPeriod() / 4;
           for(int j=0; j<quarter_grain_size; ++j) {
             inner.step(0);
           }
+          break;
         }
+        default:
+          throw std::logic_error("out of bound");
       }
     }
     
@@ -90,9 +98,9 @@ namespace imajuscule
             template<typename SetupP>
             void addSourceLocation(std::array<a64::vector<T>, nEars> vcoeffs,
                                    SetupP const & setup,
-                                   int n_scales,
+                                   int & n_scales,
                                    int scale_sz) {
-                forEachEar(vcoeffs, [this,n_scales, scale_sz, &setup](auto & earConvs, auto & coeffs) {
+                forEachEar(vcoeffs, [this,&n_scales, scale_sz, &setup](auto & earConvs, auto & coeffs) {
                     earConvs.emplace_back();
                     auto & c = earConvs.back();
                     prepare(setup, c, n_scales, scale_sz);

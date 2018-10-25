@@ -225,49 +225,54 @@ TEST(Peaks, first_non_abs_avg_decreasing)
     }
 }
 
-TEST(Peaks, max_abs_integrated_lobe)
-{
-    using namespace imajuscule;
-    {
-        std::vector<float> v{ 0.f, 1.f, 0.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(1.f, val);
-    }
-    {
-        std::vector<float> v{ 0.f, -1.f, 0.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(1.f, val);
-    }
-    {
-        std::vector<float> v{ 1.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(1.f, val);
-    }
-    {
-        std::vector<float> v{ -1.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(1.f, val);
-    }
-    {
-        std::vector<float> v{ 0.f, 1.f, 2.f, 0.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(3.f, val);
-    }
-    {
-        std::vector<float> v{ 0.f, 1.f, 2.f, -4.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(4.f, val);
-    }
-    {
-        std::vector<float> v{ -4.f, 0.f, 1.f, 2.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(4.f, val);
-    }
-    {
-        std::vector<float> v{ 3.f, -4.f, 1.f, 2.f, -3.f };
-        auto val = max_abs_integrated_lobe(v.begin(), v.end());
-        ASSERT_EQ(4.f, val);
-    }
+TEST(Peaks, start_relaxed_2) {
+  using namespace imajuscule;
+  constexpr auto sliding_avg_size = 2;
+  {
+    std::vector<float> v{ 1.f, 0.75f, 0.5f, 0.25f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(1.f, *it);
+  }
+  {
+    std::vector<float> v{ -1.f, -0.75f, -0.5f, -0.25f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(-1.f, *it);
+  }
+  {
+    std::vector<float> v{ 0.25f, 0.5f, 0.75f, 1.f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(0.5f, *it);
+  }
+  {
+    std::vector<float> v{ -0.25f, -0.5f, -0.75f, -1.f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(-0.5f, *it);
+  }
+}
+
+TEST(Peaks, start_relaxed_20) {
+  using namespace imajuscule;
+  constexpr auto sliding_avg_size = 20;
+  {
+    std::vector<float> v{ 1.f, 0.75f, 0.5f, 0.25f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(1.f, *it);
+  }
+  {
+    std::vector<float> v{ -1.f, -0.75f, -0.5f, -0.25f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(-1.f, *it);
+  }
+  {
+    std::vector<float> v{ 0.25f, 0.5f, 0.75f, 1.f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(0.5f, *it);
+  }
+  {
+    std::vector<float> v{ -0.25f, -0.5f, -0.75f, -1.f };
+    auto it = find_relevant_start_relaxed(v.begin(), v.end(), 0.6f, sliding_avg_size);
+    ASSERT_EQ(-0.5f, *it);
+  }
 }
 
 TEST(Peaks, abs_integrated)

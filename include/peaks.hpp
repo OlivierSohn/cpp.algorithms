@@ -107,40 +107,26 @@ namespace imajuscule
         return rzero.base();
     }
 
+  // returns the iterator that comes BEFORE the first relevant value.
     template<typename ITER, typename VAL = typename ITER::value_type>
-    ITER find_relevant_start_relaxed(ITER it, ITER end, VAL abs_relevant_level, int sliding_avg_size) {
+    ITER find_relevant_start_relaxed(ITER const it, ITER const end, VAL const abs_relevant_level, int const sliding_avg_size) {
         auto it_relevant_value = first_relevant_value(it, end, abs_relevant_level);
+        if(it_relevant_value == it) {
+            return it;
+        }
         if(it_relevant_value == end) {
-            return end;
+          // not found
+          return end;
         }
         using REVERSE_ITER = std::reverse_iterator<ITER>;
-        auto rit = REVERSE_ITER(it_relevant_value + 1);
+        auto rit = REVERSE_ITER(it_relevant_value+1);
         auto rend = REVERSE_ITER(it);
         auto rzero = first_non_abs_avg_decreasing( rit, rend, sliding_avg_size);
-        // first_zero_crossing returns the iterator after the zero crossing (in the reverse direction)
+        // first_non_abs_avg_decreasing returns the iterator after the zero crossing (in the reverse direction)
         // so rzero.base() is the iterator on the other side of the zero crossing
         return rzero.base();
     }
 
-    template<typename ITER, typename VAL = typename ITER::value_type>
-    VAL max_abs_integrated_lobe(ITER it, ITER end) {
-        using Tr = NumTraits<VAL>;
-        VAL ret {}, sum {}, prev {};
-
-        for(; it != end; ++it) {
-            auto cur = *it;
-            // it's important to use 'sum' instead of 'prev' in the multiplication below
-            if(sum * cur < Tr::zero()) { // sign changed
-                ret = std::max(ret, std::abs(sum));
-                sum = Tr::zero();
-            }
-            sum += cur;
-            prev = cur;
-        }
-        ret = std::max(ret, std::abs(sum));
-
-        return ret;
-    }
     template<typename ITER, typename VAL = typename ITER::value_type>
     VAL abs_integrated(ITER it, ITER end) {
         using Tr = NumTraits<VAL>;

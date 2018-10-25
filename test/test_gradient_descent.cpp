@@ -31,18 +31,19 @@ namespace testGradientDescent {
             
             for(int i=0; i<values.size(); ++i) {
                 counter = 0;
-                float min_;
-                int m = findLocalMinimum(n_iterations, i, f, min_);
-                ASSERT_EQ(values[m], min_);
-                ASSERT_EQ(values[index_min], values[m]);
+                Optional<float> min_;
+                Optional<int> m = findLocalMinimum(n_iterations, i, f, min_);
+                ASSERT_EQ(values[*m], *min_);
+                ASSERT_EQ(values[index_min], values[*m]);
             }
             
             std::vector<int> invalid_starts {{
                 -1, -2, -3, values.size(), values.size() + 1, values.size() + 2
             }};
             for(int i : invalid_starts) {
-                float min_;
-                ASSERT_THROW(findLocalMinimum(n_iterations, i, f, min_), std::logic_error) << i;
+              Optional<float> min_;
+              findLocalMinimum(n_iterations, i, f, min_);
+              ASSERT_FALSE(min_);
             }
         }
     }

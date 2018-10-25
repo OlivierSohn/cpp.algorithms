@@ -217,6 +217,11 @@
 		09C257991EEB028400608C56 /* indentedStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = indentedStream.cpp; path = source/indentedStream.cpp; sourceTree = "<group>"; };
 		09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.subsampled.hpp; path = include/dsp.subsampled.hpp; sourceTree = "<group>"; };
 		09D0464C217A675D00A00F70 /* dsp.delayed.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.delayed.hpp; path = include/dsp.delayed.hpp; sourceTree = "<group>"; };
+		09D0464E217F27B700A00F70 /* smooth.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = smooth.hpp; path = include/smooth.hpp; sourceTree = "<group>"; };
+		09D0464F217F285A00A00F70 /* dsp.reverb.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.reverb.hpp; path = include/dsp.reverb.hpp; sourceTree = "<group>"; };
+		09D04650217F28F400A00F70 /* dsp.impulseresponse.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.impulseresponse.hpp; path = include/dsp.impulseresponse.hpp; sourceTree = "<group>"; };
+		09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.reverbs.hpp; path = include/dsp.reverbs.hpp; sourceTree = "<group>"; };
+		09D04652217F3CAF00A00F70 /* test_dsp.reverbs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.reverbs.cpp; path = test/test_dsp.reverbs.cpp; sourceTree = "<group>"; };
 		09E641631ED0661B00BF54A5 /* test_scoped.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_scoped.cpp; path = test/test_scoped.cpp; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -380,6 +385,7 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				0979762120EF4E6500D586A5 /* measure_sin.cpp */,
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
@@ -392,6 +398,7 @@
 				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
 				0979762420EF652F00D586A5 /* test_dsp.compress.cpp */,
 				097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */,
+				09D04652217F3CAF00A00F70 /* test_dsp.reverbs.cpp */,
 				097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */,
 				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
 				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
@@ -420,9 +427,8 @@
 				09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
-				09168FD11E099D78005DD50F /* unity.build.cpp */,
 				0947FDB220DA747E00BC4141 /* test.h */,
-				093239CA1DB3F3E7003C168E /* extern */,
+				09168FD11E099D78005DD50F /* unity.build.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";
@@ -455,6 +461,9 @@
 				09D0464C217A675D00A00F70 /* dsp.delayed.hpp */,
 				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
+				09D04650217F28F400A00F70 /* dsp.impulseresponse.hpp */,
+				09D0464F217F285A00A00F70 /* dsp.reverb.hpp */,
+				09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
@@ -512,6 +521,7 @@
 				099467E71ED062C000375322 /* scoped.h */,
 				09BA14C91E38840800A05F83 /* slidingaverage.h */,
 				096C7DBC1EB2140F00DDEB20 /* slidingsum.h */,
+				09D0464E217F27B700A00F70 /* smooth.hpp */,
 				09EF8F2D1DB3E89B00DC7342 /* sort_utils.hpp */,
 				0975EADD20D8EAA700468667 /* spinlock.h */,
 				095B3E4A20F517D4001C378A /* split.hpp */,

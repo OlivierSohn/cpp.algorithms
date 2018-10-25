@@ -96,8 +96,10 @@ namespace imajuscule {
                         ASSERT_EQ(1, res[i].real());
                     }
                 }
-                
+              
+              if(!sig.empty()) {
                 Sig::zero(sig);
+              }
                 
                 {
                     auto const res = unwrap_signal<Tag>(sig, N);

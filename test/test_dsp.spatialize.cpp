@@ -106,8 +106,10 @@ namespace imajuscule {
         {
           constexpr auto nOutMono = 1;
           audio::Spatializer<nOutMono, Convolution> spatialized;
-          
-          spatialized.addSourceLocation({{coefficients}}, setup, 1, coefficients.size());
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{coefficients}}, setup, nScales, coefficients.size());
+          }
           
           test(spatialized, {{coefficients}});
         }
@@ -118,8 +120,14 @@ namespace imajuscule {
           // no cross-talk :
           // source1 has only left component
           // source2 has only right component
-          spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup, 1, coefficients.size());
-          spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, 1, coefficients.size());
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup, nScales, coefficients.size());
+          }
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, nScales, coefficients.size());
+          }
           
           test(spatialized, {{coefficients, coefficients}});
         }
@@ -135,9 +143,15 @@ namespace imajuscule {
           // extreme cross-talk :
           // source1 right component is the opposite of source 2
           // source2 right component is the opposite of source 1
-          spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, 1, coefficients.size());
-          spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup, 1, coefficients.size());
-          
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, nScales, coefficients.size());
+          }
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup, nScales, coefficients.size());
+          }
+
           test(spatialized, {{zero_coeffs,zero_coeffs}});
         }
         {
@@ -149,9 +163,15 @@ namespace imajuscule {
             o = -o;
           }
           
-          spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, 1, coefficients.size());
-          spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, 1, coefficients.size());
-          
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, nScales, coefficients.size());
+          }
+          {
+            int nScales = 1;
+            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, nScales, coefficients.size());
+          }
+
           test(spatialized, {{coefficients,zero_coeffs}});
         }
       };

@@ -32,6 +32,7 @@ namespace imajuscule
 
     void reset() {
       algo.reset();
+      ring.resize(0);
     }
 
     auto getLatency() const {

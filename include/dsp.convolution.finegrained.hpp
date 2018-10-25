@@ -170,13 +170,14 @@ namespace imajuscule
     }
 
     void setCoefficients(a64::vector<T> coeffs_) {
-
       if(coeffs_.size() < 2) {
         coeffs_.resize(2); // avoid ill-formed cases
       }
       auto const N = coeffs_.size();
       auto const fft_length = get_fft_length(N);
       fft.setContext(Contexts::getInstance().getBySize(fft_length));
+      
+      assert(fft_length > 0);
 
       result.resize(fft_length);
       x.reserve(fft_length);
@@ -186,11 +187,13 @@ namespace imajuscule
 
       doSetCoefficients(fft, std::move(coeffs_));
       reset_states();
+      LG(INFO,"%p setCoeffs", this);
     }
     
     void reset() {
       y.clear();
       result.clear();
+      reset_states();
     }
     
     bool isZero() const {
@@ -206,7 +209,9 @@ namespace imajuscule
     void reset_states() {
       Parent::reset_base_states();
       x.clear();
-      zero_signal(y);
+      if(!y.empty()) {
+        zero_signal(y);
+      }
       it = y.begin();
       grain_counter = 0;
     }
@@ -321,6 +326,7 @@ namespace imajuscule
 
       assert(it < y.begin() + getBlockSize());
       assert(it >= y.begin());
+      assert(!y.empty());
       return get_signal(*it);
     }
 
@@ -330,6 +336,16 @@ namespace imajuscule
     RealSignal x, y, result;
     typename decltype(y)::iterator it;
   };
+  
+  constexpr int countPartitions(int nCoeffs, int partition_size) {
+    auto n_partitions = nCoeffs/partition_size;
+    if(n_partitions * partition_size != nCoeffs) {
+      assert(n_partitions * partition_size < nCoeffs);
+      ++n_partitions;
+    }
+    return n_partitions;
+  }
+
 
   template <typename T, typename Tag>
   struct FinegrainedPartitionnedFFTConvolutionCRTP {
@@ -356,7 +372,7 @@ namespace imajuscule
     }
 
     auto getBlockSize() const { return partition_size; }
-    static auto getLatencyForPartitionSize(int partSz) {
+    static constexpr int getLatencyForPartitionSize(int partSz) {
       return 2*partSz - 1;
     }
     auto getLatency() const { return getLatencyForPartitionSize(partition_size); }
@@ -411,23 +427,14 @@ namespace imajuscule
     }
 
     int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
-
+    
     void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
       assert(partition_size > 0);
 
-      auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
-        auto const N = coeffs_.size();
-        auto n_partitions = N/partition_size;
-        if(n_partitions * partition_size != N) {
-          // one partition is partial...
-          assert(n_partitions * partition_size < N);
-          ++n_partitions;
-          // ... pad it with zeros
-          coeffs_.resize(n_partitions * partition_size, {});
-        }
-        return n_partitions;
-      }();
-
+      auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), partition_size);
+      // if one partition is partial, it will be padded with zeroes.
+      coeffs_.resize(n_partitions * partition_size);
+      
       ffts_of_delayed_x.resize(n_partitions);
       ffts_of_partitionned_h.resize(n_partitions);
 
@@ -537,14 +544,15 @@ namespace imajuscule
    with the constraint that one computation at most occurs per 'equivalent' audio callback.
    */
   template<typename NonAtomicConvolution, typename SetupParam = typename NonAtomicConvolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
-  int get_lg2_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gradient_descent,
+  void find_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gradient_descent,
                                                                int n_iterations,
                                                                int n_channels,
                                                                int n_scales,
                                                                int n_frames,
-                                                               std::function<int(int)> n_coeffs_for_partition_sz,
+                                                               std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                                                             int min_lg2_partitionsz, // must yield a valid result
                                                                bool constraint,
-                                                               SetupParam & min_val,
+                                                               Optional<SetupParam> & min_val,
                                                                int n_tests) {
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
@@ -565,13 +573,15 @@ namespace imajuscule
       int const partition_size = pow2(lg2_partition_size);
       //            cout << "partition size : " << partition_size << endl;
       
-      int const length_impulse = n_coeffs_for_partition_sz(partition_size);
+      auto maybe_impulse_sz = n_coeffs_for_partition_sz(partition_size);
+      if(!maybe_impulse_sz) {
+        return ParamState::OutOfRange;
+      }
+      int const length_impulse = *maybe_impulse_sz;
 
       struct Test {
         using T = typename NonAtomicConvolution::FPT;
         Test(int partition_size, int length_impulse) {
-          applySetup(pfftcv, {partition_size, 1, 0});
-
           a64::vector<T> coeffs;
           coeffs.reserve(length_impulse);
           std::array<T,4> values {0.9,0.5,-0.2,-0.5};
@@ -579,11 +589,11 @@ namespace imajuscule
             coeffs.push_back(values[i%values.size()]);
           }
 
-          pfftcv.setCoefficients(std::move(coeffs));
+          // the value for multiplication group size is not very important (it will be overriden later on)
+          // but needs to lead to a valid convolution. We use the highest valid number:
+          applySetup(pfftcv, {partition_size, countPartitions(coeffs.size(), partition_size), 0});
 
-          // the value is not very important it will be overriden later on,
-          // but we need to set something valid
-          pfftcv.setMultiplicationGroupLength(pfftcv.getHighestValidMultiplicationsGroupSize());
+          pfftcv.setCoefficients(std::move(coeffs));
         }
 
         bool isValid() const { return pfftcv.isValid(); }
@@ -687,11 +697,10 @@ namespace imajuscule
               // ensures that for any number of scale, we will have
               // at most twice the density of computations for single scale
               scale_offset.push_back(pow2(i)-1);
-              // TODO how many samples does this represent? (we need that info to phase scales once the coefficients have been set)
-            }
+           }
             for(int i=0; i<n_half_grains; ++i) {
               float cost = 0.f;
-              for(int s=0; i<n_scales; ++s) {
+              for(int s=0; s<n_scales; ++s) {
                 int ii = i-scale_offset[s];
                 if(ii < 0) {
                   continue;
@@ -828,45 +837,37 @@ namespace imajuscule
       return ParamState::Ok;
     });
 
-    auto start_lg2_partition = 7;
-    // to ensure that the constraint is met in first try
-    if(constraint) {
-      start_lg2_partition =
-      2 // because we have 3 or 4 grains at least (2^2)
-      + 1 + power_of_two_exponent(n_channels * n_frames); // criteria for atomic version of convolution
+    auto res = gradient_descent.findLocalMinimum(n_iterations,
+                                                 min_lg2_partitionsz,
+                                                 min_val);
+    if(res) {
+      assert(min_val);
+      min_val->partition_size = pow2(*res);
     }
-    else {
-      start_lg2_partition =
-      2 // because we have 3 or 4 grains at least (2^2)
-      + 1 + power_of_two_exponent(n_frames); // criteria for atomic version of convolution
-    }
-
-    return gradient_descent.findLocalMinimum(n_iterations,
-                                             start_lg2_partition,
-                                             min_val);
   }
 
   template<typename NonAtomicConvolution, typename SetupParam = typename NonAtomicConvolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
-  int get_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gd,
+  void get_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gd,
                                                            int n_channels,
                                                            int n_scales,
                                                            bool with_spread,
                                                            int n_audiocb_frames,
-                                                           std::function<int(int)> n_coeffs_for_partition_sz,
-                                                           SetupParam & value )
+                                                           std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                                                            int min_lg2_partition_sz,
+                                                           Optional<SetupParam> & value )
   {
     constexpr auto n_iterations = 1;
     constexpr auto n_tests = 1;
-    value.partition_size =
-    pow2(get_lg2_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
-                                                                                        n_iterations,
-                                                                                        n_channels,
-                                                                                        n_scales,
-                                                                                        n_audiocb_frames,
-                                                                                        n_coeffs_for_partition_sz,
-                                                                                        with_spread,
-                                                                                        value,
-                                                                                        n_tests));
+    find_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
+                                                                                n_iterations,
+                                                                                n_channels,
+                                                                                n_scales,
+                                                                                n_audiocb_frames,
+                                                                                n_coeffs_for_partition_sz,
+                                                                                min_lg2_partition_sz,
+                                                                                with_spread,
+                                                                                value,
+                                                                                n_tests);
   }
 
   template<typename T>
@@ -876,7 +877,11 @@ namespace imajuscule
     using PS = PartitionningSpec<SetupParam>;
     using PSpecs = PartitionningSpecs<SetupParam>;
 
-    static PSpecs run(int n_channels, int n_scales, int n_audio_frames_per_cb, std::function<int(int)> n_coeffs_for_partition_sz) {
+    static PSpecs run(int n_channels,
+                      int n_scales,
+                      int n_audio_frames_per_cb,
+                      std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                      int min_lg2_partition_sz) {
       assert(n_channels > 0);
       PSpecs res;
       {
@@ -887,6 +892,7 @@ namespace imajuscule
                                                                                    false,
                                                                                    n_audio_frames_per_cb,
                                                                                    n_coeffs_for_partition_sz,
+                                                                                   min_lg2_partition_sz,
                                                                                    spec.cost );
       }
       
@@ -898,6 +904,7 @@ namespace imajuscule
                                                                                    true,
                                                                                    n_audio_frames_per_cb,
                                                                                    n_coeffs_for_partition_sz,
+                                                                                   min_lg2_partition_sz,
                                                                                    spec.cost );
       }
       

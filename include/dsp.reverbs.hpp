@@ -83,7 +83,8 @@ namespace imajuscule
     static constexpr auto ratio_hard_limit = 1.0f;
     //    because of overhead due to os managing audio, because of "other things running on the device", etc...
     // at 0.38f on ios release we have glitches when putting the app in the background
-    static constexpr auto ratio_soft_limit = 0.3f * ratio_hard_limit;
+    // at 0.25f on linux we have glitches
+    static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
   
     void setConvolutionReverbIR(std::vector<double> ir, int n_channels, int n_audiocb_frames, double sampleRate)
     {

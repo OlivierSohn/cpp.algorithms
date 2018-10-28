@@ -7,7 +7,6 @@ namespace imajuscule
     // the delay between an input dirac and the peak output:
     DiracPeak
   };
-
   
   /*
    * To have a smooth transition between different sampling frequencies,
@@ -15,12 +14,12 @@ namespace imajuscule
    */
   struct scaleFadeSz {
     // expressed in number of periods at the higher frequency
-    static int constexpr inSmallerUnits = 40; // TODO adjust
+    static int constexpr inSmallerUnits = 500;
     static_assert(inSmallerUnits % 2 == 0);
     // expressed in number of periods at the lower frequency
     static int constexpr inBiggerUnits = inSmallerUnits/2;
   };
-  
+  constexpr int nMaxScales = 4;
 
   // we want to avoid approximations:
   constexpr bool subSamplingAllowsEvenNumberOfCoefficients = false;

@@ -54,7 +54,7 @@ TEST(Reverbs, dirac) {
   Reverbs<1> rs;
   
 
-  std::vector<int> audio_cb_sizes{1,2,3,4,7,8,9,63,64,65,256,1024,4096};
+  std::vector<int> audio_cb_sizes{1,99,1024};
   
   for(auto cb_sz:audio_cb_sizes)
   {
@@ -76,8 +76,9 @@ TEST(Reverbs, dirac) {
       ASSERT_EQ(inputCopy, input);
     }
   
-// TODO test larger sizes, up-to when all scales are used
-    for(int sz = 1; sz < 1000; ++sz) {
+    std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
+    for(auto const sz : sizes) {
+      
       std::vector<double> const input = mkDirac(sz);
       auto inputCopy = input;
       
@@ -110,7 +111,7 @@ TEST(Reverbs, dirac) {
       ASSERT_LT(0, n_scales);
       
       //int const totalFades = (pow2(n_scales-1)-1) * scaleFadeSz::inSmallerUnits;
-      
+      static_assert(4 == nMaxScales);
       switch(n_scales) {
         case 1:
           ASSERT_GT(0.00001, diff[0].first);

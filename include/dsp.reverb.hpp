@@ -59,13 +59,14 @@ namespace imajuscule
     
     // we disable the unused scales by setting the partition size to 0.
     auto zero = SP::makeInactive();
-    std::array<SP, 4> ps {
+    static_assert(4==nMaxScales);
+    std::array<SP, nMaxScales> ps {
       params,
       (n_scales >= 2)?params:zero,
       (n_scales >= 3)?params:zero,
       (n_scales >= 4)?params:zero
     };
-    assert(n_scales <= 4);
+    assert(n_scales <= nMaxScales);
     typename ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>::SetupParam p
     {
       {},

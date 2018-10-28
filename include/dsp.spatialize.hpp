@@ -27,6 +27,7 @@ namespace imajuscule
         return 3;
       }
     }
+    static_assert(4==nMaxScales);
     return 4;
   }
   
@@ -86,6 +87,7 @@ namespace imajuscule
       // the top-most will be stepped 'base_phase' times,
       // then each scale after that will be stepped by a quarter grain size.
       // phases are cumulative, so stepping a scale also steps subsequent scales.
+      static_assert(nMaxScales==4);
       switch(i) {
         case 0:
           for(int j=0; j<phase; ++j) {

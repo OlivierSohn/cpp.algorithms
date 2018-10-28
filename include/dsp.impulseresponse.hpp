@@ -80,7 +80,7 @@ namespace imajuscule
       
       Optional<std::pair<PS,int>> res;
       
-      for(int n_scales = 1; n_scales <= 4; ++n_scales) {
+      for(int n_scales = 1; n_scales <= nMaxScales; ++n_scales) {
         
         auto partit = PartitionAlgo::run(n_channels,
                                          n_audiocb_frames,
@@ -102,7 +102,7 @@ namespace imajuscule
           break;
         }
         LG(INFO, "cost %f >= %f", res->first.getCost(), max_avg_time_per_sample);
-        if(n_scales == 4) {
+        if(n_scales == nMaxScales) {
           LG(WARN, "Optimization criteria not met, there are not enough scaling levels.");
         }
       }

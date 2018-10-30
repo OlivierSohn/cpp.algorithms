@@ -575,6 +575,10 @@ namespace imajuscule
     static PSpecs run(int n_channels, int n_audio_frames_per_cb, int total_response_size, int n_scales) {
       if(total_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
         // in that case there is no late handling at all.
+        if(n_scales > 1) {
+          LG(WARN, "not enough coefficients to use %d scales", n_scales);
+          return {};
+        }
         PS ps;
         ps.cost = FinegrainedSetupParam::makeInactive();
         return {ps,ps};

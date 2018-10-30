@@ -50,7 +50,7 @@ namespace imajuscule
         bool before( range const & other ) const {
             assert( !empty() );
 
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return ( max_ < other.min_ );
             } else {
                 auto tmp = other.avg_ - avg_;
@@ -62,7 +62,7 @@ namespace imajuscule
         T minTo( T val ) const {
             assert( !empty() );
 
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return val - min_;
             } else {
                 val -= halfSpan_;
@@ -72,7 +72,7 @@ namespace imajuscule
         T maxTo( T val ) const {
             assert( !empty() );
 
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return val - max_;
             } else {
                 val -= halfSpan_;
@@ -89,7 +89,7 @@ namespace imajuscule
         }
 
         bool empty() const {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return max_ < min_;
             } else {
                 return halfSpan_ < Tr::zero();
@@ -97,7 +97,7 @@ namespace imajuscule
         }
 
         void make_empty() {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ = Tr::one();
                 max_ = -Tr::one();
             } else {
@@ -107,7 +107,7 @@ namespace imajuscule
 
         T delta() const {
             assert(!empty());
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return max_ - min_;
             } else {
                 return 2.f * halfSpan_;
@@ -115,7 +115,7 @@ namespace imajuscule
         }
 
         void set(T val) {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ = max_ = val;
             } else {
                 assert(!std::isnan((float)val ));
@@ -126,7 +126,7 @@ namespace imajuscule
 
         void set(T Min, T Max) {
             assert(Min <= Max);
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ = Min;
                 max_ = Max;
             } else {
@@ -150,7 +150,7 @@ namespace imajuscule
 
         void includeMargin(T margin) {
             assert(margin <= Tr::zero() || !empty()); // adding a margin to an empty range makes no sense
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ -= margin;
                 max_ += margin;
             } else {
@@ -162,7 +162,7 @@ namespace imajuscule
             if( empty() ) {
                 return false;
             }
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return (val <= max_ && val >= min_);
             } else {
                 val -= avg_;
@@ -176,7 +176,7 @@ namespace imajuscule
 
         where whereIs(T val) const {
             assert(!empty());
-            if ( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 if ( val < min_ ) {
                     return lower;
                 } else if ( val > max_ ) {
@@ -210,7 +210,7 @@ namespace imajuscule
         }
 
         T getSpan() const {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return max_ - min_;
             } else {
                 return 2.f * halfSpan_;
@@ -218,14 +218,14 @@ namespace imajuscule
         }
 
         T getMax() const {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return max_;
             } else {
                 return avg_ + halfSpan_;
             }
         }
         T getMin() const {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return min_;
             } else {
                 return avg_ - halfSpan_;
@@ -236,7 +236,7 @@ namespace imajuscule
          Waring: for integral types, rounds the value.
          */
         T getCenter() const {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 return ( min_ + max_ ) / 2;
             } else {
                 return avg_;
@@ -248,7 +248,7 @@ namespace imajuscule
         }
 
         void setMin(T val) {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ = val;
             } else {
                 if( empty() ) {
@@ -269,7 +269,7 @@ namespace imajuscule
         }
 
         void setMax(T val) {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 max_ = val;
             } else {
                 if( empty() ) {
@@ -292,7 +292,7 @@ namespace imajuscule
         T minDist( T val ) const;
 
         void translate( T val ) {
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ += val;
                 max_ += val;
             } else {
@@ -312,7 +312,7 @@ namespace imajuscule
         void homothety( T origin, T factor ) {
             assert( factor >= Tr::zero() );
 
-            if( std::is_integral<T>() ) {
+            if constexpr ( std::is_integral<T>() ) {
                 min_ = origin + (min_ - origin) * factor;
                 max_ = origin + (max_ - origin) * factor;
             } else {
@@ -326,8 +326,8 @@ namespace imajuscule
 
             assert( !empty() );
 
-            if( std::is_integral<T>() ) {
-                if( PixelWidth == METHOD) {
+            if constexpr ( std::is_integral<T>() ) {
+                if constexpr ( PixelWidth == METHOD) {
                     // min == max == 0 means a pixel of width 1
                     auto const pixel_size = Tr::one();
 

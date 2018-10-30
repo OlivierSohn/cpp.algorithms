@@ -53,48 +53,56 @@ TEST(Reverbs, dirac) {
 
   Reverbs<1> rs;
   
-
-  std::vector<int> audio_cb_sizes{1,99,1024};
+  constexpr int audio_cb_size = 99;
   
-  for(auto cb_sz:audio_cb_sizes)
+  // by default, reverb is inactive.
   {
-    LG(INFO, "cb_sz = %d", cb_sz);
-    // by default, reverb is inactive.
-    {
-      std::vector<double> const input = mkDirac(4);
-      auto inputCopy = input;
-      rs.apply(inputCopy.data(), inputCopy.size());
-      ASSERT_EQ(inputCopy, input);
-    }
-    
-    // for 0-length responses, reverb is inactive.
-    {
-      rs.setConvolutionReverbIR({}, 1, cb_sz, 44100.);
-      std::vector<double> const input = mkDirac(4);
-      auto inputCopy = input;
-      rs.apply(inputCopy.data(), inputCopy.size());
-      ASSERT_EQ(inputCopy, input);
-    }
+    std::vector<double> const input = mkDirac(4);
+    auto inputCopy = input;
+    rs.apply(inputCopy.data(), inputCopy.size());
+    ASSERT_EQ(inputCopy, input);
+  }
   
-    std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
-    for(auto const sz : sizes) {
+  // for 0-length responses, reverb is inactive.
+  {
+    auto res = rs.setConvolutionReverbIR({}, 1, audio_cb_size, 44100., ResponseTailSubsampling::HighestAffordableResolution);
+    ASSERT_FALSE(res);
+    std::vector<double> const input = mkDirac(4);
+    auto inputCopy = input;
+    rs.apply(inputCopy.data(), inputCopy.size());
+    ASSERT_EQ(inputCopy, input);
+  }
+  
+  std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
+  for(auto const sz : sizes) {
+    std::vector<double> const input = mkDirac(sz);
+    auto const coeffs = mkCoefficientsTriangle(sz);
+    for(int rts_i=0; rts_i<5; ++rts_i) {
+      LG(INFO, "%d, %d,", sz, rts_i);
+      auto const rts = static_cast<ResponseTailSubsampling>(rts_i);
       
-      std::vector<double> const input = mkDirac(sz);
+      auto const scaleRange = getScaleCountRanges(rts);
+      
       auto inputCopy = input;
       
-      auto coeffs = mkCoefficientsTriangle(sz);
-      rs.setConvolutionReverbIR(coeffs, 1, cb_sz, 44100.);
-      
+      auto res = rs.setConvolutionReverbIR(coeffs, 1, audio_cb_size, 44100., rts);
+      if(scaleRange.getMin() > 1 && coeffs.size() <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        ASSERT_FALSE(res);
+        continue;
+      }
+      if(scaleRange.getMin() > 1 && !res) {
+        continue;
+      }
+      ASSERT_TRUE(res);
+
       std::vector<double> diff1;
       diff1.reserve(inputCopy.size());
-
+      
       rs.apply(inputCopy.data(), 1);
       auto scale = coeffs[0]/inputCopy[0];
-      inputCopy[0] *= scale;
-      diff1.push_back(inputCopy[0] - coeffs[0]);
-
-      for(int i=1; i<inputCopy.size(); i++) {
-        rs.apply(&inputCopy[i], 1);
+      
+      rs.apply(&inputCopy[1], inputCopy.size()-1);
+      for(int i=0, sz = inputCopy.size(); i<sz; i++) {
         inputCopy[i] *= scale;
         
         diff1.push_back(std::abs(inputCopy[i] - coeffs[i]));
@@ -108,7 +116,7 @@ TEST(Reverbs, dirac) {
       std::sort(diff.begin(), diff.end(), std::greater<>());
       int const n_scales = rs.countScales();
       
-      ASSERT_LT(0, n_scales);
+      ASSERT_TRUE(scaleRange.contains(n_scales));
       
       //int const totalFades = (pow2(n_scales-1)-1) * scaleFadeSz::inSmallerUnits;
       static_assert(4 == nMaxScales);
@@ -130,15 +138,15 @@ TEST(Reverbs, dirac) {
           break;
       }
     }
-    
-    // reverb is inactive when disabled
-    {
-      rs.disable();
-      std::vector<double> const input = mkDirac(4);
-      auto inputCopy = input;
-      rs.apply(inputCopy.data(), inputCopy.size());
-      ASSERT_EQ(inputCopy, input);
-    }
+  }
+  
+  // reverb is inactive when disabled
+  {
+    rs.disable();
+    std::vector<double> const input = mkDirac(4);
+    auto inputCopy = input;
+    rs.apply(inputCopy.data(), inputCopy.size());
+    ASSERT_EQ(inputCopy, input);
   }
 }
 

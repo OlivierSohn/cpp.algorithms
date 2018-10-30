@@ -86,16 +86,16 @@ namespace imajuscule
     // at 0.25f on linux we have glitches
     static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
   
-    void setConvolutionReverbIR(std::vector<double> ir, int n_channels, int n_audiocb_frames, double sampleRate)
+    [[nodiscard]] bool setConvolutionReverbIR(std::vector<double> ir, int n_channels, int n_audiocb_frames, double sampleRate, ResponseTailSubsampling rts)
     {
       disable();
       if(n_audiocb_frames <= 0) {
         LG(WARN, "disabling reverb (%d callback size)", n_audiocb_frames);
-        return;
+        return false;
       }
       if(ir.size() < n_channels) {
         LG(WARN, "disabling reverb (only %d coefficients are available)", ir.size());
-        return;
+        return false;
       }
       using namespace std;
       
@@ -109,16 +109,16 @@ namespace imajuscule
       double theoretical_max_ns_per_frame = 1e9/sampleRate;
 
       auto mayRes =
-      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_channels));
+      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_channels), rts);
       if(!mayRes) {
         LG(WARN, "disabling reverb (could not optimize 1)");
-        return;
+        return false;
       }
       
       auto [partitionning,n_scales] = *mayRes;
       if(!partitionning.cost) {
         LG(WARN, "disabling reverb (could not optimize 2)");
-        return;
+        return false;
       }
 
       algo.symmetrically_scale();
@@ -129,6 +129,7 @@ namespace imajuscule
 
       algo.logReport(n_scales,partitionning);
       logReport(algo.countChannels(), partitionning, theoretical_max_ns_per_frame, sampleRate);
+      return true;
     }
     
     void transitionConvolutionReverbWetRatio(double wet, int duration) {

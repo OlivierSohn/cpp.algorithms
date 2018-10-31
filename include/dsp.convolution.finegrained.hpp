@@ -93,7 +93,7 @@ namespace imajuscule
 
   struct FinegrainedSetupParam : public Cost {
     FinegrainedSetupParam() {}
-    
+
     FinegrainedSetupParam(int partitionSz, int multiplication_group_size, int phase) : Cost(),
     multiplication_group_size(multiplication_group_size),
     phase(phase),
@@ -112,7 +112,7 @@ namespace imajuscule
       return {0,0,0};
     }
   };
-  
+
 
   static inline std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
   {
@@ -179,7 +179,7 @@ namespace imajuscule
       auto const N = coeffs_.size();
       auto const fft_length = get_fft_length(N);
       fft.setContext(Contexts::getInstance().getBySize(fft_length));
-      
+
       assert(fft_length > 0);
 
       result.resize(fft_length);
@@ -191,14 +191,14 @@ namespace imajuscule
       doSetCoefficients(fft, std::move(coeffs_));
       reset_states();
     }
-    
+
     void reset() {
       y.clear();
       result.clear();
       reset_states();
       clear();
     }
-    
+
     bool isZero() const {
       return result.empty();
     }
@@ -301,7 +301,7 @@ namespace imajuscule
       }
       else {
         ++grain_counter;
-        
+
         auto const n_grains = countGrains();
         auto const granularity = block_size/n_grains;
         assert(granularity >= grain_counter);
@@ -339,7 +339,7 @@ namespace imajuscule
     RealSignal x, y, result;
     typename decltype(y)::iterator it;
   };
-  
+
   constexpr int countPartitions(int nCoeffs, int partition_size) {
     auto n_partitions = nCoeffs/partition_size;
     if(n_partitions * partition_size != nCoeffs) {
@@ -430,14 +430,14 @@ namespace imajuscule
     }
 
     int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
-    
+
     void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
-      assert(partition_size > 0);
+      assert(partition_size > 0);
 
       auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), partition_size);
       // if one partition is partial, it will be padded with zeroes.
       coeffs_.resize(n_partitions * partition_size);
-      
+
       ffts_of_delayed_x.resize(n_partitions);
       ffts_of_partitionned_h.resize(n_partitions);
 
@@ -575,7 +575,7 @@ namespace imajuscule
       }
       int const partition_size = pow2(lg2_partition_size);
       //            cout << "partition size : " << partition_size << endl;
-      
+
       auto maybe_impulse_sz = n_coeffs_for_partition_sz(partition_size);
       if(!maybe_impulse_sz) {
         return ParamState::OutOfRange;
@@ -680,9 +680,9 @@ namespace imajuscule
           if(max_n_halfgrains_per_cb * grain_period != 2 * nAudioCbFrames) {
             ++max_n_halfgrains_per_cb; // worst case, not avg
           }
-          
+
           int const n_half_grains = pow2(n_scales-1) * 2*(n_multiplicative_grains + n_non_multiplicative_grains);
-          
+
           cyclic<float> grains_costs(n_half_grains);
 
           {
@@ -694,7 +694,7 @@ namespace imajuscule
               costs.push_back(multiplication_grain_time);
             }
             costs.push_back(fft_times[index_ifft]);
-            
+
             std::vector<int> scale_offset; // position of first computation in grains_costs
             for(int i=0; i<n_scales; ++i) {
               // ensures that for any number of scale, we will have
@@ -709,7 +709,7 @@ namespace imajuscule
                   continue;
                 }
                 int div = ii / pow2(1+s);
-                
+
                 if(ii == div * pow2(1+s)) {
                   cost += costs[div % costs.size()];
                 }
@@ -717,7 +717,7 @@ namespace imajuscule
               *(grains_costs.begin() + i) = cost;
             }
           }
-          
+
           // TODO [early coefficients cost] we should have a sample-unit cyclic, and put one grain cost
           // every period
 
@@ -726,7 +726,7 @@ namespace imajuscule
           if(constraint) {
             assert(n_channels >= 2);
             int n_samples_between_grains = n_scales <= 1 ? grain_period : (grain_period/2);
-            
+
             auto n_min_empty_cb_between_consecutive_grains = -1 + n_samples_between_grains / nAudioCbFrames;
             if(n_min_empty_cb_between_consecutive_grains >= n_channels - 1) {
               // easy case : there is enough room between grains to evenly distribute all channels
@@ -898,7 +898,7 @@ namespace imajuscule
                                                                                    min_lg2_partition_sz,
                                                                                    spec.cost );
       }
-      
+
       if(n_channels > 1) {
         auto & spec = res.with_spread;
         get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(spec.gd,
@@ -910,7 +910,7 @@ namespace imajuscule
                                                                                    min_lg2_partition_sz,
                                                                                    spec.cost );
       }
-      
+
       return std::move(res);
     }
   };

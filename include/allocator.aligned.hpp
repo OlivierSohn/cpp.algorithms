@@ -4,6 +4,20 @@
  * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
  */
 
+
+// inspired by https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79518
+#if defined(__clang__)
+# define AssumeAligned64Core(p) (((uintptr_t(p) % (64)) == 0) ? (p) : (LLVM_BUILTIN_UNREACHABLE, (p)))
+#elif defined(_MSC_VER)
+# define AssumeAligned64Core(p) __assume((((char*) p) - ((char*) 0)) % (64) == 0)
+#elif defined(__INTEL_COMPILER)
+# define AssumeAligned64Core(p) __assume_aligned(p, 64)
+#elif defined(__GLIBCXX__)
+# define AssumeAligned64Core(p) p = __builtin_assume_aligned(p, 64)
+#endif
+
+#define AssumeAligned64(p) Assert((uintptr_t(p) % (64)) == 0); AssumeAligned64Core(p);
+
 namespace imajuscule {
 
     constexpr auto cache_line_n_bytes = 64;

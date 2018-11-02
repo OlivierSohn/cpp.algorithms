@@ -190,13 +190,12 @@ namespace imajuscule {
             auto * __restrict result2 = result + N;
             tukeyCooley<TYPE>(root_it, it + stride, result2, half_N, double_stride );
 
-            for(auto const * const __restrict rEnd = result2;
-                result != rEnd;
+            for(;result != result2;
                 ++result, root_it += stride)
             {
-                auto const t = *(result+N) * *root_it;
-                *(result+N) = *result - t;
-                *result += t;
+                auto const t = result[N] * *root_it;
+                result[N] = result[0] - t;
+                result[0] += t;
             }
         }
 

@@ -56,7 +56,19 @@ namespace imajuscule {
             Contexts_() {
                 contexts.resize(20);
             }
+          ~Contexts_() {
+            for(auto const &c:contexts) {
+              if(c) {
+                Context::destroy(c);
+              }
+            }
+          }
             std::vector<ContextT> contexts;
+          
+          Contexts_(const Contexts_&) = delete;
+          Contexts_(Contexts_&&) = delete;
+          Contexts_& operator=(const Contexts_&) = delete;
+          Contexts_& operator=(Contexts_&&) = delete;
         };
         
         template<typename TAG, typename T>

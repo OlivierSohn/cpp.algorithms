@@ -169,35 +169,40 @@ namespace imajuscule {
             INVERSE
         };
 
-        template<FftType TYPE, typename ROOTS_ITER, typename ITER1, typename ITER2>
-        static inline void tukeyCooley(ROOTS_ITER const * __restrict root_it,
-                                       ITER1 const * __restrict it,
-                                       ITER2 * __restrict result,
-                                       unsigned int const N,
-                                       unsigned int const stride) {
-            if(N==0) {
-                if constexpr (TYPE == FftType::FORWARD) {
-                    *result = *it;
-                }
-                else {
-                    *result = conj(*it);
-                }
-                return;
+      // Also try implicit recursion
+      template<FftType TYPE, typename T>
+      struct TukeyCooley {
+        complex<T> * const root;
+        
+        void tukeyCooley(complex<T> const * const __restrict it,
+                         complex<T> * __restrict result,
+                         unsigned int const N,
+                         unsigned int const stride) const {
+          if(N==0) {
+            if constexpr (TYPE == FftType::FORWARD) {
+              *result = *it;
             }
-            auto const double_stride = 2*stride;
-            auto const half_N = N/2;
-            tukeyCooley<TYPE>(root_it, it         , result , half_N, double_stride );
-            auto * __restrict result2 = result + N;
-            tukeyCooley<TYPE>(root_it, it + stride, result2, half_N, double_stride );
+            else {
+              *result = conj(*it);
+            }
+            return;
+          }
+          auto const double_stride = 2*stride;
+          auto const half_N = N/2;
+          tukeyCooley(it         , result , half_N, double_stride );
+          auto * __restrict result2 = result + N;
+          tukeyCooley(it + stride, result2, half_N, double_stride );
 
-            for(;result != result2;
-                ++result, root_it += stride)
-            {
-                auto const t = result[N] * *root_it;
-                result[N] = result[0] - t;
-                result[0] += t;
-            }
+          complex<T> * __restrict root_it = root;
+          for(;result != result2;
+              ++result, root_it += stride)
+          {
+            auto const t = result[N] * *root_it;
+            result[N] = result[0] - t;
+            result[0] += t;
+          }
         }
+      };
 
         template<typename T>
         struct Algo_<imj::Tag, T> {
@@ -219,25 +224,32 @@ namespace imajuscule {
           void forward(typename RealInput::const_iterator inputBegin,
                          RealFBins & output,
                          unsigned int N) const
-            {
-                constexpr auto stride = 1;
-                tukeyCooley<FftType::FORWARD>(context.getRoots()->begin().base(),
-                                              inputBegin.base(),
-                                              output.begin().base(),
-                                              N/2,
-                                              stride);
-            }
+          {
+            constexpr auto stride = 1;
+            auto * const rootPtr = context.getRoots()->begin().base();
+            TukeyCooley<FftType::FORWARD, typename RealFBins::value_type::FPT>
+            algo{rootPtr};
+            
+            algo.tukeyCooley(inputBegin.base(),
+                             output.begin().base(),
+                             N/2,
+                             stride);
+          }
 
             void inverse(RealFBins const & input,
                          RealInput & output,
                          unsigned int N) const
             {
-                constexpr auto stride = 1;
-                tukeyCooley<FftType::INVERSE>(context.getRoots()->begin().base(),
-                                              input.begin().base(),
-                                              output.begin().base(),
-                                              N/2,
-                                              stride);
+              constexpr auto stride = 1;
+              auto * const rootPtr = context.getRoots()->begin().base();
+              TukeyCooley<FftType::INVERSE, typename RealFBins::value_type::FPT>
+              algo{rootPtr};
+              
+              algo.tukeyCooley(input.begin().base(),
+                               output.begin().base(),
+                               N/2,
+                               stride);
+
                 // in theory for inverse fft we should convert_to_conjugate the result
                 // but it is supposed to be real numbers so the conjugation would have no effect
 

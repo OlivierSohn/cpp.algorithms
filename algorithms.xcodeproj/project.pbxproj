@@ -211,6 +211,8 @@
 		09BA14CB1E38898B00A05F83 /* available_indexes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = available_indexes.hpp; path = include/available_indexes.hpp; sourceTree = "<group>"; };
 		09BA14CC1E388C4400A05F83 /* string.manip.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = string.manip.h; path = include/string.manip.h; sourceTree = "<group>"; };
 		09BA14CD1E388C6600A05F83 /* string.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = string.cpp; path = source/string.cpp; sourceTree = "<group>"; };
+		09BB2B0121A2C909000F9ADE /* linalg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = linalg.h; path = include/linalg.h; sourceTree = "<group>"; };
+		09BB2B0221A2CA39000F9ADE /* test_linalg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_linalg.cpp; path = test/test_linalg.cpp; sourceTree = "<group>"; };
 		09C02B041E98D09100E570F5 /* scheduler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = scheduler.cpp; path = source/scheduler.cpp; sourceTree = "<group>"; };
 		09C02B051E98D0AD00E570F5 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scheduler.h; path = include/scheduler.h; sourceTree = "<group>"; };
 		09C257981EEB023800608C56 /* indentedStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = indentedStream.h; path = include/indentedStream.h; sourceTree = "<group>"; };
@@ -385,6 +387,7 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				09BB2B0221A2CA39000F9ADE /* test_linalg.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				0979762120EF4E6500D586A5 /* measure_sin.cpp */,
@@ -489,6 +492,7 @@
 				09BA14C51E387E4200A05F83 /* interpolation.h */,
 				09EF8F301DB3E89B00DC7342 /* iter_range.hpp */,
 				0975EADB20D8E94400468667 /* likely.h */,
+				09BB2B0121A2C909000F9ADE /* linalg.h */,
 				0975EADA20D8E94300468667 /* log.h */,
 				09FC7DEC20BAD5910037B04C /* log.stack.h */,
 				09FC7DEB20BAD5910037B04C /* logger.h */,

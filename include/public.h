@@ -89,6 +89,7 @@
 #include "convex_hull.h"
 #include "color.h"
 #include "matrix.hpp"
+#include "linalg.h"
 #include "binary.h"
 #include "angles.h"
 #include "indentedStream.h"

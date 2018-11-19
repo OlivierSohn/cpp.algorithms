@@ -169,10 +169,17 @@ namespace imajuscule {
             INVERSE
         };
 
-      // Also try implicit recursion
       template<FftType TYPE, typename T>
       struct TukeyCooley {
         complex<T> * const root;
+        
+        // N is 'result' size
+        void run(complex<T> const * const __restrict input,
+                 complex<T> * __restrict result,
+                 unsigned int const N) const {
+          tukeyCooley(input, result, N/2, 1);
+        }
+      private:
         
         void tukeyCooley(complex<T> const * const __restrict it,
                          complex<T> * __restrict result,
@@ -189,10 +196,15 @@ namespace imajuscule {
           }
           auto const double_stride = 2*stride;
           auto const half_N = N/2;
+          // computes first half of result
+          // using input with offset 0
           tukeyCooley(it         , result , half_N, double_stride );
           auto * __restrict result2 = result + N;
+          // computes second half of result
+          // using input with offset stride
           tukeyCooley(it + stride, result2, half_N, double_stride );
-
+          
+          // full result by mixing the 2 halves
           complex<T> * __restrict root_it = root;
           for(;result != result2;
               ++result, root_it += stride)
@@ -225,30 +237,26 @@ namespace imajuscule {
                          RealFBins & output,
                          unsigned int N) const
           {
-            constexpr auto stride = 1;
             auto * const rootPtr = context.getRoots()->begin().base();
             TukeyCooley<FftType::FORWARD, typename RealFBins::value_type::FPT>
             algo{rootPtr};
             
-            algo.tukeyCooley(inputBegin.base(),
-                             output.begin().base(),
-                             N/2,
-                             stride);
+            algo.run(inputBegin.base(),
+                     output.begin().base(),
+                     N);
           }
 
             void inverse(RealFBins const & input,
                          RealInput & output,
                          unsigned int N) const
             {
-              constexpr auto stride = 1;
               auto * const rootPtr = context.getRoots()->begin().base();
               TukeyCooley<FftType::INVERSE, typename RealFBins::value_type::FPT>
               algo{rootPtr};
               
-              algo.tukeyCooley(input.begin().base(),
-                               output.begin().base(),
-                               N/2,
-                               stride);
+              algo.run(input.begin().base(),
+                       output.begin().base(),
+                       N);
 
                 // in theory for inverse fft we should convert_to_conjugate the result
                 // but it is supposed to be real numbers so the conjugation would have no effect

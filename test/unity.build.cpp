@@ -13,6 +13,7 @@
 #include <thread>
 
 //*
+#include "test_linalg.cpp"
 #include "test_split.cpp"
 #include "test_dsp.reverbs.cpp"
 #include "test_dsp.compress.cpp"

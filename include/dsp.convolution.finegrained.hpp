@@ -423,7 +423,7 @@ namespace imajuscule
       }
       assert(diff >=0 );
       for(int i=1;; ++i) {
-        if( (ffts_of_partitionned_h.size() - 1)/i <= diff) {
+        if( (static_cast<int>(ffts_of_partitionned_h.size()) - 1)/i <= diff) {
           return i;
         }
       }

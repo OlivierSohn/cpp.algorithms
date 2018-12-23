@@ -66,6 +66,7 @@ namespace imajuscule
             case 1:
                 h = 2.f + (b-r)/delta;
                 break;
+          default:
             case 2:
                 h = 4.f + (r-g)/delta;
                 break;

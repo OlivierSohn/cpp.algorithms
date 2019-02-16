@@ -13,8 +13,6 @@ namespace imajuscule
 
       using SetupParam = typename Parent::SetupParam;
 
-      void applySetup(SetupParam const & p) const {doAppluSetup(p); }
-
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
         static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
         static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;

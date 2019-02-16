@@ -220,6 +220,7 @@ namespace imajuscule
   struct ScaleConvolution {
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
+    
     static constexpr int nCoefficientsFadeIn = 0;
     static_assert(A::nCoefficientsFadeIn == 0); // else we need to handle them
 
@@ -246,9 +247,6 @@ namespace imajuscule
       nDroppedConvolutions = 0;
     }
 
-    /*
-     *
-     */
     void applySetup(SetupParam const & p) {
       reset();
       nDroppedConvolutions = p.nDropped;

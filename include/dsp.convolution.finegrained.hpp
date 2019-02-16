@@ -45,8 +45,9 @@ namespace imajuscule
    *
    * - First there is the "FFT" grain which computes the fft of a chunk of the input signal
    *     (and does a little more than that, see the code)
-   * - Then there are "multiplication" grains, where we multiply a delayed FFT of the input signal
-   *    by the FFT of the impulse response.
+   * - Then there are "multiplication" grains, where we multiply some delayed FFT of the input signal
+   *    by some of the the FFT of the impulse response.
+   *    The (max) number of vector multiplications per grain is the "multiplication group size".
    * - Finally there is the "IFFT" grain where we sum the results of the multiplications
    *    and do its inverse fft.
    *

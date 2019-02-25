@@ -21,7 +21,7 @@ namespace imajuscule
     }
     
     bool isValid() const {
-      return !coefficients.empty();
+      return true;
     }
     
     constexpr int getLatency() const { return 0; }
@@ -61,7 +61,7 @@ namespace imajuscule
     a64::vector<T> coefficients;
     cyclic<T> past;
   };
-  
+    
   template<typename T>
   static void plotMagnitude(fft::FFTVec<T> const & v) {
     std::vector<T> mags;

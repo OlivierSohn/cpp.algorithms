@@ -65,6 +65,14 @@
 
 #endif
 
+#if IMJ_WITH_OPENCL
+#  ifdef __APPLE__
+#    include <OpenCL/opencl.h>
+#  else
+#    include <CL/cl.h>
+#  endif // __APPLE__
+#endif // WITH_OPENCL
+
 #if __APPLE__
 # include <Accelerate/Accelerate.h>
 # include "api.accelerate.h"
@@ -164,6 +172,11 @@
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.delayed.hpp"
 #include "dsp.convolution.combine.hpp"
+
+#if IMJ_WITH_OPENCL
+#  include "dsp.convolution.gpu.hpp"
+#endif // WITH_OPENCL
+
 #include "dsp.impulseresponse.hpp"
 #include "dsp.spatialize.hpp"
 #include "dsp.reverb.hpp"

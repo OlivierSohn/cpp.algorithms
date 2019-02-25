@@ -54,11 +54,12 @@ namespace imajuscule
     }
     
     SubSampled() {
-      reset();
+      resetStates();
     }
     
     void setCoefficients(a64::vector<T> coeffs) {
-      
+      resetStates();
+
       if constexpr (subSamplingAllowsEvenNumberOfCoefficients) {
         if(coeffs.size()%2) {
           // duplicate last coefficient.
@@ -88,7 +89,7 @@ namespace imajuscule
       }
 
       coeffs.resize(std::distance(coeffs.begin(), writeIt));
-      
+
       algo.setCoefficients(std::move(coeffs));
     }
     
@@ -114,11 +115,9 @@ namespace imajuscule
     auto & getInner() {
       return algo;
     }
-    
+
     void reset() {
-      clock = true;
-      prevInput = 0;
-      prevOutput = 0;
+      resetStates();
       algo.reset();
     }
 
@@ -127,6 +126,12 @@ namespace imajuscule
     bool clock;
     FPT prevOutput;
     FPT prevInput;
+    
+    void resetStates() {
+      clock = true;
+      prevInput = 0;
+      prevOutput = 0;
+    }
   };
   
 }

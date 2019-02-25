@@ -199,8 +199,6 @@ void test() {
  
    The results show that on my platform, we should drop 5 scaled convolutions (sizes 1,2,4,8,16)
    and replace them by a single brute force convolution (of size 31).
- 
- - other tests, commented out.
  */
 TEST(BenchmarkConvolutions, scaled_vs_brute) {
   test<double>();

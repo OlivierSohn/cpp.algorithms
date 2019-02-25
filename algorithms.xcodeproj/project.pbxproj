@@ -23,6 +23,7 @@
 		09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09A2EC281EA2C48100D94138 /* Accelerate.framework */; };
 		09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
 		09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
+		09B372B92222DABD00909898 /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09B372B82222DABD00909898 /* OpenCL.framework */; };
 		09C645911E09F84700153C61 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 /* End PBXBuildFile section */
 
@@ -172,6 +173,8 @@
 		09807B7B20D7E2BD009732BD /* file2string.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = file2string.h; path = include/file2string.h; sourceTree = "<group>"; };
 		09807B7C20D7F03E009732BD /* test_pair_array_distant.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pair_array_distant.cpp; path = test/test_pair_array_distant.cpp; sourceTree = "<group>"; };
 		09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_lockfree_scmp.cpp; path = test/test_staticvector_lockfree_scmp.cpp; sourceTree = "<group>"; };
+		0980A5E1222429D0005C1540 /* cplx.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = cplx.c; path = opencl_kernels/cplx.c; sourceTree = "<group>"; };
+		0980A5E2222429D0005C1540 /* fft_mult_ifft.cl */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.opencl; name = fft_mult_ifft.cl; path = opencl_kernels/fft_mult_ifft.cl; sourceTree = "<group>"; };
 		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
 		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
 		0983C7371F254C5D00EE86C1 /* test_angles.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_angles.cpp; path = test/test_angles.cpp; sourceTree = "<group>"; };
@@ -198,6 +201,8 @@
 		09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft_fbins.cpp; path = test/test_fft_fbins.cpp; sourceTree = "<group>"; };
 		09A4E4241EA6850700F92310 /* test_fft_signal.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fft_signal.cpp; path = test/test_fft_signal.cpp; sourceTree = "<group>"; };
 		09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = not_in_unity_build.cpp; path = test/not_in_unity_build.cpp; sourceTree = "<group>"; };
+		09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.gpu.hpp; path = include/dsp.convolution.gpu.hpp; sourceTree = "<group>"; };
+		09B372B82222DABD00909898 /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = System/Library/Frameworks/OpenCL.framework; sourceTree = SDKROOT; };
 		09B56BEB1EAB814D00878B33 /* test_math.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_math.cpp; path = test/test_math.cpp; sourceTree = "<group>"; };
 		09BA149A1E387D1B00A05F83 /* complex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = complex.hpp; path = include/complex.hpp; sourceTree = "<group>"; };
 		09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.hpp; path = include/dsp.filter.hpp; sourceTree = "<group>"; };
@@ -278,6 +283,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				09B372B92222DABD00909898 /* OpenCL.framework in Frameworks */,
 				09A2EC291EA2C48100D94138 /* Accelerate.framework in Frameworks */,
 				093239E61DB56557003C168E /* libalgorithms.a in Frameworks */,
 			);
@@ -351,9 +357,19 @@
 			name = xcode.config;
 			sourceTree = "<group>";
 		};
+		0980A5E0222429AE005C1540 /* opencl kernels */ = {
+			isa = PBXGroup;
+			children = (
+				0980A5E1222429D0005C1540 /* cplx.c */,
+				0980A5E2222429D0005C1540 /* fft_mult_ifft.cl */,
+			);
+			name = "opencl kernels";
+			sourceTree = "<group>";
+		};
 		09A2EC271EA2C48000D94138 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				09B372B82222DABD00909898 /* OpenCL.framework */,
 				090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */,
 				09A2EC281EA2C48100D94138 /* Accelerate.framework */,
 			);
@@ -363,6 +379,7 @@
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
+				0980A5E0222429AE005C1540 /* opencl kernels */,
 				09F1577E20C6ABBC00662939 /* dependencies */,
 				093239D21DB54D1B003C168E /* source */,
 				0960BB0F1DB3F1060075CB05 /* xcode.config */,
@@ -439,6 +456,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,

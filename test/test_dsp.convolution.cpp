@@ -1,3 +1,18 @@
+template<typename T>
+static inline std::vector<T> mkDirac(int sz, T amplitude = 1.) {
+  std::vector<T> res;
+  res.resize(sz);
+  if(res.empty()) {
+    throw std::logic_error("0-size");
+  }
+  res[0] = amplitude;
+  return res;
+}
+
+static inline float randf(float high = 1.f, float low = 0.f)
+{
+  return low + ((high-low) * ((float)std::rand() / (float)(RAND_MAX + 1.f)));
+}
 
 namespace imajuscule {
   namespace testdspconv {
@@ -16,7 +31,7 @@ namespace imajuscule {
       static constexpr bool evenIndexesAreApproximated = false;
       
       template <typename F>
-      static void adaptCoefficients(a64::vector<F> & v) {
+      static void adaptCoefficients(F & v) {
       }
     };
     
@@ -26,7 +41,7 @@ namespace imajuscule {
       static constexpr bool evenIndexesAreApproximated = true;
       
       template <typename F>
-      static void adaptCoefficients(a64::vector<F> & v) {
+      static void adaptCoefficients(F & v) {
         averageNeighbours(v.begin(),v.end());
       }
     };
@@ -63,13 +78,15 @@ namespace imajuscule {
       }
       throw std::logic_error("coeff index too big");
     }
-    
-    template<typename Convolution, typename Coeffs>
-    void test(Convolution & conv, Coeffs const & coefficients, std::vector<bool> const & coeffMask) {
+
+    template<typename Convolution, typename Coeffs, typename Input, typename Output>
+    void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput)
+    {
       using T = typename Convolution::FPT;
       using namespace fft;
-      
-      if(!conv.isValid()) {
+
+      if(!conv.isValid())
+      {
         /*
          std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
          std::cout << std::endl <<
@@ -80,44 +97,87 @@ namespace imajuscule {
         return;
       }
       
-      // feed a dirac
-      std::vector<T> expectZero;
-      std::vector<T> results;
-      
       using Tr = ConvolutionTraits<Convolution>;
-      
-      // at the dirac, it's 1:
-      if(conv.getLatency()) {
-        expectZero.push_back(conv.step(1));
+      if(!Tr::supportsOddCountOfCoefficients
+         && 1 == coefficients.size() % 2) {
+        return;
       }
-      else {
-        results.push_back(conv.step(1));
-      }
+      conv.setCoefficients(coefficients);
       
-      // after the dirac, it's 0:      
-      for(int i=1; i<conv.getLatency(); ++i) {
-        expectZero.push_back(conv.step(0));
-      }
+      EXPECT_TRUE(conv.isValid());
       
-      auto eps = conv.getEpsilon();
-      for(auto j=0; j<expectZero.size(); ++j) {
-        ASSERT_NEAR(0, expectZero[j], eps);
-      }
-      
-      while(results.size() != coefficients.size()) {
-        results.push_back(conv.step(0));
-      }
-      
-      assert(results.size() == coefficients.size());
+      std::vector<T> output;
 
-      for(auto j=0; j<results.size(); ++j) {
-        if(!coeffMask[j]) {
-          continue;
-        }
-        if(std::abs(coefficients[j] - results[j])>0.001) {
+      auto const eps = conv.getEpsilon();
+      int i=0;
+      auto step = [&i, &input]() {
+        return (i < input.size()) ? input[i] : ((T)0.);
+      };
+      
+      for(; i<conv.getLatency(); ++i) {
+        auto res = conv.step(step());
+        if(std::abs(res) > eps) {
           LG(INFO,"");
         }
-        ASSERT_NEAR(coefficients[j], results[j], eps);
+        ASSERT_NEAR(0.f, res, eps); // assumes that no previous signal has been fed
+      }
+      for(;output.size() != expectedOutput.size();++i) {
+        output.push_back(conv.step(step()));
+      }
+      
+      using Tr = ConvolutionTraits<Convolution>;
+      for(auto j=0; j<output.size(); ++j) {
+        if(Tr::evenIndexesAreApproximated && (0 == j%2)) {
+          continue;
+        }
+        if(std::abs(expectedOutput[j] - output[j])>0.001) {
+          LG(INFO,"");
+        }
+        ASSERT_NEAR(expectedOutput[j], output[j], 100*eps);
+      }
+    }
+  
+    // we take 'coefficients' by value because we modify it in the function
+    template<typename Convolution, typename Coeffs>
+    void test(Convolution & conv, Coeffs const coefficients)
+    {
+      using T = typename Convolution::FPT;
+      using Tr = ConvolutionTraits<Convolution>;
+
+      // test using a dirac
+      {
+        auto diracInput = mkDirac<T>(coefficients.size());
+        auto output = coefficients;
+        Tr::adaptCoefficients(output);
+        testGeneric(conv, coefficients, diracInput, output);
+      }
+      
+      // test using a random (but reproducible) signal
+      if(!Tr::evenIndexesAreApproximated)
+      {
+        std::srand(0); // to have reproducible random numbers
+        const int sz = 5*coefficients.size();
+        std::vector<T> randomInput, output;
+        output.reserve(sz);
+        randomInput.reserve(sz);
+        for(int i=0; i<sz; ++i) {
+          randomInput.push_back(randf(1.f, -1.f));
+        }
+        // produce expected output using brute force convolution
+        {
+          FIRFilter<T> filter;
+          filter.setCoefficients(coefficients);
+          EXPECT_EQ(0, filter.getLatency());
+          for(int i=0; i<randomInput.size(); ++i) {
+            output.push_back(filter.step(randomInput[i]));
+          }
+          // "flush" the reverb
+          for(int i=0; i<coefficients.size(); ++i) {
+            output.push_back(filter.step(0.));
+          }
+        }
+        Tr::adaptCoefficients(output);
+        testGeneric(conv, coefficients, randomInput, output);
       }
     }
     
@@ -151,7 +211,7 @@ namespace imajuscule {
     template<typename T, typename Tag>
     void testDiracFinegrainedPartitionned(int coeffs_index) {
       
-      auto f = [](int part_size, auto const & coefficients)
+      auto f = [](int part_size, auto & coefficients)
       {
         for(auto type = TestFinegrained::Begin;
             type != TestFinegrained::End;
@@ -183,9 +243,7 @@ namespace imajuscule {
             default:
               throw std::logic_error("not supported");
           }
-          std::vector<bool> mask;
-          mask.resize(coefficients.size(), true);
-          test(conv, coefficients, mask);
+          test(conv, coefficients);
         }
       };
       
@@ -195,18 +253,12 @@ namespace imajuscule {
     template<typename T, typename Tag>
     void testDiracPartitionned(int coeffs_index) {
       
-      auto f = [](int part_size, auto const & coefficients){
+      auto f = [](int part_size, auto & coefficients){
         PartitionnedFFTConvolution<T,Tag> conv;
         
         applySetup(conv, {1.f,{part_size}});
-        if(!conv.isValid()) {
-          return;
-        }
-        conv.setCoefficients(coefficients);
 
-        std::vector<bool> mask;
-        mask.resize(coefficients.size(), true);
-        test(conv, coefficients, mask);
+        test(conv, coefficients);
       };
       
       testPartitionned<T>(coeffs_index, f);
@@ -222,28 +274,7 @@ namespace imajuscule {
       
       using T = typename Convolution::FPT;
       
-      auto coefficients = makeCoefficients<T>(coeffs_index);
-      
-      using Tr = ConvolutionTraits<Convolution>;
-      if(!Tr::supportsOddCountOfCoefficients
-         && 1 == coefficients.size() % 2) {
-        return;
-      }
-      conv.setCoefficients(coefficients);
-      
-      Tr::adaptCoefficients(coefficients);
-
-      std::vector<bool> mask;
-      mask.reserve(coefficients.size());
-      for(int i=0; i<coefficients.size(); ++i) {
-        bool activate = true;
-        if(Tr::evenIndexesAreApproximated && (0 == i%2)) {
-          activate = false;
-        }
-        mask.push_back(activate);
-      }
-
-      test(conv, coefficients, mask);
+      test(conv, makeCoefficients<T>(coeffs_index));
     }
     
     
@@ -294,6 +325,12 @@ namespace imajuscule {
           applySetup(c,{10,{}});
           testDirac2(i, c);
         }
+        {
+          auto c = FIRFilterGPU<float>{};
+          testDirac2(i, c);
+        }
+        // TODO FIRFilterGPU<double>
+        // TODO allow one to query the max number of coefficients that can be used with FIRFilterGPU
         {
           auto c = FFTConvolution<float, Tag>{};
           testDirac2(i, c);

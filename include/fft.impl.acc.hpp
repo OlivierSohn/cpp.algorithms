@@ -132,6 +132,7 @@ namespace imajuscule {
                 auto V = v.get_hybrid_split();
                 auto W = w.get_hybrid_split();
 
+              // handle the first element separately
                 *V.realp *= *W.realp;
                 *V.imagp *= *W.imagp;
 

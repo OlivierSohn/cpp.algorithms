@@ -78,6 +78,15 @@ namespace imajuscule {
                 return std::move(cplx);
             }
 
+          static void scale(type & v, T const s) {
+            auto * __restrict it = v.begin().base();
+            auto * __restrict end = v.end().base();
+            
+            for(; it != end; ++it) {
+              *it *= s;
+            }
+          }
+
             static void mult_assign(type & v, type const & w) {
                 auto * __restrict it = v.begin().base();
                 auto * __restrict end = v.end().base();

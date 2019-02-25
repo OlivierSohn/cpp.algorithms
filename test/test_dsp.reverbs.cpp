@@ -1,15 +1,5 @@
 
 
-static inline std::vector<double> mkDirac(int sz, double amplitude = 1.) {
-  std::vector<double> res;
-  res.resize(sz);
-  if(res.empty()) {
-    throw std::logic_error("0-size");
-  }
-  res[0] = amplitude;
-  return res;
-}
-
 static inline std::vector<double> mkCoefficientsRamp(int sz) {
   std::vector<double> res;
   res.reserve(sz);
@@ -57,7 +47,7 @@ TEST(Reverbs, dirac) {
   
   // by default, reverb is inactive.
   {
-    std::vector<double> const input = mkDirac(4);
+    std::vector<double> const input = mkDirac<double>(4);
     auto inputCopy = input;
     rs.apply(inputCopy.data(), inputCopy.size());
     ASSERT_EQ(inputCopy, input);
@@ -67,7 +57,7 @@ TEST(Reverbs, dirac) {
   {
     auto res = rs.setConvolutionReverbIR({}, 1, audio_cb_size, 44100., ResponseTailSubsampling::HighestAffordableResolution);
     ASSERT_FALSE(res);
-    std::vector<double> const input = mkDirac(4);
+    std::vector<double> const input = mkDirac<double>(4);
     auto inputCopy = input;
     rs.apply(inputCopy.data(), inputCopy.size());
     ASSERT_EQ(inputCopy, input);
@@ -75,7 +65,7 @@ TEST(Reverbs, dirac) {
   
   std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
   for(auto const sz : sizes) {
-    std::vector<double> const input = mkDirac(sz);
+    std::vector<double> const input = mkDirac<double>(sz);
     auto const coeffs = mkCoefficientsTriangle(sz);
     for(int rts_i=0; rts_i<5; ++rts_i) {
       LG(INFO, "%d, %d,", sz, rts_i);
@@ -131,7 +121,7 @@ TEST(Reverbs, dirac) {
           ASSERT_GT(0.08, diff[0].first);
           break;
         case 4:
-          ASSERT_GT(0.1, diff[0].first);
+          ASSERT_GT(0.12, diff[0].first);
           break;
         default:
           ASSERT_TRUE(false);
@@ -143,7 +133,7 @@ TEST(Reverbs, dirac) {
   // reverb is inactive when disabled
   {
     rs.disable();
-    std::vector<double> const input = mkDirac(4);
+    std::vector<double> const input = mkDirac<double>(4);
     auto inputCopy = input;
     rs.apply(inputCopy.data(), inputCopy.size());
     ASSERT_EQ(inputCopy, input);

@@ -13,6 +13,7 @@
 #include <thread>
 
 //*
+#include "test_dsp.convolution.cpp"
 #include "test_linalg.cpp"
 #include "test_split.cpp"
 #include "test_dsp.reverbs.cpp"
@@ -33,7 +34,6 @@
 #include "test_fft_fbins.cpp"
 #include "test_fft_signal.cpp"
 #include "test_vdsp.cpp"
-#include "test_dsp.convolution.cpp"
 #include "test_dsp.spatialize.cpp"
 #include "test_range_search.cpp"
 #include "test_global_search.cpp"

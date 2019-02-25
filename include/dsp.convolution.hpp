@@ -35,8 +35,10 @@ namespace imajuscule
             auto const fft_length = get_fft_length(N);
             fft.setContext(Contexts::getInstance().getBySize(fft_length));
 
+            result.clear();
             result.resize(fft_length);
 
+            y.clear();
             y.resize(fft_length);
             it = y.begin();
 
@@ -185,7 +187,7 @@ namespace imajuscule
 
         bool empty() const { return fft_of_h.empty(); }
 
-        auto get_fft_length(int n) const {
+        static auto get_fft_length(int n) {
             auto N_nonzero_y = 2 * n;
             return ceil_power_of_two(N_nonzero_y);
         }

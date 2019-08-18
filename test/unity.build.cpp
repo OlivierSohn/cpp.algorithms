@@ -13,6 +13,7 @@
 #include <thread>
 
 //*
+#include "test_edit_distance.cpp"
 #include "test_sort.cpp"
 #include "test_dsp.convolution.cpp"
 #include "test_linalg.cpp"

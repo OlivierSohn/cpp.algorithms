@@ -114,6 +114,7 @@
 		0947FDB220DA747E00BC4141 /* test.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = test.h; sourceTree = "<group>"; };
 		0947FDC420DABAC900BC4141 /* test_locks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_locks.cpp; path = test/test_locks.cpp; sourceTree = "<group>"; };
 		094DE2381F69C10A007191A0 /* convex_hull.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = convex_hull.h; path = include/convex_hull.h; sourceTree = "<group>"; };
+		0958DAFB23093B7100928B51 /* test_edit_distance.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_edit_distance.cpp; path = test/test_edit_distance.cpp; sourceTree = "<group>"; };
 		095B3E4A20F517D4001C378A /* split.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = split.hpp; path = include/split.hpp; sourceTree = "<group>"; };
 		095B3E4B20F5185C001C378A /* test_split.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_split.cpp; path = test/test_split.cpp; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
@@ -409,7 +410,6 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
-				09BB2B0221A2CA39000F9ADE /* test_linalg.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				0979762120EF4E6500D586A5 /* measure_sin.cpp */,
@@ -425,6 +425,7 @@
 				097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */,
 				09D04652217F3CAF00A00F70 /* test_dsp.reverbs.cpp */,
 				097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */,
+				0958DAFB23093B7100928B51 /* test_edit_distance.cpp */,
 				09A4E4231EA6850700F92310 /* test_fft_fbins.cpp */,
 				09A4E4241EA6850700F92310 /* test_fft_signal.cpp */,
 				09FD59EA1E7EFA6A0052B2FD /* test_fft.cpp */,
@@ -436,6 +437,7 @@
 				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
 				096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
+				09BB2B0221A2CA39000F9ADE /* test_linalg.cpp */,
 				0947FDC420DABAC900BC4141 /* test_locks.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,

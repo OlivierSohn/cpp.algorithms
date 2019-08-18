@@ -56,8 +56,8 @@ namespace imajuscule
         }
 
     private:
-        ScopedLog log;
-        std::ofstream file;
+      std::ofstream file;
+      ScopedLog log;
     };
 
     template<typename T>

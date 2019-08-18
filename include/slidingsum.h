@@ -49,7 +49,6 @@ namespace imajuscule
         assert(phase >= 0);
         assert(n_iterators > 1);
         assert(result.size()==cycle.size());
-        using T = typename CYCLIC::value_type;
         auto it = result.begin();
         auto end = result.end();
         auto begin_cycle = cycle.begin();

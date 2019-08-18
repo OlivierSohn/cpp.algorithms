@@ -75,9 +75,13 @@ namespace imajuscule {
         ERR = 0
     }logLevel;
 
+#ifdef NO_LOGS
+# define LG(...)
+#else
     void LG(logLevel, /*const char* sModule,*/ const char * format, ...);
+#endif
 
-    template <class T>
+  template <class T>
     void logCoords(const char * message, const T & coords) {
         LG(INFO, "%s %.3f %.3f %.3f", message, coords[0], coords[1], coords[2]);
     }

@@ -13,6 +13,7 @@
 #include <thread>
 
 //*
+#include "test_sort.cpp"
 #include "test_dsp.convolution.cpp"
 #include "test_linalg.cpp"
 #include "test_split.cpp"
@@ -48,7 +49,6 @@
 #include "test_cpp.cpp"
 #include "test_types.cpp"
 #include "test_allocators.cpp"
-#include "test_sort.cpp"
 #include "test_hash_table.cpp"
 //*/
 

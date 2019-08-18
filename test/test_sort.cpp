@@ -44,13 +44,11 @@ namespace sort {
         void run_performance() {
             auto length = 1;
             for(int i=0; i<=length_power_performance; i++) {
-                if(i < length_power_performance - 1) {
-                    length *= 10;
-                    continue;
-                }
-                Container ref;
-                for(int j=0; j<2; j++) {
-                    ref = performance_test(length, 3, true, j==0?0:&ref);
+                if(i >= length_power_performance - 1) {
+                    Container ref;
+                    for(int j=0; j<2; j++) {
+                        ref = performance_test(length, 3, true, j==0?0:&ref);
+                    }
                 }
                 length *= 10;
             }
@@ -255,7 +253,7 @@ namespace sort {
             }
             
             if(compare) {
-                printf("  %d:\t %.4f (%.4f / %.4f)\n", size, imj_time/std_time, imj_time, std_time);
+                printf("  %d:\t %.4f (%.6f / %.6f)\n", size, imj_time/std_time, imj_time, std_time);
             }
             
             // to test that seed actually works as intended
@@ -310,7 +308,8 @@ namespace sort {
         
         Test<Container> test;
         test.length_power = 2;
-        
+        test.length_power_performance = 3;
+
         test.setSorter([](Container & c) {
             insertion_sort( c.begin(), c.end() );
         });
@@ -347,6 +346,60 @@ namespace sort {
     }
     
     
+    template< int n, typename Container >
+    void testNInsertionSortByIterator(bool perf_only = false) {
+        using namespace std;
+        cout << "---" << endl;
+        cout << "NInsertionSort by iterator " << n << " "; COUT_TYPE(Container); cout << endl;
+        cout << "---" << endl;
+        
+        Test<Container> test;
+        test.length_power = 2;
+        test.length_power_performance = 3;
+        
+        test.setSorter([](Container & c) {
+            nInsertSort<n>( c.begin(), c.end() );
+        });
+        
+        if(perf_only) {
+            test.run_performance();
+        }
+        else {
+            test.run_logic();
+        }
+    }
+    
+    
+    template< int n, typename Container >
+    void testNInsertionSortByIndex(bool perf_only = false) {
+        using namespace std;
+        cout << "---" << endl;
+        cout << "NInsertionSort by index " << n << " "; COUT_TYPE(Container); cout << endl;
+        cout << "---" << endl;
+        
+        Test<Container> test;
+        test.length_power = 2;
+        test.length_power_performance = 3;
+        
+        test.setSorter([](Container & c) {
+            nInsertSort<n>( c );
+        });
+        
+        if(perf_only) {
+            test.run_performance();
+        }
+        else {
+            test.run_logic();
+        }
+    }
+    template< int n, typename Container >
+    void testNInsertionSortAll(bool perf_only = false) {
+        testNInsertionSortByIndex<n, Container>(perf_only);
+        testNInsertionSortByIterator<n, Container>(perf_only);
+    }
+    
+    
+    
 } // NS sort
 } // NS test
 } // NS imajuscule
@@ -379,6 +432,19 @@ TEST(Algorithm, InsertionSort) {
     testInsertionSort< list<int> >();
 }
 
+TEST(Algorithm, NInsertionSort) {
+    using namespace imajuscule::test::sort;
+    using namespace std;
+    
+    testNInsertionSortAll< 2, vector<int> >();
+    testNInsertionSortAll< 4, vector<int> >();
+    testNInsertionSortAll< 8, vector<int> >();
+    testNInsertionSortAll< 16, vector<int> >();
+    testNInsertionSortAll< 32, vector<int> >();
+    testNInsertionSortAll< 64, vector<int> >();
+    testNInsertionSortAll< 128, vector<int> >();
+}
+
 TEST(Algorithm, HeapSort) {
     using namespace imajuscule::test::sort;
     using namespace std;
@@ -388,6 +454,26 @@ TEST(Algorithm, HeapSort) {
 }
 
 #else
+
+TEST(Algorithm, NInsertionSort_profile) {
+    using namespace imajuscule::test::sort;
+    using namespace std;
+    
+    testNInsertionSortAll< 2, vector<int> >(true);
+    testNInsertionSortAll< 4, vector<int> >(true);
+    testNInsertionSortAll< 8, vector<int> >(true);
+    testNInsertionSortAll< 16, vector<int> >(true);
+    testNInsertionSortAll< 32, vector<int> >(true);
+    testNInsertionSortAll< 64, vector<int> >(true);
+    testNInsertionSortAll< 128, vector<int> >(true);
+}
+
+TEST(Algorithm, InsertionSort_profile) {
+    using namespace imajuscule::test::sort;
+    using namespace std;
+    
+    testInsertionSort< vector<int> >(true);
+}
 
 TEST(Algorithm, HeapSort_profile) {
     using namespace imajuscule::test::sort;

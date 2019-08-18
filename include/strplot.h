@@ -28,8 +28,8 @@ namespace imajuscule {
         StringPlot(int Height, int Width, range<float> r = {}) :
         Height(Height),
         Width(Width),
-        range_(std::move(r)),
-        p(Height)
+        p(Height),
+        range_(std::move(r))
         {
             std::fill(p.begin(), p.end(), std::string(Width, background_char));
         }

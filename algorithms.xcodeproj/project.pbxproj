@@ -173,7 +173,7 @@
 		09807B7B20D7E2BD009732BD /* file2string.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = file2string.h; path = include/file2string.h; sourceTree = "<group>"; };
 		09807B7C20D7F03E009732BD /* test_pair_array_distant.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_pair_array_distant.cpp; path = test/test_pair_array_distant.cpp; sourceTree = "<group>"; };
 		09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_lockfree_scmp.cpp; path = test/test_staticvector_lockfree_scmp.cpp; sourceTree = "<group>"; };
-		0980A5E1222429D0005C1540 /* cplx.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = cplx.c; path = opencl_kernels/cplx.c; sourceTree = "<group>"; };
+		0980A5E1222429D0005C1540 /* cplx_float.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = cplx_float.c; path = opencl_kernels/cplx_float.c; sourceTree = "<group>"; };
 		0980A5E2222429D0005C1540 /* fft_mult_ifft.cl */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.opencl; name = fft_mult_ifft.cl; path = opencl_kernels/fft_mult_ifft.cl; sourceTree = "<group>"; };
 		0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.finegrained.hpp; path = include/dsp.convolution.finegrained.hpp; sourceTree = "<group>"; };
 		0983C7361F254BF100EE86C1 /* angles.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = angles.h; path = include/angles.h; sourceTree = "<group>"; };
@@ -204,6 +204,8 @@
 		09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.gpu.hpp; path = include/dsp.convolution.gpu.hpp; sourceTree = "<group>"; };
 		09B372B82222DABD00909898 /* OpenCL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenCL.framework; path = System/Library/Frameworks/OpenCL.framework; sourceTree = SDKROOT; };
 		09B56BEB1EAB814D00878B33 /* test_math.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_math.cpp; path = test/test_math.cpp; sourceTree = "<group>"; };
+		09B6F3DF22252E50001862D6 /* cplx_double.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = cplx_double.c; path = opencl_kernels/cplx_double.c; sourceTree = "<group>"; };
+		09B6F3E02225980B001862D6 /* fft_mult_ifft_partitionned.cl */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.opencl; name = fft_mult_ifft_partitionned.cl; path = opencl_kernels/fft_mult_ifft_partitionned.cl; sourceTree = "<group>"; };
 		09BA149A1E387D1B00A05F83 /* complex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = complex.hpp; path = include/complex.hpp; sourceTree = "<group>"; };
 		09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.filter.hpp; path = include/dsp.filter.hpp; sourceTree = "<group>"; };
 		09BA14C41E387E4200A05F83 /* enum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = enum.h; path = include/enum.h; sourceTree = "<group>"; };
@@ -229,6 +231,7 @@
 		09D04650217F28F400A00F70 /* dsp.impulseresponse.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.impulseresponse.hpp; path = include/dsp.impulseresponse.hpp; sourceTree = "<group>"; };
 		09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.reverbs.hpp; path = include/dsp.reverbs.hpp; sourceTree = "<group>"; };
 		09D04652217F3CAF00A00F70 /* test_dsp.reverbs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.reverbs.cpp; path = test/test_dsp.reverbs.cpp; sourceTree = "<group>"; };
+		09DDF53222F5729F004A480C /* n_insertion_sort.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = n_insertion_sort.hpp; path = include/n_insertion_sort.hpp; sourceTree = "<group>"; };
 		09E641631ED0661B00BF54A5 /* test_scoped.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_scoped.cpp; path = test/test_scoped.cpp; sourceTree = "<group>"; };
 		09EF8EE41DB3E7C400DC7342 /* algorithms.test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 0; name = test_sort.cpp; path = test/test_sort.cpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -360,7 +363,9 @@
 		0980A5E0222429AE005C1540 /* opencl kernels */ = {
 			isa = PBXGroup;
 			children = (
-				0980A5E1222429D0005C1540 /* cplx.c */,
+				09B6F3DF22252E50001862D6 /* cplx_double.c */,
+				0980A5E1222429D0005C1540 /* cplx_float.c */,
+				09B6F3E02225980B001862D6 /* fft_mult_ifft_partitionned.cl */,
 				0980A5E2222429D0005C1540 /* fft_mult_ifft.cl */,
 			);
 			name = "opencl kernels";
@@ -456,7 +461,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -478,6 +482,7 @@
 				0979762320EF5AD800D586A5 /* dsp.compresser.hpp */,
 				09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
+				09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				09D0464C217A675D00A00F70 /* dsp.delayed.hpp */,
 				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
@@ -522,6 +527,7 @@
 				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
 				0996F3E81E2EF3030053B30B /* meta.hpp */,
+				09DDF53222F5729F004A480C /* n_insertion_sort.hpp */,
 				092EAAB91E2A49F3006C11E9 /* numtraits.h */,
 				09BA14CA1E3888C300A05F83 /* object.h */,
 				096C7DB91EB11B5400DDEB20 /* optimization.global.hpp */,
@@ -680,6 +686,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = 09EF8E9D1DB3E6A300DC7342;

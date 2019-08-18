@@ -169,7 +169,6 @@ namespace imajuscule
         
         using ScopedContext = ScopedContext_<Tag, double>;
         using Algo = Algo_<Tag, double>;
-        using RealSignal = typename fft::RealSignal_<Tag, double>::type;
         using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
         
         auto N = ceil_power_of_two(v.size());

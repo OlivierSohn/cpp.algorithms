@@ -163,8 +163,8 @@ namespace imajuscule {
         }
     private:
         int i=0;
-        int period;
         F f;
+        int period;
     };
 
 

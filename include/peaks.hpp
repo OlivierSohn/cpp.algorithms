@@ -44,7 +44,6 @@ namespace imajuscule
     template<typename ITER>
     ITER first_non_abs_decreasing(ITER it, ITER end) {
         using VAL = typename ITER::value_type;
-        using Tr = NumTraits<VAL>;
 
         bool first = true;
         VAL prev;
@@ -68,7 +67,6 @@ namespace imajuscule
     template<typename ITER>
     ITER first_non_abs_avg_decreasing(ITER it, ITER end, int avg_size) {
         using VAL = typename ITER::value_type;
-        using Tr = NumTraits<VAL>;
 
         slidingAverage<VAL> avg(avg_size);
 
@@ -129,7 +127,6 @@ namespace imajuscule
 
     template<typename ITER, typename VAL = typename ITER::value_type>
     VAL abs_integrated(ITER it, ITER end) {
-        using Tr = NumTraits<VAL>;
         VAL ret {};
 
         for(; it != end; ++it) {

@@ -146,6 +146,7 @@
 #include "sort_utils.hpp"
 #include "insertion_sort.hpp"
 #include "heap_sort.hpp"
+#include "n_insertion_sort.hpp"
 #include "bounded_lifo.hpp"
 #include "hash.hpp"
 #include "hash_table.hpp"

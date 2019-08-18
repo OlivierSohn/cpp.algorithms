@@ -119,7 +119,7 @@ namespace imajuscule {
                     //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
                     times.push_back( t );
                 }
-                return std::move(times);
+                return times;
             }
 
             static inline auto testContiguous(int lg2BlockSize) {
@@ -164,7 +164,7 @@ namespace imajuscule {
                     //cout << "  for " << n_blocks <<  " blocks : " << t << endl;
                     times.push_back( t );
                 }
-                return std::move(times);
+                return times;
             }
 
             static inline void run_multiplyadd_test() {

@@ -5,8 +5,7 @@
 using namespace imajuscule;
 
 namespace imajuscule {
-namespace test {
-namespace sort {
+namespace testsort {
 
     template< typename Container >
     struct Test {
@@ -400,8 +399,7 @@ namespace sort {
     
     
     
-} // NS sort
-} // NS test
+} // NS testsort
 } // NS imajuscule
 
 #define PERFS 0
@@ -413,7 +411,7 @@ TEST(Algorithm, MergeSort) {
         SEQUENTIAL,
         SEQUENTIAL_CACHE_OPTIMIZED
     };
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testMergeSort< vector<int>, 0 >(algo_types);
@@ -425,7 +423,7 @@ TEST(Algorithm, MergeSort) {
 }
 
 TEST(Algorithm, InsertionSort) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testInsertionSort< vector<int> >();
@@ -433,7 +431,7 @@ TEST(Algorithm, InsertionSort) {
 }
 
 TEST(Algorithm, NInsertionSort) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testNInsertionSortAll< 2, vector<int> >();
@@ -446,7 +444,7 @@ TEST(Algorithm, NInsertionSort) {
 }
 
 TEST(Algorithm, HeapSort) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testHeapSort< vector<int> >();
@@ -456,7 +454,7 @@ TEST(Algorithm, HeapSort) {
 #else
 
 TEST(Algorithm, NInsertionSort_profile) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testNInsertionSortAll< 2, vector<int> >(true);
@@ -469,21 +467,21 @@ TEST(Algorithm, NInsertionSort_profile) {
 }
 
 TEST(Algorithm, InsertionSort_profile) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testInsertionSort< vector<int> >(true);
 }
 
 TEST(Algorithm, HeapSort_profile) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     testHeapSort< vector<int> >(true);
 }
 
 TEST(Algorithm, MergeSort_profile) {
-    using namespace imajuscule::test::sort;
+    using namespace imajuscule::testsort;
     using namespace std;
     
     std::vector<AlgoType> algo_types{

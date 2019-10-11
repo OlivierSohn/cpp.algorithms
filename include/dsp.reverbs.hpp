@@ -15,7 +15,9 @@ namespace imajuscule
     return true;
   }
 #endif
-  
+
+    
+
   /*
    Depending on the number of sources, represents a convolution reverb
    or a spatialization.
@@ -72,6 +74,14 @@ namespace imajuscule
       
     }
     
+    void flushToSilence()
+    {
+        for(auto & r : conv_reverbs) {
+            r.flushToSilence();
+        }
+        spatializer.flushToSilence();
+    }
+      
     void disable()
     {
       for(auto & r : conv_reverbs) {
@@ -86,21 +96,22 @@ namespace imajuscule
     // at 0.25f on linux we have glitches
     static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
   
-    [[nodiscard]] bool setConvolutionReverbIR(std::vector<double> ir, int n_channels, int n_audiocb_frames, double sampleRate, ResponseTailSubsampling rts)
+    void setConvolutionReverbIR(InterlacedBuffer const & ib, int n_audiocb_frames, double sampleRate, ResponseTailSubsampling rts)
     {
       disable();
       if(n_audiocb_frames <= 0) {
-        LG(WARN, "disabling reverb (%d callback size)", n_audiocb_frames);
-        return false;
+          std::stringstream ss;
+          ss << "negative or zero callback size (" << n_audiocb_frames << ")";
+          throw std::runtime_error(ss.str());
       }
-      if(ir.size() < n_channels) {
-        LG(WARN, "disabling reverb (only %d coefficients are available)", ir.size());
-        return false;
+      if(ib.buf.size() < ib.nchannels) {
+          std::stringstream ss;
+          ss << "only " << ib.buf.size() << " coefficients are available for " << ib.nchannels << " channels. We need at least one coefficient per channel.";
+          throw std::runtime_error(ss.str());
       }
       using namespace std;
       
-      ImpulseResponseOptimizer<ConvolutionReverb> algo(move(ir),
-                                                       n_channels,
+      ImpulseResponseOptimizer<ConvolutionReverb> algo(ib,
                                                        n_audiocb_frames,
                                                        nAudioOut);
       
@@ -109,16 +120,18 @@ namespace imajuscule
       double theoretical_max_ns_per_frame = 1e9/sampleRate;
 
       auto mayRes =
-      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_channels), rts);
+      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(ib.nchannels), rts);
       if(!mayRes) {
-        LG(WARN, "disabling reverb (could not optimize 1)");
-        return false;
+          std::stringstream ss;
+          ss << "could not optimize (1)";
+          throw std::runtime_error(ss.str());
       }
       
       auto [partitionning,n_scales] = *mayRes;
       if(!partitionning.cost) {
-        LG(WARN, "disabling reverb (could not optimize 2)");
-        return false;
+          std::stringstream ss;
+          ss << "could not optimize (2)";
+          throw std::runtime_error(ss.str());
       }
 
       algo.symmetrically_scale();
@@ -129,12 +142,15 @@ namespace imajuscule
 
       algo.logReport(n_scales,partitionning);
       logReport(algo.countChannels(), partitionning, theoretical_max_ns_per_frame, sampleRate);
-      return true;
     }
     
     void transitionConvolutionReverbWetRatio(double wet, int duration) {
       wetRatio.smoothly(clamp_ret(wet,0.,1.), duration);
     }
+    
+      double getWetRatioWithoutStepping() const {
+          return wetRatio.getWithoutStepping();
+      }
     
     bool hasSpatializer() const { return !spatializer.empty(); }
     
@@ -160,7 +176,7 @@ namespace imajuscule
        }
        {
        using namespace audio;
-       write_wav("/Users/Olivier/Dev/Audiofiles", "deinterlaced.wav", deinterlaced_coeffs);
+       write_wav("/Users/Olivier/Dev/Audiofiles", "deinterlaced.wav", deinterlaced_coeffs, SAMPLE_RATE);
        }
        */
       

@@ -158,6 +158,13 @@ namespace imajuscule
                     earConvs.clear();
                 });
             }
+            void flushToSilence() {
+                forEachEar([](auto & earConvs) {
+                    for(auto & c : earConvs) {
+                        c.flushToSilence();
+                    }
+                });
+            }
 
             bool empty() const { return earsConvs.empty() || earsConvs[0].empty() || earsConvs[0][0].isZero(); }
 

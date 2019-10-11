@@ -121,6 +121,11 @@ namespace imajuscule
       algo.reset();
     }
 
+    void flushToSilence() {
+      resetStates();
+      algo.flushToSilence();
+    }
+
   private:
     Algo algo;
     bool clock;

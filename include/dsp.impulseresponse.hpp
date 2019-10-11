@@ -47,18 +47,23 @@ namespace imajuscule
     return r;
   }
   
+    struct InterlacedBuffer {
+        std::vector<double> buf;
+        int nchannels;
+    };
+    
   template<typename ConvolutionReverb>
   struct ImpulseResponseOptimizer {
     using PartitionAlgo = PartitionAlgo<ConvolutionReverb>;
     using PS = typename PartitionAlgo::PS;
     
-    ImpulseResponseOptimizer(std::vector<double> ir, int n_channels, int n_audiocb_frames, int nAudioOut) :
-    n_channels(n_channels),
+    ImpulseResponseOptimizer(InterlacedBuffer const & ib, int n_audiocb_frames, int nAudioOut) :
+    n_channels(ib.nchannels),
     n_audiocb_frames(n_audiocb_frames),
     nAudioOut(nAudioOut),
-    deinterlaced(n_channels)
+    deinterlaced(ib.nchannels)
     {
-      deinterlace(std::move(ir));
+      deinterlace(ib.buf);
       
       truncate_irrelevant_head();
     }
@@ -72,7 +77,7 @@ namespace imajuscule
     
     auto size() const { return deinterlaced.empty()? 0 : deinterlaced[0].size(); }
     
-    void deinterlace(std::vector<double> ir) {
+    void deinterlace(std::vector<double> const & ir) {
       auto sz = ir.size() / n_channels;
       Assert(sz * n_channels == ir.size());
       for(auto & v : deinterlaced) {
@@ -151,7 +156,7 @@ namespace imajuscule
         }
         LG(INFO, "cost %f >= %f", res->first.getCost(), max_avg_time_per_sample);
         if(n_scales == scales.getMax()) {
-          LG(WARN, "Optimization criteria not met, there are not enough scaling levels.");
+            throw std::runtime_error("Optimization criteria not met, there are not enough scaling levels.");
         }
       }
       

@@ -45,7 +45,11 @@ namespace imajuscule
       b.reset();
       split = undefinedSplit;
     }
-
+    void flushToSilence() {
+      a.flushToSilence();
+      b.flushToSilence();
+    }
+      
     // The split should be equal to "latency of B - latency of A"
     // or negative to mean that no split exists.
     void setSplit(int s) {
@@ -220,7 +224,9 @@ namespace imajuscule
   struct ScaleConvolution {
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
-    
+    using Tag = typename A::Tag;
+    static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
+
     static constexpr int nCoefficientsFadeIn = 0;
     static_assert(A::nCoefficientsFadeIn == 0); // else we need to handle them
 
@@ -245,6 +251,15 @@ namespace imajuscule
       x.clear();
       progress = 0;
       nDroppedConvolutions = 0;
+    }
+    void flushToSilence() {
+      for(auto & c:v) {
+        c.flushToSilence();
+      }
+      if(!x.empty()) {
+        zero_signal(x);
+      }
+      progress = 0;
     }
 
     void applySetup(SetupParam const & p) {

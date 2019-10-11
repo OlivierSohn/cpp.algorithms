@@ -15,6 +15,7 @@ namespace imajuscule
 
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
         static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
+        static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
         static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;
         using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
         using Algo = typename fft::Algo_<Tag, FPT>;
@@ -24,6 +25,7 @@ namespace imajuscule
       using Parent::getBlockSize;
       using Parent::getEpsilon;
         using Parent::doSetCoefficients;
+        using Parent::doFlushToSilence;
         using Parent::compute_convolution;
 
         FFTConvolutionIntermediate() {
@@ -49,6 +51,12 @@ namespace imajuscule
         y.clear();
         it = y.end();
         result.clear();
+      }
+      void flushToSilence() {
+        Parent::doFlushToSilence();
+        zero_signal(y);
+        zero_signal(result);
+        it = y.begin();
       }
       
       bool isZero() const {
@@ -105,6 +113,7 @@ namespace imajuscule
     using T = typename Parent::FPT;
     using FPT = T;
     using Tag = typename Parent::FFTTag;
+      using Parent::flushToSilence;
     static constexpr int nCoefficientsFadeIn = 0;
 
     struct SetupParam {
@@ -117,6 +126,7 @@ namespace imajuscule
     }
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+      static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
 
     using Parent::doApplySetup;
     using Parent::get_fft_length;
@@ -131,6 +141,11 @@ namespace imajuscule
       x.reserve(fft_length);
       setCoefficients2(std::move(coeffs_));
     }
+
+      void flushToSilence() {
+          Parent::flushToSilence();
+          x.clear();
+      }
 
     bool willComputeNextStep() const {
       return x.size() == getBlockSize()-1;
@@ -229,6 +244,11 @@ namespace imajuscule
             mult_assign(fft_of_x, fft_of_h);
 
             return fft_of_x;
+        }
+        
+        void doFlushToSilence() {
+            // nothing to do : no member contains state related to a past signal, except
+            // for fft_of_x but it will be overwritten next time we use it in compute_convolution
         }
     };
 
@@ -356,6 +376,13 @@ namespace imajuscule
         return countPartitions() * (fft::getFFTEpsilon<FPT>(get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
       }
     protected:
+
+        void doFlushToSilence() {
+            for(auto & fft_of_delayed_x : ffts_of_delayed_x) {
+                zero(fft_of_delayed_x);
+            }
+            ffts_of_delayed_x.setByIndex(0);
+        }
 
         auto const & compute_convolution(Algo const & fft, typename RealSignal::const_iterator & xBegin)
         {

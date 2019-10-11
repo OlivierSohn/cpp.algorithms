@@ -134,6 +134,7 @@
 		0960BAFC1DB3F0F80075CB05 /* osx.release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.release.xcconfig; path = xcode.config/osx.release.xcconfig; sourceTree = "<group>"; };
 		0960BAFD1DB3F0F80075CB05 /* ios.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = ios.xcconfig; path = xcode.config/ios.xcconfig; sourceTree = "<group>"; };
 		0960BAFE1DB3F0F80075CB05 /* osx.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = osx.xcconfig; path = xcode.config/osx.xcconfig; sourceTree = "<group>"; };
+		0962985E23416D79005D2033 /* samples.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = samples.cpp; path = source/samples.cpp; sourceTree = "<group>"; };
 		096807881EA13B60006BB4AD /* dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dsp.convolution.cpp; path = source/dsp.convolution.cpp; sourceTree = "<group>"; };
 		096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.hpp; path = include/dsp.convolution.hpp; sourceTree = "<group>"; };
 		096C6D661EA0129300389746 /* optimization.local.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.hpp; path = include/optimization.local.hpp; sourceTree = "<group>"; };
@@ -225,6 +226,11 @@
 		09C02B051E98D0AD00E570F5 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scheduler.h; path = include/scheduler.h; sourceTree = "<group>"; };
 		09C257981EEB023800608C56 /* indentedStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = indentedStream.h; path = include/indentedStream.h; sourceTree = "<group>"; };
 		09C257991EEB028400608C56 /* indentedStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = indentedStream.cpp; path = source/indentedStream.cpp; sourceTree = "<group>"; };
+		09CC0D6F2340F76500D2F1AC /* write.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = write.wav.cpp; path = source/write.wav.cpp; sourceTree = "<group>"; };
+		09CC0D702340F76600D2F1AC /* read.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = read.wav.cpp; path = source/read.wav.cpp; sourceTree = "<group>"; };
+		09CC0D712340F77E00D2F1AC /* c.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = c.h; path = include/c.h; sourceTree = "<group>"; };
+		09CC0D722340F77F00D2F1AC /* samples.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = samples.h; path = include/samples.h; sourceTree = "<group>"; };
+		09CC0D732340F77F00D2F1AC /* read.wav.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = read.wav.h; path = include/read.wav.h; sourceTree = "<group>"; };
 		09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.subsampled.hpp; path = include/dsp.subsampled.hpp; sourceTree = "<group>"; };
 		09D0464C217A675D00A00F70 /* dsp.delayed.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.delayed.hpp; path = include/dsp.delayed.hpp; sourceTree = "<group>"; };
 		09D0464E217F27B700A00F70 /* smooth.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = smooth.hpp; path = include/smooth.hpp; sourceTree = "<group>"; };
@@ -310,8 +316,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
-				0977D2D520E28E2C00145D0F /* memory.cpp */,
-				0975EADC20D8E99E00468667 /* log.cpp */,
+				0962985E23416D79005D2033 /* samples.cpp */,
 				098DC8EE1F65B55500C5A8B2 /* color.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
@@ -321,19 +326,23 @@
 				093239D11DB54D18003C168E /* hash_table.cpp */,
 				09C257991EEB028400608C56 /* indentedStream.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
+				0975EADC20D8E99E00468667 /* log.cpp */,
 				09FC7DEE20BAD5A50037B04C /* log.stack.cpp */,
+				0977D2D520E28E2C00145D0F /* memory.cpp */,
 				0993AE5920CDA5E900E2AE89 /* os.storage.cpp */,
 				0912152F1E09941800B860CB /* pool.adaptive_stack.cpp */,
 				095EF58E1E19C7570073F5CE /* print_type.cpp */,
 				091215301E09941800B860CB /* private.h */,
 				091771521EAE733D0074ACEC /* profiling.cpp */,
 				09FD59C01E7B03950052B2FD /* range.cpp */,
+				09CC0D702340F76600D2F1AC /* read.wav.cpp */,
 				09C02B041E98D09100E570F5 /* scheduler.cpp */,
 				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
 				09BA14CD1E388C6600A05F83 /* string.cpp */,
 				09FD59BE1E7AF3920052B2FD /* string.manip.cpp */,
 				093A7BF21EB2A7B500CBDD97 /* thread.cpp */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,
+				09CC0D6F2340F76500D2F1AC /* write.wav.cpp */,
 			);
 			name = source;
 			sourceTree = "<group>";
@@ -474,6 +483,7 @@
 				09807B7620D7E2B9009732BD /* bsonparser.hpp */,
 				09807B7A20D7E2BA009732BD /* bsonutils.hpp */,
 				09807B7720D7E2B9009732BD /* bsonwriter.hpp */,
+				09CC0D712340F77E00D2F1AC /* c.h */,
 				0979762220EF5AD800D586A5 /* cconstarray.hpp */,
 				098DC8EF1F65B56200C5A8B2 /* color.h */,
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
@@ -545,8 +555,10 @@
 				091771511EAE73070074ACEC /* profiling.h */,
 				0912152E1E096DD900B860CB /* public.h */,
 				092EAAB81E2A4994006C11E9 /* range.h */,
+				09CC0D732340F77F00D2F1AC /* read.wav.h */,
 				093239CC1DB438C7003C168E /* rng.hpp */,
 				0972718C1E1B325200532772 /* safe_cast.hpp */,
+				09CC0D722340F77F00D2F1AC /* samples.h */,
 				09C02B051E98D0AD00E570F5 /* scheduler.h */,
 				099467E71ED062C000375322 /* scoped.h */,
 				09BA14C91E38840800A05F83 /* slidingaverage.h */,

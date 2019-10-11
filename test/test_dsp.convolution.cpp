@@ -56,7 +56,11 @@ namespace imajuscule {
       }
     };
     
+#ifdef NDEBUG
     constexpr auto end_index = 16;
+#else
+      constexpr auto end_index = 15;
+#endif
 
     template<typename T>
     inline auto mkTestCoeffs(int const sz){
@@ -346,6 +350,7 @@ namespace imajuscule {
       using namespace fft;
       
       for(int i=0; i<end_index; ++i) {
+          LG(INFO,"index %d", i);
         testDiracFinegrainedPartitionned<float, Tag>(i);
         testDiracFinegrainedPartitionned<double, Tag>(i);
         {

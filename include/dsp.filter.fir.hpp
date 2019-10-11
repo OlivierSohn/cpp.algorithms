@@ -33,6 +33,9 @@ namespace imajuscule
       coefficients.clear();
       past.resize(0);
     }
+    void flushToSilence() {
+      past.reset();
+    }
     
     T step(T val) {
       if(unlikely(isZero())) {

@@ -35,7 +35,11 @@ namespace imajuscule
       algo.reset();
       ring.resize(0);
     }
-
+    void flushToSilence() {
+      algo.flushToSilence();
+      ring.reset();
+    }
+    
     auto getLatency() const {
       return ring.size() + algo.getLatency();
     }

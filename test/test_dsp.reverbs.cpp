@@ -55,8 +55,12 @@ TEST(Reverbs, dirac) {
   
   // for 0-length responses, reverb is inactive.
   {
-    auto res = rs.setConvolutionReverbIR({}, 1, audio_cb_size, 44100., ResponseTailSubsampling::HighestAffordableResolution);
-    ASSERT_FALSE(res);
+      try {
+          rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100., ResponseTailSubsampling::HighestAffordableResolution);
+          ASSERT_TRUE(false);
+      }
+      catch(std::exception const &) {
+      }
     std::vector<double> const input = mkDirac<double>(4);
     auto inputCopy = input;
     rs.apply(inputCopy.data(), inputCopy.size());
@@ -74,8 +78,13 @@ TEST(Reverbs, dirac) {
       auto const scaleRange = getScaleCountRanges(rts);
       
       auto inputCopy = input;
-      
-      auto res = rs.setConvolutionReverbIR(coeffs, 1, audio_cb_size, 44100., rts);
+        bool res = false;
+        try {
+            rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100., rts);
+            res = true;
+        }
+        catch(std::exception const &) {
+        }
       if(scaleRange.getMin() > 1 && coeffs.size() <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
         ASSERT_FALSE(res);
         continue;

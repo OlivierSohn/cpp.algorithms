@@ -194,6 +194,14 @@
 #include "bsonparser.hpp"
 #include "bsonwriter.hpp"
 
+extern "C"
+{
+#include "c.h"
+}
+
+#include "samples.h"
+#include "read.wav.h"
+
 
 #if __APPLE__
 # include "measure_multiplyadd_contiguity.hpp" // for test on ios

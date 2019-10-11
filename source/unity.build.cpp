@@ -38,3 +38,6 @@ namespace imajuscule {
 #include "gen.names.cpp"
 #include "os.storage.cpp"
 #include "file2string.cpp"
+#include "read.wav.cpp"
+#include "write.wav.cpp"
+#include "samples.cpp"

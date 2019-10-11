@@ -87,6 +87,7 @@ eResult ReadableStorage::OpenFileForOperation(const std::string & sFilePath, Fil
     m_pFile = fopen(sFilePath.c_str(), op == FileMode::READ ? "rb" : "wb");
 
     if ( unlikely(!m_pFile)) {
+        throw std::runtime_error("WritableStorage::OpenFileForOperation : fopen failed : " + std::to_string(errno) + " for file " + sFilePath);
         LG(ERR, "WritableStorage::OpenFileForOperation : fopen failed : %d", errno);
         return ILE_BAD_PARAMETER;
     }

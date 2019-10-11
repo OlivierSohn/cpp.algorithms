@@ -199,6 +199,18 @@ namespace imajuscule
       reset_states();
       clear();
     }
+    void flushToSilence() {
+        Parent::reset_base_states();
+        if(!result.empty()) {
+            zero_signal(result);
+        }
+        x.clear();
+        if(!y.empty()) {
+            zero_signal(y);
+        }
+        it = y.begin();
+        grain_counter = 0;
+    }
 
     bool isZero() const {
       return result.empty();
@@ -313,6 +325,7 @@ namespace imajuscule
           if( cur_grain < n_grains - 1 ) {
             //////////////////////// Multiplicative grain ////////////////////////
             do_some_multiply_add();
+            increment_grain();
           }
           else if(cur_grain == n_grains - 1) {
             /////////////////////// IFFT grain ///////////////////////////////////
@@ -498,12 +511,10 @@ namespace imajuscule
       }
 
       assert(offset_base < ffts_of_partitionned_h.size());
-      for(auto i=0; i < M; ++i) {
-        auto offset = offset_base + i;
-        if(offset == ffts_of_partitionned_h.size()) {
-          break;
-        }
-        auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin() + offset;
+      auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin() + offset_base;
+      for(auto offset = offset_base, offset_end = std::min((offset_base+M), static_cast<int>(ffts_of_partitionned_h.size()));
+          offset != offset_end;
+          ++offset, ++it_fft_of_partitionned_h) {
         assert(it_fft_of_partitionned_h < ffts_of_partitionned_h.end());
 
         auto const & fft_of_delayed_x = ffts_of_delayed_x.get_backward(offset);
@@ -511,7 +522,6 @@ namespace imajuscule
         multiply_add(work                /*   +=   */,
                      fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
       }
-      increment_grain();
     }
 
     auto const & get_multiply_add_result() const {

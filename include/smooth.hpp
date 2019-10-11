@@ -46,6 +46,10 @@ namespace imajuscule
       }
       return current;
     }
+      
+      T getWithoutStepping() const {
+          return current;
+      }
   private:
     T current, target, increment;
   };

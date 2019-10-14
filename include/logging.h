@@ -15,13 +15,13 @@ namespace imajuscule
             if(!action) {
                 return;
             }
-            std::cout << "--> " ;print_system_time(); std::cout << action << " " << str << " ... " << std::endl;
+            std::cout << "--> " ;print_system_time(std::cout); std::cout << "|" << action << " " << str << " ... " << std::endl;
         }
         ~ScopedLog() {
             if(!action) {
                 return;
             }
-            std::cout << "--> " ;print_system_time(); std::cout << action << " Done" << std::endl;
+            std::cout << "--> " ;print_system_time(std::cout); std::cout << "|" << action << " Done" << std::endl;
         }
     private:
         const char * action;

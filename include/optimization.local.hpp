@@ -60,16 +60,16 @@ namespace imajuscule
             return min_param;
         }
         
-        void debug(bool logdraw = false) {
+        void debug(bool logdraw, std::ostream & os) {
             verify_func_exists();
 
-            plot(logdraw); // to see result before we add points
+            plot(logdraw, os); // to see result before we add points
 
             auto const min_index = std::min(0, begin()->first);
           auto const end_index = std::max(9, (min_param?*min_param:0) + 5);
             
-            auto const ret2 = make_exhaustive(range<int>{min_index, end_index-1});
-            plot(logdraw);                        
+            auto const ret2 = make_exhaustive(range<int>{min_index, end_index-1}, os);
+            plot(logdraw, os);
         }
         
     private:

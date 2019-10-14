@@ -31,4 +31,30 @@ namespace imajuscule {
         }
     }
 
+template<typename T>
+T normalizedLinToLog(T lin)
+{
+    // lin  [-1,1]
+    T log = std::abs(lin);
+    // log [0,1]
+    if(log) {
+        // log ]0,1]
+        log = std::log(log);
+        // log ]-inf,0]
+        constexpr T floor = -15.;
+        if(log < floor) {
+            log = floor;
+        }
+        // log ]floor,0]
+        log /= -floor;
+        // log ]-1,0]
+        log += 1.f;
+        // log ]0,1]
+        if(lin < 0) {
+            log = -log;
+        }
+    }
+    return log;
+}
+
 } // NS imajuscule

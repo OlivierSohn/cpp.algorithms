@@ -47,23 +47,18 @@ namespace imajuscule
     return r;
   }
   
-    struct InterlacedBuffer {
-        std::vector<double> buf;
-        int nchannels;
-    };
-    
   template<typename ConvolutionReverb>
   struct ImpulseResponseOptimizer {
     using PartitionAlgo = PartitionAlgo<ConvolutionReverb>;
     using PS = typename PartitionAlgo::PS;
     
-    ImpulseResponseOptimizer(InterlacedBuffer const & ib, int n_audiocb_frames, int nAudioOut) :
-    n_channels(ib.nchannels),
+      ImpulseResponseOptimizer(audio::InterlacedBuffer const & ib, int n_audiocb_frames, int nAudioOut) :
+    n_channels(ib.countChannels()),
     n_audiocb_frames(n_audiocb_frames),
     nAudioOut(nAudioOut),
-    deinterlaced(ib.nchannels)
+    deinterlaced(ib.countChannels())
     {
-      deinterlace(ib.buf);
+      deinterlace(ib.getBuffer());
       
       truncate_irrelevant_head();
     }
@@ -124,7 +119,7 @@ namespace imajuscule
       return deinterlaced;
     }
     
-    Optional<std::pair<PS,int>> optimize_reverb_parameters(double max_avg_time_per_sample, ResponseTailSubsampling rts) const {
+    Optional<std::pair<PS,int>> optimize_reverb_parameters(double max_avg_time_per_sample, ResponseTailSubsampling rts, std::ostream & os) const {
       using namespace std;
       
       auto const size_impulse_response = size();
@@ -138,7 +133,8 @@ namespace imajuscule
         auto partit = PartitionAlgo::run(n_channels,
                                          n_audiocb_frames,
                                          size_impulse_response,
-                                         n_scales);
+                                         n_scales,
+                                         os);
         auto & part = partit.getWithSpread();
         if(!part.cost) {
           LG(INFO, "discarding n_scales %d", n_scales);
@@ -163,8 +159,9 @@ namespace imajuscule
       return res;
     }
     
-    void symmetrically_scale() {
+    void symmetrically_scale(double&scale) {
       using namespace std;
+      scale = 1.;
       double avg = 0.;
       for(auto & v : deinterlaced) {
         using namespace imajuscule::fft;
@@ -213,7 +210,7 @@ namespace imajuscule
         
         auto median = *(norms.begin() + norms.size() / 2);
         auto mean = std::accumulate(norms.begin(), norms.end(), 0.) / static_cast<double>(norms.size());
-        LG(INFO,"avg: %f median: %f", mean, median);
+        //os << "avg: " << mean << " median: " << median << std::endl;
         if(mean > avg) {
           avg = mean;
         }
@@ -224,8 +221,7 @@ namespace imajuscule
       if(avg == 0) {
         return;
       }
-      auto scale = 1. / avg;
-      LG(INFO, "impulse response volume scaled by : %f", scale);
+      scale = 1. / avg;
       for(auto & v : deinterlaced) {
         for(auto &s : v) {
           s *= scale;
@@ -233,14 +229,20 @@ namespace imajuscule
       }
     }
     
-    void logReport(int n_scales, PS const  & partitionning) const {
+    void logReport(int n_scales, PS const  & partitionning, std::ostream & os) const {
       using namespace std;
-      cout << endl;
-      cout << "finished optimizing partition size for " << n_audiocb_frames << " cb frames" << endl;
-      cout << "using " << n_scales << " scale(s)" << endl;
-      cout << "using partition size " << partitionning.cost->partition_size << " with spread on " << n_channels << " channel(s)." << endl;
+        os << "Render block size : " << n_audiocb_frames << " frames" << endl;
+      os << "- using max fft size = " << partitionning.cost->partition_size << ", dephasing computation schedule over " << n_channels << " channel(s)." << endl;
+      os << "- using ";
+      // TODO range of subsampling regions: highest quality region: xxx samples / 2-subsampled region : xxx samples / 4-subsampled
+        if(1 == n_scales) {
+            os << "full tail resolution";
+        }
+        else {
+            os << "reduced tail resolution with " << n_scales - 1 << " subsampling regions";
+        }
+        os << "." << endl;
     }
-    
   };
 
 }

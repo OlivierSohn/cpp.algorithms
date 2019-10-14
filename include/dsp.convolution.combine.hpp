@@ -585,7 +585,7 @@ namespace imajuscule
     using PS = PartitionningSpec<SetupParam>;
     using PSpecs = PartitionningSpecs<SetupParam>;
 
-    static PSpecs run(int n_channels, int n_audio_frames_per_cb, int total_response_size, int n_scales) {
+    static PSpecs run(int n_channels, int n_audio_frames_per_cb, int total_response_size, int n_scales, std::ostream & os) {
       if(total_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
         // in that case there is no late handling at all.
         if(n_scales > 1) {
@@ -631,7 +631,8 @@ namespace imajuscule
                                              n_scales,
                                              n_audio_frames_per_cb,
                                              late_handler_response_size_for_partition_size,
-                                             getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>());
+                                             getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>(),
+                                             os);
     }
   };
 

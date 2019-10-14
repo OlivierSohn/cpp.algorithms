@@ -93,7 +93,8 @@ namespace imajuscule
         vsnprintf(&v[0], size+1, format, args);
         va_end(args);
 
-        print_system_time();
+        print_system_time(std::cout);
+        std::cout << "|";
 
         fprintf(((level == ERR) ? stderr : stdout),
                 "%zu|%s|%s\n",

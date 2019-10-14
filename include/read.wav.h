@@ -1,6 +1,6 @@
 
 namespace imajuscule::audio {
-
+    
         // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 
         enum class WaveFormat : uint16_t {
@@ -10,15 +10,19 @@ namespace imajuscule::audio {
             MULAW =        0x0007, // 8-bit ITU-T G.711 µ-law
             EXTENSIBLE =   0xFFFE  // Determined by SubFormat
         };
+    
+    std::string to_string(WaveFormat f);
 
         void makeDescription(std::string &s, int16_t num_channels, float length_in_seconds, int32_t sample_rate);
         void makeDescription(std::string &s, int16_t num_channels, float length_in_seconds);
-
+    
+    std::string formatSampleRateKHz(int32_t sample_rate);
+    
         struct WAVPCMHeader {
-            int8_t chunk_id[4];
+            std::array<int8_t, 4> chunk_id;
             int32_t chunk_size;
-            int8_t format[4];
-            int8_t subchunk1_id[4];
+            std::array<int8_t, 4> format;
+            std::array<int8_t, 4> subchunk1_id;
             int32_t subchunk1_size;
             WaveFormat audio_format;
             int16_t num_channels;
@@ -26,7 +30,7 @@ namespace imajuscule::audio {
             int32_t byte_rate;
             int16_t block_align;
             int16_t bits_per_sample;
-            int8_t subchunk2_id[4];
+            std::array<int8_t, 4> subchunk2_id;
             int32_t subchunk2_size; // subchunk2_size denotes the number of samples.
 
             unsigned int countFrames() const {
@@ -129,8 +133,8 @@ namespace imajuscule::audio {
                 size_data
             };
 
-            memcpy(ret.chunk_id, getWavChunkId(file_format), 4);
-            memcpy(ret.format, getWavWAVEId(file_format), 4);
+            memcpy(ret.chunk_id.data(), getWavChunkId(file_format), 4);
+            memcpy(ret.format.data(), getWavWAVEId(file_format), 4);
 
             return ret;
         }
@@ -369,6 +373,66 @@ namespace imajuscule::audio {
             Reader & reader;
         };
     
+    struct InterlacedBuffer {
+        using element_type = double;
+        
+        template<typename Reader>
+        void initializeFromReader(Reader & reader, double sample_rate)
+        {
+            double stride = reader.getSampleRate() / sample_rate;
+            
+            nchannels = reader.countChannels();
+            buf.resize(static_cast<int>(reader.countFrames() / stride) * reader.countChannels());
+            
+            MultiChannelReSampling<Reader> mci(reader);
+            mci.Read(buf.begin(), buf.end(), stride);
+            
+            for(auto v:buf) {
+                maxAbsValue = std::max(maxAbsValue, std::abs(v));
+            }
+        }
+
+        std::size_t countFrames() const {
+            if(nchannels == 0) {
+                return 0;
+            }
+            return buf.size() / nchannels;
+        }
+        
+        int countChannels() const { return nchannels; }
+        
+        std::vector<element_type> const & getBuffer() const { return buf; }
+        
+        element_type getMaxAbsValue() const { return maxAbsValue; }
+        
+                
+        // https://stackoverflow.com/a/27216842/3940228
+        std::size_t hashCode() const {
+            auto hashFunc = [](std::size_t &seed, element_type val){
+                std::size_t &i = reinterpret_cast<std::size_t&>(val);
+                static_assert(sizeof(std::size_t) == sizeof(element_type));
+                seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            };
+            
+            // initialize with something
+            std::size_t val = buf.size() / nchannels;
+            
+            // mix with the channel count
+            hashFunc(val, nchannels);
+            
+            // mix with the buffer
+            for(auto const & v:buf) {
+                hashFunc(val, v);
+            }
+
+            return val;
+        }
+    private:
+        std::vector<element_type> buf;
+        int nchannels = 0;
+        element_type maxAbsValue = 0;
+    };
+    
         template<typename Parent>
         struct WAVReader_ : public Parent {
             using Parent::OpenForRead;
@@ -393,6 +457,8 @@ namespace imajuscule::audio {
                 header.makeDescription(s, with_sample_rate);
             }
 
+            auto const & getHeader() const { return header; }
+            
             unsigned int getSampleSize() const { return header.getSampleSize(); }
             int countChannels() const { return header.num_channels; }
             int countSamples() const { return header.countSamples(); }
@@ -455,12 +521,12 @@ namespace imajuscule::audio {
                 bool is_wave_ir = false;
                 ReadData(&header.chunk_id[0], 4, 1);
                 {
-                    if(memcmp(header.chunk_id, getWavChunkId(WaveFileFormat::RIFF), 4)) {
-                        if(!memcmp(header.chunk_id, getWavChunkId(WaveFileFormat::WaveIR), 4)) {
+                    if(memcmp(header.chunk_id.data(), getWavChunkId(WaveFileFormat::RIFF), 4)) {
+                        if(!memcmp(header.chunk_id.data(), getWavChunkId(WaveFileFormat::WaveIR), 4)) {
                             is_wave_ir = true;
                         }
                         else {
-                            std::string str(header.chunk_id, header.chunk_id+4);
+                            std::string str(header.chunk_id.data(), header.chunk_id.data()+4);
                             throw std::runtime_error("unhandled wav chunk_id : " + str);
                         }
                     }
@@ -469,20 +535,20 @@ namespace imajuscule::audio {
                 ReadData(&header.format[0], 4, 1);
                 {
                     if(is_wave_ir) {
-                        if(memcmp(header.format, "ver1", 4)) {
-                            std::string str(header.format, header.format+4);
+                        if(memcmp(header.format.data(), "ver1", 4)) {
+                            std::string str(header.format.data(), header.format.data()+4);
                             throw std::runtime_error("unhandled wir format : " + str);
                         }
                     }
-                    else if(memcmp(header.format, "WAVE", 4)) {
-                        std::string str(header.format, header.format+4);
+                    else if(memcmp(header.format.data(), "WAVE", 4)) {
+                        std::string str(header.format.data(), header.format.data()+4);
                         throw std::runtime_error("unhandled wav format : " + str);
                     }
                 }
                 ReadData(&header.subchunk1_id[0], 4, 1);
                 {
-                    if(memcmp(header.subchunk1_id, "fmt ", 4)) {
-                        std::string str(header.subchunk1_id, header.subchunk1_id+4);
+                    if(memcmp(header.subchunk1_id.data(), "fmt ", 4)) {
+                        std::string str(header.subchunk1_id.data(), header.subchunk1_id.data()+4);
                         throw std::runtime_error("unhandled wav subchunk1_id : " + str);
                     }
                 }
@@ -518,18 +584,18 @@ namespace imajuscule::audio {
                     ReadData(&header.subchunk2_id[0], 4, 1);
                     ReadData(&header.subchunk2_size, sizeof(int32_t), 1);
                     {
-                        if(!memcmp(header.subchunk2_id, "data", 4)) {
+                        if(!memcmp(header.subchunk2_id.data(), "data", 4)) {
                             break;
                         }
-                        if(!memcmp(header.subchunk2_id, "fact", 4)) {
+                        if(!memcmp(header.subchunk2_id.data(), "fact", 4)) {
                             // we skip that, cf. http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
                             // contains the number of samples per channel
                         }
-                        else if(!memcmp(header.subchunk2_id, "PEAK", 4)) {
+                        else if(!memcmp(header.subchunk2_id.data(), "PEAK", 4)) {
                         }
                         else {
-                            std::string str(header.subchunk2_id,
-                                            header.subchunk2_id+4);
+                            std::string str(header.subchunk2_id.data(),
+                                            header.subchunk2_id.data()+4);
                             throw std::runtime_error("unrecognized wav subchunk2_id : " + str);
                         }
                         std::vector<uint8_t> skipped(header.subchunk2_size);
@@ -606,7 +672,7 @@ namespace imajuscule::audio {
     using WAVReader = WAVReader_<ReadableStorage>;
 
     struct ConstMemoryBlock {
-        ConstMemoryBlock(void const * buffer, std::size_t sz) : buffer(buffer), size(sz) {};
+        ConstMemoryBlock(void const * buffer, std::size_t sz) : buffer(buffer), totalSize(sz) {};
 
         eResult OpenForRead() const {
             return ILE_SUCCESS;
@@ -614,13 +680,13 @@ namespace imajuscule::audio {
         
         void ReadData(void * p, size_t size, size_t count) {
             auto sz = size*count;
-            assert(sz+cur <= size);
+            assert(sz+cur <= totalSize);
             memcpy(p,static_cast<const char*>(buffer)+cur, sz);
             cur += sz;
         }
 
         void const * buffer;
-        std::size_t const size;
+        std::size_t const totalSize;
         std::size_t cur = 0;
     };
         
@@ -970,7 +1036,20 @@ namespace imajuscule::audio {
             }
         }
     
+    template<typename WAVRead>
+    void readReverb(int nouts, double sample_rate, WAVRead & reader, InterlacedBuffer & ib)
+    {
+        auto mod = reader.countChannels() % nouts;
+        if((reader.countChannels() > nouts) && mod) {
+            std::ostringstream msg;
+            msg << "Cannot use a '" << reader.countChannels() << "' channels reverb for '" << nouts << "' output channels. The reverb channels count must be a multiple of the output channels count.";
+            throw std::runtime_error(msg.str());
+        }
+        
+        ib.initializeFromReader(reader, sample_rate);
+    }
+    
     void readReverbFromFile(int nouts, double sample_rate, std::string const & dirname, std::string const & filename, InterlacedBuffer & ib);
     void readReverbFromBuffer(int nouts, double sample_rate, void const * buffer, std::size_t const sz, InterlacedBuffer & ib);
 
-}
+} // namespace imajuscule::audio

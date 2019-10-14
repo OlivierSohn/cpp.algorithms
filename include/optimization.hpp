@@ -61,10 +61,10 @@ namespace imajuscule
             return it->second.get_value();
         }
 
-        void plot(bool logdraw = true) const {
+        void plot(bool logdraw, std::ostream & os) const {
 
             if(results.empty()) {
-                std::cout << "empty" << std::endl;
+                os << "empty" << std::endl;
                 return;
             }
 
@@ -89,10 +89,10 @@ namespace imajuscule
             } else {
                 p.draw(values);
             }
-            p.log();
+            os << p;
         }
 
-        int make_exhaustive(range<int> const & r) {
+        int make_exhaustive(range<int> const & r, std::ostream & os) {
             verify_func_exists();
 
             Value min_before;
@@ -115,7 +115,7 @@ namespace imajuscule
                 using namespace std;
                 static auto count = 0;
                 ++count;
-                cout << "mistake " << count << " : "
+                os << "mistake " << count << " : "
                 << index_min_before << " (" << log(static_cast<float>(min_before)) << ") != "
                 << index_min_after  << " (" << log(static_cast<float>(min_after))  << ")" << endl;
             }

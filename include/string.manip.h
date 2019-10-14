@@ -29,7 +29,27 @@ namespace imajuscule
     static inline void AppendTime(std::string & str) {
         AppendTime(getTime(), str);
     }
-    
+
+template<typename T>
+std::string formatSecondsDurationWithPrecision(T length_in_seconds, int n_decimals_total) {
+    auto str_sec = NumTraits<T>::to_string_with_precision(length_in_seconds, n_decimals_total);
+    {
+        auto i = str_sec.find('.');
+        if(i == std::string::npos) {
+            str_sec.push_back('.');
+        }
+    }
+    {
+        auto i = str_sec.find('.');
+        int n_decimals = str_sec.size() - i - 1;
+        if(n_decimals < n_decimals_total) {
+            str_sec.append(n_decimals_total - n_decimals, '0');
+        }
+    }
+    return str_sec;
+}
+
+
     bool iequals(const std::string& a, const std::string& b, int nChars = -1);
     bool equals(const std::string& a, const std::string& b, int nChars = -1);
     
@@ -82,6 +102,8 @@ namespace imajuscule
         trim(s);
         return s;
     }
+
+std::string stripNewLine(std::string const & s);
     
     enum Correspondance : unsigned char { NOT_CORRESPONDING, CORRESPONDS_BACKWARD, CORRESPONDS_FORWARD, CORRESPONDS_ANY };
 

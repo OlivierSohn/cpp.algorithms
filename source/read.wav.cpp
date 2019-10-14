@@ -1,16 +1,29 @@
 
 
 namespace imajuscule::audio {
-    void makeDescription(std::string &desc, int16_t num_channels, float length_in_seconds, int32_t sample_rate) {
-        desc.clear();
-        desc.reserve(14 + 10);
-        
-        makeDescription(desc, num_channels, length_in_seconds);
-        
+    std::string to_string(WaveFormat f) {
+        switch(f) {
+            case WaveFormat::PCM:
+                return "PCM";
+            case WaveFormat::IEEE_FLOAT:
+                return "IEEE_FLOAT";
+            case WaveFormat::ALAW:
+                return "ALAW";
+            case WaveFormat::MULAW:
+                return "MULAW";
+            case WaveFormat::EXTENSIBLE:
+                return "EXTENSIBLE";
+            default:
+                return "???";
+        }
+    }
+
+    std::string formatSampleRateKHz(int32_t sample_rate) {
+        std::string desc;
         // to avoid float rounding error when doing '/ 1000.f' :
         auto s1 = sample_rate/1000;
         auto s2 = sample_rate - 1000 * s1;
-        desc += " " + NumTraits<float>::toSignificantString(s1);
+        desc = NumTraits<float>::toSignificantString(s1);
         if(s2) {
             auto str2 = NumTraits<float>::toSignificantString(s2);
             while(!str2.empty()) {
@@ -21,9 +34,18 @@ namespace imajuscule::audio {
             }
             desc += "." + str2;
         }
-        desc += " kHz";
+        return desc;
     }
     
+    void makeDescription(std::string &desc, int16_t num_channels, float length_in_seconds, int32_t sample_rate) {
+        desc.clear();
+        desc.reserve(14 + 10);
+        
+        makeDescription(desc, num_channels, length_in_seconds);
+        
+        desc += " " + formatSampleRateKHz(sample_rate) + " kHz";
+    }
+        
     void makeDescription(std::string &desc, int16_t num_channels, float length_in_seconds) {
         desc.clear();
         desc.reserve(14);
@@ -31,20 +53,7 @@ namespace imajuscule::audio {
         desc.append(num_channels, '.');
         desc += " ";
         constexpr auto n_decimals_total = 2;
-        auto str_sec = NumTraits<float>::to_string_with_precision(length_in_seconds, n_decimals_total);
-        {
-            auto i = str_sec.find('.');
-            if(i == std::string::npos) {
-                str_sec.push_back('.');
-            }
-        }
-        {
-            auto i = str_sec.find('.');
-            int n_decimals = str_sec.size() - i - 1;
-            if(n_decimals < n_decimals_total) {
-                str_sec.append(n_decimals_total - n_decimals, '0');
-            }
-        }
+        auto str_sec = formatSecondsDurationWithPrecision(length_in_seconds, n_decimals_total);
         desc += str_sec + " s";
     }
     
@@ -77,34 +86,16 @@ namespace imajuscule::audio {
         return true;
     }
     
-    template<typename WAVRead>
-    void readReverb(int nouts, double sample_rate, WAVRead & reader, InterlacedBuffer & ib)
-    {
-        reader.Initialize();
-        
-        auto mod = reader.countChannels() % nouts;
-        if((reader.countChannels() > nouts) && mod) {
-            std::ostringstream msg;
-            msg << "Cannot use a '" << reader.countChannels() << "' channels reverb for '" << nouts << "' output channels. The reverb channels count must be a multiple of the output channels count.";
-            throw std::runtime_error(msg.str());
-        }
-        
-        double stride = reader.getSampleRate() / sample_rate;
-        
-        ib.nchannels = reader.countChannels();
-        ib.buf.resize(static_cast<int>(reader.countFrames() / stride) * reader.countChannels());
-        
-        MultiChannelReSampling<decltype(reader)> mci(reader);
-        mci.Read(ib.buf.begin(), ib.buf.end(), stride);
-    }
     
     void readReverbFromBuffer(int nouts, double sample_rate, void const * buffer, std::size_t const sz, InterlacedBuffer & ib) {
         WAVReaderFromBlock reader(buffer, sz);
+        reader.Initialize();
         readReverb(nouts, sample_rate, reader, ib);
     }
     
     void readReverbFromFile(int nouts, double sample_rate, std::string const & dirname, std::string const & filename, InterlacedBuffer & ib) {
         WAVReader reader(dirname, filename);
+        reader.Initialize();
         readReverb(nouts, sample_rate, reader, ib);
     }
 }

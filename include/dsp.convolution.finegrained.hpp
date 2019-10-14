@@ -567,11 +567,12 @@ namespace imajuscule
                                                              int min_lg2_partitionsz, // must yield a valid result
                                                                bool constraint,
                                                                Optional<SetupParam> & min_val,
-                                                               int n_tests) {
+                                                               int n_tests,
+                                                             std::ostream & os) {
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
 
-    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_tests, n_iterations, n_channels] (int lg2_partition_size, auto & val){
+    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_tests, n_iterations, n_channels, &os] (int lg2_partition_size, auto & val){
       using namespace profiling;
       using namespace std;
       using namespace std::chrono;
@@ -839,12 +840,12 @@ namespace imajuscule
 
       constexpr auto debug = false;
       if(debug) {
-        rgd.plot();
-        rgd.make_exhaustive(multiplication_group_length);
-        rgd.plot();
+        rgd.plot(true, os);
+        rgd.make_exhaustive(multiplication_group_length, os);
+        rgd.plot(true, os);
       }
 
-      //            cout
+      //            os
       //            << "optimal group size : " << val.multiplication_group_size
       //            << " cost : '" << cost << "'" << endl;
 
@@ -868,7 +869,8 @@ namespace imajuscule
                                                            int n_audiocb_frames,
                                                            std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
                                                             int min_lg2_partition_sz,
-                                                           Optional<SetupParam> & value )
+                                                           Optional<SetupParam> & value,
+                                                            std::ostream & os)
   {
     constexpr auto n_iterations = 1;
     constexpr auto n_tests = 1;
@@ -881,7 +883,8 @@ namespace imajuscule
                                                                                 min_lg2_partition_sz,
                                                                                 with_spread,
                                                                                 value,
-                                                                                n_tests);
+                                                                                n_tests,
+                                                                                os);
   }
 
   template<typename T>
@@ -895,7 +898,8 @@ namespace imajuscule
                       int n_scales,
                       int n_audio_frames_per_cb,
                       std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
-                      int min_lg2_partition_sz) {
+                      int min_lg2_partition_sz,
+                      std::ostream & os) {
       assert(n_channels > 0);
       PSpecs res;
       {
@@ -907,7 +911,8 @@ namespace imajuscule
                                                                                    n_audio_frames_per_cb,
                                                                                    n_coeffs_for_partition_sz,
                                                                                    min_lg2_partition_sz,
-                                                                                   spec.cost );
+                                                                                   spec.cost,
+                                                                                   os);
       }
 
       if(n_channels > 1) {
@@ -919,7 +924,8 @@ namespace imajuscule
                                                                                    n_audio_frames_per_cb,
                                                                                    n_coeffs_for_partition_sz,
                                                                                    min_lg2_partition_sz,
-                                                                                   spec.cost );
+                                                                                   spec.cost,
+                                                                                   os);
       }
 
       return std::move(res);

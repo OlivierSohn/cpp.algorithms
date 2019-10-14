@@ -24,4 +24,32 @@ namespace imajuscule
     }
   }
 
+    std::string stripNewLine(std::string const & s) {
+        
+        int i1 = 0;
+        for(auto const & ch:s) {
+            if(ch != '\n') {
+                break;
+            }
+            ++i1;
+        }
+
+        int i2 = s.size();
+        for(auto it = s.rbegin(), end=s.rend(); it != end; ++it) {
+            if(*it != '\n') {
+                break;
+            }
+            --i2;
+        }
+        
+        std::string res;
+        res.reserve(std::abs(i2-i1));
+        for(auto i=i1; i<i2; ++i) {
+            res.push_back(s[i]);
+        }
+        
+        return res;
+    }
+
+
 }

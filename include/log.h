@@ -87,7 +87,7 @@ namespace imajuscule {
     }
 
     template<typename T>
-    void print_time(std::chrono::time_point<T> time) {
+    void print_time(std::chrono::time_point<T> time, std::ostream & os) {
         using namespace std;
         using namespace std::chrono;
 
@@ -101,18 +101,18 @@ namespace imajuscule {
         since_epoch -= s;
         milliseconds milli = duration_cast<milliseconds>(since_epoch);
 
-        cout << sRep << ":";
+        os << sRep << ":";
         auto c = milli.count();
         if(c < 100) {
-            std::cout << "0";
+            os << "0";
         }
         if(c < 10) {
-            std::cout << "0";
+            os << "0";
         }
-        std::cout << c << "|";
+        os << c;
     }
 
-    static inline void print_system_time() {
-        print_time(std::chrono::system_clock::now());
+    static inline void print_system_time(std::ostream & os) {
+        print_time(std::chrono::system_clock::now(), os);
     }
 }

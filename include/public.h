@@ -166,6 +166,16 @@
 #include "smooth.hpp"
 #include "peaks.hpp"
 #include "markov_chain.hpp"
+
+extern "C"
+{
+#include "c.h"
+}
+
+#include "os.storage.h"
+#include "samples.h"
+#include "read.wav.h"
+
 #include "dsp.filter.hpp"
 #include "dsp.filter.fir.hpp"
 #include "dsp.subsampled.hpp"
@@ -188,19 +198,10 @@
 #include "scheduler.h"
 #include "scoped.h"
 #include "file2string.h"
-#include "os.storage.h"
 #include "bsonutils.hpp"
 #include "utf8.hpp"
 #include "bsonparser.hpp"
 #include "bsonwriter.hpp"
-
-extern "C"
-{
-#include "c.h"
-}
-
-#include "samples.h"
-#include "read.wav.h"
 
 
 #if __APPLE__

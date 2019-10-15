@@ -5,20 +5,20 @@ namespace imajuscule
   // it makes the computations use less CPU cycles:
   enum class ResponseTailSubsampling {
     // response is used at full resolution everywhere (most CPU intensive):
-    FullRes,
+    FullRes, // 0
     ScaleCount_1 = FullRes,
     // the beginning of the response is at full resolution, then half resolution:
-    UpToHalfRes,
+    UpToHalfRes, // 1
     ScaleCount_2 = UpToHalfRes,
     // the beginning of the response is at full resolution, then half resolution, then quarter resolution:
-    UpToQuarterRes,
+    UpToQuarterRes, // 2
     ScaleCount_3 = UpToQuarterRes,
     // the beginning of the response is at full resolution, then half resolution, then quarter resolution, then heighth resolution:
-    UpToHeighthRes,
+    UpToHeighthRes, // 3
     ScaleCount_4 = UpToHeighthRes,
     // If in doubt, use this mode: the least number of scales will be used
     // if we can afford the induced computations (using an auto optimizing algorithm).
-    HighestAffordableResolution,
+    HighestAffordableResolution, // 4
   };
   
   static inline range<int> getScaleCountRanges(ResponseTailSubsampling rts) {

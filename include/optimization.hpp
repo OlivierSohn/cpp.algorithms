@@ -89,7 +89,7 @@ namespace imajuscule
             } else {
                 p.draw(values);
             }
-            os << p;
+            os << p;
         }
 
         int make_exhaustive(range<int> const & r, std::ostream & os) {

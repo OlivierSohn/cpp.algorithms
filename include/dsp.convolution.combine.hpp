@@ -492,17 +492,17 @@ namespace imajuscule
      Assuming that scales have resolutions of 1,2,4,8...
      for every scale, the number of blocks = { N(k), k in 1 .. S }
      Assuming that between scale i and (i+1) there are nOverlap*2^(i-1) blocks in common
-     N = sum (n in 0 .. (S-1)) 2^n N(n+1) + scaleFadeSz::inSmallerUnits * sum (n in 1.. (S-1)) 2^(n-1)
+     N = sum (n in 0 .. (S-1)) 2^n N(n+1) - scaleFadeSz::inSmallerUnits * sum (n in 1.. (S-1)) 2^(n-1)
      and since we want the number of blocks to be equal
      (hence the namespace name 'SameSizeScales'), we will solve this:
-     N = NF * sum (n in 0 .. (S-1)) 2^n + scaleFadeSz::inSmallerUnits * sum (n in 0.. (S-2)) 2^n
-     N = NF * (2^S - 1) + scaleFadeSz::inSmallerUnits * (2^(S-1)-1)
-     NF = (N - scaleFadeSz::inSmallerUnits * (2^(S-1)-1)) / (2^S - 1)
+     N = NF * sum (n in 0 .. (S-1)) 2^n - scaleFadeSz::inSmallerUnits * sum (n in 0.. (S-2)) 2^n
+     N = NF * (2^S - 1) - scaleFadeSz::inSmallerUnits * (2^(S-1)-1)
+     NF = (N + scaleFadeSz::inSmallerUnits * (2^(S-1)-1)) / (2^S - 1)
      */
     static inline int get_scale_sz(int response_sz, int n_scales) {
       assert(response_sz>=0);
-      int numerator = response_sz - static_cast<int>(scaleFadeSz::inSmallerUnits * (pow2(n_scales-1) - 1));
-      int denominator = pow2(n_scales) - 1;
+      int numerator = response_sz + static_cast<int>(scaleFadeSz::inSmallerUnits * (static_cast<int>(pow2(n_scales-1)) - 1));
+      int denominator = static_cast<int>(pow2(n_scales)) - 1;
       int res = ceil(numerator / static_cast<double>(denominator));
       if(subSamplingAllowsEvenNumberOfCoefficients || n_scales <= 1) {
         return res;
@@ -514,8 +514,8 @@ namespace imajuscule
     }
     static inline int get_max_response_sz(int n_scales, int sz_one_scale) {
       return
-      sz_one_scale * (pow2(n_scales) - 1) +
-      scaleFadeSz::inSmallerUnits * (pow2(n_scales-1) - 1);
+      sz_one_scale * (pow2(n_scales) - 1) -
+      scaleFadeSz::inSmallerUnits * (static_cast<int>(pow2(n_scales-1)) - 1);
     }
     
     int constexpr getDelays(int scale_sz, int partition_sz) {

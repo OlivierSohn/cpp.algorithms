@@ -18,6 +18,49 @@ namespace imajuscule
 
 
 
+struct ResponseStructure {
+    int nEarlyCofficients;
+    int totalSize;
+    int totalSizePadded;
+    int scaleSize;
+    int countScales;
+    
+    bool isConsistent() const {
+        // totalSizePadded = nEarlyCofficients + scaleSize + 2*scaleSize + 4*scaleSize + 8*scaleSize
+        int tmp = 0;
+        int coeff = 1;
+        for(int i=0; i<countScales; ++i, coeff *= 2) {
+            tmp += scaleSize * coeff;
+        }
+        int nOverlapp = 0;
+        int crossfade = scaleFadeSz::inSmallerUnits;
+
+        for(int i=1; i<countScales; ++i, crossfade *= 2) {
+            nOverlapp += crossfade;
+        }
+        return tmp + nEarlyCofficients - nOverlapp == totalSizePadded;
+    }
+    
+    bool operator == (const ResponseStructure& o) const {
+        return
+        nEarlyCofficients==o.nEarlyCofficients &&
+        totalSize == o.totalSize &&
+        totalSizePadded == o.totalSizePadded &&
+        scaleSize == o.scaleSize &&
+        countScales == o.countScales;
+    }
+    
+    std::string toString() const {
+        std::ostringstream os;
+        os << "nEarlyCofficients : " << nEarlyCofficients << std::endl;
+        os << "totalSize : " << totalSize << std::endl;
+        os << "totalSizePadded : " << totalSizePadded << std::endl;
+        os << "scaleSize : " << scaleSize << std::endl;
+        os << "countScales : " << countScales << std::endl;
+        return os.str();
+    }
+};
+
   /*
    Depending on the number of sources, represents a convolution reverb
    or a spatialization.
@@ -97,7 +140,7 @@ namespace imajuscule
     // at 0.25f on linux we have glitches
     static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
 
-      void setConvolutionReverbIR(audio::InterlacedBuffer const & ib, int n_audiocb_frames, double sampleRate, ResponseTailSubsampling rts, std::ostream & os, double&scale)
+      void setConvolutionReverbIR(audio::InterlacedBuffer const & ib, int n_audiocb_frames, double sampleRate, ResponseTailSubsampling rts, std::ostream & os, double&scale, ResponseStructure & structure)
     {
       disable();
       if(n_audiocb_frames <= 0) {
@@ -139,7 +182,8 @@ namespace imajuscule
         
       setCoefficients(partitionning,
                       n_scales,
-                      move(algo.editDeinterlaced()));
+                      move(algo.editDeinterlaced()),
+                      structure);
 
       logReport(algo.countChannels(), partitionning, theoretical_max_ns_per_frame, sampleRate, os);
       algo.logReport(n_scales,partitionning, os);
@@ -164,7 +208,8 @@ namespace imajuscule
 
     void setCoefficients(PS const & spec,
                          int n_scales,
-                         std::vector<a64::vector<double>> deinterlaced_coeffs) {
+                         std::vector<a64::vector<double>> deinterlaced_coeffs,
+                         ResponseStructure & structure) {
       using namespace std;
       assert(n_scales >= 1);
 
@@ -189,11 +234,16 @@ namespace imajuscule
       int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
       int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
 
-      cout << "scale size: " << scale_sz << endl;
+        structure.scaleSize = scale_sz;
+        structure.countScales = n_scales;
+        structure.nEarlyCofficients = n_coeffs_early_handler;
+        structure.totalSize = total_response_size;
+        structure.totalSizePadded = total_response_size;
 
       if(n_scales > 1) {
         // pad the coefficients so that all scales have the same rythm.
         int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
+        structure.totalSizePadded = n_coeffs_early_handler + target_late_response_sz;
         for(auto & v : deinterlaced_coeffs) {
           v.resize(n_coeffs_early_handler + target_late_response_sz);
         }
@@ -253,6 +303,7 @@ namespace imajuscule
         assert(!spatializer.empty());
         spatializer.dephaseComputations(spec.cost->phase, n_scales);
       }
+        
     }
 
     template<typename T>

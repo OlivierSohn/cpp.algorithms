@@ -117,7 +117,7 @@ namespace imajuscule
     static constexpr int nCoefficientsFadeIn = 0;
 
     struct SetupParam {
-      float cost;
+        float cost = 0.f;
       typename Parent::SetupParam param;
     };
 

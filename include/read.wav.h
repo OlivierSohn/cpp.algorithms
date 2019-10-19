@@ -308,130 +308,6 @@ namespace imajuscule::audio {
                         n_channels,
                         bytes_per_sample(f));
         }
-
-        template<typename Reader>
-        struct MultiChannelReSampling {
-            MultiChannelReSampling(Reader & reader) : reader(reader) {}
-
-            template<typename ITER>
-            ITER Read(ITER it, ITER end, double stride) {
-                using VAL = typename ITER::value_type;
-
-                auto n_channels = reader.countChannels();
-
-                bool the_end = false;
-
-                std::array<std::vector<float>, 2> vecs;
-
-                for(auto & v : vecs) {
-                    v.resize(n_channels, {});
-                    for(int j=0; j<n_channels; ++j) {
-                        if(reader.HasMore()) {
-                            v[j] = reader.template ReadAsOneFloat<VAL>();
-                        }
-                        else {
-                            the_end = true;
-                        }
-                    }
-                }
-
-                auto & cur = vecs[0];
-                auto & next = vecs[1];
-
-                double where = 0.;
-
-                int n_writes = 0;
-                while(it != end && !(the_end && where > 1.)) {
-                    while(where >= 1.) {
-                        where -= 1.;
-                        for(int j=0; j<n_channels; ++j) {
-                            cur[j] = next[j];
-                            if(reader.HasMore()) {
-                                next[j] = reader.template ReadAsOneFloat<VAL>();
-                            }
-                            else {
-                                the_end = true;
-                            }
-                        }
-                    }
-                    if(likely(where <= 1.)) {
-                        auto cur_ratio = 1. - where;
-                        auto next_ratio = where;
-
-                        for(int j=0; j<n_channels; ++j) {
-                            *it = cur_ratio * cur[j] + (next_ratio * next[j]);
-                            ++it;
-                            ++n_writes;
-                        }
-                        where += stride;
-                    }
-                }
-                return it;
-            }
-
-        private:
-            Reader & reader;
-        };
-    
-    struct InterlacedBuffer {
-        using element_type = double;
-        
-        template<typename Reader>
-        void initializeFromReader(Reader & reader, double sample_rate)
-        {
-            double stride = reader.getSampleRate() / sample_rate;
-            
-            nchannels = reader.countChannels();
-            buf.resize(static_cast<int>(reader.countFrames() / stride) * reader.countChannels());
-            
-            MultiChannelReSampling<Reader> mci(reader);
-            mci.Read(buf.begin(), buf.end(), stride);
-            
-            for(auto v:buf) {
-                maxAbsValue = std::max(maxAbsValue, std::abs(v));
-            }
-        }
-
-        std::size_t countFrames() const {
-            if(nchannels == 0) {
-                return 0;
-            }
-            return buf.size() / nchannels;
-        }
-        
-        int countChannels() const { return nchannels; }
-        
-        std::vector<element_type> const & getBuffer() const { return buf; }
-        
-        element_type getMaxAbsValue() const { return maxAbsValue; }
-        
-                
-        // https://stackoverflow.com/a/27216842/3940228
-        std::size_t hashCode() const {
-            auto hashFunc = [](std::size_t &seed, element_type val){
-                std::size_t &i = reinterpret_cast<std::size_t&>(val);
-                static_assert(sizeof(std::size_t) == sizeof(element_type));
-                seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            };
-            
-            // initialize with something
-            std::size_t val = buf.size() / nchannels;
-            
-            // mix with the channel count
-            hashFunc(val, nchannels);
-            
-            // mix with the buffer
-            for(auto const & v:buf) {
-                hashFunc(val, v);
-            }
-
-            return val;
-        }
-    private:
-        std::vector<element_type> buf;
-        int nchannels = 0;
-        element_type maxAbsValue = 0;
-    };
     
         template<typename Parent>
         struct WAVReader_ : public Parent {
@@ -1037,7 +913,7 @@ namespace imajuscule::audio {
         }
     
     template<typename WAVRead>
-    void readReverb(int nouts, double sample_rate, WAVRead & reader, InterlacedBuffer & ib)
+    InterlacedBuffer readReverb(int nouts, double sample_rate, WAVRead & reader)
     {
         auto mod = reader.countChannels() % nouts;
         if((reader.countChannels() > nouts) && mod) {
@@ -1046,10 +922,10 @@ namespace imajuscule::audio {
             throw std::runtime_error(msg.str());
         }
         
-        ib.initializeFromReader(reader, sample_rate);
+        return {reader, sample_rate};
     }
     
-    void readReverbFromFile(int nouts, double sample_rate, std::string const & dirname, std::string const & filename, InterlacedBuffer & ib);
-    void readReverbFromBuffer(int nouts, double sample_rate, void const * buffer, std::size_t const sz, InterlacedBuffer & ib);
+    InterlacedBuffer readReverbFromFile(int nouts, double sample_rate, std::string const & dirname, std::string const & filename);
+    InterlacedBuffer readReverbFromBuffer(int nouts, double sample_rate, void const * buffer, std::size_t const sz);
 
 } // namespace imajuscule::audio

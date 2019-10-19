@@ -28,7 +28,7 @@ namespace imajuscule
             return *std::min_element(a.begin(), a.end());
         }
 
-        void pollute_cache();
+        void pollute_cache(std::ostream &);
 
         /*
         * Measures elapsed system time between construction and destruction of the object.
@@ -66,8 +66,6 @@ namespace imajuscule
         rep measure_one(F f) {
             rep duration;
 
-            pollute_cache();
-
             {
                 Timer<Clock> t(duration);
 
@@ -78,22 +76,21 @@ namespace imajuscule
         }
 
         template<typename Clock, typename PREP, typename F, typename rep = typename Clock::rep>
-        std::vector<rep> measure_n(int n, PREP preparation, F f) {
+        std::vector<rep> measure_n(int n_warmup, int n, PREP preparation, F f) {
             assert(n > 0);
-            std::vector<rep> durations(n);
+                        
+            std::vector<rep> durations(n_warmup + n);
 
             for(auto & duration : durations)
             {
                 preparation();
-
-                pollute_cache();
 
                 {
                     Timer<Clock> t(duration);
                     f();
                 }
             }
-            return std::move(durations);
+            return {durations.begin() + n_warmup, durations.end()};
         }
     }
 }

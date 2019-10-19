@@ -622,37 +622,4 @@ TEST(EditDistance, ed) {
              EditDistanceAction::Match, // o
              EditDistanceAction::Match // u
          });
-
-    test("abcdefghijklmnopqrstuvwxyz",
-         "khjgaerfvndglhkkjhefghefsk",
-         {
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Insert,
-             EditDistanceAction::Match,
-             EditDistanceAction::Insert,
-             EditDistanceAction::Match,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Delete,
-             EditDistanceAction::Match,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Substitute,
-             EditDistanceAction::Delete,
-         });
 }

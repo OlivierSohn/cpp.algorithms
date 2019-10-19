@@ -226,6 +226,8 @@
 		09C02B051E98D0AD00E570F5 /* scheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scheduler.h; path = include/scheduler.h; sourceTree = "<group>"; };
 		09C257981EEB023800608C56 /* indentedStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = indentedStream.h; path = include/indentedStream.h; sourceTree = "<group>"; };
 		09C257991EEB028400608C56 /* indentedStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = indentedStream.cpp; path = source/indentedStream.cpp; sourceTree = "<group>"; };
+		09C4300F235B359100E46153 /* dsp.resample.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = dsp.resample.h; path = include/dsp.resample.h; sourceTree = "<group>"; };
+		09C43010235B393800E46153 /* test_dsp.resample.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.resample.cpp; path = test/test_dsp.resample.cpp; sourceTree = "<group>"; };
 		09CC0D6F2340F76500D2F1AC /* write.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = write.wav.cpp; path = source/write.wav.cpp; sourceTree = "<group>"; };
 		09CC0D702340F76600D2F1AC /* read.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = read.wav.cpp; path = source/read.wav.cpp; sourceTree = "<group>"; };
 		09CC0D712340F77E00D2F1AC /* c.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = c.h; path = include/c.h; sourceTree = "<group>"; };
@@ -432,6 +434,7 @@
 				098473FB1E7FA8A10014465E /* test_cyclic.cpp */,
 				0979762420EF652F00D586A5 /* test_dsp.compress.cpp */,
 				097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */,
+				09C43010235B393800E46153 /* test_dsp.resample.cpp */,
 				09D04652217F3CAF00A00F70 /* test_dsp.reverbs.cpp */,
 				097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */,
 				0958DAFB23093B7100928B51 /* test_edit_distance.cpp */,
@@ -500,6 +503,7 @@
 				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
 				09D04650217F28F400A00F70 /* dsp.impulseresponse.hpp */,
+				09C4300F235B359100E46153 /* dsp.resample.h */,
 				09D0464F217F285A00A00F70 /* dsp.reverb.hpp */,
 				09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,

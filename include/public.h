@@ -174,6 +174,7 @@ extern "C"
 
 #include "os.storage.h"
 #include "samples.h"
+#include "dsp.resample.h"
 #include "read.wav.h"
 
 #include "dsp.filter.hpp"

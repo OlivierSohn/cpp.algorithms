@@ -31,7 +31,7 @@ namespace imajuscule
         return s;
       }
 
-        void pollute_cache()
+        void pollute_cache(std::ostream & os)
         {
           // to have alternating characters we need some state:
           static unsigned int n = 0;
@@ -48,7 +48,7 @@ namespace imajuscule
             }
             // erase last char after the flush so that it is visible until a new flush occurs.
             constexpr int szProgress = 20;
-            std::cout
+            os
             << progressStr(szProgress, i+n)
             << std::flush
             << std::string(szProgress, '\b')

@@ -110,7 +110,9 @@ namespace imajuscule
     GrainsCosts grains_costs;
 
     static FinegrainedSetupParam makeInactive() {
-      return {0,0,0};
+      FinegrainedSetupParam res{0,0,0};
+      res.setCost(0.f);
+      return res;
     }
   };
 
@@ -578,6 +580,7 @@ namespace imajuscule
       using namespace std::chrono;
 
       constexpr auto n_atoms_repeat = 1;
+      constexpr auto n_atoms_repeat_warmup = 1;
 
       if(lg2_partition_size < 0) {
         return ParamState::OutOfRange;
@@ -658,10 +661,9 @@ namespace imajuscule
         auto prepare = [&tests, g] () { for(auto & t : tests) { t.prepare(g); } };
         auto measure = [&tests   ] () { for(auto & t : tests) { t.run();      } };
 
-        // in case globals need to be initialized
-        prepare(); measure();
 
-        times[index] = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
+        times[index] = min_(measure_n<high_resolution_clock>(n_atoms_repeat_warmup,
+                                                             n_atoms_repeat,
                                                              prepare,
                                                              measure)) / static_cast<float>(tests.size());
         ++index;
@@ -809,7 +811,8 @@ namespace imajuscule
           }
         };
 
-        auto multiplication_grain_time = min_(measure_n<high_resolution_clock>(n_atoms_repeat,
+        auto multiplication_grain_time = min_(measure_n<high_resolution_clock>(n_atoms_repeat_warmup,
+                                                                               n_atoms_repeat,
                                                                                prepare,
                                                                                measure)) / static_cast<float>(tests.size());
 

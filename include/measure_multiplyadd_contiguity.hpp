@@ -109,7 +109,7 @@ namespace imajuscule {
 
                     auto wit = w.begin();
 
-                    auto t = avg(measure_n<high_resolution_clock>(n_repeats, []{}, [wit,&v1,&v2]() {
+                    auto t = avg(measure_n<high_resolution_clock>(1, n_repeats, []{}, [wit,&v1,&v2]() {
                         auto n_blocks = v1.size();
                         for(int i=0; i<n_blocks; ++i) {
                             simple_multiply_add(wit, v1[i].begin(), v2[i].begin(), v1[i].size());
@@ -150,7 +150,7 @@ namespace imajuscule {
                     auto it2 = v2.begin();
                     auto wit = w.begin();
 
-                    auto t = avg(measure_n<high_resolution_clock>(n_repeats, []{}, [wit,it1_=it1,it2_=it2,n_blocks, block_sz]() {
+                    auto t = avg(measure_n<high_resolution_clock>(1, n_repeats, []{}, [wit,it1_=it1,it2_=it2,n_blocks, block_sz]() {
                         auto it1 = it1_;
                         auto it2 = it2_;
                         for(int i=0; i<n_blocks; ++i,

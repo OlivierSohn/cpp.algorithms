@@ -335,7 +335,6 @@ namespace imajuscule::audio {
                 }
             }
         }
-        std::cout << "num different keys = " << results.size() << std::endl;
     }
     
     enum class ResamplingMethod {

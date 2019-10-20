@@ -285,8 +285,8 @@ namespace imajuscule::audio {
             auto res = std::make_unique<std::vector<double>>();
             auto & v = *res;
             v.reserve(2+2*N);
-            int64_t firstIdx = -N-1;
-            int64_t last_idx = N; // included
+            int64_t firstIdx = -N;
+            int64_t last_idx = N+1; // included
             for(int64_t i=firstIdx; i<= last_idx; ++i) {
                 v.push_back(hs(x-i));
             }
@@ -318,27 +318,27 @@ namespace imajuscule::audio {
                 assert(vres.size() == 2+2*N);
                 for(int64_t
                     i   = std::max(static_cast<int64_t>(0),
-                                   N+1-discreteSampleBefore),
+                                   N-discreteSampleBefore),
                     end = std::min(static_cast<int64_t>(vres.size()),
-                                   static_cast<int64_t>(original.size()/n_channels)+N+1-discreteSampleBefore);
+                                   static_cast<int64_t>(original.size()/n_channels)+N-discreteSampleBefore);
                     i < end;
                     ++i) {
                     // for all j in 0 .. n_channels-1,
                     //
-                    // (discreteSampleBefore+i-N-1)*n_channels + j >= 0   implies:
-                    // discreteSampleBefore+i-N-1 >= 0   implies:
-                    // i >= N+1-discreteSampleBefore
+                    // (discreteSampleBefore+i-N)*n_channels + j >= 0   implies:
+                    // discreteSampleBefore+i-N >= 0   implies:
+                    // i >= N-discreteSampleBefore
                     //
-                    // (discreteSampleBefore+i-N-1)*n_channels + j < original.size() implies:
-                    // (discreteSampleBefore+i-N-1)*n_channels + n_channels-1 < original.size() implies:
-                    // (discreteSampleBefore+i-N)*n_channels -1 < original.size() implies:
-                    // (discreteSampleBefore+i-N)*n_channels < 1 + original.size() implies:
+                    // (discreteSampleBefore+i-N)*n_channels + j < original.size() implies:
+                    // (discreteSampleBefore+i-N)*n_channels + n_channels-1 < original.size() implies:
+                    // (discreteSampleBefore+i-N+1)*n_channels -1 < original.size() implies:
+                    // (discreteSampleBefore+i-N+1)*n_channels < 1 + original.size() implies:
                     // (because the left is a multiple of n_channels, and original.size() is a multiple of n_channels)
-                    // (discreteSampleBefore+i-N)*n_channels < n_channels + original.size() implies:
-                    // discreteSampleBefore+i-N < 1 + original.size()/n_channels implies:
-                    // i < 1 + N + original.size()/n_channels - discreteSampleBefore
+                    // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
+                    // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
+                    // i < N + original.size()/n_channels - discreteSampleBefore
 
-                    res += vres[i] * original[(discreteSampleBefore+i-N-1)*n_channels + j];
+                    res += vres[i] * original[(discreteSampleBefore+i-N)*n_channels + j];
                 }
 
                 *it = res;

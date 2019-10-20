@@ -24,6 +24,7 @@
 		09A4E4261EA6B1CF00F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
 		09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */; };
 		09B372B92222DABD00909898 /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09B372B82222DABD00909898 /* OpenCL.framework */; };
+		09C4301D235C915E00E46153 /* unity.build.convert.audio.rate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */; };
 		09C645911E09F84700153C61 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
 /* End PBXBuildFile section */
 
@@ -53,6 +54,15 @@
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
+		};
+		09C43013235C912700E46153 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -228,6 +238,9 @@
 		09C257991EEB028400608C56 /* indentedStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = indentedStream.cpp; path = source/indentedStream.cpp; sourceTree = "<group>"; };
 		09C4300F235B359100E46153 /* dsp.resample.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = dsp.resample.h; path = include/dsp.resample.h; sourceTree = "<group>"; };
 		09C43010235B393800E46153 /* test_dsp.resample.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.resample.cpp; path = test/test_dsp.resample.cpp; sourceTree = "<group>"; };
+		09C43015235C912700E46153 /* convert.audio.rate */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = convert.audio.rate; sourceTree = BUILT_PRODUCTS_DIR; };
+		09C43017235C912700E46153 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.convert.audio.rate.cpp; path = source/unity.build.convert.audio.rate.cpp; sourceTree = "<group>"; };
 		09CC0D6F2340F76500D2F1AC /* write.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = write.wav.cpp; path = source/write.wav.cpp; sourceTree = "<group>"; };
 		09CC0D702340F76600D2F1AC /* read.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = read.wav.cpp; path = source/read.wav.cpp; sourceTree = "<group>"; };
 		09CC0D712340F77E00D2F1AC /* c.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = c.h; path = include/c.h; sourceTree = "<group>"; };
@@ -291,6 +304,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		09C43012235C912700E46153 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		09EF8EE11DB3E7C400DC7342 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -318,7 +338,6 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
-				0962985E23416D79005D2033 /* samples.cpp */,
 				098DC8EE1F65B55500C5A8B2 /* color.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
@@ -338,11 +357,13 @@
 				091771521EAE733D0074ACEC /* profiling.cpp */,
 				09FD59C01E7B03950052B2FD /* range.cpp */,
 				09CC0D702340F76600D2F1AC /* read.wav.cpp */,
+				0962985E23416D79005D2033 /* samples.cpp */,
 				09C02B041E98D09100E570F5 /* scheduler.cpp */,
 				09FD59BD1E7AF3090052B2FD /* sort_utils.cpp */,
 				09BA14CD1E388C6600A05F83 /* string.cpp */,
 				09FD59BE1E7AF3920052B2FD /* string.manip.cpp */,
 				093A7BF21EB2A7B500CBDD97 /* thread.cpp */,
+				09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,
 				09CC0D6F2340F76500D2F1AC /* write.wav.cpp */,
 			);
@@ -393,6 +414,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		09C43016235C912700E46153 /* convert.audio.rate */ = {
+			isa = PBXGroup;
+			children = (
+				09C43017235C912700E46153 /* main.swift */,
+			);
+			path = convert.audio.rate;
+			sourceTree = "<group>";
+		};
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
@@ -401,6 +430,7 @@
 				093239D21DB54D1B003C168E /* source */,
 				0960BB0F1DB3F1060075CB05 /* xcode.config */,
 				09EF8F311DB3E8AD00DC7342 /* include */,
+				09C43016235C912700E46153 /* convert.audio.rate */,
 				09EF8EE51DB3E7C400DC7342 /* Products */,
 				09EF8F2B1DB3E87E00DC7342 /* test */,
 				09A2EC271EA2C48000D94138 /* Frameworks */,
@@ -414,6 +444,7 @@
 				093239D81DB5651B003C168E /* libalgorithms.a */,
 				09168FC61E099C42005DD50F /* libalgorithms.ios.a */,
 				09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */,
+				09C43015235C912700E46153 /* convert.audio.rate */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -655,6 +686,23 @@
 			productReference = 09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		09C43014235C912700E46153 /* convert.audio.rate */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 09C43019235C912700E46153 /* Build configuration list for PBXNativeTarget "convert.audio.rate" */;
+			buildPhases = (
+				09C43011235C912700E46153 /* Sources */,
+				09C43012235C912700E46153 /* Frameworks */,
+				09C43013235C912700E46153 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = convert.audio.rate;
+			productName = convert.audio.rate;
+			productReference = 09C43015235C912700E46153 /* convert.audio.rate */;
+			productType = "com.apple.product-type.tool";
+		};
 		09EF8EE31DB3E7C400DC7342 /* algorithms.test */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 09EF8EEC1DB3E7C400DC7342 /* Build configuration list for PBXNativeTarget "algorithms.test" */;
@@ -679,6 +727,7 @@
 		09EF8E9E1DB3E6A300DC7342 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				LastSwiftUpdateCheck = 1110;
 				LastUpgradeCheck = 0800;
 				TargetAttributes = {
 					09168FC51E099C42005DD50F = {
@@ -692,6 +741,9 @@
 					09367D661E2E29320095BF20 = {
 						CreatedOnToolsVersion = 8.2.1;
 						ProvisioningStyle = Automatic;
+					};
+					09C43014235C912700E46153 = {
+						CreatedOnToolsVersion = 11.1;
 					};
 					09EF8EE31DB3E7C400DC7342 = {
 						CreatedOnToolsVersion = 8.0;
@@ -716,6 +768,7 @@
 				09367D661E2E29320095BF20 /* algorithms.test.ios */,
 				093239D71DB5651B003C168E /* algorithms */,
 				09168FC51E099C42005DD50F /* algorithms.ios */,
+				09C43014235C912700E46153 /* convert.audio.rate */,
 			);
 		};
 /* End PBXProject section */
@@ -764,6 +817,14 @@
 				09367D741E2E2A240095BF20 /* gtest-all.cc in Sources */,
 				0947FDB320DA75DB00BC4141 /* unity.build.cpp in Sources */,
 				09A4E4271EA6B1D000F92310 /* not_in_unity_build.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		09C43011235C912700E46153 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				09C4301D235C915E00E46153 /* unity.build.convert.audio.rate.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -839,6 +900,20 @@
 			};
 			name = Release;
 		};
+		09C4301A235C912700E46153 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0960BAFB1DB3F0F80075CB05 /* osx.debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		09C4301B235C912700E46153 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0960BAFC1DB3F0F80075CB05 /* osx.release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 		09EF8EA21DB3E6A300DC7342 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */;
@@ -893,6 +968,15 @@
 			buildConfigurations = (
 				09367D6F1E2E29330095BF20 /* Debug */,
 				09367D701E2E29330095BF20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		09C43019235C912700E46153 /* Build configuration list for PBXNativeTarget "convert.audio.rate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				09C4301A235C912700E46153 /* Debug */,
+				09C4301B235C912700E46153 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -643,21 +643,20 @@ namespace imajuscule::audio {
         template<typename CONTAINER>
         void write_wav(DirectoryPath dir, std::string const & fname, CONTAINER const & samples, NChannels n_channels, int sample_rate) {
             using namespace imajuscule::audio;
-            using SIGNED = int32_t;
+            using SampleType = typename CONTAINER::value_type;
 
             WAVWriter writer(dir,
                              fname,
-                             pcm(WaveFormat::PCM,
+                             pcm(WaveFormat::IEEE_FLOAT,
                                  sample_rate,
                                  n_channels,
-                                 AudioSample<SIGNED>::format));
+                                 AudioSample<SampleType>::format));
             auto res = writer.Initialize();
             if(res != ILE_SUCCESS) {
                 throw;
             }
             for(auto sample : samples) {
-                auto c = float_to_signed<SIGNED>(sample);
-                writer.writeSample(c);
+                writer.writeSample(sample);
             }
         }
 
@@ -681,6 +680,97 @@ namespace imajuscule::audio {
 
             write_wav(std::move(dir), fname, interlaced, static_cast<NChannels>(n_channels), sample_rate);
         }
+    
+    template<int SAMPLE_SIZE, WaveFormat FMT>
+    void resample_wav(DirectoryPath const & dir, FileName const & dest, WAVReader & reader, double sample_rate) {
+        using namespace std;
+        
+        auto const n_channels = reader.countChannels();
+        
+        using T = typename TypeFor<FMT, SAMPLE_SIZE>::type;
+        static_assert(sizeof(T) == SAMPLE_SIZE);
+        
+        
+        Assert(FMT == reader.getFormat());
+        
+        InterlacedBuffer ib(reader, sample_rate, ResamplingMethod::SincInterpolation);
+        Assert(!reader.HasMore());
+        
+        auto header = pcm(FMT,
+                          sample_rate,
+                          NChannels(n_channels),
+                          AudioSample<T>::format);
+        
+        WAVWriter writer(dir, dest, header);
+        {
+            auto res = writer.Initialize();
+            
+            if(ILE_SUCCESS != res) {
+                cerr << "could not create file" << endl;
+                throw;
+            }
+        }
+        
+        for(auto const & f : ib.getBuffer()) {
+            writer.WriteFromOneFloat(f);
+        }
+    }
+    
+    template<typename T>
+    void resample_wav(DirectoryPath const & dir, FileName const & source, FileName const & dest, T target_rate) {
+        WAVReader reader(dir, source);
+        reader.Initialize();
+        auto fmt = reader.getFormat();
+
+        switch(reader.getSampleSize()) {
+            case 2:
+                if(fmt == WaveFormat::PCM) {
+                    resample_wav<2, WaveFormat::PCM>(dir, dest, reader, target_rate);
+                }
+                else if(fmt == WaveFormat::IEEE_FLOAT) {
+                    throw std::logic_error("unsupported 16-bit IEEE_FLOAT format");
+                }
+                else {
+                    throw std::logic_error("unsupported 16-bit format");
+                }
+                break;
+            case 3:
+                if(fmt == WaveFormat::PCM) {
+                    resample_wav<3, WaveFormat::PCM>(dir, dest, reader, target_rate);
+                }
+                else if(fmt == WaveFormat::IEEE_FLOAT) {
+                    throw std::logic_error("unsupported 24-bit IEEE_FLOAT format");
+                }
+                else {
+                    throw std::logic_error("unsupported 24-bit format");
+                }
+                break;
+            case 4:
+                if(fmt == WaveFormat::PCM) {
+                    resample_wav<4, WaveFormat::PCM>(dir, dest, reader, target_rate);
+                }
+                else if(fmt == WaveFormat::IEEE_FLOAT) {
+                    resample_wav<4, WaveFormat::IEEE_FLOAT>(dir, dest, reader, target_rate);
+                }
+                else {
+                    throw std::logic_error("unsupported 32-bit format");
+                }
+                break;
+            case 8:
+                if(fmt == WaveFormat::PCM) {
+                    throw std::logic_error("unsupported 64-bit PCM format");
+                }
+                else if(fmt == WaveFormat::IEEE_FLOAT) {
+                    resample_wav<8, WaveFormat::IEEE_FLOAT>(dir, dest, reader, target_rate);
+                }
+                else {
+                    throw std::logic_error("unsupported 64-bit format");
+                }
+                break;
+            default:
+                throw std::logic_error("unsupported xx-bit format");;
+        }
+    }
 
         template<int SAMPLE_SIZE, WaveFormat FMT, typename FILTER>
         void filter_frames(DirectoryPath const & dir, FileName const & filename, FileName const & dest,
@@ -913,7 +1003,7 @@ namespace imajuscule::audio {
         }
     
     template<typename WAVRead>
-    InterlacedBuffer readReverb(int nouts, double sample_rate, WAVRead & reader)
+    InterlacedBuffer readReverb(int nouts, double sample_rate, ResamplingMethod resample, WAVRead & reader)
     {
         auto mod = reader.countChannels() % nouts;
         if((reader.countChannels() > nouts) && mod) {
@@ -922,7 +1012,7 @@ namespace imajuscule::audio {
             throw std::runtime_error(msg.str());
         }
         
-        return {reader, sample_rate};
+        return {reader, sample_rate, resample};
     }
     
     InterlacedBuffer readReverbFromFile(int nouts, double sample_rate, std::string const & dirname, std::string const & filename);

@@ -288,7 +288,7 @@ namespace imajuscule::audio {
             int64_t firstIdx = -N-1;
             int64_t last_idx = N; // included
             for(int64_t i=firstIdx; i<= last_idx; ++i) {
-                v.push_back(hs(x+i));
+                v.push_back(hs(x-i));
             }
             results.insert({key, std::move(res)});
             return v;

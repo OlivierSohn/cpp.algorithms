@@ -226,42 +226,66 @@ namespace imajuscule::audio {
         const auto zeroCrossingDistance = Fs/minFsFsPrime;
         // half size, excluding the central point, hence the number of non-zero slots is:
         // 1 + 2*windowHalfSize
-        constexpr auto num_zerocrossings_half_window = 512;//10.;
+        constexpr auto num_zerocrossings_half_window = 2;//512; // TODO reset to 256
         const auto windowHalfSize = num_zerocrossings_half_window * zeroCrossingDistance;
-        
+        int64_t const N = static_cast<int>(windowHalfSize) + 1;
         KaiserWindow window;
         
-        auto hs = [norm, minFsFsPrime, Fs, windowHalfSize, &window] (double t, bool & inWindow) { // zero crossings every Fs/minFsFsPrime
-            auto sinc = [windowHalfSize, &window](double x, bool & inWindow) { // zero crossings every x
-                if(!x) {
-                    inWindow = true;
-                    return 1.;
-                }
-                inWindow = (x > -windowHalfSize) && (x < windowHalfSize);
+        auto hs = [norm, minFsFsPrime, Fs, windowHalfSize, &window] (double t) { // zero crossings every Fs/minFsFsPrime
+            auto sinc = [windowHalfSize, &window](double x) { // zero crossings every x
+                bool inWindow = (x > -windowHalfSize) && (x < windowHalfSize);
                 if(!inWindow) {
                     return 0.;
                 }
                 auto winCoeff = window.getAt(std::abs(x)/windowHalfSize);
-                double pi_x = M_PI * x;
-                return winCoeff * std::sin(pi_x)/pi_x;
+                double sinXOverX;
+                if(!x) {
+                    sinXOverX = 1.;
+                }
+                else {
+                    double pi_x = M_PI * x;
+                    sinXOverX = std::sin(pi_x)/pi_x;
+                }
+                return winCoeff * sinXOverX;
             };
-            return norm * sinc(t * minFsFsPrime / Fs, inWindow);
+            return norm * sinc(t * minFsFsPrime / Fs);
         };
         
-        //std::set<double, Compare7Digits> Ps;
-        std::unordered_set<AlmostDouble> Ps;
-        Ps.reserve(300);
+        // we memoize the results
+        std::unordered_map<AlmostDouble, std::unique_ptr<std::vector<double>>> results;
+        results.reserve(300);
+        // x between 0 and 1
+        auto getResults = [&results, hs, N](double x) -> std::vector<double> const & {
+            assert(x >= 0.);
+            assert(x <= 1.);
+            AlmostDouble key(x);
+            auto it = results.find(key);
+            if(it != results.end()) {
+                return *it->second;
+            }
+            auto res = std::make_unique<std::vector<double>>();
+            auto & v = *res;
+            v.reserve(2+2*N);
+            int64_t firstIdx = -N;
+            int64_t last_idx = N+1; // included
+            for(int64_t i=firstIdx; i<= last_idx; ++i) {
+                v.push_back(hs(x-i));
+            }
+            results.insert({key, std::move(res)});
+            return v;
+        };
+        
         for(int64_t frameIdx = 0; it != end; ++frameIdx) {
             // we are computing frame 'frameIdx' of the resampled signal.
 
             // 'where' is the corresponding location in the original signal.
-            double where = frameRatio*frameIdx; // >= 0
+            double const where = frameRatio*frameIdx; // >= 0
             
             // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
-            int64_t discreteSampleBefore = static_cast<int64_t>(where);
+            int64_t const discreteSampleBefore = static_cast<int64_t>(where);
 
-            double P = where-discreteSampleBefore; // in [0,1)
-            Ps.insert(P);
+            double const P = where-discreteSampleBefore; // in [0,1)
+            auto const & vres = getResults(P);
             // when the resampling frequency is constant, we can cache the hs results array with key 'P'
             // this array contains results for hs(P-N-1) ... hs(P-1) hs(P) hs(P+1) ... hs(P+N) where N = (int)windowHalfSize
             // the match on the key should be done with 7 digits precision, i.e (int)(P*10000000)
@@ -272,39 +296,46 @@ namespace imajuscule::audio {
                 // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
                 double res = 0.;
 
-                // scan to the left
-                {
-                    bool inWindow = true;
-                    for(int k=discreteSampleBefore;
-                        inWindow && (k >= 0);
-                        --k)
-                    {
-                        double x = where-k;
-                        // hs zero crossing (in x) every Fs/minFsFsPrime
-                        res += hs(x, inWindow) * original[k*n_channels + j];
-                    }
-                }
+                assert(vres.size() == 2+2*N);
                 
-                // scan to the right
-                {
-                    bool inWindow = true;
-                    for(int k=discreteSampleBefore+1;
-                        inWindow && (k < n_orig_frames);
-                        ++k) {
-                        double x = where-k;
-                        res += hs(x, inWindow) * original[k*n_channels + j];
-                    }
+                std::map<int64_t, double> tmp;
+                for(int64_t
+                    i   = std::max(static_cast<int64_t>(0),
+                                   N-discreteSampleBefore),
+                    end = std::min(static_cast<int64_t>(vres.size()),
+                                   static_cast<int64_t>(original.size()/n_channels)+N-discreteSampleBefore);
+                    i < end;
+                    ++i) {
+                    // for all j in 0 .. n_channels-1,
+                    //
+                    // (discreteSampleBefore+i-N)*n_channels + j >= 0   implies:
+                    // discreteSampleBefore+i-N >= 0   implies:
+                    // i >= N-discreteSampleBefore
+                    //
+                    // (discreteSampleBefore+i-N)*n_channels + j < original.size() implies:
+                    // (discreteSampleBefore+i-N)*n_channels + n_channels-1 < original.size() implies:
+                    // (discreteSampleBefore+i-N+1)*n_channels -1 < original.size() implies:
+                    // (discreteSampleBefore+i-N+1)*n_channels < 1 + original.size() implies:
+                    // (because the left is a multiple of n_channels, and original.size() is a multiple of n_channels)
+                    // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
+                    // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
+                    // i < N + original.size()/n_channels - discreteSampleBefore
+
+                    auto vresValue = vres[i];
+                    auto originalIdx = (discreteSampleBefore+i-N)*n_channels + j;
+                    tmp[originalIdx] = vresValue;
+                    res += vresValue * original[originalIdx];
                 }
 
                 *it = res;
+                std::cout << "frame " << frameIdx << " where " << where << " value " << res << std::endl;
+
+                for(auto const & [originalIdx, vresValue] : tmp) {
+                    std::cout << originalIdx << " " << vresValue << std::endl;
+                }
             }
         }
-        std::cout << "num different keys = " << Ps.size() << std::endl;
-
-        std::cout.precision(std::numeric_limits< double >::max_digits10);
-        for(auto k:Ps) {
-            std::cout << k.key() / AlmostDouble::mult << std::endl;
-        }
+        std::cout << "num different keys = " << results.size() << std::endl;
     }
     
     enum class ResamplingMethod {

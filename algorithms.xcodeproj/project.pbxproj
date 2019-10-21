@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		090DAD201EA56E9200ACBBA9 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
+		09247A59235D1A2A001777C2 /* test-resample-new.txt in Resources */ = {isa = PBXBuildFile; fileRef = 09247A58235D1A2A001777C2 /* test-resample-new.txt */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
 		093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
 		093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
@@ -90,6 +91,7 @@
 		091BA6721EA54D1F00155CBE /* test_vdsp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_vdsp.cpp; path = test/test_vdsp.cpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
 		091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = allocator.aligned.hpp; path = include/allocator.aligned.hpp; sourceTree = "<group>"; };
+		09247A58235D1A2A001777C2 /* test-resample-new.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = "test-resample-new.txt"; path = "../imj.juce.reverb/test-resample-new.txt"; sourceTree = "<group>"; };
 		09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.combine.hpp; path = include/dsp.convolution.combine.hpp; sourceTree = "<group>"; };
 		0929F1DE1E70CAE600605F6D /* flt_math.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = flt_math.hpp; path = include/flt_math.hpp; sourceTree = "<group>"; };
 		092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.roots.hpp; path = include/fft.roots.hpp; sourceTree = "<group>"; };
@@ -425,6 +427,7 @@
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
+				09247A58235D1A2A001777C2 /* test-resample-new.txt */,
 				0980A5E0222429AE005C1540 /* opencl kernels */,
 				09F1577E20C6ABBC00662939 /* dependencies */,
 				093239D21DB54D1B003C168E /* source */,
@@ -785,6 +788,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				09247A59235D1A2A001777C2 /* test-resample-new.txt in Resources */,
 				093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

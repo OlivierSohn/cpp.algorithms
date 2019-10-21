@@ -38,6 +38,8 @@ namespace std {
   };
 } // namespace std
 
+#define DEBUG_RESAMPLING 0
+
 namespace imajuscule::audio {
 
     
@@ -226,18 +228,18 @@ namespace imajuscule::audio {
         const auto zeroCrossingDistance = Fs/minFsFsPrime;
         // half size, excluding the central point, hence the number of non-zero slots is:
         // 1 + 2*windowHalfSize
-        constexpr auto num_zerocrossings_half_window = 2;//512; // TODO reset to 256
+        constexpr auto num_zerocrossings_half_window = 512;
         const auto windowHalfSize = num_zerocrossings_half_window * zeroCrossingDistance;
         int64_t const N = static_cast<int>(windowHalfSize) + 1;
         KaiserWindow window;
         
-        auto hs = [norm, minFsFsPrime, Fs, windowHalfSize, &window] (double t) { // zero crossings every Fs/minFsFsPrime
-            auto sinc = [windowHalfSize, &window](double x) { // zero crossings every x
-                bool inWindow = (x > -windowHalfSize) && (x < windowHalfSize);
+        auto hs = [norm, minFsFsPrime, Fs, num_zerocrossings_half_window, &window] (double t) { // zero crossings every Fs/minFsFsPrime
+            auto sinc = [num_zerocrossings_half_window, &window](double x) { // zero crossings every x
+                bool inWindow = (x > -num_zerocrossings_half_window) && (x < num_zerocrossings_half_window);
                 if(!inWindow) {
                     return 0.;
                 }
-                auto winCoeff = window.getAt(std::abs(x)/windowHalfSize);
+                auto winCoeff = window.getAt(std::abs(x)/num_zerocrossings_half_window);
                 double sinXOverX;
                 if(!x) {
                     sinXOverX = 1.;
@@ -298,7 +300,9 @@ namespace imajuscule::audio {
 
                 assert(vres.size() == 2+2*N);
                 
+#if DEBUG_RESAMPLING
                 std::map<int64_t, double> tmp;
+#endif
                 for(int64_t
                     i   = std::max(static_cast<int64_t>(0),
                                    N-discreteSampleBefore),
@@ -323,16 +327,19 @@ namespace imajuscule::audio {
 
                     auto vresValue = vres[i];
                     auto originalIdx = (discreteSampleBefore+i-N)*n_channels + j;
+#if DEBUG_RESAMPLING
                     tmp[originalIdx] = vresValue;
+#endif
                     res += vresValue * original[originalIdx];
                 }
 
                 *it = res;
+#if DEBUG_RESAMPLING
                 std::cout << "frame " << frameIdx << " where " << where << " value " << res << std::endl;
-
                 for(auto const & [originalIdx, vresValue] : tmp) {
                     std::cout << originalIdx << " " << vresValue << std::endl;
                 }
+#endif
             }
         }
     }

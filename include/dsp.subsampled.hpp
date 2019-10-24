@@ -57,7 +57,7 @@ namespace imajuscule
       resetStates();
     }
     
-    void setCoefficients(a64::vector<T> coeffs) {
+    void setCoefficients(a64::vector<T> const & coeffs) {
       resetStates();
 
       if constexpr (subSamplingAllowsEvenNumberOfCoefficients) {
@@ -69,29 +69,11 @@ namespace imajuscule
       else {
         assert(coeffs.size() % 2 == 0);
       }
-
-      auto writeIt = coeffs.begin();
-      {
-        auto readIt = coeffs.begin();
-        
-        auto const end = coeffs.end();
-        while(readIt+1 < end)
-        {
-            // UGLY!!! TODO use sinc interpolation
-          *writeIt = 0.5 * (*readIt + *(readIt+1));
-          
-          ++writeIt;
-          readIt += 2;
-        }
-        
-        if(readIt != end) {
-          throw std::logic_error("cannot subsample an odd count of coefficients");
-        }
-      }
-
-      coeffs.resize(std::distance(coeffs.begin(), writeIt));
-
-      algo.setCoefficients(std::move(coeffs));
+        a64::vector<T> resampled;
+        using audio::resampleSincBuffer;
+        resampleSincBuffer(coeffs, 1, 2.0, resampled);
+        assert(coeffs.size() == resampled.size() * 2);
+      algo.setCoefficients(resampled);
     }
     
     FPT step(FPT input) {

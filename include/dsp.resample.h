@@ -69,11 +69,11 @@ namespace imajuscule::audio {
         
         buf.clear();
         auto const n_channels = reader.countChannels();
-        double const frameRatio = reader.getSampleRate() / sample_rate;
-        if(!frameRatio) {
+        double const Fs_over_FsPrime = reader.getSampleRate() / sample_rate;
+        if(!Fs_over_FsPrime) {
             return;
         }
-        int target_size = static_cast<int>(1 + (reader.countFrames()-1) / frameRatio) * n_channels;
+        int target_size = static_cast<int>(1 + (reader.countFrames()-1) / Fs_over_FsPrime) * n_channels;
         if(target_size <= 0) {
             return;
         }
@@ -138,7 +138,7 @@ namespace imajuscule::audio {
                 }
             }
             ++frameIdx;
-            where = frameRatio*frameIdx;
+            where = Fs_over_FsPrime*frameIdx;
             // we subtract epsilon to NOT request one more read if we are at 1.0000000001
             countReads = static_cast<int64_t>(where*(1-epsilon)-curFrameRead);
         }
@@ -211,71 +211,59 @@ namespace imajuscule::audio {
     //
     // si on utilise 4 threads, on porurait diviser [0 147) en 4 intervalles
     
-    
-    template<typename Reader, typename Buffer>
-    ResampleSincStats resampleSinc(Reader & reader, Buffer & resampled, double new_sample_rate)
+    template<typename OriginalBuffer, typename ResampledBuffer>
+    std::chrono::steady_clock::duration resampleSincBuffer(OriginalBuffer const & original,
+                                                           int const n_channels,
+                                                           double const Fs_over_FsPrime,
+                                                           ResampledBuffer & resampled)
     {
         using namespace std::chrono;
         using namespace profiling;
-        ResampleSincStats stats;
-        
-        using VAL = typename Buffer::value_type;
-        
+        std::chrono::steady_clock::duration dt;
+        Timer<steady_clock> t(dt);
+
         resampled.clear();
-        auto const n_channels = reader.countChannels();
-        auto const original_sample_rate = reader.getSampleRate();
-        auto const n_orig_frames = reader.countFrames();
-        double const frameRatio = original_sample_rate / new_sample_rate;
-        if(!frameRatio) {
-            return stats;
+        if(!n_channels) {
+            return dt;
         }
-        int target_size = static_cast<int>(1 + (n_orig_frames-1) / frameRatio) * n_channels;
+        auto const n_orig_frames = original.size() / n_channels;
+
+        if(!Fs_over_FsPrime) {
+            return dt;
+        }
+        int target_size = static_cast<int>(1 + (n_orig_frames-1) / Fs_over_FsPrime) * n_channels;
         if(target_size <= 0) {
-            return stats;
+            return dt;
         }
-        
-        std::vector<VAL> original;
-        // TODO faire cela dans un thread a part et en meme temps resampler?
-        {
-            Timer<steady_clock> t(stats.dt_read_source);
-            auto const nOrigSamples = reader.countSamples();
-            original.reserve(nOrigSamples);
-            while(reader.HasMore()) {
-                original.push_back(reader.template ReadAsOneFloat<VAL>());
-            }
-            if(nOrigSamples != original.size()) {
-                throw std::logic_error("invalid reader (number of samples != number os samples read : "
-                                       + std::to_string(nOrigSamples) + " " + std::to_string(original.size()));
-            }
-        }
-        
-        Timer<steady_clock> t(stats.dt_resample);
-        
-        if(std::abs(frameRatio-1.) < 1e-8) {
+        if(std::abs(Fs_over_FsPrime - 1.) < 1e-8) {
             resampled = original;
-            return stats;
+            return dt;
         }
         
         // using notations found in https://ccrma.stanford.edu/~jos/resample/resample.pdf
-        double const FsPrime = new_sample_rate;
-        double const Fs = original_sample_rate;
-        double const norm = std::min(1., FsPrime/Fs);
-        double const minFsFsPrime = std::min(Fs, FsPrime);
-        const auto zeroCrossingDistance = Fs/minFsFsPrime;
+        double const norm = std::min(1., 1./Fs_over_FsPrime);
+        const auto one_over_zeroCrossingDistance = std::max(1., Fs_over_FsPrime);
         // half size, excluding the central point, hence the number of non-zero slots is:
         // 1 + 2*windowHalfSize
         constexpr auto num_zerocrossings_half_window = 512;
-        const auto windowHalfSize = num_zerocrossings_half_window * zeroCrossingDistance;
+        constexpr double one_over_num_zerocrossings_half_window = 1./num_zerocrossings_half_window;
+        const auto windowHalfSize = num_zerocrossings_half_window / one_over_zeroCrossingDistance;
         int64_t const N = static_cast<int>(windowHalfSize) + 1;
         KaiserWindow window;
         
-        auto hs = [norm, minFsFsPrime, Fs, num_zerocrossings_half_window, &window] (double t) { // zero crossings every Fs/minFsFsPrime
-            auto sinc = [num_zerocrossings_half_window, &window](double x) { // zero crossings every x
+        auto hs = [norm,
+                   num_zerocrossings_half_window,
+                   one_over_num_zerocrossings_half_window,
+                   one_over_zeroCrossingDistance,
+                   &window]
+        (double t) { // zero crossings every one_over_zeroCrossingDistance
+            auto sinc = [num_zerocrossings_half_window,
+                         &window](double x) { // zero crossings every x
                 bool inWindow = (x > -num_zerocrossings_half_window) && (x < num_zerocrossings_half_window);
                 if(!inWindow) {
                     return 0.;
                 }
-                auto winCoeff = window.getAt(std::abs(x)/num_zerocrossings_half_window);
+                auto winCoeff = window.getAt(std::abs(x) * one_over_num_zerocrossings_half_window);
                 double sinXOverX;
                 if(!x) {
                     sinXOverX = 1.;
@@ -286,12 +274,39 @@ namespace imajuscule::audio {
                 }
                 return winCoeff * sinXOverX;
             };
-            return norm * sinc(t * minFsFsPrime / Fs);
+            return norm * sinc(t * one_over_zeroCrossingDistance);
         };
+        
+        auto foreachResampled = [target_size, Fs_over_FsPrime](auto f){
+            for(int64_t frameIdx = 0; frameIdx < target_size; ++frameIdx) {
+                // we are computing frame 'frameIdx' of the resampled signal.
+                
+                // 'where' is the corresponding location in the original signal.
+                double const where = Fs_over_FsPrime*frameIdx; // >= 0
+                
+                // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
+                int64_t const discreteSampleBefore = static_cast<int64_t>(where);
+                
+                double const P = where-discreteSampleBefore; // in [0,1)
+
+                if(!f(frameIdx, P)) {
+                    return;
+                }
+            }
+        };
+        
+        int64_t nDifferentLocations = 1;
+        foreachResampled([&nDifferentLocations](int64_t frameIdx, double P) {
+            if(frameIdx && !AlmostDouble(P).key()) {
+                nDifferentLocations = frameIdx;
+                return false;
+            };
+            return true;
+        });
         
         // we memoize the results
         std::unordered_map<AlmostDouble, std::unique_ptr<std::vector<double>>> results;
-        results.reserve(300);
+        results.reserve(nDifferentLocations);
         // x between 0 and 1
         auto getResults = [&results, hs, N](double x) -> std::vector<double> const & {
             assert(x >= 0.);
@@ -312,7 +327,7 @@ namespace imajuscule::audio {
             results.insert({key, std::move(res)});
             return v;
         };
-                
+        
         resampled.resize(target_size, {});
         auto it = resampled.data();
         auto end = resampled.data() + resampled.size();
@@ -320,7 +335,7 @@ namespace imajuscule::audio {
             // we are computing frame 'frameIdx' of the resampled signal.
             
             // 'where' is the corresponding location in the original signal.
-            double const where = frameRatio*frameIdx; // >= 0
+            double const where = Fs_over_FsPrime*frameIdx; // >= 0
             
             // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
             int64_t const discreteSampleBefore = static_cast<int64_t>(where);
@@ -379,13 +394,48 @@ namespace imajuscule::audio {
 #endif
         }
         std::cout << results.size() << std::endl;
-        return stats;
+        return dt;
     }
     
-    enum class ResamplingMethod {
-        LinearInterpolation,
-        SincInterpolation
-    };
+    template<typename Reader, typename Buffer>
+    ResampleSincStats resampleSinc(Reader & reader, Buffer & resampled, double new_sample_rate)
+    {
+        using namespace std::chrono;
+        using namespace profiling;
+        ResampleSincStats stats;
+        
+        using VAL = typename Buffer::value_type;
+        
+        resampled.clear();
+
+        std::vector<VAL> original;
+        // TODO faire cela dans un thread a part et en meme temps resampler?
+        {
+            Timer<steady_clock> t(stats.dt_read_source);
+            auto const nOrigSamples = reader.countSamples();
+            original.reserve(nOrigSamples);
+            while(reader.HasMore()) {
+                original.push_back(reader.template ReadAsOneFloat<VAL>());
+            }
+            if(nOrigSamples != original.size()) {
+                throw std::logic_error("invalid reader (number of samples != number os samples read : "
+                                       + std::to_string(nOrigSamples) + " " + std::to_string(original.size()));
+            }
+        }
+        double const Fs = reader.getSampleRate();
+        double const FsPrime = new_sample_rate;
+        if(!Fs || !FsPrime) {
+            return stats;
+        }
+        
+        double const Fs_over_FsPrime = Fs / FsPrime;
+
+        stats.dt_resample = resampleSincBuffer(original,
+                                               reader.countChannels(),
+                                               Fs_over_FsPrime,
+                                               resampled);
+        return stats;
+    }
 
     struct InterlacedBuffer {
         using element_type = double;

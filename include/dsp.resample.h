@@ -186,9 +186,39 @@ namespace imajuscule::audio {
         const double oneOverDenom;
     };
 
+    struct ResampleSincStats {
+        std::chrono::steady_clock::duration dt_resample = {};
+        std::chrono::steady_clock::duration dt_read_source = {};
+
+        friend std::ostream& operator<<(std::ostream& os, const ResampleSincStats& dt);
+        
+    };
+    std::ostream & operator << (std::ostream & os, const ResampleSincStats& s);
+
+    // 0 o/n 2*o/n ...
+    
+    // pgcd * a = o
+    // pgcd * b = n
+    
+    // 0 a/b
+    
+    //     o     n
+    // 96000 41000   300
+    //   320   147
+    //
+    // n tel que  n * 320/147 = int     n*320 = m*147
+    // n=147 : ca marche
+    //
+    // si on utilise 4 threads, on porurait diviser [0 147) en 4 intervalles
+    
+    
     template<typename Reader, typename Buffer>
-    void resampleSinc(Reader & reader, Buffer & resampled, double new_sample_rate)
+    ResampleSincStats resampleSinc(Reader & reader, Buffer & resampled, double new_sample_rate)
     {
+        using namespace std::chrono;
+        using namespace profiling;
+        ResampleSincStats stats;
+        
         using VAL = typename Buffer::value_type;
         
         resampled.clear();
@@ -197,18 +227,17 @@ namespace imajuscule::audio {
         auto const n_orig_frames = reader.countFrames();
         double const frameRatio = original_sample_rate / new_sample_rate;
         if(!frameRatio) {
-            return;
+            return stats;
         }
         int target_size = static_cast<int>(1 + (n_orig_frames-1) / frameRatio) * n_channels;
         if(target_size <= 0) {
-            return;
+            return stats;
         }
-        resampled.resize(target_size);
-        auto it = resampled.begin();
-        auto end = resampled.end();
-
+        
         std::vector<VAL> original;
+        // TODO faire cela dans un thread a part et en meme temps resampler?
         {
+            Timer<steady_clock> t(stats.dt_read_source);
             auto const nOrigSamples = reader.countSamples();
             original.reserve(nOrigSamples);
             while(reader.HasMore()) {
@@ -219,7 +248,14 @@ namespace imajuscule::audio {
                                        + std::to_string(nOrigSamples) + " " + std::to_string(original.size()));
             }
         }
-                
+        
+        Timer<steady_clock> t(stats.dt_resample);
+        
+        if(std::abs(frameRatio-1.) < 1e-8) {
+            resampled = original;
+            return stats;
+        }
+        
         // using notations found in https://ccrma.stanford.edu/~jos/resample/resample.pdf
         double const FsPrime = new_sample_rate;
         double const Fs = original_sample_rate;
@@ -276,72 +312,74 @@ namespace imajuscule::audio {
             results.insert({key, std::move(res)});
             return v;
         };
-        
-        for(int64_t frameIdx = 0; it != end; ++frameIdx) {
+                
+        resampled.resize(target_size, {});
+        auto it = resampled.data();
+        auto end = resampled.data() + resampled.size();
+        for(int64_t frameIdx = 0; it != end; ++frameIdx, it += n_channels) {
             // we are computing frame 'frameIdx' of the resampled signal.
-
+            
             // 'where' is the corresponding location in the original signal.
             double const where = frameRatio*frameIdx; // >= 0
             
             // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
             int64_t const discreteSampleBefore = static_cast<int64_t>(where);
-
+            
             double const P = where-discreteSampleBefore; // in [0,1)
             auto const & vres = getResults(P);
             // when the resampling frequency is constant, we can cache the hs results array with key 'P'
             // this array contains results for hs(P-N-1) ... hs(P-1) hs(P) hs(P+1) ... hs(P+N) where N = (int)windowHalfSize
             // the match on the key should be done with 7 digits precision, i.e (int)(P*10000000)
-
-            for(int j=0; j<n_channels; ++j, ++it) {// TODO make it inner loop
-                
-                // resampled sample value =
-                // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
-                double res = 0.;
-
-                assert(vres.size() == 2+2*N);
-                
+            
+            // resampled sample value =
+            // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
+            
+            assert(vres.size() == 2+2*N);
+            
 #if DEBUG_RESAMPLING
-                std::map<int64_t, double> tmp;
+            std::map<int64_t, double> tmp;
 #endif
-                for(int64_t
-                    i   = std::max(static_cast<int64_t>(0),
-                                   N-discreteSampleBefore),
-                    end = std::min(static_cast<int64_t>(vres.size()),
-                                   static_cast<int64_t>(original.size()/n_channels)+N-discreteSampleBefore);
-                    i < end;
-                    ++i) {
-                    // for all j in 0 .. n_channels-1,
-                    //
-                    // (discreteSampleBefore+i-N)*n_channels + j >= 0   implies:
-                    // discreteSampleBefore+i-N >= 0   implies:
-                    // i >= N-discreteSampleBefore
-                    //
-                    // (discreteSampleBefore+i-N)*n_channels + j < original.size() implies:
-                    // (discreteSampleBefore+i-N)*n_channels + n_channels-1 < original.size() implies:
-                    // (discreteSampleBefore+i-N+1)*n_channels -1 < original.size() implies:
-                    // (discreteSampleBefore+i-N+1)*n_channels < 1 + original.size() implies:
-                    // (because the left is a multiple of n_channels, and original.size() is a multiple of n_channels)
-                    // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
-                    // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
-                    // i < N + original.size()/n_channels - discreteSampleBefore
-
-                    auto vresValue = vres[i];
-                    auto originalIdx = (discreteSampleBefore+i-N)*n_channels + j;
+            for(int64_t
+                i   = std::max(static_cast<int64_t>(0),
+                               N-discreteSampleBefore),
+                end = std::min(static_cast<int64_t>(vres.size()),
+                               static_cast<int64_t>(original.size()/n_channels)+N-discreteSampleBefore);
+                i < end;
+                ++i) {
+                // for all j in 0 .. n_channels-1,
+                //
+                // (discreteSampleBefore+i-N)*n_channels + j >= 0   implies:
+                // discreteSampleBefore+i-N >= 0   implies:
+                // i >= N-discreteSampleBefore
+                //
+                // (discreteSampleBefore+i-N)*n_channels + j < original.size() implies:
+                // (discreteSampleBefore+i-N)*n_channels + n_channels-1 < original.size() implies:
+                // (discreteSampleBefore+i-N+1)*n_channels -1 < original.size() implies:
+                // (discreteSampleBefore+i-N+1)*n_channels < 1 + original.size() implies:
+                // (because the left is a multiple of n_channels, and original.size() is a multiple of n_channels)
+                // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
+                // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
+                // i < N + original.size()/n_channels - discreteSampleBefore
+                
+                auto const vresValue = vres[i];
+                auto const idxBase = (discreteSampleBefore+i-N)*n_channels;
+                for(int j=0; j<n_channels; ++j) {
+                    auto originalIdx = idxBase + j;
 #if DEBUG_RESAMPLING
                     tmp[originalIdx] = vresValue;
 #endif
-                    res += vresValue * original[originalIdx];
+                    it[j] += vresValue * original[originalIdx];
                 }
-
-                *it = res;
-#if DEBUG_RESAMPLING
-                std::cout << "frame " << frameIdx << " where " << where << " value " << res << std::endl;
-                for(auto const & [originalIdx, vresValue] : tmp) {
-                    std::cout << originalIdx << " " << vresValue << std::endl;
-                }
-#endif
             }
+#if DEBUG_RESAMPLING
+            std::cout << "frame " << frameIdx << " where " << where << " value " << res << std::endl;
+            for(auto const & [originalIdx, vresValue] : tmp) {
+                std::cout << originalIdx << " " << vresValue << std::endl;
+            }
+#endif
         }
+        std::cout << results.size() << std::endl;
+        return stats;
     }
     
     enum class ResamplingMethod {
@@ -353,18 +391,10 @@ namespace imajuscule::audio {
         using element_type = double;
         
         template<typename Reader>
-        InterlacedBuffer(Reader & reader, double sample_rate, ResamplingMethod resample)
+        InterlacedBuffer(Reader & reader, double sample_rate, ResampleSincStats & stats)
         : nchannels(reader.countChannels())
         {
-            if(resample == ResamplingMethod::LinearInterpolation) {
-                resampleLinear(reader, buf, sample_rate);
-            }
-            else if(resample == ResamplingMethod::SincInterpolation) {
-                resampleSinc(reader, buf, sample_rate);
-            }
-            else {
-                throw std::logic_error("unhandled ResamplingMethod");
-            }
+            stats = resampleSinc(reader, buf, sample_rate);
         }
         /*
         InterlacedBuffer(std::vector<element_type> const & v, int nchannels)

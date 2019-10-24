@@ -7,13 +7,21 @@
 #include "private.h"
 
 namespace imajuscule {
-    namespace fft {
+namespace fft {
 
-        a64::vector<int8_t> & getFFTTmp() {
-            thread_local a64::vector<int8_t> v;
-            return v;
-        }
-    }
+a64::vector<int8_t> & getFFTTmp() {
+    thread_local a64::vector<int8_t> v;
+    return v;
+}
+}
+namespace audio {
+std::ostream & operator << (std::ostream & os, const ResampleSincStats& s) {
+    os <<
+    "resample    : " << std::chrono::duration<double>(s.dt_resample).count() << " s" << std::endl <<
+    "read source : " << std::chrono::duration<double>(s.dt_read_source).count() << " s";
+    return os;
+}
+}
 }
 
 #include "memory.cpp"

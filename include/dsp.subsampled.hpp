@@ -77,6 +77,7 @@ namespace imajuscule
         auto const end = coeffs.end();
         while(readIt+1 < end)
         {
+            // UGLY!!! TODO use sinc interpolation
           *writeIt = 0.5 * (*readIt + *(readIt+1));
           
           ++writeIt;

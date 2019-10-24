@@ -8,7 +8,7 @@ void testSin(F sin_func) {
   high_resolution_clock::rep duration = 0;
   T sum {};
   {
-    Timer<high_resolution_clock> t(duration);
+    Timer<high_resolution_clock, TimerOption::YieldBeforeStart> t(duration);
     for(int i=0; i<100000000; ++i) {
       sum += sin_func(static_cast<T>(i));
     }

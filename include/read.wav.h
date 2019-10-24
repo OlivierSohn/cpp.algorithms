@@ -692,8 +692,9 @@ namespace imajuscule::audio {
         
         
         Assert(FMT == reader.getFormat());
-        
-        InterlacedBuffer ib(reader, sample_rate, ResamplingMethod::SincInterpolation);
+        ResampleSincStats stats;
+        InterlacedBuffer ib(reader, sample_rate, stats);
+        std::cout << stats << std::endl;
         Assert(!reader.HasMore());
         
         auto header = pcm(FMT,
@@ -1003,7 +1004,7 @@ namespace imajuscule::audio {
         }
     
     template<typename WAVRead>
-    InterlacedBuffer readReverb(int nouts, double sample_rate, ResamplingMethod resample, WAVRead & reader)
+    InterlacedBuffer readReverb(int nouts, double sample_rate, ResampleSincStats& stats, WAVRead & reader)
     {
         auto mod = reader.countChannels() % nouts;
         if((reader.countChannels() > nouts) && mod) {
@@ -1012,7 +1013,7 @@ namespace imajuscule::audio {
             throw std::runtime_error(msg.str());
         }
         
-        return {reader, sample_rate, resample};
+        return {reader, sample_rate, stats};
     }
     
     InterlacedBuffer readReverbFromFile(int nouts, double sample_rate, std::string const & dirname, std::string const & filename);

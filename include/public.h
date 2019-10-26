@@ -153,6 +153,8 @@
 #include "merge_sort.hpp"
 #include "logger.h"
 
+#include "math.roots.hpp"
+
 #include "fft.interface.hpp"
 
 #if __APPLE__

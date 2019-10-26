@@ -226,13 +226,13 @@ namespace imajuscule::audio {
         if(!n_channels) {
             return dt;
         }
-        auto const n_orig_frames = original.size() / n_channels;
+        int64_t const n_orig_frames = original.size() / n_channels;
 
         if(!Fs_over_FsPrime) {
             return dt;
         }
-        int target_size = static_cast<int>(1 + (n_orig_frames-1) / Fs_over_FsPrime) * n_channels;
-        if(target_size <= 0) {
+        int64_t const target_frame_count = static_cast<int>(1 + (n_orig_frames-1) / Fs_over_FsPrime);
+        if(target_frame_count <= 0) {
             return dt;
         }
         if(std::abs(Fs_over_FsPrime - 1.) < 1e-8) {
@@ -277,8 +277,8 @@ namespace imajuscule::audio {
             return norm * sinc(t * one_over_zeroCrossingDistance);
         };
         
-        auto foreachResampled = [target_size, Fs_over_FsPrime](auto f){
-            for(int64_t frameIdx = 0; frameIdx < target_size; ++frameIdx) {
+        auto foreachResampled = [target_frame_count, Fs_over_FsPrime](auto f){
+            for(int64_t frameIdx = 0; frameIdx < target_frame_count; ++frameIdx) {
                 // we are computing frame 'frameIdx' of the resampled signal.
                 
                 // 'where' is the corresponding location in the original signal.
@@ -289,14 +289,15 @@ namespace imajuscule::audio {
                 
                 double const P = where-discreteSampleBefore; // in [0,1)
 
-                if(!f(frameIdx, P)) {
+                if(!f(frameIdx, discreteSampleBefore, P)) {
                     return;
                 }
             }
         };
         
+        // This assumes the frame rate ratio is constant!
         int64_t nDifferentLocations = 1;
-        foreachResampled([&nDifferentLocations](int64_t frameIdx, double P) {
+        foreachResampled([&nDifferentLocations](int64_t frameIdx, int64_t, double P) {
             if(frameIdx && !AlmostDouble(P).key()) {
                 nDifferentLocations = frameIdx;
                 return false;
@@ -324,23 +325,22 @@ namespace imajuscule::audio {
             for(int64_t i=firstIdx; i<= last_idx; ++i) {
                 v.push_back(hs(x-i));
             }
+            assert(v.size() == 2+2*N);
             results.insert({key, std::move(res)});
             return v;
         };
-        
-        resampled.resize(target_size, {});
-        auto it = resampled.data();
-        auto end = resampled.data() + resampled.size();
-        for(int64_t frameIdx = 0; it != end; ++frameIdx, it += n_channels) {
+
+        resampled.resize(target_frame_count*n_channels, {});
+        foreachResampled([&resampled,
+                          &original,
+                          N,
+                          n_orig_frames,
+                          getResults,
+                          n_channels](int64_t frameIdx,
+                                      int64_t discreteSampleBefore,
+                                      double P) {
             // we are computing frame 'frameIdx' of the resampled signal.
-            
-            // 'where' is the corresponding location in the original signal.
-            double const where = Fs_over_FsPrime*frameIdx; // >= 0
-            
-            // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
-            int64_t const discreteSampleBefore = static_cast<int64_t>(where);
-            
-            double const P = where-discreteSampleBefore; // in [0,1)
+
             auto const & vres = getResults(P);
             // when the resampling frequency is constant, we can cache the hs results array with key 'P'
             // this array contains results for hs(P-N-1) ... hs(P-1) hs(P) hs(P+1) ... hs(P+N) where N = (int)windowHalfSize
@@ -349,16 +349,19 @@ namespace imajuscule::audio {
             // resampled sample value =
             // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
             
-            assert(vres.size() == 2+2*N);
             
 #if DEBUG_RESAMPLING
             std::map<int64_t, double> tmp;
 #endif
+            int64_t const discreteSampleBefore_minus_N = discreteSampleBefore-N;
+            int64_t const vres_sz = 2+2*N;
+            assert(vres_sz == vres.size());
+            
             for(int64_t
                 i   = std::max(static_cast<int64_t>(0),
-                               N-discreteSampleBefore),
-                end = std::min(static_cast<int64_t>(vres.size()),
-                               static_cast<int64_t>(original.size()/n_channels)+N-discreteSampleBefore);
+                               -discreteSampleBefore_minus_N),
+                end = std::min(vres_sz,
+                               n_orig_frames-discreteSampleBefore_minus_N);
                 i < end;
                 ++i) {
                 // for all j in 0 .. n_channels-1,
@@ -377,13 +380,13 @@ namespace imajuscule::audio {
                 // i < N + original.size()/n_channels - discreteSampleBefore
                 
                 auto const vresValue = vres[i];
-                auto const idxBase = (discreteSampleBefore+i-N)*n_channels;
+                auto const idxBase = (discreteSampleBefore_minus_N + i)*n_channels;
                 for(int j=0; j<n_channels; ++j) {
-                    auto originalIdx = idxBase + j;
+                    auto const originalIdx = idxBase + j;
 #if DEBUG_RESAMPLING
                     tmp[originalIdx] = vresValue;
 #endif
-                    it[j] += vresValue * original[originalIdx];
+                    resampled[frameIdx*n_channels+j] += vresValue * original[originalIdx];
                 }
             }
 #if DEBUG_RESAMPLING
@@ -392,7 +395,9 @@ namespace imajuscule::audio {
                 std::cout << originalIdx << " " << vresValue << std::endl;
             }
 #endif
-        }
+            return true;
+        });
+        
         std::cout << results.size() << std::endl;
         return dt;
     }

@@ -12,8 +12,9 @@
 
 #include <thread>
 
-#include "test_dsp.resample.cpp"
+#include "test_math_roots.cpp"
 /*
+#include "test_dsp.resample.cpp"
 #include "test_edit_distance.cpp"
 #include "test_sort.cpp"
 #include "test_dsp.convolution.cpp"

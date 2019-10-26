@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		090DAD201EA56E9200ACBBA9 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
-		09247A59235D1A2A001777C2 /* test-resample-new.txt in Resources */ = {isa = PBXBuildFile; fileRef = 09247A58235D1A2A001777C2 /* test-resample-new.txt */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
 		093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
 		093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
@@ -91,7 +90,6 @@
 		091BA6721EA54D1F00155CBE /* test_vdsp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_vdsp.cpp; path = test/test_vdsp.cpp; sourceTree = "<group>"; };
 		091E3AF31DB59582007A4492 /* unity.build.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.cpp; path = source/unity.build.cpp; sourceTree = "<group>"; };
 		091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = allocator.aligned.hpp; path = include/allocator.aligned.hpp; sourceTree = "<group>"; };
-		09247A58235D1A2A001777C2 /* test-resample-new.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = "test-resample-new.txt"; path = "../imj.juce.reverb/test-resample-new.txt"; sourceTree = "<group>"; };
 		09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.combine.hpp; path = include/dsp.convolution.combine.hpp; sourceTree = "<group>"; };
 		0929F1DE1E70CAE600605F6D /* flt_math.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = flt_math.hpp; path = include/flt_math.hpp; sourceTree = "<group>"; };
 		092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.roots.hpp; path = include/fft.roots.hpp; sourceTree = "<group>"; };
@@ -243,6 +241,8 @@
 		09C43015235C912700E46153 /* convert.audio.rate */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = convert.audio.rate; sourceTree = BUILT_PRODUCTS_DIR; };
 		09C43017235C912700E46153 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.convert.audio.rate.cpp; path = source/unity.build.convert.audio.rate.cpp; sourceTree = "<group>"; };
+		09C434ED236480C800AF5797 /* math.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = math.roots.hpp; path = include/math.roots.hpp; sourceTree = "<group>"; };
+		09C434EE2364814700AF5797 /* test_math_roots.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_math_roots.cpp; path = test/test_math_roots.cpp; sourceTree = "<group>"; };
 		09CC0D6F2340F76500D2F1AC /* write.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = write.wav.cpp; path = source/write.wav.cpp; sourceTree = "<group>"; };
 		09CC0D702340F76600D2F1AC /* read.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = read.wav.cpp; path = source/read.wav.cpp; sourceTree = "<group>"; };
 		09CC0D712340F77E00D2F1AC /* c.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = c.h; path = include/c.h; sourceTree = "<group>"; };
@@ -427,7 +427,6 @@
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
-				09247A58235D1A2A001777C2 /* test-resample-new.txt */,
 				0980A5E0222429AE005C1540 /* opencl kernels */,
 				09F1577E20C6ABBC00662939 /* dependencies */,
 				093239D21DB54D1B003C168E /* source */,
@@ -486,6 +485,7 @@
 				09BB2B0221A2CA39000F9ADE /* test_linalg.cpp */,
 				0947FDC420DABAC900BC4141 /* test_locks.cpp */,
 				091AF71D1E27DC58004B554F /* test_markov_chain.cpp */,
+				09C434EE2364814700AF5797 /* test_math_roots.cpp */,
 				09B56BEB1EAB814D00878B33 /* test_math.cpp */,
 				093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */,
 				09807B7C20D7F03E009732BD /* test_pair_array_distant.cpp */,
@@ -572,6 +572,7 @@
 				09186B091E8670DE00E5BEC9 /* logging.h */,
 				091AF71C1E27DC24004B554F /* markov_chain.hpp */,
 				093239D31DB55C1D003C168E /* math.hpp */,
+				09C434ED236480C800AF5797 /* math.roots.hpp */,
 				098DC8BE1F65AE3000C5A8B2 /* matrix.hpp */,
 				0947FDB020D9671200BC4141 /* maybe.atomic.hpp */,
 				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
@@ -788,7 +789,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				09247A59235D1A2A001777C2 /* test-resample-new.txt in Resources */,
 				093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

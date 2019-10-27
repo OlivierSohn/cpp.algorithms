@@ -442,7 +442,7 @@ namespace imajuscule::audio {
 #endif
             
             double const norm = std::min(1., 1./Fs_over_FsPrime);
-            const auto one_over_zeroCrossingDistance = std::max(1., Fs_over_FsPrime);
+            const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
             // half size, excluding the central point, hence the number of non-zero slots is:
             // 1 + 2*windowHalfSize
             constexpr auto num_zerocrossings_half_window = 512;
@@ -589,7 +589,7 @@ namespace imajuscule::audio {
         
         // using notations found in https://ccrma.stanford.edu/~jos/resample/resample.pdf
         double const norm = std::min(1., 1./Fs_over_FsPrime);
-        const auto one_over_zeroCrossingDistance = std::max(1., Fs_over_FsPrime);
+        const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
         // half size, excluding the central point, hence the number of non-zero slots is:
         // 1 + 2*windowHalfSize
         constexpr auto num_zerocrossings_half_window = 512;

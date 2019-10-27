@@ -11,8 +11,8 @@ namespace imajuscule::audio {
         resample_wav(dir,
                      filename,
                      "resampled_" + filename,
-                     44100.,
-                     //[](double){ return 44100.; },
+                     //44100.,
+                     [](double){ return 44100.; },
                      44100);
     }
 }

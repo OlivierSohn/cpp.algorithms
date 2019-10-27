@@ -86,16 +86,4 @@ namespace imajuscule::audio {
         return true;
     }
     
-    
-    InterlacedBuffer readReverbFromBuffer(int nouts, double sample_rate, ResampleSincStats & stats, void const * buffer, std::size_t const sz) {
-        WAVReaderFromBlock reader(buffer, sz);
-        reader.Initialize();
-        return readReverb(nouts, sample_rate, stats, reader);
-    }
-    
-    InterlacedBuffer readReverbFromFile(int nouts, double sample_rate, ResampleSincStats & stats, std::string const & dirname, std::string const & filename) {
-        WAVReader reader(dirname, filename);
-        reader.Initialize();
-        return readReverb(nouts, sample_rate, stats, reader);
-    }
 }

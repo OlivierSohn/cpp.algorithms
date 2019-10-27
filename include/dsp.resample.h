@@ -144,6 +144,164 @@ namespace imajuscule::audio {
         }
     }
     
+    template<typename T>
+    T fSinc(T x) {
+        return std::sin(x)/x;
+    }
+
+    // We will sample sinc so as to minimize the absolute error when interpolating between 2 consecutive samples.
+    // To minimize
+    // We want to find inflexion point of sinc, i.e where the 2nd derivative changes sign.
+    // 2nd derivative of sinc is: -(2 x cos(x) + (-2 + x^2) sin(x))/x^3
+    // so we need to find zeroes of the numerator : 2 x cos(x) + (-2 + x^2) sin(x)
+    // so we need the derivative of the numerator (for newton root finding method) which is : x^2 cos(x)
+
+    template<typename T>
+    T der_of_der_of_NumeratorSinc(T x) {
+        return (2. * x * std::cos(x)) + ((-2. + x * x) * std::sin(x));
+    }
+
+    template<typename T>
+    T der_of_der_of_der_of_NumeratorSinc(T x) {
+        return x * x * std::cos(x);
+    }
+    
+    template<typename F, typename DER, typename T = decltype(std::declval<F>()({}))>
+    std::vector<T> findRootsSpacedByAtleast(T minDistanceBetweenConsecutveRoots, T const from, T const to, F f, DER der) {
+        std::vector<T> res;
+        if(from >= to) {
+            return res;
+        }
+        res.reserve(static_cast<int>((to-from)*minDistanceBetweenConsecutveRoots));
+        
+        auto constexpr epsilon = std::numeric_limits<T>::epsilon();
+        
+        for(T x1 = from; x1 < to; x1+=minDistanceBetweenConsecutveRoots) {
+            T x2 = x1 + minDistanceBetweenConsecutveRoots;
+            if(x2 > to) {
+                x2 = to;
+            }
+            auto y1 = f(x1);
+            if(std::abs(y1) < epsilon) {
+                res.push_back(x1);
+                continue;
+            }
+            auto y2 = f(x2);
+            if(std::abs(y2) < epsilon) {
+                res.push_back(x2);
+                continue;
+            }
+            
+            if(y1*y2 > 0.) {
+                // same signe, hence there is no root in this interval
+                continue;
+            }
+            auto mayRoot = find_root(f, der, x1, x2);
+            if(mayRoot) {
+                res.push_back(*mayRoot);
+            }
+        }
+        return res;
+    }
+    
+    template<typename T>
+    auto findSincCurvatureChanges(T from, T to) {
+        return findRootsSpacedByAtleast(2.,
+                                        from,
+                                        to,
+                                        der_of_der_of_NumeratorSinc<double>,
+                                        der_of_der_of_der_of_NumeratorSinc<double>);
+    }
+    
+    
+    template<typename T>
+    struct UniformSamplerOpt {
+        template<typename F>
+        UniformSamplerOpt(F f, T from, T to, int numSamples)
+        : from(from)
+        , to(to)
+        {
+            numSamples = std::max(2, numSamples);
+            
+            increment = (to-from)/(numSamples-1);
+            if(increment) {
+                inv_increment = 1. / increment;
+            }
+            else {
+                inv_increment = 0.;
+            }
+            
+            samples.reserve(numSamples);
+            for(int i=0; i<numSamples; ++i) {
+                auto y = f(from + i*increment);
+                samples.push_back({y,{}});
+            }
+            for(int i=0; i<numSamples-1; ++i) {
+                samples[i].second = samples[i+1].first - samples[i].first;
+            }
+            samples[numSamples-1].second = 0;
+        }
+        
+        T getAt(T x) const {
+            if(x <= from) {
+                return samples.begin()->first;
+            }
+            if(x >= to) {
+                return samples.rbegin()->first;
+            }
+            T distFromBegin = (x-from)*inv_increment;
+            int index = static_cast<int>(distFromBegin);
+            T lambda = distFromBegin-index;
+            //return (1.-lambda) * samples[index] + lambda * samples[index+1];
+            auto const & s = samples[index];
+            return s.first + lambda * s.second;
+        }
+    private:
+        T from, to, increment, inv_increment;
+        std::vector<std::pair<T,T>> samples;
+    };
+    
+    template<typename T>
+    struct UniformSampler {
+        template<typename F>
+        UniformSampler(F f, T from, T to, int numSamples)
+        : from(from)
+        , to(to)
+        {
+            numSamples = std::max(2, numSamples);
+            
+            increment = (to-from)/(numSamples-1);
+            if(increment) {
+                inv_increment = 1. / increment;
+            }
+            else {
+                inv_increment = 0.;
+            }
+            
+            samples.reserve(numSamples);
+            for(int i=0; i<numSamples; ++i) {
+                auto y = f(from + i*increment);
+                samples.push_back(y);
+            }
+        }
+        
+        T getAt(T x) const {
+            if(x <= from) {
+                return *samples.begin();
+            }
+            if(x >= to) {
+                return *samples.rbegin();
+            }
+            T distFromBegin = (x-from)*inv_increment;
+            int index = static_cast<int>(distFromBegin);
+            T lambda = distFromBegin-index;
+            return (1.-lambda) * samples[index] + lambda * samples[index+1];
+        }
+    private:
+        T from, to, increment, inv_increment;
+        std::vector<T> samples;
+    };
+
     struct KaiserWindow {
         // https://en.wikipedia.org/wiki/Kaiser_window
         KaiserWindow(double shape = 16.)
@@ -195,6 +353,195 @@ namespace imajuscule::audio {
     };
     std::ostream & operator << (std::ostream & os, const ResampleSincStats& s);
 
+    
+    template<typename OriginalBuffer, typename ResampledBuffer, typename F>
+    std::chrono::steady_clock::duration resampleSincBufferVariableRate(OriginalBuffer const & original,
+                                                                       int const n_channels,
+                                                                       F fFs_over_FsPrime,
+                                                                       ResampledBuffer & resampled)
+    {
+        using namespace std::chrono;
+        using namespace profiling;
+        std::chrono::steady_clock::duration dt;
+        Timer<steady_clock> t(dt);
+        
+        resampled.clear();
+        if(!n_channels) {
+            return dt;
+        }
+        int64_t const n_orig_frames = original.size() / n_channels;
+        
+        auto foreachResampled = [fFs_over_FsPrime,
+                                 n_orig_frames](auto f)
+        {
+            constexpr double epsilon = std::numeric_limits<double>::epsilon();
+
+            double where = 0.;
+            for(int64_t frameIdx = 0;
+                ;
+                ++frameIdx)
+            {
+                // we are computing frame 'frameIdx' of the resampled signal.
+                
+                // 'where' is the corresponding location in the original signal.
+                
+                // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
+                int64_t const discreteSampleBefore = static_cast<int64_t>(where);
+                
+                if(unlikely(discreteSampleBefore >= n_orig_frames)) {
+                    return;
+                }
+                
+                double const P = where-discreteSampleBefore; // in [0,1)
+                
+                if(discreteSampleBefore == n_orig_frames-1 && P > frameIdx*epsilon) {
+                    return;
+                }
+                auto Fs_over_FsPrime = fFs_over_FsPrime(where);
+                f(frameIdx, Fs_over_FsPrime, discreteSampleBefore, P);
+                where += Fs_over_FsPrime;
+            }
+        };
+
+        int64_t target_frame_count=0;
+        foreachResampled([&target_frame_count,
+                          n_orig_frames
+                          ](int64_t frameIdx,
+                            double Fs_over_FsPrime,
+                            int64_t discreteSampleBefore,
+                            double P) {
+            target_frame_count = frameIdx+1;
+        });
+        resampled.resize(target_frame_count*n_channels, {});
+
+        KaiserWindow window;
+        // we memoize the results
+        //std::unordered_map<AlmostDouble, std::unique_ptr<std::vector<double>>> results;
+
+        foreachResampled([&resampled,
+                          &original,
+                          &window,
+                          n_orig_frames,
+                          n_channels](int64_t frameIdx,
+                                      double Fs_over_FsPrime,
+                                      int64_t discreteSampleBefore,
+                                      double P) {
+            // we are computing frame 'frameIdx' of the resampled signal.
+            
+            // when the resampling frequency is constant, we can cache the hs results array with key 'P'
+            // this array contains results for hs(P-N-1) ... hs(P-1) hs(P) hs(P+1) ... hs(P+N) where N = (int)windowHalfSize
+            // the match on the key should be done with 7 digits precision, i.e (int)(P*10000000)
+            
+            // resampled sample value =
+            // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
+            
+
+            
+#if DEBUG_RESAMPLING
+            std::map<int64_t, double> tmp;
+#endif
+            
+            double const norm = std::min(1., 1./Fs_over_FsPrime);
+            const auto one_over_zeroCrossingDistance = std::max(1., Fs_over_FsPrime);
+            // half size, excluding the central point, hence the number of non-zero slots is:
+            // 1 + 2*windowHalfSize
+            constexpr auto num_zerocrossings_half_window = 512;
+            constexpr double one_over_num_zerocrossings_half_window = 1./num_zerocrossings_half_window;
+            const auto windowHalfSize = num_zerocrossings_half_window / one_over_zeroCrossingDistance;
+            int64_t const N = static_cast<int>(windowHalfSize) + 1;
+
+            auto hs = [norm,
+                       num_zerocrossings_half_window,
+                       one_over_num_zerocrossings_half_window,
+                       one_over_zeroCrossingDistance,
+                       &window]
+            (double t) { // zero crossings every one_over_zeroCrossingDistance
+                auto sinc = [num_zerocrossings_half_window,
+                             &window](double x) { // zero crossings every x
+                    bool inWindow = (x > -num_zerocrossings_half_window) && (x < num_zerocrossings_half_window);
+                    if(!inWindow) {
+                        return 0.;
+                    }
+                    auto winCoeff = window.getAt(std::abs(x) * one_over_num_zerocrossings_half_window);
+                    double sinXOverX;
+                    if(!x) {
+                        sinXOverX = 1.;
+                    }
+                    else {
+                        sinXOverX = fSinc(M_PI * x);
+                    }
+                    return winCoeff * sinXOverX;
+                };
+                return norm * sinc(t * one_over_zeroCrossingDistance);
+            };
+            
+            // x between 0 and 1
+            auto getResults = [hs, N](double x) {
+                assert(x >= 0.);
+                assert(x <= 1.);
+                auto res = std::make_unique<std::vector<double>>();
+                auto & v = *res;
+                v.reserve(2+2*N);
+                int64_t firstIdx = -N;
+                int64_t last_idx = N+1; // included
+                for(int64_t i=firstIdx; i<= last_idx; ++i) {
+                    v.push_back(hs(x-i));
+                }
+                assert(v.size() == 2+2*N);
+                return std::move(res);
+            };
+            
+            auto unique = getResults(P);
+            auto const & vres =*unique;
+
+            int64_t const discreteSampleBefore_minus_N = discreteSampleBefore-N;
+            int64_t const vres_sz = 2+2*N;
+
+            auto const resampleIdxBase = frameIdx*n_channels;
+
+            for(int64_t
+                i   = std::max(static_cast<int64_t>(0),
+                               -discreteSampleBefore_minus_N),
+                end = std::min(vres_sz,
+                               n_orig_frames-discreteSampleBefore_minus_N);
+                i < end;
+                ++i) {
+                // for all j in 0 .. n_channels-1,
+                //
+                // (discreteSampleBefore+i-N)*n_channels + j >= 0   implies:
+                // discreteSampleBefore+i-N >= 0   implies:
+                // i >= N-discreteSampleBefore
+                //
+                // (discreteSampleBefore+i-N)*n_channels + j < original.size() implies:
+                // (discreteSampleBefore+i-N)*n_channels + n_channels-1 < original.size() implies:
+                // (discreteSampleBefore+i-N+1)*n_channels -1 < original.size() implies:
+                // (discreteSampleBefore+i-N+1)*n_channels < 1 + original.size() implies:
+                // (because the left is a multiple of n_channels, and original.size() is a multiple of n_channels)
+                // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
+                // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
+                // i < N + original.size()/n_channels - discreteSampleBefore
+                
+                auto const vresValue = vres[i];
+                auto const idxBase = (discreteSampleBefore_minus_N + i)*n_channels;
+                for(int j=0; j<n_channels; ++j) {
+                    auto const originalIdx = idxBase + j;
+#if DEBUG_RESAMPLING
+                    tmp[originalIdx] = vresValue;
+#endif
+                    auto const resampleIdx = resampleIdxBase+j;
+                    assert(resampleIdx < resampled.size());
+                    resampled[resampleIdx] += vresValue * original[originalIdx];
+                }
+            }
+#if DEBUG_RESAMPLING
+            std::cout << "frame " << frameIdx << " where " << discreteSampleBefore + P << " value " << resampled[resampleIdxBase] << std::endl;
+            for(auto const & [originalIdx, vresValue] : tmp) {
+                std::cout << originalIdx << " " << vresValue << std::endl;
+            }
+#endif
+        });
+        return dt;
+    }
     // 0 o/n 2*o/n ...
     
     // pgcd * a = o
@@ -269,8 +616,7 @@ namespace imajuscule::audio {
                     sinXOverX = 1.;
                 }
                 else {
-                    double pi_x = M_PI * x;
-                    sinXOverX = std::sin(pi_x)/pi_x;
+                    sinXOverX = fSinc(M_PI * x);
                 }
                 return winCoeff * sinXOverX;
             };
@@ -357,6 +703,8 @@ namespace imajuscule::audio {
             int64_t const vres_sz = 2+2*N;
             assert(vres_sz == vres.size());
             
+            auto const resampleIdxBase = frameIdx*n_channels;
+            
             for(int64_t
                 i   = std::max(static_cast<int64_t>(0),
                                -discreteSampleBefore_minus_N),
@@ -386,22 +734,66 @@ namespace imajuscule::audio {
 #if DEBUG_RESAMPLING
                     tmp[originalIdx] = vresValue;
 #endif
-                    resampled[frameIdx*n_channels+j] += vresValue * original[originalIdx];
+                    resampled[resampleIdxBase+j] += vresValue * original[originalIdx];
                 }
             }
 #if DEBUG_RESAMPLING
-            std::cout << "frame " << frameIdx << " where " << where << " value " << res << std::endl;
+            std::cout << "frame " << frameIdx << " where " << discreteSampleBefore + P << " value " << resampled[resampleIdxBase] << std::endl;
             for(auto const & [originalIdx, vresValue] : tmp) {
                 std::cout << originalIdx << " " << vresValue << std::endl;
             }
 #endif
             return true;
         });
-        
-        std::cout << results.size() << std::endl;
         return dt;
     }
     
+    template<typename Reader, typename Buffer, typename F>
+    ResampleSincStats resampleSincVariableRate(Reader & reader, Buffer & resampled, F f_new_sample_rate)
+    {
+        using namespace std::chrono;
+        using namespace profiling;
+        ResampleSincStats stats;
+        
+        using VAL = typename Buffer::value_type;
+        
+        resampled.clear();
+
+        std::vector<VAL> original;
+        // TODO faire cela dans un thread a part et en meme temps resampler?
+        {
+            Timer<steady_clock> t(stats.dt_read_source);
+            auto const nOrigSamples = reader.countSamples();
+            original.reserve(nOrigSamples);
+            while(reader.HasMore()) {
+                original.push_back(reader.template ReadAsOneFloat<VAL>());
+            }
+            if(nOrigSamples != original.size()) {
+                throw std::logic_error("invalid reader (number of samples != number os samples read : "
+                                       + std::to_string(nOrigSamples) + " " + std::to_string(original.size()));
+            }
+        }
+        double const Fs = reader.getSampleRate();
+        if(!Fs) {
+            return stats;
+        }
+        
+        auto fFs_over_FsPrime = [f_new_sample_rate, Fs](double where) {
+            auto const FsPrime = f_new_sample_rate(where);
+            if(!FsPrime) {
+                assert(0);
+                return 1.;
+            }
+            return Fs / FsPrime;
+        };
+
+        stats.dt_resample = resampleSincBufferVariableRate(original,
+                                                           reader.countChannels(),
+                                                           fFs_over_FsPrime,
+                                                           resampled);
+        return stats;
+    }
+
     template<typename Reader, typename Buffer>
     ResampleSincStats resampleSinc(Reader & reader, Buffer & resampled, double new_sample_rate)
     {
@@ -444,19 +836,19 @@ namespace imajuscule::audio {
 
     struct InterlacedBuffer {
         using element_type = double;
-        
-        template<typename Reader>
-        InterlacedBuffer(Reader & reader, double sample_rate, ResampleSincStats & stats)
+
+        template<typename Reader, typename S>
+        InterlacedBuffer(Reader & reader, S sample_rate, ResampleSincStats & stats)
         : nchannels(reader.countChannels())
         {
-            stats = resampleSinc(reader, buf, sample_rate);
+            if constexpr (std::is_pod<S>::value) {
+                stats = resampleSinc(reader, buf, sample_rate);
+            }
+            else {
+                stats = resampleSincVariableRate(reader, buf, sample_rate);
+            }
         }
-        /*
-        InterlacedBuffer(std::vector<element_type> const & v, int nchannels)
-        : buf(v)
-        , nchannels(nchannels)
-        {}*/
-        
+
         std::size_t countFrames() const {
             if(nchannels == 0) {
                 return 0;

@@ -415,10 +415,11 @@ namespace imajuscule::audio {
         resampled.resize(target_frame_count*n_channels, {});
 
         KaiserWindow window;
-        // we memoize the results
-        //std::unordered_map<AlmostDouble, std::unique_ptr<std::vector<double>>> results;
 
-        foreachResampled([&resampled,
+        std::vector<double> vres;
+
+        foreachResampled([&vres,
+                          &resampled,
                           &original,
                           &window,
                           n_orig_frames,
@@ -441,7 +442,6 @@ namespace imajuscule::audio {
             std::map<int64_t, double> tmp;
 #endif
             
-            double const norm = std::min(1., 1./Fs_over_FsPrime);
             const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
             // half size, excluding the central point, hence the number of non-zero slots is:
             // 1 + 2*windowHalfSize
@@ -450,8 +450,7 @@ namespace imajuscule::audio {
             const auto windowHalfSize = num_zerocrossings_half_window / one_over_zeroCrossingDistance;
             int64_t const N = static_cast<int>(windowHalfSize) + 1;
 
-            auto hs = [norm,
-                       num_zerocrossings_half_window,
+            auto hs = [num_zerocrossings_half_window,
                        one_over_num_zerocrossings_half_window,
                        one_over_zeroCrossingDistance,
                        &window]
@@ -472,30 +471,26 @@ namespace imajuscule::audio {
                     }
                     return winCoeff * sinXOverX;
                 };
-                return norm * sinc(t * one_over_zeroCrossingDistance);
+                return one_over_zeroCrossingDistance * sinc(t * one_over_zeroCrossingDistance);
             };
             
-            // x between 0 and 1
-            auto getResults = [hs, N](double x) {
+            int64_t const vres_sz = 2+2*N;
+
+            // P between 0 and 1
+            {
                 assert(x >= 0.);
                 assert(x <= 1.);
-                auto res = std::make_unique<std::vector<double>>();
-                auto & v = *res;
-                v.reserve(2+2*N);
+                vres.clear();
+                vres.reserve(vres_sz);
                 int64_t firstIdx = -N;
                 int64_t last_idx = N+1; // included
                 for(int64_t i=firstIdx; i<= last_idx; ++i) {
-                    v.push_back(hs(x-i));
+                    vres.push_back(hs(P-i));
                 }
-                assert(v.size() == 2+2*N);
-                return std::move(res);
+                assert(vres.size() == vres_sz);
             };
             
-            auto unique = getResults(P);
-            auto const & vres =*unique;
-
             int64_t const discreteSampleBefore_minus_N = discreteSampleBefore-N;
-            int64_t const vres_sz = 2+2*N;
 
             auto const resampleIdxBase = frameIdx*n_channels;
 
@@ -588,7 +583,6 @@ namespace imajuscule::audio {
         }
         
         // using notations found in https://ccrma.stanford.edu/~jos/resample/resample.pdf
-        double const norm = std::min(1., 1./Fs_over_FsPrime);
         const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
         // half size, excluding the central point, hence the number of non-zero slots is:
         // 1 + 2*windowHalfSize
@@ -598,8 +592,7 @@ namespace imajuscule::audio {
         int64_t const N = static_cast<int>(windowHalfSize) + 1;
         KaiserWindow window;
         
-        auto hs = [norm,
-                   num_zerocrossings_half_window,
+        auto hs = [num_zerocrossings_half_window,
                    one_over_num_zerocrossings_half_window,
                    one_over_zeroCrossingDistance,
                    &window]
@@ -620,7 +613,7 @@ namespace imajuscule::audio {
                 }
                 return winCoeff * sinXOverX;
             };
-            return norm * sinc(t * one_over_zeroCrossingDistance);
+            return one_over_zeroCrossingDistance * sinc(t * one_over_zeroCrossingDistance);
         };
         
         auto foreachResampled = [target_frame_count, Fs_over_FsPrime](auto f){

@@ -222,10 +222,62 @@ TEST(MathRoots, find_roots) {
     }
     using namespace imajuscule::audio;
     {
-        auto res = findSincCurvatureChanges(0., 10.);
+        auto constexpr maxX = 512.;
+        auto res = findSincCurvatureChanges(0., maxX);
         for(auto r:res) {
             std::cout << r << std::endl;
         }
+        
+        std::vector<double> precisions {
+            10., 1.,
+            1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10,
+            1e-11, 1e-12};
+        
+        for(auto precision : precisions) {
+            std::cout << "with precision " << precision << std::endl;
+
+            NonUniformSampler nus(fSinc<double>, findSincCurvatureChanges(0., maxX), precision);
+            std::cout << "ok" << std::endl;
+            auto const & exactValues = nus.getExactValues();
+            auto minIt = exactValues.cbegin();
+
+            double maxError = 0.;
+            double minGap = 10000.;
+            double maxGap = 0.;
+            for(auto it = exactValues.begin(),
+                end = exactValues.end();
+                it!=end;)
+            {
+                auto itFrom = it;
+                ++it;
+                auto itTo = it;
+                if(itTo == end) {
+                    break;
+                }
+                auto const gap = itTo->x-itFrom->x;
+                minGap = std::min(minGap, gap);
+                maxGap = std::max(maxGap, gap);
+                constexpr auto resolution = 5;
+                for(int i=0; i<resolution; ++i) {
+                    // forward in [0,1]
+                    auto const forward = static_cast<double>(i)/(resolution-1);
+                    double const where = itFrom->x + forward * gap;
+                    double const exactValue = fSinc<double>(where);
+                    double const interpolatedValue = (1.-forward)*itFrom->y + forward*itTo->y;
+                    double const interpolatedValue2 = nus.getAtWithMin(where, minIt, minIt);
+                    //std::cout << i << std::endl;
+                    ASSERT_FLOAT_EQ(interpolatedValue, interpolatedValue2);
+                    double const error = std::abs(exactValue-interpolatedValue);
+                    if(error > maxError) {
+                        maxError = error;
+                    }
+                }
+            }
+            std::cout << " max error: " << maxError << std::endl;
+            std::cout << " num samples: " << exactValues.size() << std::endl;
+            std::cout << " gap between samples (min, avg, max) : " << minGap << " " << maxX / exactValues.size() << " " << maxGap << std::endl;
+        }
+        
     }
     constexpr auto numIteration = 10000000;
     constexpr auto numSamples = 10000000;

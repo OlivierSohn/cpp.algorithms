@@ -146,7 +146,10 @@ namespace imajuscule::audio {
     
     template<typename T>
     T fSinc(T x) {
-        return std::sin(x)/x;
+        if(likely(x)) {
+            return std::sin(x)/x;
+        }
+        return 1.;
     }
 
     // We will sample sinc so as to minimize the absolute error when interpolating between 2 consecutive samples.
@@ -206,11 +209,19 @@ namespace imajuscule::audio {
     
     template<typename T>
     auto findSincCurvatureChanges(T from, T to) {
-        return findRootsSpacedByAtleast(2.,
+        auto res =  findRootsSpacedByAtleast(2.,
                                         from,
                                         to,
                                         der_of_der_of_NumeratorSinc<double>,
                                         der_of_der_of_der_of_NumeratorSinc<double>);
+        auto constexpr epsilon = std::numeric_limits<T>::epsilon();
+        if(res.empty() || std::abs(*res.begin() - from) > epsilon) {
+            res.insert(res.begin(), from);
+        }
+        if(res.empty() || std::abs(*res.rbegin() - to) > epsilon) {
+            res.push_back(to);
+        }
+        return res;
     }
     
     
@@ -302,6 +313,121 @@ namespace imajuscule::audio {
         std::vector<T> samples;
     };
 
+    template<typename T>
+    struct NonUniformSampler {
+        struct SortableXY {
+            SortableXY(T x, T y)
+            : x(x)
+            , y(y)
+            {}
+            
+            T x;
+            T y;
+            
+            bool operator < (SortableXY const & other) const {
+                return x < other.x;
+            }
+        };
+
+        using Container = std::vector<SortableXY>;
+        using ConstIterator = typename Container::const_iterator;
+        
+        template<typename F>
+        NonUniformSampler(F functionToSample, std::vector<T> const & curvatureChanges, T maxSamplingError)
+        : maxSamplingError(maxSamplingError)
+        {
+            sorted.reserve(100000);
+            
+            static_assert(std::is_same_v<T, decltype(functionToSample({}))>);
+            auto it = curvatureChanges.begin();
+            auto const end = curvatureChanges.end();
+            if(it == end) {
+                throw std::logic_error("empty curvatureChanges");
+            }
+            T v1 = functionToSample(*it);
+            sorted.emplace_back(*it, v1);
+            for(auto it2 = it+1; it2 != end; ++it2) {
+                T v2 = functionToSample(*it2);
+                sampleSameDerDerSign(functionToSample, *it, *it2, v1, v2);
+                sorted.emplace_back(*it2, v2);
+                it = it2;
+                v1 = v2;
+            }
+        }
+        T getAt(T x) const {
+            ConstIterator dummy;
+            return getAtWithMin(x, sorted.begin(), dummy);
+        }
+        T getAtWithMin(T x, ConstIterator minIt, ConstIterator & lessIt) const {
+            // first, find lower+upper bounds by doubling the interval each time.
+            auto const end = sorted.end();
+            ConstIterator nextMinIt = end;
+
+            int sz = 1;
+            while(true)
+            {
+                nextMinIt = minIt + sz;
+                if(nextMinIt >= end) {
+                    nextMinIt = end;
+                    break;
+                }
+                if(nextMinIt->x > x) {
+                    break;
+                }
+                minIt = nextMinIt;
+                sz *= 2;
+            }
+            return getAtWithMinEnd(x, minIt, nextMinIt, lessIt);
+        }
+        T getAtWithMinEnd(T x, ConstIterator minIt, ConstIterator endIt, ConstIterator & lessIt) const {
+            lessIt = std::upper_bound(minIt,
+                                      endIt,
+                                      x,
+                                      [](auto const & x, auto const & other) { return x < other.x; });
+            if(lessIt == minIt) {
+                return lessIt->y;
+            }
+            if(lessIt == endIt && endIt == sorted.end()) {
+                return sorted.rbegin()->y;
+            }
+            auto l2 = lessIt;
+            --lessIt;
+            auto l1 = lessIt;
+            auto exactDX = l2->x - l1->x;
+            if(!exactDX) {
+                return l2->y;
+            }
+            auto ratio = (x-l1->x)/exactDX;
+            return (1.-ratio) * l1->y + ratio * l2->y;
+        }
+        
+        auto const & getExactValues() const { return sorted; }
+    private:
+        std::vector<SortableXY> sorted;
+        T maxSamplingError;
+
+        // betweem from and to, the 2nd derivative of function to sample has a constant sign.
+        template<typename F>
+        void sampleSameDerDerSign(F const & functionToSample, T from, T to, T vFrom, T vTo) {
+            // by design, the samples at from and to are already sampled.
+            
+            T mid = 0.5 * (to+from);
+            if(unlikely(mid == to || mid == from)) {
+                return;
+            }
+            T vMid = functionToSample(mid);
+            T vInterp = 0.5 * (vFrom + vTo);
+            T absoluteError = std::abs(vMid - vInterp);
+            if(absoluteError <= maxSamplingError) {
+                // we could put the sample in the map, but we don't need to since the sampling error criteria is met.
+                return;
+            }
+            sampleSameDerDerSign(functionToSample, from, mid, vFrom, vMid);
+            sorted.emplace_back(mid, vMid);
+            sampleSameDerDerSign(functionToSample, mid, to, vMid, vTo);
+        }
+    };
+    
     struct KaiserWindow {
         // https://en.wikipedia.org/wiki/Kaiser_window
         KaiserWindow(double shape = 16.)
@@ -415,13 +541,20 @@ namespace imajuscule::audio {
         resampled.resize(target_frame_count*n_channels, {});
 
         KaiserWindow window;
+        constexpr auto num_zerocrossings_half_window = 512;
+        constexpr auto samplingPrecision = 1e-10;
+        NonUniformSampler sampledSinc(fSinc<double>,
+                                      findSincCurvatureChanges(0., M_PI * num_zerocrossings_half_window),
+                                      samplingPrecision);
 
         std::vector<double> vres;
 
         foreachResampled([&vres,
+                          &sampledSinc,
                           &resampled,
                           &original,
                           &window,
+                          num_zerocrossings_half_window,
                           n_orig_frames,
                           n_channels](int64_t frameIdx,
                                       double Fs_over_FsPrime,
@@ -445,7 +578,6 @@ namespace imajuscule::audio {
             const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
             // half size, excluding the central point, hence the number of non-zero slots is:
             // 1 + 2*windowHalfSize
-            constexpr auto num_zerocrossings_half_window = 512;
             constexpr double one_over_num_zerocrossings_half_window = 1./num_zerocrossings_half_window;
             const auto windowHalfSize = num_zerocrossings_half_window / one_over_zeroCrossingDistance;
             int64_t const N = static_cast<int>(windowHalfSize) + 1;
@@ -453,39 +585,31 @@ namespace imajuscule::audio {
             auto hs = [num_zerocrossings_half_window,
                        one_over_num_zerocrossings_half_window,
                        one_over_zeroCrossingDistance,
-                       &window]
+                       &window,
+                       &sampledSinc]
             (double t) { // zero crossings every one_over_zeroCrossingDistance
-                auto sinc = [num_zerocrossings_half_window,
-                             &window](double x) { // zero crossings every x
-                    bool inWindow = (x > -num_zerocrossings_half_window) && (x < num_zerocrossings_half_window);
-                    if(!inWindow) {
-                        return 0.;
-                    }
-                    auto winCoeff = window.getAt(std::abs(x) * one_over_num_zerocrossings_half_window);
-                    double sinXOverX;
-                    if(!x) {
-                        sinXOverX = 1.;
-                    }
-                    else {
-                        sinXOverX = fSinc(M_PI * x);
-                    }
-                    return winCoeff * sinXOverX;
-                };
-                return one_over_zeroCrossingDistance * sinc(t * one_over_zeroCrossingDistance);
+                assert(t >= 0.);
+                double x = t * one_over_zeroCrossingDistance; // zero crossings every x
+                assert(x >= 0.);
+                if(x >= num_zerocrossings_half_window) {
+                    return 0.;
+                }
+                auto winCoeff = window.getAt(x * one_over_num_zerocrossings_half_window);
+                return winCoeff * one_over_zeroCrossingDistance * sampledSinc.getAt(M_PI * x); // 0 <= M_PI * x < M_PI * num_zerocrossings_half_window
             };
             
             int64_t const vres_sz = 2+2*N;
 
             // P between 0 and 1
             {
-                assert(x >= 0.);
-                assert(x <= 1.);
+                assert(P >= 0.);
+                assert(P <= 1.);
                 vres.clear();
                 vres.reserve(vres_sz);
                 int64_t firstIdx = -N;
                 int64_t last_idx = N+1; // included
                 for(int64_t i=firstIdx; i<= last_idx; ++i) {
-                    vres.push_back(hs(P-i));
+                    vres.push_back(hs(std::abs(P-i)));
                 }
                 assert(vres.size() == vres_sz);
             };
@@ -597,21 +721,16 @@ namespace imajuscule::audio {
                    one_over_zeroCrossingDistance,
                    &window]
         (double t) { // zero crossings every one_over_zeroCrossingDistance
+            assert(t >= 0.);
             auto sinc = [num_zerocrossings_half_window,
                          &window](double x) { // zero crossings every x
+                assert(x >= 0.);
                 bool inWindow = (x > -num_zerocrossings_half_window) && (x < num_zerocrossings_half_window);
                 if(!inWindow) {
                     return 0.;
                 }
                 auto winCoeff = window.getAt(std::abs(x) * one_over_num_zerocrossings_half_window);
-                double sinXOverX;
-                if(!x) {
-                    sinXOverX = 1.;
-                }
-                else {
-                    sinXOverX = fSinc(M_PI * x);
-                }
-                return winCoeff * sinXOverX;
+                return winCoeff * fSinc(M_PI * x);
             };
             return one_over_zeroCrossingDistance * sinc(t * one_over_zeroCrossingDistance);
         };
@@ -662,7 +781,7 @@ namespace imajuscule::audio {
             int64_t firstIdx = -N;
             int64_t last_idx = N+1; // included
             for(int64_t i=firstIdx; i<= last_idx; ++i) {
-                v.push_back(hs(x-i));
+                v.push_back(hs(std::abs(x-i)));
             }
             assert(v.size() == 2+2*N);
             results.insert({key, std::move(res)});

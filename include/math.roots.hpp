@@ -40,6 +40,15 @@ auto find_root(F f, FDER fder, T curFrom, T curTo) -> std::optional<T> {
             assert(denom > 0);
             return (negative.x*positive.y - positive.x*negative.y) / denom;
         }
+        
+        bool xStrictlyWithin(T x) const {
+            if(negative.x < positive.x) {
+                return negative.x < x && x < positive.x;
+            }
+            else {
+                return positive.x < x && x < negative.x;
+            }
+        }
 
         bool update(XY const & v) {
             if(negative.x < positive.x) {
@@ -142,8 +151,8 @@ auto find_root(F f, FDER fder, T curFrom, T curTo) -> std::optional<T> {
         else {
             assert(method==Method::FalsePosition);
             X = bounds.falseposition_mid();
-            if(X == bounds.positive.x || X == bounds.negative.x) {
-                return { X };
+            if(!bounds.xStrictlyWithin(X)) {
+                return { bounds.middle() };
             }
             Y = f(X);
             if(std::abs(Y) < epsilon) {

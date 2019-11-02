@@ -448,10 +448,9 @@ namespace imajuscule::audio {
             
             const double squareX_Over_4 = squareX * 0.25;
             
-            //  initialize the series term for m=0 and the result
-            double besselValue = 0;
-            double term = 1;
-            double m = 0;
+            double besselValue = 1;
+            double term = squareX_Over_4;
+            double m = 1;
             
             //  accumulate terms as long as they are significant
             while(term  > eps * besselValue)
@@ -524,42 +523,78 @@ namespace imajuscule::audio {
                     return;
                 }
                 auto Fs_over_FsPrime = fFs_over_FsPrime(where);
-                f(frameIdx, Fs_over_FsPrime, discreteSampleBefore, P);
+                f(frameIdx, Fs_over_FsPrime, where);
                 where += Fs_over_FsPrime;
             }
         };
 
-        int64_t target_frame_count=0;
-        foreachResampled([&target_frame_count,
-                          n_orig_frames
-                          ](int64_t frameIdx,
-                            double Fs_over_FsPrime,
-                            int64_t discreteSampleBefore,
-                            double P) {
-            target_frame_count = frameIdx+1;
+        struct ResampledFrameSpec {
+            ResampledFrameSpec(double where, double Fs_over_FsPrime)
+            : Fs_over_FsPrime(Fs_over_FsPrime)
+            , where(where)
+            {}
+            double Fs_over_FsPrime, where;
+        };
+
+        std::vector<ResampledFrameSpec> resampled_specs;
+        resampled_specs.reserve(n_orig_frames);
+        foreachResampled([&resampled_specs]
+                         (int64_t frameIdx,
+                          double Fs_over_FsPrime,
+                          double where) {
+            resampled_specs.emplace_back(where, Fs_over_FsPrime);
         });
+        int64_t target_frame_count=resampled_specs.size();
         resampled.resize(target_frame_count*n_channels, {});
 
         KaiserWindow window;
-        constexpr auto num_zerocrossings_half_window = 512;
-        constexpr auto samplingPrecision = 1e-10;
-        NonUniformSampler sampledSinc(fSinc<double>,
-                                      findSincCurvatureChanges(0., M_PI * num_zerocrossings_half_window),
-                                      samplingPrecision);
+        constexpr auto num_zerocrossings_half_window = 150;
 
-        std::vector<double> vres;
-
-        foreachResampled([&vres,
-                          &sampledSinc,
-                          &resampled,
-                          &original,
-                          &window,
-                          num_zerocrossings_half_window,
-                          n_orig_frames,
-                          n_channels](int64_t frameIdx,
-                                      double Fs_over_FsPrime,
-                                      int64_t discreteSampleBefore,
-                                      double P) {
+        auto foreachResampledParallel = [&resampled_specs](auto f){
+            auto job = [f,
+                        &resampled_specs](int64_t startFrame,
+                                          int64_t endFrame) {
+                for(int64_t frameIdx = startFrame;
+                    frameIdx < endFrame;
+                    ++frameIdx)
+                {
+                    auto const & spec = resampled_specs[frameIdx];
+                    int64_t discreteSampleBefore = static_cast<int64_t>(spec.where);
+                    f(frameIdx,
+                      spec.Fs_over_FsPrime,
+                      discreteSampleBefore,
+                      spec.where-discreteSampleBefore);
+                }
+            };
+            
+            int ncpus = std::thread::hardware_concurrency();
+            int njobs = ncpus;
+            std::vector<std::thread> threads;
+            threads.reserve(njobs-1);
+            
+            int64_t countFrames = resampled_specs.size();
+            int64_t endFrame = 0;
+            for(int i=0; i<njobs-1; ++i) {
+                auto const startFrame = endFrame;
+                endFrame += countFrames/njobs;
+                threads.emplace_back([startFrame, endFrame, job]{ job(startFrame, endFrame); });
+            }
+            job(endFrame, countFrames);
+            
+            for(auto & thread:threads) {
+                thread.join();
+            }
+        };
+        
+        foreachResampledParallel([&resampled,
+                                  &original,
+                                  &window,
+                                  num_zerocrossings_half_window,
+                                  n_orig_frames,
+                                  n_channels](int64_t frameIdx,
+                                              double Fs_over_FsPrime,
+                                              int64_t discreteSampleBefore,
+                                              double P) {
             // we are computing frame 'frameIdx' of the resampled signal.
             
             // when the resampling frequency is constant, we can cache the hs results array with key 'P'
@@ -585,8 +620,7 @@ namespace imajuscule::audio {
             auto hs = [num_zerocrossings_half_window,
                        one_over_num_zerocrossings_half_window,
                        one_over_zeroCrossingDistance,
-                       &window,
-                       &sampledSinc]
+                       &window]
             (double t) { // zero crossings every one_over_zeroCrossingDistance
                 assert(t >= 0.);
                 double x = t * one_over_zeroCrossingDistance; // zero crossings every x
@@ -595,24 +629,14 @@ namespace imajuscule::audio {
                     return 0.;
                 }
                 auto winCoeff = window.getAt(x * one_over_num_zerocrossings_half_window);
-                return winCoeff * one_over_zeroCrossingDistance * sampledSinc.getAt(M_PI * x); // 0 <= M_PI * x < M_PI * num_zerocrossings_half_window
+                auto sinc_pix = fSinc(M_PI * x); // 0 <= M_PI * x < M_PI * num_zerocrossings_half_window
+                return winCoeff * one_over_zeroCrossingDistance * sinc_pix;
             };
             
             int64_t const vres_sz = 2+2*N;
 
-            // P between 0 and 1
-            {
-                assert(P >= 0.);
-                assert(P <= 1.);
-                vres.clear();
-                vres.reserve(vres_sz);
-                int64_t firstIdx = -N;
-                int64_t last_idx = N+1; // included
-                for(int64_t i=firstIdx; i<= last_idx; ++i) {
-                    vres.push_back(hs(std::abs(P-i)));
-                }
-                assert(vres.size() == vres_sz);
-            };
+            assert(P >= 0.);
+            assert(P <= 1.);
             
             int64_t const discreteSampleBefore_minus_N = discreteSampleBefore-N;
 
@@ -640,7 +664,7 @@ namespace imajuscule::audio {
                 // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
                 // i < N + original.size()/n_channels - discreteSampleBefore
                 
-                auto const vresValue = vres[i];
+                auto const vresValue = hs(std::abs(P+(N-i)));
                 auto const idxBase = (discreteSampleBefore_minus_N + i)*n_channels;
                 for(int j=0; j<n_channels; ++j) {
                     auto const originalIdx = idxBase + j;
@@ -725,11 +749,10 @@ namespace imajuscule::audio {
             auto sinc = [num_zerocrossings_half_window,
                          &window](double x) { // zero crossings every x
                 assert(x >= 0.);
-                bool inWindow = (x > -num_zerocrossings_half_window) && (x < num_zerocrossings_half_window);
-                if(!inWindow) {
+                if(x >= num_zerocrossings_half_window) {
                     return 0.;
                 }
-                auto winCoeff = window.getAt(std::abs(x) * one_over_num_zerocrossings_half_window);
+                auto winCoeff = window.getAt(x * one_over_num_zerocrossings_half_window);
                 return winCoeff * fSinc(M_PI * x);
             };
             return one_over_zeroCrossingDistance * sinc(t * one_over_zeroCrossingDistance);
@@ -889,9 +912,9 @@ namespace imajuscule::audio {
         if(!Fs) {
             return stats;
         }
-        
-        auto fFs_over_FsPrime = [f_new_sample_rate, Fs](double where) {
-            auto const FsPrime = f_new_sample_rate(where);
+        auto const nframes = reader.countFrames();
+        auto fFs_over_FsPrime = [f_new_sample_rate, Fs, nframes](double where) {
+            auto const FsPrime = f_new_sample_rate(nframes, where);
             if(!FsPrime) {
                 assert(0);
                 return 1.;

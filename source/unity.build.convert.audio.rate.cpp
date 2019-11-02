@@ -12,7 +12,18 @@ namespace imajuscule::audio {
                      filename,
                      "resampled_" + filename,
                      //44100.,
-                     [](double){ return 44100.; },
+                     [](double x){
+            if(x<200000) {
+                return 44100.;
+            }
+            constexpr auto transition_width = 10000;
+            if(x > 200000+transition_width) {
+                return 30000.;
+            }
+            else {
+                return 44100. + ((x-200000)/transition_width) * (30000.-44100.);
+            }
+        },
                      44100);
     }
 }

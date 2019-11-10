@@ -48,7 +48,7 @@ namespace imajuscule
       // if we are traversing forward or backward
       // but here we make no assumption:
       auto it_coeff = coefficients.begin();
-      // TODO vectorize this (maybe reverse the cycle, so that we can "go forward" in both the input and the coefficients)
+
       past.for_each_bkwd([&res, &it_coeff](auto val) {
         res += val * *it_coeff;
         ++it_coeff;

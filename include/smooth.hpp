@@ -1,30 +1,61 @@
 namespace imajuscule
 {
+template<int polyDegree, typename T>
+T poly(T v) {
+    static_assert(polyDegree >= 0);
+    static_assert(polyDegree <= 6);
+    if constexpr (polyDegree == 0) {
+        return 1;
+    }
+    else if constexpr(polyDegree == 1) {
+        return v;
+    }
+    else if constexpr(polyDegree == 2) {
+        return v*v;
+    }
+    else if constexpr(polyDegree == 3) {
+        return v*v*v;
+    }
+    else if constexpr(polyDegree == 4) {
+        auto v2 = v*v;
+        return v2*v2;
+    }
+    else if constexpr(polyDegree == 5) {
+        auto v2 = v*v;
+        return v2*v2*v;
+    }
+    else if constexpr(polyDegree == 6) {
+        auto v2 = v*v;
+        return v2*v2*v2;
+    }
+}
   /*
    Not thread safe.
    
    Allows to control the variation of a value, to avoid brusk changes.
    */
-  template<typename T>
+  template<typename T, int polyDegree>
   struct smoothVar {
-    smoothVar(T v) {
-      smoothly(v,0);
-    }
+      static_assert(polyDegree >= 1);
+      
+    smoothVar(T v)
+      : current(v)
+      , target(v)
+      , increment(0)
+      {}
     
     /*
      * Sets the target value and the count of steps of the interpolation.
      */
     void smoothly(T v, int nSteps) {
       if(nSteps == 0) {
-        current = target = v;
         increment = 0;
+        target = v;
+        current.setX(v);
         return;
       }
-      if(unlikely(nSteps < 0)) {
-        nSteps = -nSteps;
-      }
       target = v;
-      increment = std::abs(target - current) / static_cast<T>(nSteps);
+      increment = std::abs(target - current.getX()) / static_cast<T>(std::abs(nSteps));
       Assert(increment >= 0);
     }
     
@@ -33,25 +64,56 @@ namespace imajuscule
      */
     T step() {
       Assert(increment >= 0);
-      if(current == target) {
+        auto curX = current.getX();
+      if(curX == target) {
       }
-      else if(current < target-increment) {
-        current += increment;
+      else if(curX < target-increment) {
+        curX += increment;
       }
-      else if(current > target+increment) {
-        current -= increment;
+      else if(curX > target+increment) {
+        curX -= increment;
       }
       else {
-        current = target;
+        curX = target;
       }
-      return current;
+      current.setX(curX);
+      return getWithoutStepping();
     }
       
       T getWithoutStepping() const {
-          return current;
+          return current.getY();
       }
   private:
-    T current, target, increment;
+      struct PrivateValue {
+          explicit PrivateValue(T x) :
+          x(x) {
+              computeY();
+          }
+          void setX(T val) {
+              if(x == val) {
+                  return;
+              }
+              x = val;
+              computeY();
+          }
+          
+          T getX() const {
+              return x;
+          }
+          
+          T getY() const {
+              return y;
+          }
+      private:
+          T x;
+          T y;
+          
+          void computeY() {
+              y = poly<polyDegree>(x);
+          }
+      };
+      PrivateValue current;
+    T target, increment;
   };
   
 }

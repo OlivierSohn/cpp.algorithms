@@ -48,26 +48,25 @@ TEST(Reverbs, dirac) {
     // by default, reverb is inactive.
     {
         std::vector<double> const input = mkDirac<double>(4);
-        auto inputCopy = input;
-        rs.apply(inputCopy.data(), inputCopy.size());
-        ASSERT_EQ(inputCopy, input);
+        auto output = input;
+        rs.addWet(input.data(), output.data(), input.size());
+        ASSERT_EQ(output, input);
     }
     
     // for 0-length responses, reverb is inactive.
     {
         try {
-            double scale;
             ResponseStructure structure;
             rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100., ResponseTailSubsampling::HighestAffordableResolution,
-                                      std::cout, scale, structure);
+                                      std::cout, structure);
             ASSERT_TRUE(false);
         }
         catch(std::exception const &) {
         }
         std::vector<double> const input = mkDirac<double>(4);
-        auto inputCopy = input;
-        rs.apply(inputCopy.data(), inputCopy.size());
-        ASSERT_EQ(inputCopy, input);
+        auto output = input;
+        rs.addWet(input.data(), output.data(), input.size());
+        ASSERT_EQ(output, input);
     }
     
     std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
@@ -80,14 +79,12 @@ TEST(Reverbs, dirac) {
             
             auto const scaleRange = getScaleCountRanges(rts);
             
-            auto inputCopy = input;
             {
                 bool res = false;
-                double scale;
                 ResponseStructure structure;
                 try {
                     rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100., rts,
-                                              std::cout, scale, structure);
+                                              std::cout, structure);
                     res = true;
                 }
                 catch(std::exception const &e) {
@@ -104,17 +101,21 @@ TEST(Reverbs, dirac) {
                     ASSERT_TRUE(res);
                 }
             }
+            std::vector<double> output;
+            output.resize(input.size());
+            std::fill(output.begin(), output.end(), double{});
+
             std::vector<double> diff1;
-            diff1.reserve(inputCopy.size());
+            diff1.reserve(output.size());
             
-            rs.apply(inputCopy.data(), 1);
-            auto scale = coeffs[0]/inputCopy[0];
+            rs.addWet(input.data(), output.data(), 1);
+            auto scale = coeffs[0]/output[0];
             
-            rs.apply(&inputCopy[1], inputCopy.size()-1);
-            for(int i=0, sz = inputCopy.size(); i<sz; i++) {
-                inputCopy[i] *= scale;
+            rs.addWet(input.data()+1, output.data()+1, input.size()-1);
+            for(int i=0, sz = output.size(); i<sz; i++) {
+                output[i] *= scale;
                 
-                diff1.push_back(std::abs(inputCopy[i] - coeffs[i]));
+                diff1.push_back(std::abs(output[i] - coeffs[i]));
             }
             
             std::vector<std::pair<double, int>> diff;
@@ -140,7 +141,7 @@ TEST(Reverbs, dirac) {
                     ASSERT_GT(0.08, diff[0].first);
                     break;
                 case 4:
-                    ASSERT_GT(0.12, diff[0].first);
+                    ASSERT_GT(0.2, diff[0].first);
                     break;
                 default:
                     ASSERT_TRUE(false);
@@ -153,9 +154,9 @@ TEST(Reverbs, dirac) {
     {
         rs.disable();
         std::vector<double> const input = mkDirac<double>(4);
-        auto inputCopy = input;
-        rs.apply(inputCopy.data(), inputCopy.size());
-        ASSERT_EQ(inputCopy, input);
+        auto output = input;
+        rs.addWet(input.data(), output.data(), input.size());
+        ASSERT_EQ(output, input);
     }
 }
 

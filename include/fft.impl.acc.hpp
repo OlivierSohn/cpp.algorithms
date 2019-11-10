@@ -53,11 +53,14 @@ namespace imajuscule {
                 accelerate::API<T>::f_mmov(&*from, &*dest, 1, N, 1, 1);
             }
 
-            static void zero(type & v) {
+            static void zero_n(type & v, int n) {
                 T zero{};
 
                 accelerate::API<T>::f_vfill(&zero,
-                                            &v[0], 1, v.size());
+                                            &v[0], 1, n);
+            }
+            static void zero(type & v) {
+                zero_n(v, v.size());
             }
         };
 

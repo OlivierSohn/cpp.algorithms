@@ -50,10 +50,6 @@ namespace imajuscule {
       static constexpr bool supportsOddCountOfCoefficients = false;
       static constexpr bool evenIndexesAreApproximated = true;
       
-      template <typename F>
-      static void adaptCoefficients(F & v) {
-        averageNeighbours(v.begin(),v.end());
-      }
     };
     
 #ifdef NDEBUG
@@ -414,10 +410,6 @@ namespace imajuscule {
         }
         {
           auto c = FFTConvolution<double, Tag>{};
-          testDirac2(i, c);
-        }
-        {
-          auto c = SubSampled<LatencySemantic::FirstNonZero, FFTConvolution<double, Tag>>{};
           testDirac2(i, c);
         }
         {

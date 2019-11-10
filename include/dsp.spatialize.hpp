@@ -235,6 +235,30 @@ namespace imajuscule
                 ++inout;
               }
             }
+            
+            void addWet(T const * const in, T * out) {
+                for(auto & earConvs : earsConvs) {
+                  T wetSignal = 0.;
+                  int i = 0;
+                  for(auto & c : earConvs) {
+                    wetSignal += c.step(in[i]);
+                    ++i;
+                  }
+                  *out += wetSignal;
+                  ++out;
+                }
+            }
+            
+            void addWetInputZero(T * out) {
+                for(auto & earConvs : earsConvs) {
+                  T wetSignal = 0.;
+                  for(auto & c : earConvs) {
+                    wetSignal += c.step(0.);
+                  }
+                  *out += wetSignal;
+                  ++out;
+                }
+            }
 
             void dephaseComputations(int phase, int n_scales) {
                 int n = 0;

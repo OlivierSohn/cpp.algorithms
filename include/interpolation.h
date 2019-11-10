@@ -255,7 +255,9 @@ namespace imajuscule
     template<typename T>
     static T easeInOrd4(T t, T const b, T const c, T const d) {
       t /= d;
-      return c*t*t*t*t + b;
+      auto const t2 = t*t;
+      auto const t4 = t2*t2;
+      return c*t4 + b;
     }
 
 
@@ -266,7 +268,9 @@ namespace imajuscule
     static T easeOutOrd4(T t, T const b, T const c, T const d) {
       t /= d;
       t--;
-      return -c * (t*t*t*t - static_cast<T>(1)) + b;
+      auto const t2 = t*t;
+      auto const t4 = t2*t2;
+      return -c * (t4 - static_cast<T>(1)) + b;
     }
 
 
@@ -276,9 +280,15 @@ namespace imajuscule
     template<typename T>
     static T easeInOutOrd4(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
-      if (t < static_cast<T>(1)) return c/static_cast<T>(2)*t*t*t*t + b;
+        if (t < static_cast<T>(1)) {
+            auto const t2 = t*t;
+            auto const t4 = t2*t2;
+            return c/static_cast<T>(2)*t4 + b;
+        }
       t -= static_cast<T>(2);
-      return -c/static_cast<T>(2) * (t*t*t*t - static_cast<T>(2)) + b;
+      auto const t2 = t*t;
+      auto const t4 = t2*t2;
+      return -c/static_cast<T>(2) * (t4 - static_cast<T>(2)) + b;
     }
 
 
@@ -287,7 +297,9 @@ namespace imajuscule
     template<typename T>
     static T easeInOrd5(T t, T const b, T const c, T const d) {
       t /= d;
-      return c*t*t*t*t*t + b;
+      auto const t2 = t*t;
+      auto const t5 = t2*t2*t;
+      return c*t5 + b;
     }
 
 
@@ -298,7 +310,9 @@ namespace imajuscule
     static T easeOutOrd5(T t, T const b, T const c, T const d) {
       t /= d;
       t--;
-      return c*(t*t*t*t*t + static_cast<T>(1)) + b;
+      auto const t2 = t*t;
+      auto const t5 = t2*t2*t;
+      return c*(t5 + static_cast<T>(1)) + b;
     }
 
 
@@ -308,9 +322,15 @@ namespace imajuscule
     template<typename T>
     static T easeInOutOrd5(T t, T const b, T const c, T const d) {
       t /= d/static_cast<T>(2);
-      if (t < static_cast<T>(1)) return c/static_cast<T>(2)*t*t*t*t*t + b;
+        if (t < static_cast<T>(1)) {
+            auto const t2 = t*t;
+            auto const t5 = t2*t2*t;
+            return c/static_cast<T>(2)*t5 + b;
+        }
       t -= static_cast<T>(2);
-      return c/static_cast<T>(2)*(t*t*t*t*t + static_cast<T>(2)) + b;
+      auto const t2 = t*t;
+      auto const t5 = t2*t2*t;
+      return c/static_cast<T>(2)*(t5 + static_cast<T>(2)) + b;
     }
 
 

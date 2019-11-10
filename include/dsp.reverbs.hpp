@@ -18,9 +18,35 @@ namespace imajuscule
 
 
 
+// does not depend on the optimization
+struct ResponseTopology {
+    int truncatedFrames; // ignored in totalSize
+    
+    int totalSize; // in frames
+    int nSources; // 2
+    int nChannels; // 4
+    
+    double amplitudeNormalizationFactor;
+    
+    bool operator == (const ResponseTopology& o) const {
+        return
+        totalSize == o.totalSize &&
+        nSources == o.nSources &&
+        nChannels == o.nChannels;
+    }
+    
+    std::string toString() const {
+        std::ostringstream os;
+        os << "totalSize : " << totalSize << std::endl;
+        os << "nSources : " << nSources << std::endl;
+        os << "nChannels : " << nChannels << std::endl;
+        return os.str();
+    }
+};
+
+// depends on the optimization
 struct ResponseStructure {
     int nEarlyCofficients;
-    int totalSize;
     int totalSizePadded;
     int scaleSize;
     int countScales;
@@ -44,16 +70,14 @@ struct ResponseStructure {
     bool operator == (const ResponseStructure& o) const {
         return
         nEarlyCofficients==o.nEarlyCofficients &&
-        totalSize == o.totalSize &&
         totalSizePadded == o.totalSizePadded &&
         scaleSize == o.scaleSize &&
         countScales == o.countScales;
     }
-    
+
     std::string toString() const {
         std::ostringstream os;
         os << "nEarlyCofficients : " << nEarlyCofficients << std::endl;
-        os << "totalSize : " << totalSize << std::endl;
         os << "totalSizePadded : " << totalSizePadded << std::endl;
         os << "scaleSize : " << scaleSize << std::endl;
         os << "countScales : " << countScales << std::endl;
@@ -73,6 +97,7 @@ struct ResponseStructure {
     using ConvolutionReverb = ZeroLatencyScaledFineGrainedPartitionnedConvolution<double>;
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
 
+    using FPT = typename ConvolutionReverb::FPT;
     using SetupParam = typename ConvolutionReverb::SetupParam;
     using PS = typename PartitionAlgo<ConvolutionReverb>::PS;
 
@@ -86,6 +111,8 @@ struct ResponseStructure {
       return 0;
     }
 
+      /*
+      // in-place, with dry/wet (see also addWet)
     void apply(double*buffer, int nFrames) {
       // raw convolutions and spatializer are mutually exclusive.
       if(nAudioOut && !conv_reverbs[0].isZero()) {
@@ -115,9 +142,51 @@ struct ResponseStructure {
           spatializer.step(&buffer[i*nAudioOut], dry, wet);
         }
       }
-
     }
-
+       */
+      
+      // out of place
+      void addWet(double const * const input_buffer, double * output_buffer, int nFrames) {
+          // raw convolutions and spatializer are mutually exclusive.
+          if(nAudioOut && !conv_reverbs[0].isZero()) {
+              Assert(conv_reverbs.size() == nAudioOut);
+              Assert(spatializer.empty());
+              for(int i=0; i<nFrames; ++i) {
+                  for(int j=0; j<nAudioOut; ++j) {
+                      int const idx = i*nAudioOut + j;
+                      output_buffer[idx] += conv_reverbs[j].step(input_buffer[idx]);
+                  }
+              }
+          }
+          else if(!spatializer.empty()) {
+              for(int i=0; i<nFrames; ++i) {
+                  int const idx = i*nAudioOut;
+                  spatializer.addWet(input_buffer + idx,
+                                     output_buffer + idx);
+              }
+          }
+      }
+      
+      void addWetInputZero(double * output_buffer, int nFrames) {
+          // raw convolutions and spatializer are mutually exclusive.
+          if(nAudioOut && !conv_reverbs[0].isZero()) {
+              Assert(conv_reverbs.size() == nAudioOut);
+              Assert(spatializer.empty());
+              for(int i=0; i<nFrames; ++i) {
+                  for(int j=0; j<nAudioOut; ++j) {
+                      int const idx = i*nAudioOut + j;
+                      output_buffer[idx] += conv_reverbs[j].step(0.);
+                  }
+              }
+          }
+          else if(!spatializer.empty()) {
+              std::array<double, nOut> zeros{};
+              for(int i=0; i<nFrames; ++i) {
+                  int const idx = i*nAudioOut;
+                  spatializer.addWetInputZero(output_buffer + idx);
+              }
+          }
+      }
     void flushToSilence()
     {
         for(auto & r : conv_reverbs) {
@@ -140,22 +209,24 @@ struct ResponseStructure {
     // at 0.25f on linux we have glitches
     static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
 
-      void setConvolutionReverbIR(audio::InterlacedBuffer const & ib, int n_audiocb_frames, double sampleRate, ResponseTailSubsampling rts, std::ostream & os, double&scale, ResponseStructure & structure)
+      void setConvolutionReverbIR(DeinterlacedBuffers<FPT> const & deinterlaced,
+                                  int n_audiocb_frames,
+                                  double sampleRate,
+                                  ResponseTailSubsampling rts,
+                                  std::ostream & os,
+                                  ResponseStructure & structure)
     {
       disable();
+        
       if(n_audiocb_frames <= 0) {
           std::stringstream ss;
-          ss << "negative or zero callback size (" << n_audiocb_frames << ")";
+          ss << "Negative or zero callback size (" << n_audiocb_frames << ")";
           throw std::runtime_error(ss.str());
       }
-      if(ib.getBuffer().size() < ib.countChannels()) {
-          std::stringstream ss;
-          ss << "only " << ib.getBuffer().size() << " coefficients are available for " << ib.countChannels() << " channels. We need at least one coefficient per channel.";
-          throw std::runtime_error(ss.str());
-      }
-      using namespace std;
 
-      ImpulseResponseOptimizer<ConvolutionReverb> algo(ib,
+      using namespace std;
+      ImpulseResponseOptimizer<ConvolutionReverb> algo(deinterlaced.countChannels(),
+                                                       deinterlaced.countFrames(),
                                                        n_audiocb_frames,
                                                        nAudioOut);
 
@@ -164,7 +235,7 @@ struct ResponseStructure {
       double theoretical_max_ns_per_frame = 1e9/sampleRate;
 
       auto mayRes =
-      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(ib.countChannels()), rts, os);
+      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(deinterlaced.countChannels()), rts, os);
       if(!mayRes) {
           std::stringstream ss;
           ss << "could not optimize (1)";
@@ -177,34 +248,31 @@ struct ResponseStructure {
           ss << "could not optimize (2)";
           throw std::runtime_error(ss.str());
       }
-
-      algo.symmetrically_scale(scale);
         
       setCoefficients(partitionning,
                       n_scales,
-                      move(algo.editDeinterlaced()),
+                      deinterlaced.getBuffers(),
                       structure);
 
-      logReport(algo.countChannels(), partitionning, theoretical_max_ns_per_frame, sampleRate, os);
+      logReport(deinterlaced.countChannels(), partitionning, theoretical_max_ns_per_frame, sampleRate, os);
       algo.logReport(n_scales,partitionning, os);
     }
-
-    void transitionConvolutionReverbWetRatio(double wet, int duration) {
-      wetRatio.smoothly(clamp_ret(wet,0.,1.), duration);
-    }
-
-      double getWetRatioWithoutStepping() const {
-          return wetRatio.getWithoutStepping();
-      }
-
+      
     bool hasSpatializer() const { return !spatializer.empty(); }
+      
+      int getUnpaddedSize() const {
+          return total_response_size;
+      }
+      int getPaddedSize() const {
+          return total_response_size_padded;
+      }
 
   private:
 
-    smoothVar<double> wetRatio = {1};
-
     std::array<ConvolutionReverb, nAudioOut> conv_reverbs;
     Spatializer spatializer;
+    int total_response_size = 0;
+    int total_response_size_padded = 0;
 
     void setCoefficients(PS const & spec,
                          int n_scales,
@@ -212,6 +280,13 @@ struct ResponseStructure {
                          ResponseStructure & structure) {
       using namespace std;
       assert(n_scales >= 1);
+        
+        total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
+        for(auto const & v:deinterlaced_coeffs) {
+            if(total_response_size != v.size()) {
+                throw std::runtime_error("deinterlaced coefficients have different sizes");
+            }
+        }
 
       // debugging
       /*
@@ -230,27 +305,32 @@ struct ResponseStructure {
 
       int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
                                                   lateHandlerLatency<ConvolutionReverb>(spec.cost->partition_size));
-      int const total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
       int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
       int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
 
         structure.scaleSize = scale_sz;
         structure.countScales = n_scales;
         structure.nEarlyCofficients = n_coeffs_early_handler;
-        structure.totalSize = total_response_size;
-        structure.totalSizePadded = total_response_size;
 
-      if(n_scales > 1) {
-        // pad the coefficients so that all scales have the same rythm.
-        int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
-        structure.totalSizePadded = n_coeffs_early_handler + target_late_response_sz;
-        for(auto & v : deinterlaced_coeffs) {
-          v.resize(n_coeffs_early_handler + target_late_response_sz);
+        if(n_scales > 1) {
+            // pad the coefficients so that all scales have the same rythm.
+            int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
+            
+            total_response_size_padded = n_coeffs_early_handler + target_late_response_sz;
         }
-      }
+        else {
+            total_response_size_padded = total_response_size;
+        }
+        
+        for(auto & v : deinterlaced_coeffs) {
+            v.resize(total_response_size_padded);
+        }
+
+      structure.totalSizePadded = total_response_size_padded;
 
       auto const n_channels = deinterlaced_coeffs.size();
-      auto nSources = n_channels / nAudioOut;
+      auto const nSources = n_channels / nAudioOut;
+        
       // if we have enough sources, we can spatialize them, i.e each ear will receive
       // the sum of multiple convolutions.
       if(nSources <= 1) {
@@ -349,7 +429,7 @@ struct ResponseStructure {
         std::string prefixTheoretical =
         std::string(std::max(0, nActual-nTheoretical), ' ');
         os << "Foreseen CPU load (1 core)          : " << std::fixed << std::setprecision(2) << 100.*ratio << "%" << endl;
-        os << "Average computation time per sample : " << std::fixed << std::setprecision(0) << actual << " ns" << endl;
+        os << "Average computation time per sample : " << std::fixed << std::setprecision(0) << actual << " ns" << endl;
         //os << "- Actual                : " << prefixActual      << actual      << " ns" << endl;
         //os << "- Allowed (theoretical) : " << prefixTheoretical << theoretical << " ns" << endl;
 

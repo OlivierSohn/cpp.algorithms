@@ -3,8 +3,7 @@ template<typename Inputs, typename Conv>
 auto test1( Inputs const & is, Conv & conv ) {
   typename Conv::FPT s = {};
   for(auto i : is) {
-    conv.step(i);
-    s += conv.get();
+    s += conv.step(i);
   }
   return s;
 }
@@ -14,8 +13,7 @@ auto test2( Inputs const & is, Conv & conv ) {
   std::vector<typename Conv::FPT> v;
   v.reserve(is.size());
   for(auto i : is) {
-    conv.step(i);
-    v.push_back(conv.get());
+    v.push_back(conv.step(i));
   }
   return std::move(v);
 }
@@ -77,10 +75,10 @@ void test() {
     LG(INFO,"%d coefficients", nCoeffs);
     
     a64::vector<FPT> coeffs;
+    coeffs.reserve(nCoeffs);
     for(int i=0; i<nCoeffs; ++i) {
       coeffs.push_back(cos(static_cast<FPT>(i)/100.f));
     }
-    coeffs.reserve(nCoeffs);
 
     for(int nDropped = 0; nDropped < nDroppedMax; ++nDropped) {
       auto c = mkBruteThenScale<FPT>(nDropped);
@@ -88,7 +86,7 @@ void test() {
       FPT res;
       dtDropped[nDropped].push_back(measure_one<high_resolution_clock>([&inputs, &c, &res](){
         res = test1(inputs,c);
-      }));
+      }).count());
       
       std::cout << res << std::endl;
     }
@@ -120,7 +118,7 @@ void test() {
       std::cout << res << std::endl;
     }*/
   }
-  
+  /*
   {
     auto plot = StringPlot(20,dtBrute.size());
     plot.drawLog(dtBrute, '*');
@@ -150,7 +148,7 @@ void test() {
   for(int i=0; i<dtBrute.size(); ++i) {
     std::cout << coeffs[i] << " : " << epsilonBrute[i] << " " << epsilonScale[i] << std::endl;
   }
-  
+  */
   for(int i = 0; i<nDroppedMax; ++i) {
     LG(INFO,"%d dropped", i);
     auto plot = StringPlot(20,dtDropped[i].size());

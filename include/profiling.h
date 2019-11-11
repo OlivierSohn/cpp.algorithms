@@ -66,9 +66,9 @@ namespace imajuscule
         };
     
 
-        template<typename Clock, typename F, typename rep = typename Clock::rep>
-        rep measure_one(F f) {
-            rep duration;
+        template<typename Clock, typename F, typename dur = typename Clock::duration>
+        dur measure_one(F f) {
+            dur duration;
 
             {
                 Timer<Clock, TimerOption::YieldBeforeStart> t(duration);

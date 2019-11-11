@@ -212,7 +212,7 @@ namespace imajuscule
    *
    * TODO ideally this value should be a global, computed at initialization time.
    */
-  constexpr int scaleConvolutionOptimalNDropped = 5;
+  constexpr int scaleConvolutionOptimalNDropped = 6;
 
   /*
    * Creates a 0-latency convolution by combining 'n' sub-convolutions

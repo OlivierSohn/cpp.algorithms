@@ -236,27 +236,27 @@ namespace imajuscule
               }
             }
             
-            void addWet(T const * const in, T * out) {
+            void addWet(T const * const in, T * out, int stride) {
                 for(auto & earConvs : earsConvs) {
                   T wetSignal = 0.;
                   int i = 0;
                   for(auto & c : earConvs) {
                     wetSignal += c.step(in[i]);
-                    ++i;
+                    i += stride;
                   }
                   *out += wetSignal;
-                  ++out;
+                  out += stride;
                 }
             }
             
-            void addWetInputZero(T * out) {
+            void addWetInputZero(T * out, int stride) {
                 for(auto & earConvs : earsConvs) {
                   T wetSignal = 0.;
                   for(auto & c : earConvs) {
                     wetSignal += c.step(0.);
                   }
                   *out += wetSignal;
-                  ++out;
+                  out += stride;
                 }
             }
 

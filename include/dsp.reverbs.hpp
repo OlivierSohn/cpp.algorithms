@@ -151,18 +151,18 @@ struct ResponseStructure {
           if(nAudioOut && !conv_reverbs[0].isZero()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
-              for(int i=0; i<nFrames; ++i) {
-                  for(int j=0; j<nAudioOut; ++j) {
-                      int const idx = i*nAudioOut + j;
+                for(int j=0; j<nAudioOut; ++j) {
+                    for(int i=0; i<nFrames; ++i) {
+                      int const idx = i + j*nFrames;
                       output_buffer[idx] += conv_reverbs[j].step(input_buffer[idx]);
                   }
               }
           }
           else if(!spatializer.empty()) {
               for(int i=0; i<nFrames; ++i) {
-                  int const idx = i*nAudioOut;
-                  spatializer.addWet(input_buffer + idx,
-                                     output_buffer + idx);
+                  spatializer.addWet(input_buffer + i,
+                                     output_buffer + i,
+                                     nFrames);
               }
           }
       }
@@ -172,18 +172,17 @@ struct ResponseStructure {
           if(nAudioOut && !conv_reverbs[0].isZero()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
-              for(int i=0; i<nFrames; ++i) {
-                  for(int j=0; j<nAudioOut; ++j) {
-                      int const idx = i*nAudioOut + j;
+              for(int j=0; j<nAudioOut; ++j) {
+                  for(int i=0; i<nFrames; ++i) {
+                      int const idx = i + j*nFrames;
                       output_buffer[idx] += conv_reverbs[j].step(0.);
                   }
               }
           }
           else if(!spatializer.empty()) {
-              std::array<double, nOut> zeros{};
               for(int i=0; i<nFrames; ++i) {
-                  int const idx = i*nAudioOut;
-                  spatializer.addWetInputZero(output_buffer + idx);
+                  spatializer.addWetInputZero(output_buffer + i,
+                                              nFrames);
               }
           }
       }

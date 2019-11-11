@@ -142,6 +142,16 @@ namespace imajuscule
             }
             buf.erase(dit);
         }
+        
+        using Segment = std::pair<T const * const, int>;
+        std::pair<Segment, Segment> forward_traversal() const {
+            auto start = cycleEnd();
+            auto beg = begin();
+            return std::make_pair(
+                std::make_pair(&*start, std::distance(start, end())),
+                std::make_pair(&*beg, std::distance(beg, start))
+            );
+        }
 
         template<typename F>
         void for_each(F f) const {

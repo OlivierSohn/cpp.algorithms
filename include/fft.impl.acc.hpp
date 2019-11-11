@@ -62,6 +62,10 @@ namespace imajuscule {
             static void zero(type & v) {
                 zero_n(v, v.size());
             }
+            
+            static void dotpr(T const * const a, T const * const b, T * res, int n) {
+                accelerate::API<T>::f_dotpr(a, 1, b, 1, res, n);
+            }
         };
 
 

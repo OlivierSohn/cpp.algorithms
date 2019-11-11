@@ -28,6 +28,7 @@ namespace imajuscule {
             constexpr static auto f_fft_zrip = vDSP_fft_zrip;
             constexpr static auto f_fft_zript= vDSP_fft_zript;
             constexpr static auto f_conv     = vDSP_conv;
+            constexpr static auto f_dotpr    = vDSP_dotpr;
         };
         
         template<>
@@ -53,6 +54,7 @@ namespace imajuscule {
             constexpr static auto f_fft_zrip = vDSP_fft_zripD;
             constexpr static auto f_fft_zript= vDSP_fft_zriptD;
             constexpr static auto f_conv     = vDSP_convD;
+            constexpr static auto f_dotpr    = vDSP_dotprD;
         };
 
         template<typename T>

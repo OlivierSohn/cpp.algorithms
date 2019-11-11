@@ -137,6 +137,16 @@ namespace imajuscule {
 
                 return {index, Max/(div * div)};
             }
+            
+            static void dotpr(T const * const a, T const * const b, T * res, int n) {
+                T r{};
+                for(int i=0; i<n; ++i) {
+                    r += a[i] * b[i];
+                }
+                assert(res);
+                *res = r;
+            }
+
         };
 
         template<typename T>

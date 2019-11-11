@@ -13,11 +13,14 @@ namespace imajuscule
     static constexpr int nCoefficientsFadeIn = 0;
     struct SetupParam {};
     
+    static constexpr auto dotpr = fft::RealSignal_<fft::Fastest, FPT>::dotpr;
+    
     void applySetup(SetupParam const &) const {}
     
     void setCoefficients(a64::vector<T> v) {
       past.resize(v.size());
-      coefficients = std::move(v);
+        std::reverse(v.begin(), v.end());
+        reversed_coefficients = std::move(v);
     }
     
     bool isValid() const {
@@ -26,11 +29,11 @@ namespace imajuscule
     
     constexpr int getLatency() const { return 0; }
     
-    auto size()  const { return coefficients.size(); }
-    bool isZero() const { return coefficients.empty(); }
+    auto size()  const { return reversed_coefficients.size(); }
+    bool isZero() const { return reversed_coefficients.empty(); }
 
     void reset() {
-      coefficients.clear();
+      reversed_coefficients.clear();
       past.resize(0);
     }
     void flushToSilence() {
@@ -42,26 +45,21 @@ namespace imajuscule
         return {};
       }
       past.feed(val);
-
-      auto res = T{};
-      // when coefficients are symmetrical it doesn't matter
-      // if we are traversing forward or backward
-      // but here we make no assumption:
-      auto it_coeff = coefficients.begin();
-
-      past.for_each_bkwd([&res, &it_coeff](auto val) {
-        res += val * *it_coeff;
-        ++it_coeff;
-      });
-      return res;
+        
+        auto [s1, s2] = past.forward_traversal();
+        auto * coeff = reversed_coefficients.data();
+        T res1, res2;
+        dotpr(s1.first, coeff,           &res1, s1.second);
+        dotpr(s2.first, coeff+s1.second, &res2, s2.second);
+        return res1 + res2;
     }
     
     double getEpsilon() const {
-      return 2 * std::numeric_limits<FPT>::epsilon() * coefficients.size();
+      return 2 * std::numeric_limits<FPT>::epsilon() * reversed_coefficients.size();
     }
     
   private:
-    a64::vector<T> coefficients;
+    a64::vector<T> reversed_coefficients;
     cyclic<T> past;
   };
     

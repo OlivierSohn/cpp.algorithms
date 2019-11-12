@@ -131,7 +131,7 @@ TEST(Reverbs, dirac) {
                                    output.data()+1,
                                    input.size()-1,
                                    input.size()-1,
-                                   input.size()-1);
+                                   1);
             for(int i=0, sz = output.size(); i<sz; i++) {
                 output[i] *= scale;
                 

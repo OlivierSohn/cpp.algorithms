@@ -48,9 +48,15 @@ TEST(Reverbs, dirac) {
     // by default, reverb is inactive.
     {
         std::vector<double> const input = mkDirac<double>(4);
-        auto output = input;
-        rs.addWet(input.data(), output.data(), input.size());
-        ASSERT_EQ(output, input);
+        std::vector<double> output;
+        output.resize(input.size(), {});
+        auto prevOutput = output;
+        rs.assignWetVectorized(input.data(),
+                               output.data(),
+                               input.size(),
+                               input.size(),
+                               input.size());
+        ASSERT_EQ(output, prevOutput);
     }
     
     // for 0-length responses, reverb is inactive.
@@ -64,9 +70,15 @@ TEST(Reverbs, dirac) {
         catch(std::exception const &) {
         }
         std::vector<double> const input = mkDirac<double>(4);
-        auto output = input;
-        rs.addWet(input.data(), output.data(), input.size());
-        ASSERT_EQ(output, input);
+        std::vector<double> output;
+        output.resize(input.size(), {});
+        auto prevOutput = output;
+        rs.assignWetVectorized(input.data(),
+                               output.data(),
+                               input.size(),
+                               input.size(),
+                               input.size());
+        ASSERT_EQ(output, prevOutput);
     }
     
     std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
@@ -108,10 +120,18 @@ TEST(Reverbs, dirac) {
             std::vector<double> diff1;
             diff1.reserve(output.size());
             
-            rs.addWet(input.data(), output.data(), 1);
+            rs.assignWetVectorized(input.data(),
+                                   output.data(),
+                                   1,
+                                   1,
+                                   1);
             auto scale = coeffs[0]/output[0];
             
-            rs.addWet(input.data()+1, output.data()+1, input.size()-1);
+            rs.assignWetVectorized(input.data()+1,
+                                   output.data()+1,
+                                   input.size()-1,
+                                   input.size()-1,
+                                   input.size()-1);
             for(int i=0, sz = output.size(); i<sz; i++) {
                 output[i] *= scale;
                 
@@ -154,9 +174,15 @@ TEST(Reverbs, dirac) {
     {
         rs.disable();
         std::vector<double> const input = mkDirac<double>(4);
-        auto output = input;
-        rs.addWet(input.data(), output.data(), input.size());
-        ASSERT_EQ(output, input);
+        std::vector<double> output;
+        output.resize(input.size(), {});
+        auto prevOutput = output;
+        rs.assignWetVectorized(input.data(),
+                               output.data(),
+                               input.size(),
+                               input.size(),
+                               input.size());
+        ASSERT_EQ(output, prevOutput);
     }
 }
 

@@ -64,8 +64,11 @@ namespace imajuscule {
                 memcpy(dest, from, N * sizeof(value_type));
             }
 
+            static void zero_n_raw(complex<T> * p, int n) {
+                std::fill(p, p+n, value_type{});
+            }
             static void zero_n(type & v, int n) {
-                std::fill(v.begin(), v.begin()+n, value_type{});
+                zero_n_raw(v.data(), n);
             }
             static void zero(type & v) {
                 zero_n(v, v.size());

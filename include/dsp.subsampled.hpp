@@ -94,7 +94,30 @@ namespace imajuscule
         return res;
       }
     }
-    
+    template<typename FPT2>
+    void stepAddVectorized(FPT2 const * const input_buffer,
+                           FPT2 * output_buffer,
+                           int nSamples)
+    {
+        if(unlikely(isZero())) {
+          return;
+        }
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] += step(input_buffer[i]);
+        }
+    }
+    template<typename FPT2>
+    void stepAddInputZeroVectorized(FPT2 * output_buffer,
+                                    int nSamples)
+    {
+        if(unlikely(isZero())) {
+          return;
+        }
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] += step({});
+        }
+    }
+      
     auto & getInner() {
       return algo;
     }

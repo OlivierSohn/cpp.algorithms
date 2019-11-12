@@ -44,16 +44,59 @@ namespace imajuscule
       if(unlikely(isZero())) {
         return {};
       }
-      past.feed(val);
-        
-        auto [s1, s2] = past.forward_traversal();
-        auto * coeff = reversed_coefficients.data();
-        T res1, res2;
-        dotpr(s1.first, coeff,           &res1, s1.second);
-        dotpr(s2.first, coeff+s1.second, &res2, s2.second);
-        return res1 + res2;
+      return doStep(val);
     }
-    
+  private:
+      T doStep(T val) {
+          past.feed(val);
+          
+          auto [s1, s2] = past.forward_traversal();
+          auto * coeff = reversed_coefficients.data();
+          T res1, res2;
+          dotpr(s1.first, coeff,           &res1, s1.second);
+          dotpr(s2.first, coeff+s1.second, &res2, s2.second);
+          return res1 + res2;
+      }
+  public:
+      template<typename FPT2>
+      void stepAssignVectorized(FPT2 const * const input_buffer,
+                                FPT2 * output_buffer,
+                                int nSamples)
+      {
+          if(unlikely(isZero())) {
+              // zero output_buffer
+              using FFTTag = fft::Fastest;
+              fft::RealSignal_<FFTTag, double>::zero_n_raw(output_buffer, nSamples);
+            return;
+          }
+          for(int i=0; i<nSamples; ++i) {
+              output_buffer[i] = doStep(input_buffer[i]);
+          }
+      }
+      template<typename FPT2>
+      void stepAddVectorized(FPT2 const * const input_buffer,
+                                FPT2 * output_buffer,
+                                int nSamples)
+      {
+          if(unlikely(isZero())) {
+            return;
+          }
+          for(int i=0; i<nSamples; ++i) {
+              output_buffer[i] += doStep(input_buffer[i]);
+          }
+      }
+      template<typename FPT2>
+      void stepAddInputZeroVectorized(FPT2 * output_buffer,
+                                      int nSamples)
+      {
+          if(unlikely(isZero())) {
+            return;
+          }
+          for(int i=0; i<nSamples; ++i) {
+              output_buffer[i] += doStep({});
+          }
+      }
+
     double getEpsilon() const {
       return 2 * std::numeric_limits<FPT>::epsilon() * reversed_coefficients.size();
     }

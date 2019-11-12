@@ -24,7 +24,7 @@ namespace imajuscule {
     }
     
     template<typename Spatialize, typename T = typename Spatialize::FPT>
-    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals) {
+    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals, int vectorLength, bool assign) {
       using namespace fft;
       constexpr auto nEars = Spatialize::nEars;
       
@@ -55,9 +55,41 @@ namespace imajuscule {
       }
 
       // process the dirac
-      for(auto & r : results) {
-        spatialize.step(r.data(), 0., 1.);
-      }
+        if(!vectorLength) {
+            for(auto & r : results) {
+              spatialize.step(r.data(), 0., 1.);
+            }
+        }
+        else {
+            std::vector<T> v_output, v_input;
+            v_input.reserve(nEars * results.size());
+            for(int i=0; i<nEars; ++i) {
+                for(auto const & r : results) {
+                    v_input.push_back(r[i]);
+                }
+            }
+            if(assign) {
+                v_output.resize(nEars * results.size(), {});
+                spatialize.assignWetVectorized(v_input.data(),
+                                               v_output.data(),
+                                               results.size(),
+                                               results.size(),
+                                               vectorLength);
+            }
+            else {
+                v_output.resize(nEars * results.size());
+                spatialize.addWetVectorized(v_input.data(),
+                                            v_output.data(),
+                                            results.size(),
+                                            results.size(),
+                                            vectorLength);
+            }
+            for(int j=0; j<results.size(); ++j) {
+                for(int i=0; i<nEars; ++i) {
+                    results[j][i] = v_output[i*results.size() + j];
+                }
+            }
+        }
       
       auto eps = spatialize.getEpsilon();
       for(int j=0; j<lat; ++j) {
@@ -75,7 +107,28 @@ namespace imajuscule {
         }
       }
     }
-    
+    template<typename Spatialize, typename T = typename Spatialize::FPT>
+    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals) {
+        std::set<int> vectorLengths;
+        vectorLengths.insert(0);
+        vectorLengths.insert(1);
+        vectorLengths.insert(2);
+        vectorLengths.insert(3);
+        vectorLengths.insert(ear_signals[0].size()/4-1);
+        vectorLengths.insert(ear_signals[0].size()/4+1);
+        vectorLengths.insert(ear_signals[0].size()/4);
+        vectorLengths.insert(ear_signals[0].size()/2);
+        vectorLengths.insert(ear_signals[0].size());
+
+        for(auto l : vectorLengths) {
+            if(l<0) {
+                continue;
+            }
+            test(spatialize, ear_signals, l, true);
+            test(spatialize, ear_signals, l, false);
+        }
+    }
+  
     template<typename T, typename F>
     void testSpatialized(int coeffs_index, F f) {
       const auto coefficients = makeCoefficients<T>(coeffs_index);

@@ -97,7 +97,47 @@ namespace imajuscule
       }
       return res;
     }
-    
+      template<typename FPT2>
+      void stepAddVectorized(FPT2 const * const input_buffer,
+                             FPT2 * output_buffer,
+                             int nSamples)
+      {
+          a.stepAddVectorized(input_buffer,
+                              output_buffer,
+                              nSamples);
+          if(!b.isZero()) {
+              b.stepAddVectorized(input_buffer,
+                                  output_buffer,
+                                  nSamples);
+          }
+      }
+      template<typename FPT2>
+      void stepAssignVectorized(FPT2 const * const input_buffer,
+                                FPT2 * output_buffer,
+                                int nSamples)
+      {
+          a.stepAssignVectorized(input_buffer,
+                                 output_buffer,
+                                 nSamples);
+          if(!b.isZero()) {
+              b.stepAddVectorized(input_buffer,
+                                  output_buffer,
+                                  nSamples);
+          }
+      }
+      
+      template<typename FPT2>
+      void stepAddInputZeroVectorized(FPT2 * output_buffer,
+                                      int nSamples)
+      {
+          a.stepAddInputZeroVectorized(output_buffer,
+                                       nSamples);
+          if(!b.isZero()) {
+              b.stepAddInputZeroVectorized(output_buffer,
+                                           nSamples);
+          }
+      }
+
     auto debugStep(FPT val) {
       return std::make_pair(a.step(val), b.step(val));
     }
@@ -322,11 +362,15 @@ namespace imajuscule
     }
 
     FPT step(FPT val) {
-      auto it = v.begin();
-      auto end = v.end();
-      if(unlikely(it == end)) {
+      if(unlikely(isZero())) {
         return {};
       }
+      return doStep(val);
+    }
+  private:
+    FPT doStep(FPT val) {
+      auto it = v.begin();
+      auto end = v.end();
 
       x[progress] = typename RealSignal::value_type(val);
       ++progress;
@@ -361,6 +405,31 @@ namespace imajuscule
 
       return r;
     }
+public:
+      template<typename FPT2>
+      void stepAddVectorized(FPT2 const * const input_buffer,
+                             FPT2 * output_buffer,
+                             int nSamples)
+      {
+          if(unlikely(isZero())) {
+            return;
+          }
+          for(int i=0; i<nSamples; ++i) {
+              output_buffer[i] += doStep(input_buffer[i]);
+          }
+      }
+      template<typename FPT2>
+      void stepAddInputZeroVectorized(FPT2 * output_buffer,
+                                      int nSamples)
+      {
+          if(unlikely(isZero())) {
+            return;
+          }
+          for(int i=0; i<nSamples; ++i) {
+              output_buffer[i] += doStep({});
+          }
+      }
+      
     double getEpsilon() const {
       return epsilonOfNaiveSummation(v);
     }

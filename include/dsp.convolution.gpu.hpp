@@ -571,6 +571,16 @@ namespace imajuscule
       return previous_result[curIndex];
     }
     
+    template<typename FPT2>
+    void stepAddVectorized(FPT2 const * const input_buffer,
+                           FPT2 * output_buffer,
+                           int nSamples)
+    {
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] += step(input_buffer[i]);
+        }
+    }
+      
     double getEpsilon() const {
       return n_partitions * fft::getFFTEpsilon<FPT>(get_fft_length(N)) + 2 * std::numeric_limits<FPT>::epsilon();
     }

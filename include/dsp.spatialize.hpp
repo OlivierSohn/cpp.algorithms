@@ -189,7 +189,7 @@ namespace imajuscule
                                    SetupP const & setup,
                                    int & n_scales,
                                    int scale_sz) {
-                forEachEar(vcoeffs, [this,&n_scales, scale_sz, &setup](auto & earConvs, auto & coeffs) {
+                forEachEar(vcoeffs, [&n_scales, scale_sz, &setup](auto & earConvs, auto & coeffs) {
                     earConvs.emplace_back();
                     auto & c = earConvs.back();
                     prepare(setup, c, n_scales, scale_sz);
@@ -226,10 +226,10 @@ namespace imajuscule
               for(auto & earConvs : earsConvs) {
 
                 T wetSignal = 0.;
-                int i = 0;
+                int n = 0;
                 for(auto & c : earConvs) {
-                  wetSignal += c.step(in[i]);
-                  ++i;
+                  wetSignal += c.step(in[n]);
+                  ++n;
                 }
                 *inout += wet * wetSignal;
                 ++inout;
@@ -239,24 +239,82 @@ namespace imajuscule
             void addWet(T const * const in, T * out, int stride) {
                 for(auto & earConvs : earsConvs) {
                   T wetSignal = 0.;
-                  int i = 0;
+                  int n = 0;
                   for(auto & c : earConvs) {
-                    wetSignal += c.step(in[i]);
-                    i += stride;
+                    wetSignal += c.step(in[n]);
+                    n += stride;
                   }
                   *out += wetSignal;
                   out += stride;
                 }
             }
             
+            void assignWetVectorized(T const * const in, T * out,
+                                     int channelStride,
+                                     int nFramesToCompute,
+                                     int vectorLength) {
+                for(auto & earConvs : earsConvs) {
+                    bool assign = true;
+                    auto localIn = in;
+                    for(auto & c : earConvs) {
+                        for(int i=0; i<nFramesToCompute; i += vectorLength) {
+                            if(assign) {
+                                c.stepAssignVectorized(localIn + i,
+                                                       out + i,
+                                                       std::min(vectorLength, nFramesToCompute-i));
+                            }
+                            else {
+                                c.stepAddVectorized(localIn + i,
+                                                    out + i,
+                                                    std::min(vectorLength, nFramesToCompute-i));
+                            }
+                        }
+                        localIn += channelStride;
+                        assign = false;
+                    }
+                    out += channelStride;
+                }
+            }
+            void addWetVectorized(T const * const in, T * out,
+                                  int channelStride,
+                                  int nFramesToCompute,
+                                  int vectorLength) {
+                for(auto & earConvs : earsConvs) {
+                    auto localIn = in;
+                    for(auto & c : earConvs) {
+                        for(int i=0; i<nFramesToCompute; i += vectorLength) {
+                            c.stepAddVectorized(localIn + i,
+                                                out + i,
+                                                std::min(vectorLength, nFramesToCompute-i));
+                        }
+                        localIn += channelStride;
+                    }
+                    out += channelStride;
+                }
+            }
+
             void addWetInputZero(T * out, int stride) {
                 for(auto & earConvs : earsConvs) {
-                  T wetSignal = 0.;
+                  T wetSignal{};
                   for(auto & c : earConvs) {
-                    wetSignal += c.step(0.);
+                      wetSignal += c.step({});
                   }
                   *out += wetSignal;
                   out += stride;
+                }
+            }
+            void addWetInputZeroVectorized(T * out,
+                                           int channelStride,
+                                           int nFramesToCompute,
+                                           int vectorLength) {
+                for(auto & earConvs : earsConvs) {
+                    for(auto & c : earConvs) {
+                        for(int i=0; i<nFramesToCompute; i += vectorLength) {
+                            c.stepAddInputZeroVectorized(out+i,
+                                                         std::min(vectorLength, nFramesToCompute-i));
+                        }
+                    }
+                    out += channelStride;
                 }
             }
 

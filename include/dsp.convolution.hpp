@@ -165,6 +165,16 @@ namespace imajuscule
         return doStep();
       }
     }
+      
+      template<typename FPT2>
+      void stepAddVectorized(FPT2 const * const input_buffer,
+                             FPT2 * output_buffer,
+                             int nSamples)
+      {
+          for(int i=0; i<nSamples; ++i) {
+              output_buffer[i] += step(input_buffer[i]);
+          }
+      }
 
   private:
     RealSignal x;

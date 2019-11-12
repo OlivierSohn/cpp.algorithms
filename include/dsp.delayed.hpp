@@ -54,7 +54,16 @@ namespace imajuscule
       ring.feed(input);
       return algo.step(oldest);
     }
-    
+    template<typename FPT2>
+    void stepAddVectorized(FPT2 const * const input_buffer,
+                           FPT2 * output_buffer,
+                           int nSamples)
+    {
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] += step(input_buffer[i]);
+        }
+    }
+
     auto & getInner() {
       return algo;
     }

@@ -65,7 +65,8 @@ namespace imajuscule
   enum class GrainType {
     FFT,
     IFFT,
-    MultiplicationGroup
+    MultiplicationGroup,
+    Nothing
   };
 
   struct Cost {
@@ -83,14 +84,6 @@ namespace imajuscule
     float fft, ifft, mult;
   };
 
-  static std::ostream& operator<<(std::ostream& os, const GrainsCosts& g)
-  {
-    using namespace std;
-    os << "grain 'fft'  : " << g.fft << endl;
-    os << "grain 'ifft' : " << g.ifft << endl;
-    os << "grain 'mult' : " << g.mult << endl;
-    return os;
-  }
 
   struct FinegrainedSetupParam : public Cost {
     FinegrainedSetupParam() {}
@@ -117,15 +110,6 @@ namespace imajuscule
   };
 
 
-  static inline std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
-  {
-    using namespace std;
-    os
-    << "phase : " << p.phase << endl
-    << p.grains_costs
-    << "multiplication group size : " << p.multiplication_group_size << endl;
-    return os;
-  }
 
   template <typename Parent>
   struct FinegrainedFFTConvolutionBase : public Parent {
@@ -267,88 +251,212 @@ namespace imajuscule
     bool willComputeNextStep() const {
       return (x.size() == getBlockSize()-1) || (grain_counter+1 == getBlockSize()/countGrains());
     }
+      
+      T step(T val) {
+          assert(isValid());
+          auto g = nextGrain();
+          assert(g.first > 0);
 
-    T step(T val) {
-      assert(isValid());
-      x.emplace_back(val);
-
-      auto const block_size = getBlockSize();
-      auto const sz = x.size();
-      if(unlikely(sz == block_size)) {
-        //////////////////////// FFT grain /////////////////////////////////////
-
-        // pad x
-
-        x.resize(get_fft_length());
-
-        compute_x_fft(fft, x);
-
-        x.clear();
-
-        // in the same "grain of computation" we do the following.
-        // if it is too costly we must delay the computation
-        // in another grain and have a second y vector
-
-        auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
-
-        auto it_res = result.begin();
-        auto it_y = y.begin();
-        auto it_y_prev = it_y + block_size;
-
-        // y = mix first part of result with second part of previous result
-        //
-        // 'first part of y' = factor * ('second part of y' + 'first part of result')
-        add_scalar_multiply(it_y, /* = */
-                            /* ( */ it_res, /* + */ it_y_prev /* ) */, /* x */ factor,
-                            block_size);
-
-        // store second part of result for later
-        //
-        // 'second part of y' = 'second part of result'
-        copy(it_y   + block_size,
-             it_res + block_size,
-             block_size);
-
-        assert(it == y.begin() + block_size-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
-        it = y.begin();
-        grain_counter = 0;
-        increment_grain();
-      }
-      else {
-        ++grain_counter;
-
-        auto const n_grains = countGrains();
-        auto const granularity = block_size/n_grains;
-        assert(granularity >= grain_counter);
-        if(grain_counter == granularity) {
-          grain_counter = 0;
-          auto cur_grain = getGrainNumber();
-          assert(cur_grain <= n_grains);
-          if( cur_grain < n_grains - 1 ) {
-            //////////////////////// Multiplicative grain ////////////////////////
-            do_some_multiply_add();
-            increment_grain();
+          x.emplace_back(val);
+          ++it;
+          ++grain_counter;
+          
+          if(g.first == 1 && g.second) {
+            doGrain(*g.second);
           }
-          else if(cur_grain == n_grains - 1) {
-            /////////////////////// IFFT grain ///////////////////////////////////
-            fft.inverse(get_multiply_add_result(),
-                        result,
-                        get_fft_length());
-            increment_grain();
+          
+          assert(it < y.begin() + getBlockSize());
+          assert(it >= y.begin());
+          assert(!y.empty());
+          
+          return get_signal(*it);
+      }
+      
+      template<typename FPT2, typename F>
+      void vectorized(FPT2 const * input_buffer,
+                      FPT2 * output_buffer,
+                      int nSamples,
+                      F f)
+      {
+          while(true) {
+              assert(nSamples >= 0);
+              auto g = nextGrain();
+              if(nSamples < g.first) {
+                  // we don't have enough samples to reach the grain
+                  g.first = nSamples;
+                  g.second.reset();
+              }
+              nSamples -= g.first;
+              grain_counter += g.first;
+              for(int i=0; i<g.first; ++i) {
+                  x.emplace_back(input_buffer[i]);
+              }
+              for(int i=0; i<g.first; ++i) {
+                  ++it;
+                  if(i == g.first-1 && g.second) {
+                      doGrain(*g.second);
+                  }
+                  f(output_buffer[i], get_signal(*it));
+              }
+              if(0 == nSamples) {
+                  return;
+              }
+              input_buffer += g.first;
+              output_buffer += g.first;
+          }
+      }
+      
+      template<typename FPT2>
+      void stepAddVectorized(FPT2 const * input_buffer,
+                             FPT2 * output_buffer,
+                             int nSamples)
+      {
+          vectorized(input_buffer, output_buffer, nSamples,
+                     [](FPT2 & output, FPT result){
+              output += result;
+          });
+      }
+      template<typename FPT2>
+      void stepAssignVectorized(FPT2 const * input_buffer,
+                             FPT2 * output_buffer,
+                             int nSamples)
+      {
+          vectorized(input_buffer, output_buffer, nSamples,
+                     [](FPT2 & output, FPT result){
+              output = result;
+          });
+      }
+      template<typename FPT2>
+      void stepAddInputZeroVectorized(FPT2 * output_buffer,
+                                      int nSamples)
+      {
+          while(true) {
+              assert(nSamples >= 0);
+              auto g = nextGrain();
+              if(nSamples < g.first) {
+                  // we don't have enough samples to reach the grain
+                  g.first = nSamples;
+                  g.second.reset();
+              }
+              nSamples -= g.first;
+              grain_counter += g.first;
+              for(int i=0; i<g.first; ++i) {
+                  x.push_back({});
+              }
+              for(int i=0; i<g.first; ++i) {
+                  ++it;
+                  if(i == g.first-1 && g.second) {
+                      doGrain(*g.second);
+                  }
+                  output_buffer[i] += get_signal(*it);
+              }
+              if(0 == nSamples) {
+                  return;
+              }
+              output_buffer += g.first;
+          }
+      }
+
+  private:
+      
+      std::pair<int, std::optional<GrainType>> nextGrain() const {
+          int xSize = static_cast<int>(x.size());
+          int const block_size = getBlockSize();
+          int distanceToFFTGrain = block_size - xSize;
+          assert(distanceToFFTGrain >= 0);
+          
+          int const n_grains = countGrains();
+          int const granularity = block_size/n_grains;
+          int distanceToOtherGrain = granularity - grain_counter;
+          assert(distanceToOtherGrain >= 0);
+          
+          // in case of equality, FFT wins.
+          if(distanceToOtherGrain < distanceToFFTGrain) {
+              auto cur_grain = getGrainNumber();
+              assert(cur_grain <= n_grains);
+              if( cur_grain < n_grains - 1 ) {
+                  return {distanceToOtherGrain, GrainType::MultiplicationGroup};
+              }
+              else if(cur_grain == n_grains - 1) {
+                  return {distanceToOtherGrain, GrainType::IFFT};
+              }
+              else {
+                  // spread not optimal
+                  return {distanceToOtherGrain, GrainType::Nothing};
+              }
           }
           else {
-            // spread is not optimal
+              return {distanceToFFTGrain, GrainType::FFT};
           }
-        }
-        ++it;
       }
-
-      assert(it < y.begin() + getBlockSize());
-      assert(it >= y.begin());
-      assert(!y.empty());
-      return get_signal(*it);
-    }
-
+      
+      void doGrain(GrainType g)
+      {
+          switch(g)
+          {
+              case GrainType::FFT:
+              {
+                  auto const block_size = getBlockSize();
+                  assert(it == y.begin() + block_size); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
+                  it = y.begin();
+                  
+                  //////////////////////// FFT grain /////////////////////////////////////
+                  
+                  // pad x
+                  
+                  x.resize(get_fft_length());
+                  
+                  compute_x_fft(fft, x);
+                  
+                  x.clear();
+                  
+                  // in the same "grain of computation" we do the following.
+                  // if it is too costly we must delay the computation
+                  // in another grain and have a second y vector
+                  
+                  auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
+                  
+                  auto it_res = result.begin();
+                  auto it_y = y.begin();
+                  auto it_y_prev = it_y + block_size;
+                  
+                  // y = mix first part of result with second part of previous result
+                  //
+                  // 'first part of y' = factor * ('second part of y' + 'first part of result')
+                  add_scalar_multiply(it_y, /* = */
+                                      /* ( */ it_res, /* + */ it_y_prev /* ) */, /* x */ factor,
+                                      block_size);
+                  
+                  // store second part of result for later
+                  //
+                  // 'second part of y' = 'second part of result'
+                  copy(it_y   + block_size,
+                       it_res + block_size,
+                       block_size);
+                  
+                  increment_grain();
+                  break;
+              }
+              case GrainType::MultiplicationGroup:
+              {
+                  do_some_multiply_add();
+                  increment_grain();
+                  break;
+              }
+              case GrainType::IFFT:
+              {
+                  fft.inverse(get_multiply_add_result(),
+                              result,
+                              get_fft_length());
+                  increment_grain();
+                  break;
+              }
+              case GrainType::Nothing:
+                  break;
+          }
+          grain_counter = 0;
+      }
+      
   private:
     int grain_counter = 0;
     Algo fft;
@@ -934,4 +1042,23 @@ namespace imajuscule
       return std::move(res);
     }
   };
+
+
+static std::ostream& operator<<(std::ostream& os, const GrainsCosts& g)
+{
+  using namespace std;
+  os << "grain 'fft'  : " << g.fft << endl;
+  os << "grain 'ifft' : " << g.ifft << endl;
+  os << "grain 'mult' : " << g.mult << endl;
+  return os;
+}
+  static inline std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
+  {
+    using namespace std;
+    os
+    << "phase : " << p.phase << endl
+    << p.grains_costs
+    << "multiplication group size : " << p.multiplication_group_size << endl;
+    return os;
+  }
 }

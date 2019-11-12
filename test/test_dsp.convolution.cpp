@@ -92,10 +92,9 @@ namespace imajuscule {
       }
       throw std::logic_error("coeff index too big");
     }
-
+      
     template<typename Convolution, typename Coeffs, typename Input, typename Output>
-    void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput)
-    {
+    void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput, int vectorLength) {
       using T = typename Convolution::FPT;
       using namespace fft;
 
@@ -130,21 +129,40 @@ namespace imajuscule {
       output.reserve(expectedOutput.size());
 
       auto const eps = conv.getEpsilon();
-      int i=0;
-      auto step = [&i, &input]() {
-        return (i < input.size()) ? input[i] : ((T)0.);
+      int idxStep=0;
+      auto step = [&idxStep, &input]() {
+        return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
       };
       
-      for(; i<conv.getLatency(); ++i) {
+      for(; idxStep<conv.getLatency(); ++idxStep) {
         auto res = conv.step(step());
         if(std::abs(res) > 1000*eps) {
           LG(INFO,"");
         }
         ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
       }
-      for(;output.size() != expectedOutput.size();++i) {
-        output.push_back(conv.step(step()));
-      }
+        std::vector<T> inputVec;
+        inputVec.reserve(expectedOutput.size());
+        for(;inputVec.size() != expectedOutput.size();++idxStep) {
+            inputVec.push_back(step());
+        }
+        if(vectorLength) {
+            // initialize with zeros
+            output.resize(inputVec.size(), {});
+            
+            // then add
+            int const nFrames = inputVec.size();
+            for(int i=0; i<nFrames; i += vectorLength) {
+                conv.stepAddVectorized(inputVec.data()+i,
+                                      output.data()+i,
+                                      std::min(vectorLength, nFrames-i));
+            }
+        }
+        else {
+            for(T i : inputVec) {
+              output.push_back(conv.step(i));
+            }
+        }
       
       using Tr = ConvolutionTraits<Convolution>;
       for(auto j=0; j<output.size(); ++j) {
@@ -158,7 +176,34 @@ namespace imajuscule {
         }
       }
     }
-  
+        
+  template<typename Convolution, typename Coeffs, typename Input, typename Output>
+  void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput) {
+      int sz = expectedOutput.size();
+      
+      std::set<int> vectorLengths;
+      
+      vectorLengths.insert(0);// no vectorization
+      vectorLengths.insert(1);// minimal vectorization
+      vectorLengths.insert(2);
+      vectorLengths.insert(3);
+      vectorLengths.insert(sz/5);
+      vectorLengths.insert(sz/4);
+      vectorLengths.insert(sz/4-1);
+      vectorLengths.insert(sz/4+1);
+      vectorLengths.insert(sz/2);
+      vectorLengths.insert(sz);
+      vectorLengths.insert(2*sz);
+
+      
+      for(auto vectorLength: vectorLengths) {
+          if(vectorLength < 0) {
+              continue;
+          }
+          testGeneric(conv, coefficients, input, expectedOutput, vectorLength);
+      }
+  }
+
     // we take 'coefficients' by value because we modify it in the function
     template<typename Convolution, typename Coeffs>
     void test(Convolution & conv, Coeffs const coefficients)

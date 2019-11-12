@@ -110,82 +110,70 @@ struct ResponseStructure {
       }
       return 0;
     }
-
-      /*
-      // in-place, with dry/wet (see also addWet)
-    void apply(double*buffer, int nFrames) {
-      // raw convolutions and spatializer are mutually exclusive.
-      if(nAudioOut && !conv_reverbs[0].isZero()) {
-        Assert(conv_reverbs.size() == nAudioOut);
-        Assert(spatializer.empty());
-        for(int i=0; i<nFrames; ++i) {
-          double const wet = wetRatio.step();
-          double const dry = 1.-wet;
-#ifndef NDEBUG
-          Assert(checkDryWet(dry,wet));
-#endif
-          for(int j=0; j<nAudioOut; ++j) {
-            auto & conv_reverb = conv_reverbs[j];
-            auto & sample = buffer[i*nAudioOut + j];
-            Assert(dry == 0 || conv_reverb.getLatency() == 0); // else dry and wet signals are out of sync
-            sample = dry * sample + wet * conv_reverb.step(sample);
-          }
-        }
-      }
-      else if(!spatializer.empty()) {
-        for(int i=0; i<nFrames; ++i) {
-          double const wet = wetRatio.step();
-          double const dry = 1.-wet;
-#ifndef NDEBUG
-          Assert(checkDryWet(dry,wet));
-#endif
-          spatializer.step(&buffer[i*nAudioOut], dry, wet);
-        }
-      }
-    }
-       */
       
-      // out of place
-      void addWet(double const * const input_buffer, double * output_buffer, int nFrames) {
-          // raw convolutions and spatializer are mutually exclusive.
-          if(nAudioOut && !conv_reverbs[0].isZero()) {
-              Assert(conv_reverbs.size() == nAudioOut);
-              Assert(spatializer.empty());
-                for(int j=0; j<nAudioOut; ++j) {
-                    for(int i=0; i<nFrames; ++i) {
-                      int const idx = i + j*nFrames;
-                      output_buffer[idx] += conv_reverbs[j].step(input_buffer[idx]);
-                  }
-              }
-          }
-          else if(!spatializer.empty()) {
-              for(int i=0; i<nFrames; ++i) {
-                  spatializer.addWet(input_buffer + i,
-                                     output_buffer + i,
-                                     nFrames);
-              }
-          }
-      }
-      
-      void addWetInputZero(double * output_buffer, int nFrames) {
+      void assignWetVectorized(double const * const input_buffer,
+                               double * output_buffer,
+                               int channelStride,
+                               int nFramesToCompute,
+                               int vectorLength) {
+          assert(vectorLength > 0);
           // raw convolutions and spatializer are mutually exclusive.
           if(nAudioOut && !conv_reverbs[0].isZero()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
               for(int j=0; j<nAudioOut; ++j) {
-                  for(int i=0; i<nFrames; ++i) {
-                      int const idx = i + j*nFrames;
-                      output_buffer[idx] += conv_reverbs[j].step(0.);
+                  int const idx = j*channelStride;
+                  for(int i=0; i<nFramesToCompute; i += vectorLength) {
+                      int const idx2 = idx + i;
+                      conv_reverbs[j].stepAssignVectorized(input_buffer + idx2,
+                                                           output_buffer+ idx2,
+                                                           std::min(vectorLength, nFramesToCompute-i));
                   }
               }
           }
           else if(!spatializer.empty()) {
-              for(int i=0; i<nFrames; ++i) {
-                  spatializer.addWetInputZero(output_buffer + i,
-                                              nFrames);
+              spatializer.assignWetVectorized(input_buffer,
+                                              output_buffer,
+                                              channelStride,
+                                              nFramesToCompute,
+                                              vectorLength);
+          }
+          else {
+              // zero output_buffer
+              for(int j=0; j<nAudioOut; ++j) {
+                  int const idx = j*channelStride;
+                  using FFTTag = fft::Fastest;
+                  fft::RealSignal_<FFTTag, double>::zero_n_raw(output_buffer+idx, nFramesToCompute);
               }
           }
       }
+      
+      void addWetInputZeroVectorized(double * output_buffer,
+                                     int channelStride,
+                                     int nFramesToCompute,
+                                     int vectorLength) {
+          assert(vectorLength > 0);
+          // raw convolutions and spatializer are mutually exclusive.
+          if(nAudioOut && !conv_reverbs[0].isZero()) {
+              Assert(conv_reverbs.size() == nAudioOut);
+              Assert(spatializer.empty());
+              for(int j=0; j<nAudioOut; ++j) {
+                  int const idx = j*channelStride;
+                  for(int i=0; i<nFramesToCompute; i += vectorLength) {
+                      int const idx2 = idx + i;
+                      conv_reverbs[j].stepAddInputZeroVectorized(output_buffer + idx2,
+                                                                 std::min(vectorLength, nFramesToCompute-i));
+                  }
+              }
+          }
+          else if(!spatializer.empty()) {
+              spatializer.addWetInputZeroVectorized(output_buffer,
+                                                    channelStride,
+                                                    nFramesToCompute,
+                                                    vectorLength);
+          }
+      }
+      
     void flushToSilence()
     {
         for(auto & r : conv_reverbs) {

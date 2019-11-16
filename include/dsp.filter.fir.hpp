@@ -11,7 +11,13 @@ namespace imajuscule
   struct FIRFilter {
     using FPT = T;
     static constexpr int nCoefficientsFadeIn = 0;
-    struct SetupParam {};
+    static constexpr bool has_subsampling = false;
+
+    struct SetupParam : public Cost {
+        
+        void logSubReport(std::ostream & os) override {
+        }
+    };
     
     static constexpr auto dotpr = fft::RealSignal_<fft::Fastest, FPT>::dotpr;
     
@@ -66,7 +72,7 @@ namespace imajuscule
           if(unlikely(isZero())) {
               // zero output_buffer
               using FFTTag = fft::Fastest;
-              fft::RealSignal_<FFTTag, double>::zero_n_raw(output_buffer, nSamples);
+              fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nSamples);
             return;
           }
           for(int i=0; i<nSamples; ++i) {
@@ -105,7 +111,33 @@ namespace imajuscule
     a64::vector<T> reversed_coefficients;
     cyclic<T> past;
   };
+
+template<typename T>
+struct PartitionAlgo< FIRFilter<T> > {
+    using Convolution = FIRFilter<T>;
+    using SetupParam = typename Convolution::SetupParam;
+    using PS = PartitionningSpec<SetupParam>;
+    using PSpecs = PartitionningSpecs<SetupParam>;
     
+    static PSpecs run(int n_channels,
+                      int n_audio_channels,
+                      int n_audio_frames_per_cb,
+                      int total_response_size,
+                      int n_scales,
+                      double frame_rate,
+                      std::ostream & os) {
+        // there is no variable to optimize with FIRFilter:
+        PS minimalPs;
+        minimalPs.cost = SetupParam();
+        minimalPs.cost->setCost(0.);
+        return {
+            minimalPs,
+            minimalPs
+        };
+    }
+};
+
+
   template<typename T>
   static void plotMagnitude(fft::FFTVec<T> const & v) {
     std::vector<T> mags;

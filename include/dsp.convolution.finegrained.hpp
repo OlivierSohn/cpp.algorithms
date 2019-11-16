@@ -69,17 +69,6 @@ namespace imajuscule
     Nothing
   };
 
-  struct Cost {
-    void setCost(float c) { cost = c; }
-
-    operator float() const { return cost; }
-    operator float&() { return cost; }
-
-    float getCost() const { return cost; }
-  private:
-    float cost = std::numeric_limits<float>::max();
-  };
-
   struct GrainsCosts {
     float fft, ifft, mult;
   };
@@ -101,6 +90,11 @@ namespace imajuscule
     int phase = 0;
     int partition_size = 0;
     GrainsCosts grains_costs;
+      
+      void logSubReport(std::ostream & os) override {
+          os << "- using max fft size = " << partition_size << std::endl;
+      }
+
 
     static FinegrainedSetupParam makeInactive() {
       FinegrainedSetupParam res{0,0,0};
@@ -782,8 +776,13 @@ namespace imajuscule
       //            cout << "ifft time : " << times[index_ifft] << endl;
 
       struct PhasedCost : public Cost {
-        int phase = 0; // in frames
         GrainsCosts grains_costs;
+          
+          void logSubReport(std::ostream & os) override {
+              os << "grain fft : " << grains_costs.fft << std::endl;
+              os << "grain ifft : " << grains_costs.ifft << std::endl;
+              os << "grain mult : " << grains_costs.mult << std::endl;
+          }
       };
 
       struct CostEvaluator {

@@ -20,33 +20,39 @@ namespace imajuscule
     // if we can afford the induced computations (using an auto optimizing algorithm).
     HighestAffordableResolution, // 4
   };
-  
-  static inline range<int> getScaleCountRanges(ResponseTailSubsampling rts) {
+
+template<typename Convolution>
+range<int> getScaleCountRanges(ResponseTailSubsampling rts) {
     range<int> r;
     
-    switch(rts) {
-      case ResponseTailSubsampling::ScaleCount_1:
+    if constexpr (Convolution::has_subsampling) {
+        switch(rts) {
+            case ResponseTailSubsampling::ScaleCount_1:
+                r.extend(1);
+                break;
+            case ResponseTailSubsampling::ScaleCount_2:
+                r.extend(2);
+                break;
+            case ResponseTailSubsampling::ScaleCount_3:
+                r.extend(3);
+                break;
+            case ResponseTailSubsampling::ScaleCount_4:
+                r.extend(4);
+                break;
+            default:
+                assert(0);
+            case ResponseTailSubsampling::HighestAffordableResolution:
+                r.set(1, nMaxScales);
+                break;
+        }
+    }
+    else {
         r.extend(1);
-        break;
-      case ResponseTailSubsampling::ScaleCount_2:
-        r.extend(2);
-        break;
-      case ResponseTailSubsampling::ScaleCount_3:
-        r.extend(3);
-        break;
-      case ResponseTailSubsampling::ScaleCount_4:
-        r.extend(4);
-        break;
-      default:
-        assert(0);
-      case ResponseTailSubsampling::HighestAffordableResolution:
-        r.set(1, nMaxScales);
-        break;
     }
     
     return r;
-  }
-  
+}
+
 template<typename T>
 struct DeinterlacedBuffers {
     
@@ -55,6 +61,10 @@ struct DeinterlacedBuffers {
     {
         deinterlace(interlaced, n_channels);
     }
+    
+    DeinterlacedBuffers(std::vector<a64::vector<T>> deinterlaced) :
+    deinterlaced(std::move(deinterlaced))
+    {}
     
     int countChannels() const {
         return deinterlaced.size();
@@ -135,15 +145,13 @@ public:
       
       using Tag = Fastest;
       
-      using ScopedContext = ScopedContext_<Tag, T>;
+      using Contexts = fft::Contexts_<Tag, T>;
       using Algo = Algo_<Tag, T>;
       using CplxFreqs = typename fft::RealFBins_<Tag, T>::type;
       
       auto N = ceil_power_of_two(v.size());
       
-      ScopedContext setup(N);
-      
-      Algo fft_algo(setup.get());
+      Algo fft_algo(Contexts::getInstance().getBySize(N));
       CplxFreqs fft_of_coeffs;
       fft_of_coeffs.resize(N);
       // make a copy when passing by value
@@ -204,36 +212,62 @@ public:
     using PS = typename PartitionAlgo::PS;
     using FPT = typename ConvolutionReverb::FPT;
       
-      ImpulseResponseOptimizer(int const n_response_channels, int const n_response_frames, int n_audiocb_frames, int nAudioOut) :
+      static constexpr auto ratio_hard_limit = 1.0f;
+      //    because of overhead due to os managing audio, because of "other things running on the device", etc...
+      // at 0.38f on ios release we have glitches when putting the app in the background
+      // at 0.25f on linux we have glitches
+      static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
+
+      ImpulseResponseOptimizer(int const n_response_channels,
+                               int const n_response_frames,
+                               int n_audiocb_frames,
+                               int nAudioOut,
+                               double frame_rate) :
       n_audiocb_frames(n_audiocb_frames),
-      n_response_channels(n_response_channels),
       nAudioOut(nAudioOut),
-      n_response_frames(n_response_frames)
+      n_response_channels(n_response_channels),
+      n_response_frames(n_response_frames),
+      frame_rate(frame_rate),
+      theoretical_max_ns_per_frame(1e9/frame_rate),
+      max_avg_time_per_sample(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_response_channels))
       {}
       
   private:
-    int n_audiocb_frames, nAudioOut, n_response_channels, n_response_frames;
-    double max_avg_time_per_sample;
-    
+      int n_audiocb_frames, nAudioOut, n_response_channels, n_response_frames;
+      double frame_rate;
+  public:
+      double const theoretical_max_ns_per_frame;
+  private:
+      double const max_avg_time_per_sample;
+      
   public:
         
-    Optional<std::pair<PS,int>> optimize_reverb_parameters(double max_avg_time_per_sample, ResponseTailSubsampling rts, std::ostream & os) const {
+    Optional<std::pair<PS,int>> optimize_reverb_parameters(ResponseTailSubsampling rts,
+                                                           std::ostream & os) const {
       using namespace std;
       
+        if constexpr (!ConvolutionReverb::has_subsampling) {
+            if(rts != ResponseTailSubsampling::FullRes &&
+               rts != ResponseTailSubsampling::HighestAffordableResolution) {
+                throw std::logic_error("This reverb type cannot subsample");
+            }
+        }
       Optional<std::pair<PS,int>> res;
       
-      range<int> const scales = getScaleCountRanges(rts);
+      range<int> const scales = getScaleCountRanges<ConvolutionReverb>(rts);
 
       for(int n_scales = scales.getMin(); n_scales <= scales.getMax(); ++n_scales) {
         
         auto partit = PartitionAlgo::run(n_response_channels,
+                                         nAudioOut,
                                          n_audiocb_frames,
                                          n_response_frames,
                                          n_scales,
+                                         frame_rate,
                                          os);
         auto & part = partit.getWithSpread();
         if(!part.cost) {
-          LG(INFO, "discarding n_scales %d", n_scales);
+          os << "Discard n_scales " << n_scales << std::endl;
           continue;
         }
         
@@ -243,10 +277,10 @@ public:
 
         assert(res);
         if(res->first.getCost() < max_avg_time_per_sample) {
-          LG(INFO, "Optimization criteria met with %d scaling levels.", n_scales);
+          os << "Optimization criteria met with " << n_scales << " scaling levels." << std::endl;
           break;
         }
-        LG(INFO, "cost %f >= %f", res->first.getCost(), max_avg_time_per_sample);
+        os << "cost " << res->first.getCost() << " >= " << max_avg_time_per_sample << std::endl;
         if(n_scales == scales.getMax()) {
             throw std::runtime_error("Optimization criteria not met, there are not enough scaling levels.");
         }
@@ -255,20 +289,19 @@ public:
       return res;
     }
     
-    void logReport(int n_scales, PS const  & partitionning, std::ostream & os) const {
+    void logReport(int n_scales, std::ostream & os) const {
       using namespace std;
         os << "Render block size : " << n_audiocb_frames << " frames" << endl;
-      os << "- using max fft size = " << partitionning.cost->partition_size
-        << ", dephasing computation schedule over " << n_response_channels << " channel(s)." << endl;
+        os << "- dephasing computation schedule over " << n_response_channels << " channel(s)" << endl;
       os << "- using ";
       // TODO range of subsampling regions: highest quality region: xxx samples / 2-subsampled region : xxx samples / 4-subsampled
-        if(1 == n_scales) {
+        if(n_scales <= 1) {
             os << "full tail resolution";
         }
         else {
             os << "reduced tail resolution with " << n_scales - 1 << " subsampling regions";
         }
-        os << "." << endl;
+        os << endl;
     }
   };
 

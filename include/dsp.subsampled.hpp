@@ -30,7 +30,8 @@ namespace imajuscule
     using T = typename Algo::FPT;
     using FPT = T;
     static constexpr int nCoefficientsFadeIn = scaleFadeSz::inSmallerUnits;
-    
+    static constexpr bool has_subsampling = true;
+
     using SetupParam = typename Algo::SetupParam;
  
     auto getEpsilon() const {
@@ -144,5 +145,5 @@ namespace imajuscule
       prevOutput = 0;
     }
   };
-  
+
 }

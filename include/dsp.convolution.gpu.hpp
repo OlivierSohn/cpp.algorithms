@@ -217,7 +217,7 @@ namespace imajuscule
                                        CL_KERNEL_WORK_GROUP_SIZE,
                                        sizeof(workgroup_max_sz), &workgroup_max_sz, NULL);
         CHECK_CL_ERROR(ret);
-        std::cout << "workgroup max size: " << workgroup_max_sz << " for " << nButterfliesPerThread << " butterfly per thread." << std::endl;
+        //std::cout << "workgroup max size: " << workgroup_max_sz << " for " << nButterfliesPerThread << " butterfly per thread." << std::endl;
         
         if(nButterflies > nButterfliesPerThread * workgroup_max_sz) {
           release();

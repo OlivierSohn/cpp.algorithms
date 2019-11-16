@@ -8,9 +8,19 @@ namespace imajuscule
     using FPT = T;
     static constexpr int nCoefficientsFadeIn = Algo::nCoefficientsFadeIn;
     
-    struct SetupParam {
-      int delay;
-      typename Algo::SetupParam innerParams;
+    struct SetupParam : public Cost {
+        using InnerParams = typename Algo::SetupParam;
+        SetupParam(int d, InnerParams i)
+        : delay(d)
+        , innerParams(i)
+        {}
+        
+        int delay;
+        InnerParams innerParams;
+        void logSubReport(std::ostream & os) override {
+            os << "delay: " << delay << std::endl;
+            innerParams.logSubReport(os);
+        }
     };
     
     // instead of calling that directly, use applySetup

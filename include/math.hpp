@@ -189,4 +189,16 @@ namespace imajuscule {
         return dichotomic_sum(it, mid) + dichotomic_sum(mid, end);
     }
 
+template<typename T>
+int countDecimalNumbersBeforeTheDot(T val){
+    val = std::abs(val);
+    int count = 0;
+    while(true) {
+        if(val < 1) {
+            return count;
+        }
+        val /= 10;
+        ++count;
+    }
+}
 } // NS imajuscule

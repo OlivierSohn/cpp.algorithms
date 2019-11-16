@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		090DAD201EA56E9200ACBBA9 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */; };
 		091E3AF41DB59582007A4492 /* unity.build.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 091E3AF31DB59582007A4492 /* unity.build.cpp */; };
+		092A4225237B0750009546C6 /* unity.build.profile.reverb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 092A421B237B0723009546C6 /* unity.build.profile.reverb.cpp */; };
+		092A4226237B086B009546C6 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09A2EC281EA2C48100D94138 /* Accelerate.framework */; };
 		093239C31DB3F394003C168E /* TestBundle-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 093239C21DB3F394003C168E /* TestBundle-Info.plist */; };
 		093239C51DB3F3AD003C168E /* GoogleTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 093239C41DB3F3AD003C168E /* GoogleTests.mm */; };
 		093239C81DB3F3CE003C168E /* gtest_main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 093239C61DB3F3CE003C168E /* gtest_main.cc */; };
@@ -55,6 +57,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		092A4220237B0732009546C6 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		09C43013235C912700E46153 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -92,6 +103,8 @@
 		091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = allocator.aligned.hpp; path = include/allocator.aligned.hpp; sourceTree = "<group>"; };
 		09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.combine.hpp; path = include/dsp.convolution.combine.hpp; sourceTree = "<group>"; };
 		0929F1DE1E70CAE600605F6D /* flt_math.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = flt_math.hpp; path = include/flt_math.hpp; sourceTree = "<group>"; };
+		092A421B237B0723009546C6 /* unity.build.profile.reverb.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.profile.reverb.cpp; path = source/unity.build.profile.reverb.cpp; sourceTree = "<group>"; };
+		092A4224237B0732009546C6 /* profile.reverb */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = profile.reverb; sourceTree = BUILT_PRODUCTS_DIR; };
 		092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.roots.hpp; path = include/fft.roots.hpp; sourceTree = "<group>"; };
 		092EAA8F1E2A4733006C11E9 /* strplot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = strplot.h; path = include/strplot.h; sourceTree = "<group>"; };
 		092EAAB81E2A4994006C11E9 /* range.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = range.h; path = include/range.h; sourceTree = "<group>"; };
@@ -149,7 +162,7 @@
 		096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.hpp; path = include/dsp.convolution.hpp; sourceTree = "<group>"; };
 		096C6D661EA0129300389746 /* optimization.local.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.hpp; path = include/optimization.local.hpp; sourceTree = "<group>"; };
 		096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = test_gradient_descent.cpp; path = test/test_gradient_descent.cpp; sourceTree = "<group>"; };
-		096C6D691EA0338D00389746 /* test_benchmark.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_benchmark.cpp; path = test/test_benchmark.cpp; sourceTree = "<group>"; };
+		096C6D691EA0338D00389746 /* test_benchmark.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_benchmark.convolution.cpp; path = test/test_benchmark.convolution.cpp; sourceTree = "<group>"; };
 		096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_range_search.cpp; path = test/test_range_search.cpp; sourceTree = "<group>"; };
 		096C7DB81EB11B5400DDEB20 /* optimization.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.hpp; path = include/optimization.hpp; sourceTree = "<group>"; };
 		096C7DB91EB11B5400DDEB20 /* optimization.global.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.global.hpp; path = include/optimization.global.hpp; sourceTree = "<group>"; };
@@ -174,6 +187,7 @@
 		0979762320EF5AD800D586A5 /* dsp.compresser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.compresser.hpp; path = include/dsp.compresser.hpp; sourceTree = "<group>"; };
 		0979762420EF652F00D586A5 /* test_dsp.compress.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.compress.cpp; path = test/test_dsp.compress.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
+		097FB600237D764000D884C1 /* dsp.convolution.optimization.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.optimization.hpp; path = include/dsp.convolution.optimization.hpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
 		09807B7520D7B09A009732BD /* staticvector.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.lockfree.scmp.hpp; path = include/staticvector.lockfree.scmp.hpp; sourceTree = "<group>"; };
@@ -243,6 +257,9 @@
 		09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.convert.audio.rate.cpp; path = source/unity.build.convert.audio.rate.cpp; sourceTree = "<group>"; };
 		09C434ED236480C800AF5797 /* math.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = math.roots.hpp; path = include/math.roots.hpp; sourceTree = "<group>"; };
 		09C434EE2364814700AF5797 /* test_math_roots.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_math_roots.cpp; path = test/test_math_roots.cpp; sourceTree = "<group>"; };
+		09C66082237B4306002CB787 /* dsp.convolution.async.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.async.hpp; path = include/dsp.convolution.async.hpp; sourceTree = "<group>"; };
+		09C66085237C0C2C002CB787 /* thirdparty */ = {isa = PBXFileReference; lastKnownFileType = folder; name = thirdparty; path = include/thirdparty; sourceTree = "<group>"; };
+		09CB60BB237AA5C5003B61EC /* test_benchmark.reverbsvectorization.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_benchmark.reverbsvectorization.cpp; path = test/test_benchmark.reverbsvectorization.cpp; sourceTree = "<group>"; };
 		09CC0D6F2340F76500D2F1AC /* write.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = write.wav.cpp; path = source/write.wav.cpp; sourceTree = "<group>"; };
 		09CC0D702340F76600D2F1AC /* read.wav.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = read.wav.cpp; path = source/read.wav.cpp; sourceTree = "<group>"; };
 		09CC0D712340F77E00D2F1AC /* c.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = c.h; path = include/c.h; sourceTree = "<group>"; };
@@ -287,6 +304,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		092A421F237B0732009546C6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				092A4226237B086B009546C6 /* Accelerate.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -367,6 +392,7 @@
 				093A7BF21EB2A7B500CBDD97 /* thread.cpp */,
 				09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */,
 				091E3AF31DB59582007A4492 /* unity.build.cpp */,
+				092A421B237B0723009546C6 /* unity.build.profile.reverb.cpp */,
 				09CC0D6F2340F76500D2F1AC /* write.wav.cpp */,
 			);
 			name = source;
@@ -447,6 +473,7 @@
 				09168FC61E099C42005DD50F /* libalgorithms.ios.a */,
 				09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */,
 				09C43015235C912700E46153 /* convert.audio.rate */,
+				092A4224237B0732009546C6 /* profile.reverb */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -460,7 +487,8 @@
 				09A4E4251EA6B0C400F92310 /* not_in_unity_build.cpp */,
 				09168FD31E099DAF005DD50F /* test_allocators.cpp */,
 				0983C7371F254C5D00EE86C1 /* test_angles.cpp */,
-				096C6D691EA0338D00389746 /* test_benchmark.cpp */,
+				096C6D691EA0338D00389746 /* test_benchmark.convolution.cpp */,
+				09CB60BB237AA5C5003B61EC /* test_benchmark.reverbsvectorization.cpp */,
 				0972718D1E1B4AFD00532772 /* test_cast.cpp */,
 				09121CA61EAB957700BBC64B /* test_containers.cpp */,
 				0972720A1E1B678B00532772 /* test_cpp.cpp */,
@@ -509,6 +537,8 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				097FB600237D764000D884C1 /* dsp.convolution.optimization.hpp */,
+				09C66085237C0C2C002CB787 /* thirdparty */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -529,6 +559,7 @@
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
 				0979762320EF5AD800D586A5 /* dsp.compresser.hpp */,
+				09C66082237B4306002CB787 /* dsp.convolution.async.hpp */,
 				09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */,
@@ -655,6 +686,23 @@
 			productReference = 09168FC61E099C42005DD50F /* libalgorithms.ios.a */;
 			productType = "com.apple.product-type.library.static";
 		};
+		092A421C237B0732009546C6 /* profile.reverb */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 092A4221237B0732009546C6 /* Build configuration list for PBXNativeTarget "profile.reverb" */;
+			buildPhases = (
+				092A421D237B0732009546C6 /* Sources */,
+				092A421F237B0732009546C6 /* Frameworks */,
+				092A4220237B0732009546C6 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = profile.reverb;
+			productName = convert.audio.rate;
+			productReference = 092A4224237B0732009546C6 /* profile.reverb */;
+			productType = "com.apple.product-type.tool";
+		};
 		093239D71DB5651B003C168E /* algorithms */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 093239E01DB5651B003C168E /* Build configuration list for PBXNativeTarget "algorithms" */;
@@ -773,6 +821,7 @@
 				093239D71DB5651B003C168E /* algorithms */,
 				09168FC51E099C42005DD50F /* algorithms.ios */,
 				09C43014235C912700E46153 /* convert.audio.rate */,
+				092A421C237B0732009546C6 /* profile.reverb */,
 			);
 		};
 /* End PBXProject section */
@@ -801,6 +850,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				09C645911E09F84700153C61 /* unity.build.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		092A421D237B0732009546C6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				092A4225237B0750009546C6 /* unity.build.profile.reverb.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -873,6 +930,22 @@
 			baseConfigurationReference = 0960BAFA1DB3F0F80075CB05 /* ios.release.xcconfig */;
 			buildSettings = {
 				STRIP_INSTALLED_PRODUCT = NO;
+			};
+			name = Release;
+		};
+		092A4222237B0732009546C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0960BAFB1DB3F0F80075CB05 /* osx.debug.xcconfig */;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		092A4223237B0732009546C6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0960BAFC1DB3F0F80075CB05 /* osx.release.xcconfig */;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
 		};
@@ -954,6 +1027,15 @@
 			buildConfigurations = (
 				09168FCC1E099C43005DD50F /* Debug */,
 				09168FCD1E099C43005DD50F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		092A4221237B0732009546C6 /* Build configuration list for PBXNativeTarget "profile.reverb" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				092A4222237B0732009546C6 /* Debug */,
+				092A4223237B0732009546C6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

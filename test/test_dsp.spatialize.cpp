@@ -70,17 +70,35 @@ namespace imajuscule {
             }
             if(assign) {
                 v_output.resize(nEars * results.size(), {});
-                spatialize.assignWetVectorized(v_input.data(),
-                                               v_output.data(),
-                                               results.size(),
+                T const * a_inputs[nEars];
+                for(int i=0; i<nEars; ++i) {
+                    a_inputs[i] = &v_input[i*results.size()];
+                }
+                T * a_outputs[nEars];
+                for(int i=0; i<nEars; ++i) {
+                    a_outputs[i] = &v_output[i*results.size()];
+                }
+                spatialize.assignWetVectorized(a_inputs,
+                                               nEars,
+                                               a_outputs,
+                                               nEars,
                                                results.size(),
                                                vectorLength);
             }
             else {
                 v_output.resize(nEars * results.size());
-                spatialize.addWetVectorized(v_input.data(),
-                                            v_output.data(),
-                                            results.size(),
+                T const * a_inputs[nEars];
+                for(int i=0; i<nEars; ++i) {
+                    a_inputs[i] = &v_input[i*results.size()];
+                }
+                T * a_outputs[nEars];
+                for(int i=0; i<nEars; ++i) {
+                    a_outputs[i] = &v_output[i*results.size()];
+                }
+                spatialize.addWetVectorized(a_inputs,
+                                            nEars,
+                                            a_outputs,
+                                            nEars,
                                             results.size(),
                                             vectorLength);
             }

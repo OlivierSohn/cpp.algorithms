@@ -38,10 +38,11 @@ static inline void scaleVec(double coeff, std::vector<double> & v) {
     std::for_each(v.begin(), v.end(), [coeff](auto & val) { val *= coeff; });
 }
 
-TEST(Reverbs, dirac) {
-    using namespace imajuscule;
+namespace imajuscule {
+template<ReverbType reverbType>
+void testReverbDirac() {
     
-    Reverbs<1> rs;
+    Reverbs<1, reverbType> rs;
     
     constexpr int audio_cb_size = 99;
     
@@ -51,9 +52,12 @@ TEST(Reverbs, dirac) {
         std::vector<double> output;
         output.resize(input.size(), {});
         auto prevOutput = output;
-        rs.assignWetVectorized(input.data(),
-                               output.data(),
-                               input.size(),
+        double const * const a_inputs[1] = {input.data()};
+        double * a_outputs[1] = {output.data()};
+        rs.assignWetVectorized(a_inputs,
+                               1,
+                               a_outputs,
+                               1,
                                input.size(),
                                input.size());
         ASSERT_EQ(output, prevOutput);
@@ -73,9 +77,12 @@ TEST(Reverbs, dirac) {
         std::vector<double> output;
         output.resize(input.size(), {});
         auto prevOutput = output;
-        rs.assignWetVectorized(input.data(),
-                               output.data(),
-                               input.size(),
+        double const * const a_inputs[1] = {input.data()};
+        double * a_outputs[1] = {output.data()};
+        rs.assignWetVectorized(a_inputs,
+                               1,
+                               a_outputs,
+                               1,
                                input.size(),
                                input.size());
         ASSERT_EQ(output, prevOutput);
@@ -86,10 +93,11 @@ TEST(Reverbs, dirac) {
         std::vector<double> const input = mkDirac<double>(sz);
         auto const coeffs = mkCoefficientsTriangle(sz);
         for(int rts_i=0; rts_i<5; ++rts_i) {
+            using Convolution = typename decltype(rs)::ConvolutionReverb;
             LG(INFO, "%d, %d,", sz, rts_i);
             auto const rts = static_cast<ResponseTailSubsampling>(rts_i);
-            
-            auto const scaleRange = getScaleCountRanges(rts);
+
+            auto const scaleRange = getScaleCountRanges<Convolution>(rts);
             
             {
                 bool res = false;
@@ -100,6 +108,13 @@ TEST(Reverbs, dirac) {
                     res = true;
                 }
                 catch(std::exception const &e) {
+                    if constexpr (!Convolution::has_subsampling) {
+                        if(rts != ResponseTailSubsampling::FullRes &&
+                           rts != ResponseTailSubsampling::HighestAffordableResolution) {
+                            // an exception is expected in that case
+                            continue;
+                        }
+                    }
                     LG(INFO, "%s", e.what());
                 }
                 if(scaleRange.getMin() > 1 && coeffs.size() <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
@@ -120,18 +135,29 @@ TEST(Reverbs, dirac) {
             std::vector<double> diff1;
             diff1.reserve(output.size());
             
-            rs.assignWetVectorized(input.data(),
-                                   output.data(),
-                                   1,
-                                   1,
-                                   1);
+            {
+                double const * const a_inputs[1] = {input.data()};
+                double * a_outputs[1] = {output.data()};
+                rs.assignWetVectorized(a_inputs,
+                                       1,
+                                       a_outputs,
+                                       1,
+                                       1,
+                                       1);
+            }
             auto scale = coeffs[0]/output[0];
             
-            rs.assignWetVectorized(input.data()+1,
-                                   output.data()+1,
-                                   input.size()-1,
-                                   input.size()-1,
-                                   1);
+            {
+                double const * const a_inputs[1] = {input.data()+1};
+                double * a_outputs[1] = {output.data()+1};
+                rs.assignWetVectorized(a_inputs,
+                                       1,
+                                       a_outputs,
+                                       1,
+                                       input.size()-1,
+                                       input.size());
+            }
+
             for(int i=0, sz = output.size(); i<sz; i++) {
                 output[i] *= scale;
                 
@@ -177,12 +203,22 @@ TEST(Reverbs, dirac) {
         std::vector<double> output;
         output.resize(input.size(), {});
         auto prevOutput = output;
-        rs.assignWetVectorized(input.data(),
-                               output.data(),
-                               input.size(),
+        double const * const a_inputs[1] = {input.data()};
+        double * a_outputs[1] = {output.data()};
+        rs.assignWetVectorized(a_inputs,
+                               1,
+                               a_outputs,
+                               1,
                                input.size(),
                                input.size());
         ASSERT_EQ(output, prevOutput);
     }
 }
+} // NS imajuscule
 
+TEST(Reverbs, dirac) {
+    using namespace imajuscule;
+    testReverbDirac<ReverbType::Offline>();
+    testReverbDirac<ReverbType::Realtime_Synchronous>();
+    testReverbDirac<ReverbType::Realtime_Asynchronous>();
+}

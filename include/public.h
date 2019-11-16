@@ -86,6 +86,8 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
+#include "thirdparty/atomic_queue/atomic_queue.h"
+
 #include "log.stack.h"
 #include "maybe.atomic.hpp"
 #include "likely.h"
@@ -179,9 +181,11 @@ extern "C"
 #include "dsp.resample.h"
 #include "read.wav.h"
 
+#include "dsp.convolution.optimization.hpp"
 #include "dsp.filter.hpp"
 #include "dsp.filter.fir.hpp"
 #include "dsp.subsampled.hpp"
+#include "dsp.convolution.async.hpp"
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.delayed.hpp"

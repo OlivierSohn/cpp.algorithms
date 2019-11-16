@@ -9,8 +9,9 @@ namespace imajuscule
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
-      static constexpr int nCoefficientsFadeIn = 0;
-
+        static constexpr int nCoefficientsFadeIn = 0;
+        static constexpr bool has_subsampling = false;
+        
       using SetupParam = typename Parent::SetupParam;
 
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
@@ -621,33 +622,6 @@ namespace imajuscule
      */
     template <typename T, typename FFTTag = fft::Fastest>
     using PartitionnedFFTConvolution = FFTConvolutionBase< FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> > >;
-
-    template<typename SetupParam>
-    struct PartitionningSpec {
-        Optional<SetupParam> cost;
-      float getCost() const { return cost ? static_cast<float>(*cost) : std::numeric_limits<float>::max(); }
-        GradientDescent<SetupParam> gd;
-    };
-
-    template<typename SetupParam>
-    struct PartitionningSpecs {
-        using PS = PartitionningSpec<SetupParam>;
-
-        PS & getWithSpread() {
-          if(with_spread.cost) {
-            if(without_spread.cost) {
-              return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
-            }
-            return with_spread;
-          }
-          return without_spread;
-        }
-
-        PS with_spread, without_spread;
-    };
-
-    template<typename T>
-    struct PartitionAlgo;
 
     template<typename T>
     struct PartitionAlgo< PartitionnedFFTConvolution<T> > {

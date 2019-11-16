@@ -403,6 +403,32 @@ namespace imajuscule {
           testDirac2(i, c);
         }
         {
+          auto c = AsyncCPUConvolution<FIRFilter<double>>{};
+            std::vector<int> submisionPeriods{
+                -1, // invalid
+                0, // invalid
+                1,
+                10,
+                100
+            };
+          std::vector<int> queueSizes{
+              -1, // invalid
+              0, // invalid
+              1,
+              10,
+              100
+          };
+            for(auto submisionPeriod:submisionPeriods) {
+                for(auto queueSize:queueSizes) {
+                    applySetup(c,{
+                        submisionPeriod,
+                        queueSize
+                    });
+                    testDirac2(i, c);
+                }
+            }
+        }
+        {
           auto c = Delayed<FIRFilter<double>>{};
           applySetup(c,{10,{}});
           testDirac2(i, c);

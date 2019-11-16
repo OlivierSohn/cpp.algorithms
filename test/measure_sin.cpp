@@ -5,7 +5,7 @@ void testSin(F sin_func) {
   using namespace imajuscule::profiling;
   using namespace std;
   using namespace std::chrono;
-  high_resolution_clock::rep duration = 0;
+  high_resolution_clock::duration duration;
   T sum {};
   {
     Timer<high_resolution_clock, TimerOption::YieldBeforeStart> t(duration);
@@ -13,8 +13,8 @@ void testSin(F sin_func) {
       sum += sin_func(static_cast<T>(i));
     }
   }
-  cout << duration << endl;
-  cout << "                          " << sum << endl; // so that the vector values are used.
+  cout << duration.count() << endl;
+  cout << "                          " << sum << endl; // so that the vector values are used.
 }
 
 

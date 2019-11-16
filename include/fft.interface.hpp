@@ -34,12 +34,14 @@ namespace imajuscule {
             static Contexts_ & getInstance() {
                 // ok to have static variable in header because class is templated
                 // (cf. test ThreadLocal)
-                thread_local Contexts_ ctxt;
+                static Contexts_ ctxt;
                 
                 return ctxt;
             }
             
             ContextT getBySize(int size) {
+                std::lock_guard l(mut);
+                
                 assert(size > 0);
                 assert(is_power_of_two(size));
                 auto index = power_of_two_exponent(size);
@@ -64,6 +66,7 @@ namespace imajuscule {
             }
           }
             std::vector<ContextT> contexts;
+            std::mutex mut;
           
           Contexts_(const Contexts_&) = delete;
           Contexts_(Contexts_&&) = delete;

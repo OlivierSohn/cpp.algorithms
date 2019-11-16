@@ -80,60 +80,6 @@ namespace imajuscule
     return true;
   }
   
-  template<typename C>
-  void dephase(int phase, int n_scales, C & rev) {
-    auto & lateHandler = rev.getB();
-    for(int i=0; i<n_scales; ++i) {
-      // the top-most will be stepped 'base_phase' times,
-      // then each scale after that will be stepped by a quarter grain size.
-      // phases are cumulative, so stepping a scale also steps subsequent scales.
-      static_assert(nMaxScales==4);
-      switch(i) {
-        case 0:
-          for(int j=0; j<phase; ++j) {
-            lateHandler.step(0);
-          }
-          break;
-        case 1:
-        {
-          auto & inner = lateHandler.getB().getInner().getInner();
-          assert(inner.isValid());
-          assert(!inner.isZero());
-          int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
-          for(int j=0; j<quarter_grain_size; ++j) {
-            inner.step(0);
-          }
-          break;
-        }
-        case 2:
-        {
-          auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner();
-          assert(inner.isValid());
-          assert(!inner.isZero());
-          int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
-          for(int j=0; j<quarter_grain_size; ++j) {
-            inner.step(0);
-          }
-          break;
-        }
-        case 3:
-        {
-          auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner().getB().getInner().getInner();
-          assert(inner.isValid());
-          assert(!inner.isZero());
-          int quarter_grain_size = inner.getGranularMinPeriod() / 4;
-          for(int j=0; j<quarter_grain_size; ++j) {
-            inner.step(0);
-          }
-          break;
-        }
-        default:
-          throw std::logic_error("out of bound");
-      }
-    }
-    
-  }
-
   
     namespace audio {
         /*
@@ -161,12 +107,12 @@ namespace imajuscule
             void flushToSilence() {
                 forEachEar([](auto & earConvs) {
                     for(auto & c : earConvs) {
-                        c.flushToSilence();
+                        c->flushToSilence();
                     }
                 });
             }
 
-            bool empty() const { return earsConvs.empty() || earsConvs[0].empty() || earsConvs[0][0].isZero(); }
+            bool empty() const { return earsConvs.empty() || earsConvs[0].empty() || earsConvs[0][0]->isZero(); }
 
             bool isValid() const {
                 return !empty() && earsConvs[0][0].isValid();
@@ -177,7 +123,15 @@ namespace imajuscule
             }
           
           int countScales() {
-            return (earsConvs.empty() || earsConvs[0].empty()) ? 0 : imajuscule::countScales(earsConvs[0][0]);
+              if (earsConvs.empty() || earsConvs[0].empty()) {
+                  return 0;
+              }
+              if constexpr(Convolution::has_subsampling) {
+                  return imajuscule::countScales(earsConvs[0][0]);
+              }
+              else {
+                  return 1;
+              }
           }
 
             int getLatency() const {
@@ -190,10 +144,10 @@ namespace imajuscule
                                    int & n_scales,
                                    int scale_sz) {
                 forEachEar(vcoeffs, [&n_scales, scale_sz, &setup](auto & earConvs, auto & coeffs) {
-                    earConvs.emplace_back();
+                    earConvs.push_back(std::make_unique<Convolution>());
                     auto & c = earConvs.back();
-                    prepare(setup, c, n_scales, scale_sz);
-                    c.setCoefficients(std::move(coeffs));
+                    prepare(setup, *c, n_scales, scale_sz);
+                    c->setCoefficients(std::move(coeffs));
                 });
             }
 
@@ -201,7 +155,7 @@ namespace imajuscule
             void setMaxMultiplicationGroupLength() {
                 forEachEar([](auto & earConvs) {
                     for(auto & c : earConvs) {
-                        c.setMultiplicationGroupLength(c.getHighestValidMultiplicationsGroupSize());
+                        c->setMultiplicationGroupLength(c->getHighestValidMultiplicationsGroupSize());
                     }
                 });
             }
@@ -209,7 +163,7 @@ namespace imajuscule
             void setMultiplicationGroupLength(int i) {
                 forEachEar([i](auto & earConvs) {
                     for(auto & c : earConvs) {
-                        c.setMultiplicationGroupLength(i);
+                        c->setMultiplicationGroupLength(i);
                     }
                 });
             }
@@ -228,7 +182,7 @@ namespace imajuscule
                 T wetSignal = 0.;
                 int n = 0;
                 for(auto & c : earConvs) {
-                  wetSignal += c.step(in[n]);
+                  wetSignal += c->step(in[n]);
                   ++n;
                 }
                 *inout += wet * wetSignal;
@@ -241,7 +195,7 @@ namespace imajuscule
                   T wetSignal = 0.;
                   int n = 0;
                   for(auto & c : earConvs) {
-                    wetSignal += c.step(in[n]);
+                    wetSignal += c->step(in[n]);
                     n += stride;
                   }
                   *out += wetSignal;
@@ -249,47 +203,94 @@ namespace imajuscule
                 }
             }
             
-            void assignWetVectorized(T const * const in, T * out,
-                                     int channelStride,
-                                     int nFramesToCompute,
-                                     int vectorLength) {
-                for(auto & earConvs : earsConvs) {
+            template<typename FPT2>
+            void assignWet(FPT2 const * const * const input_buffers,
+                           int nInputBuffers,
+                           FPT2 ** output_buffers,
+                           int nOutputBuffers,
+                           int nFramesToCompute)
+            {
+                Assert(nOutputBuffers == earsConvs.size());
+                for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
+                    auto & earConvs = earsConvs[i_out];
+                    FPT2 * out = output_buffers[i_out];
+                    
                     bool assign = true;
-                    auto localIn = in;
-                    for(auto & c : earConvs) {
+                    Assert(nInputBuffers == earConvs.size());
+                    for(int i_in = 0; i_in < nInputBuffers; ++i_in) {
+                        auto & c = earConvs[i_in];
+                        FPT2 const * const in = input_buffers[i_in];
+                        if(assign) {
+                            c->stepAssignVectorized(in,
+                                                   out,
+                                                   nFramesToCompute);
+                        }
+                        else {
+                            c->stepAddVectorized(in,
+                                                out,
+                                                nFramesToCompute);
+                        }
+                        assign = false;
+                    }
+                }
+            }
+            template<typename FPT2>
+            void assignWetVectorized(FPT2 const * const * const input_buffers,
+                                     int nInputBuffers,
+                                     FPT2 ** output_buffers,
+                                     int nOutputBuffers,
+                                     int nFramesToCompute,
+                                     int vectorLength)
+            {
+                Assert(nOutputBuffers == earsConvs.size());
+                for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
+                    auto & earConvs = earsConvs[i_out];
+                    FPT2 * out = output_buffers[i_out];
+                    
+                    bool assign = true;
+                    Assert(nInputBuffers == earConvs.size());
+                    for(int i_in = 0; i_in < nInputBuffers; ++i_in) {
+                        auto & c = earConvs[i_in];
+                        FPT2 const * const in = input_buffers[i_in];
                         for(int i=0; i<nFramesToCompute; i += vectorLength) {
                             if(assign) {
-                                c.stepAssignVectorized(localIn + i,
+                                c->stepAssignVectorized(in + i,
                                                        out + i,
                                                        std::min(vectorLength, nFramesToCompute-i));
                             }
                             else {
-                                c.stepAddVectorized(localIn + i,
+                                c->stepAddVectorized(in + i,
                                                     out + i,
                                                     std::min(vectorLength, nFramesToCompute-i));
                             }
                         }
-                        localIn += channelStride;
                         assign = false;
                     }
-                    out += channelStride;
                 }
             }
-            void addWetVectorized(T const * const in, T * out,
-                                  int channelStride,
+            template<typename FPT2>
+            void addWetVectorized(FPT2 const * const * const input_buffers,
+                                  int nInputBuffers,
+                                  FPT2 ** output_buffers,
+                                  int nOutputBuffers,
                                   int nFramesToCompute,
-                                  int vectorLength) {
-                for(auto & earConvs : earsConvs) {
-                    auto localIn = in;
-                    for(auto & c : earConvs) {
+                                  int vectorLength)
+            {
+                Assert(nOutputBuffers == earsConvs.size());
+                for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
+                    auto & earConvs = earsConvs[i_out];
+                    FPT2 * out = output_buffers[i_out];
+
+                    Assert(nInputBuffers == earConvs.size());
+                    for(int i_in = 0; i_in < nInputBuffers; ++i_in) {
+                        auto & c = earConvs[i_in];
+                        FPT2 const * const in = input_buffers[i_in];
                         for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                            c.stepAddVectorized(localIn + i,
+                            c->stepAddVectorized(in + i,
                                                 out + i,
                                                 std::min(vectorLength, nFramesToCompute-i));
                         }
-                        localIn += channelStride;
                     }
-                    out += channelStride;
                 }
             }
 
@@ -297,24 +298,27 @@ namespace imajuscule
                 for(auto & earConvs : earsConvs) {
                   T wetSignal{};
                   for(auto & c : earConvs) {
-                      wetSignal += c.step({});
+                      wetSignal += c->step({});
                   }
                   *out += wetSignal;
                   out += stride;
                 }
             }
-            void addWetInputZeroVectorized(T * out,
-                                           int channelStride,
+            template<typename FPT2>
+            void addWetInputZeroVectorized(FPT2 ** output_buffers,
+                                           int nOutputBuffers,
                                            int nFramesToCompute,
                                            int vectorLength) {
-                for(auto & earConvs : earsConvs) {
-                    for(auto & c : earConvs) {
-                        for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                            c.stepAddInputZeroVectorized(out+i,
-                                                         std::min(vectorLength, nFramesToCompute-i));
+                Assert(nOutputBuffers == earsConvs.size());
+                for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
+                    auto & earConvs = earsConvs[i_out];
+                    FPT2 * out = output_buffers[i_out];
+                    for(int i=0; i<nFramesToCompute; i += vectorLength) {
+                        for(auto & c : earConvs) {
+                            c->stepAddInputZeroVectorized(out+i,
+                                                          std::min(vectorLength, nFramesToCompute-i));
                         }
                     }
-                    out += channelStride;
                 }
             }
 
@@ -322,14 +326,14 @@ namespace imajuscule
                 int n = 0;
                 forEachEar([phase, n_scales, &n](auto & earConvs) {
                     for(auto & c : earConvs) {
-                      dephase(n * phase, n_scales, c);
+                      dephase(n * phase, n_scales, *c);
                       ++n;
                     }
                 });
             }
 
         private:
-            std::array<std::vector<Convolution>, nEars> earsConvs;
+            std::array<std::vector<std::unique_ptr<Convolution>>, nEars> earsConvs;
 
             template<typename Input, typename F>
             void forEachEar(Input & i, F f) {

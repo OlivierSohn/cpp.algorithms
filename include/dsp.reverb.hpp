@@ -1,6 +1,9 @@
 
 namespace imajuscule
 {
+
+//////////////////////////////////////////
+
   template<typename C>
   void applySetup(C&c, typename C::SetupParam const & p) {
     c.applySetup(p);
@@ -27,14 +30,10 @@ namespace imajuscule
       c.setSplit( B::nCoefficientsFadeIn + c.getB().getLatency() - c.getA().getLatency() );
     }
   }
-  template<typename A, typename B>
-  void applySetup(SplitConvolution<A,ScaleConvolution<B>> &c,
-                  typename SplitConvolution<A,ScaleConvolution<B>>::SetupParam const & p) {
-    applySetup(c.getA(), p.aParams);
-    applySetup(c.getB(), p.bParams);
-    c.setSplit(pow2(c.getB().getEarlyDroppedConvolutions()) - 1);
-  }
-  
+
+
+////////////////////////////////////////
+
   template<typename SP, typename T, typename FFTTag>
   void prepare(SP const & params,
                FinegrainedPartitionnedFFTConvolution<T,FFTTag> & rev,
@@ -69,7 +68,7 @@ namespace imajuscule
     assert(n_scales <= nMaxScales);
     typename ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>::SetupParam p
     {
-      {},
+        {{},{}},
       {
         ps[0],
         {
@@ -91,10 +90,101 @@ namespace imajuscule
       }
     };
     applySetup(rev, p);
-    
   }
   
-  
-  
+  template<typename SP, typename T, typename FFTTag>
+  void prepare(SP const & params,
+               ZeroLatencyScaledAsyncConvolution<T,FFTTag> & rev,
+               int & n_scales,
+               int const scale_sz ) {
+    assert(n_scales <= 1);
+    applySetup(rev, params);
+  }
+
+  template<typename SP, typename T>
+  void prepare(SP const & params,
+               FIRFilter<T> & rev,
+               int const n_scales,
+               int const scale_sz) {
+    assert(n_scales <= 1);
+    applySetup(rev, params);
+  }
+
+template<typename SP, typename T, typename FFTTag>
+void prepare(SP const & params,
+             OptimizedFIRFilter<T, FFTTag> & rev,
+             int const n_scales,
+             int const scale_sz) {
+    assert(n_scales <= 1);
+    applySetup(rev, params);
+}
+
+  /////////////////////////////////
+
+
+template<typename C>
+void dephase(int phase,
+             int n_scales,
+             C & rev) {
+    if constexpr (C::has_subsampling) {
+        auto & lateHandler = rev.getB();
+        for(int i=0; i<n_scales; ++i) {
+            // the top-most will be stepped 'base_phase' times,
+            // then each scale after that will be stepped by a quarter grain size.
+            // phases are cumulative, so stepping a scale also steps subsequent scales.
+            static_assert(nMaxScales==4);
+            switch(i) {
+                case 0:
+                    for(int j=0; j<phase; ++j) {
+                        lateHandler.step(0);
+                    }
+                    break;
+                case 1:
+                {
+                    auto & inner = lateHandler.getB().getInner().getInner();
+                    assert(inner.isValid());
+                    assert(!inner.isZero());
+                    int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
+                    for(int j=0; j<quarter_grain_size; ++j) {
+                        inner.step(0);
+                    }
+                    break;
+                }
+                case 2:
+                {
+                    auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner();
+                    assert(inner.isValid());
+                    assert(!inner.isZero());
+                    int quarter_grain_size = inner.getA().getGranularMinPeriod() / 4;
+                    for(int j=0; j<quarter_grain_size; ++j) {
+                        inner.step(0);
+                    }
+                    break;
+                }
+                case 3:
+                {
+                    auto & inner = lateHandler.getB().getInner().getInner().getB().getInner().getInner().getB().getInner().getInner();
+                    assert(inner.isValid());
+                    assert(!inner.isZero());
+                    int quarter_grain_size = inner.getGranularMinPeriod() / 4;
+                    for(int j=0; j<quarter_grain_size; ++j) {
+                        inner.step(0);
+                    }
+                    break;
+                }
+                default:
+                    throw std::logic_error("out of bound");
+            }
+        }
+    }
+    else {
+        assert(n_scales <= 1);
+        for(int j=0; j<phase; ++j) {
+            rev.step(0);
+        }
+    }
+}
+
+
   
 }

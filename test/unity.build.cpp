@@ -12,10 +12,10 @@
 
 #include <thread>
 
-//*
-#include "test_dsp.spatialize.cpp"
 #include "test_dsp.convolution.cpp"
 #include "test_dsp.reverbs.cpp"
+/*
+#include "test_dsp.spatialize.cpp"
 #include "test_math_roots.cpp"
 #include "test_dsp.resample.cpp"
 #include "test_edit_distance.cpp"
@@ -56,8 +56,11 @@
 //*/
 
 #if MEASURE_PERFS
-#  include "test_benchmark.cpp"
+#  include "test_benchmark.reverbsvectorization.cpp"
+/*
+#  include "test_benchmark.convolution.cpp"
 #  include "measure_sin.cpp"
 #  include "measure_containers.cpp"
 #  include "test_measure_multiplyadd_contiguity.cpp"
+ */
 #endif

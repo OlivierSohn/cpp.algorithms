@@ -85,16 +85,31 @@ struct ResponseStructure {
     }
 };
 
+    enum class ReverbType {
+        Offline,
+        Realtime_Synchronous,
+        Realtime_Asynchronous
+    };
   /*
    Depending on the number of sources, represents a convolution reverb
    or a spatialization.
    */
-  template<int nAudioOut>
+  template<int nAudioOut, ReverbType reverbType>
   struct Reverbs {
     static constexpr auto nOut = nAudioOut;
       static_assert(nAudioOut > 0);
 
-    using ConvolutionReverb = ZeroLatencyScaledFineGrainedPartitionnedConvolution<double>;
+    using ConvolutionReverb =
+      std::conditional_t< reverbType==ReverbType::Offline,
+        OptimizedFIRFilter<double>,
+
+      std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
+        ZeroLatencyScaledFineGrainedPartitionnedConvolution<double>,
+      
+      std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
+        ZeroLatencyScaledAsyncConvolution<double>,
+      void >>>;
+      
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
 
     using FPT = typename ConvolutionReverb::FPT;
@@ -102,18 +117,59 @@ struct ResponseStructure {
     using PS = typename PartitionAlgo<ConvolutionReverb>::PS;
 
     int countScales() {
-      if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0].isZero()) {
-        return imajuscule::countScales(conv_reverbs[0]);
-      }
-      else if(!spatializer.empty()) {
-        return spatializer.countScales();
-      }
-      return 0;
+        if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0].isZero()) {
+            if constexpr(ConvolutionReverb::has_subsampling) {
+                return imajuscule::countScales(conv_reverbs[0]);
+            }
+            else {
+                return 1;
+            }
+        }
+        else if(!spatializer.empty()) {
+            return spatializer.countScales();
+        }
+        return 0;
     }
       
-      void assignWetVectorized(double const * const input_buffer,
-                               double * output_buffer,
-                               int channelStride,
+      template<typename FPT2>
+      void assignWet(FPT2 const * const * const input_buffers,
+                               int nInputBuffers,
+                               FPT2 ** output_buffers,
+                               int nOutputBuffers,
+                               int nFramesToCompute) {
+          // raw convolutions and spatializer are mutually exclusive.
+          if(nAudioOut && !conv_reverbs[0].isZero()) {
+              Assert(conv_reverbs.size() == nAudioOut);
+              Assert(spatializer.empty());
+              Assert(nOutputBuffers == nAudioOut);
+              Assert(nInputBuffers == nAudioOut);
+              for(int j=0; j<nAudioOut; ++j) {
+                  conv_reverbs[j].stepAssignVectorized(input_buffers[j],
+                                                       output_buffers[j],
+                                                       nFramesToCompute);
+              }
+          }
+          else if(!spatializer.empty()) {
+              spatializer.assignWet(input_buffers,
+                                    nInputBuffers,
+                                    output_buffers,
+                                    nOutputBuffers,
+                                    nFramesToCompute);
+          }
+          else {
+              // zero output_buffer
+              for(int j=0; j<nAudioOut; ++j) {
+                  auto output_buffer = output_buffers[j];
+                  using FFTTag = fft::Fastest;
+                  fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
+              }
+          }
+      }
+      template<typename FPT2>
+      void assignWetVectorized(FPT2 const * const * const input_buffers,
+                               int nInputBuffers,
+                               FPT2 ** output_buffers,
+                               int nOutputBuffers,
                                int nFramesToCompute,
                                int vectorLength) {
           assert(vectorLength > 0);
@@ -121,35 +177,39 @@ struct ResponseStructure {
           if(nAudioOut && !conv_reverbs[0].isZero()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
+              Assert(nOutputBuffers == nAudioOut);
+              Assert(nInputBuffers == nAudioOut);
               for(int j=0; j<nAudioOut; ++j) {
-                  int const idx = j*channelStride;
+                  auto input_buffer = input_buffers[j];
+                  auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                      int const idx2 = idx + i;
-                      conv_reverbs[j].stepAssignVectorized(input_buffer + idx2,
-                                                           output_buffer+ idx2,
+                      conv_reverbs[j].stepAssignVectorized(input_buffer + i,
+                                                           output_buffer+ i,
                                                            std::min(vectorLength, nFramesToCompute-i));
                   }
               }
           }
           else if(!spatializer.empty()) {
-              spatializer.assignWetVectorized(input_buffer,
-                                              output_buffer,
-                                              channelStride,
+              spatializer.assignWetVectorized(input_buffers,
+                                              nInputBuffers,
+                                              output_buffers,
+                                              nOutputBuffers,
                                               nFramesToCompute,
                                               vectorLength);
           }
           else {
               // zero output_buffer
               for(int j=0; j<nAudioOut; ++j) {
-                  int const idx = j*channelStride;
+                  auto output_buffer = output_buffers[j];
                   using FFTTag = fft::Fastest;
-                  fft::RealSignal_<FFTTag, double>::zero_n_raw(output_buffer+idx, nFramesToCompute);
+                  fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
               }
           }
       }
       
-      void addWetInputZeroVectorized(double * output_buffer,
-                                     int channelStride,
+      template<typename FPT2>
+      void addWetInputZeroVectorized(FPT2 ** output_buffers,
+                                     int nOutputBuffers,
                                      int nFramesToCompute,
                                      int vectorLength) {
           assert(vectorLength > 0);
@@ -157,18 +217,18 @@ struct ResponseStructure {
           if(nAudioOut && !conv_reverbs[0].isZero()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
+              Assert(nOutputBuffers == nAudioOut);
               for(int j=0; j<nAudioOut; ++j) {
-                  int const idx = j*channelStride;
+                  auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                      int const idx2 = idx + i;
-                      conv_reverbs[j].stepAddInputZeroVectorized(output_buffer + idx2,
+                      conv_reverbs[j].stepAddInputZeroVectorized(output_buffer + i,
                                                                  std::min(vectorLength, nFramesToCompute-i));
                   }
               }
           }
           else if(!spatializer.empty()) {
-              spatializer.addWetInputZeroVectorized(output_buffer,
-                                                    channelStride,
+              spatializer.addWetInputZeroVectorized(output_buffers,
+                                                    nOutputBuffers,
                                                     nFramesToCompute,
                                                     vectorLength);
           }
@@ -190,12 +250,6 @@ struct ResponseStructure {
       spatializer.clear();
     }
 
-    static constexpr auto ratio_hard_limit = 1.0f;
-    //    because of overhead due to os managing audio, because of "other things running on the device", etc...
-    // at 0.38f on ios release we have glitches when putting the app in the background
-    // at 0.25f on linux we have glitches
-    static constexpr auto ratio_soft_limit = 0.15f * ratio_hard_limit;
-
       void setConvolutionReverbIR(DeinterlacedBuffers<FPT> const & deinterlaced,
                                   int n_audiocb_frames,
                                   double sampleRate,
@@ -215,14 +269,14 @@ struct ResponseStructure {
       ImpulseResponseOptimizer<ConvolutionReverb> algo(deinterlaced.countChannels(),
                                                        deinterlaced.countFrames(),
                                                        n_audiocb_frames,
-                                                       nAudioOut);
+                                                       nAudioOut,
+                                                       sampleRate);
 
       assert(nAudioOut == conv_reverbs.size());
 
-      double theoretical_max_ns_per_frame = 1e9/sampleRate;
 
       auto mayRes =
-      algo.optimize_reverb_parameters(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(deinterlaced.countChannels()), rts, os);
+      algo.optimize_reverb_parameters(rts, os);
       if(!mayRes) {
           std::stringstream ss;
           ss << "could not optimize (1)";
@@ -241,12 +295,16 @@ struct ResponseStructure {
                       deinterlaced.getBuffers(),
                       structure);
 
-      logReport(deinterlaced.countChannels(), partitionning, theoretical_max_ns_per_frame, sampleRate, os);
-      algo.logReport(n_scales,partitionning, os);
+        logReport(sampleRate, os);
+        algo.logReport(n_scales, os);
+        partitionning.logReport(deinterlaced.countChannels(),
+                                algo.theoretical_max_ns_per_frame,
+                                os);
     }
       
     bool hasSpatializer() const { return !spatializer.empty(); }
       
+      // This is the 'relevant' length of the reverb: after that coefficients are all zeroes
       int getUnpaddedSize() const {
           return total_response_size;
       }
@@ -266,7 +324,6 @@ struct ResponseStructure {
                          std::vector<a64::vector<double>> deinterlaced_coeffs,
                          ResponseStructure & structure) {
       using namespace std;
-      assert(n_scales >= 1);
         
         total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
         for(auto const & v:deinterlaced_coeffs) {
@@ -274,46 +331,40 @@ struct ResponseStructure {
                 throw std::runtime_error("deinterlaced coefficients have different sizes");
             }
         }
+        
+        if constexpr (ConvolutionReverb::has_subsampling) {
+            assert(n_scales >= 1);
+            int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
+                                                        lateHandlerLatency<ConvolutionReverb>(spec.cost->partition_size));
+            int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
+            int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
 
-      // debugging
-      /*
-       for(auto const & v : deinterlaced_coeffs) {
-       StringPlot plot(40, 100);
-       plot.draw(v);
-       plot.log();
-       }
-       {
-       using namespace audio;
-       write_wav("/Users/Olivier/Dev/Audiofiles", "deinterlaced.wav", deinterlaced_coeffs, SAMPLE_RATE);
-       }
-       */
+              structure.scaleSize = scale_sz;
+              structure.countScales = n_scales;
+              structure.nEarlyCofficients = n_coeffs_early_handler;
 
-
-
-      int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
-                                                  lateHandlerLatency<ConvolutionReverb>(spec.cost->partition_size));
-      int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
-      int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
-
-        structure.scaleSize = scale_sz;
-        structure.countScales = n_scales;
-        structure.nEarlyCofficients = n_coeffs_early_handler;
-
-        if(n_scales > 1) {
-            // pad the coefficients so that all scales have the same rythm.
-            int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
-            
-            total_response_size_padded = n_coeffs_early_handler + target_late_response_sz;
+              if(n_scales > 1) {
+                  // pad the coefficients so that all scales have the same rythm.
+                  int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
+                  
+                  total_response_size_padded = n_coeffs_early_handler + target_late_response_sz;
+              }
+              else {
+                  total_response_size_padded = total_response_size;
+              }
+              
+              for(auto & v : deinterlaced_coeffs) {
+                  v.resize(total_response_size_padded);
+              }
         }
         else {
+            assert(n_scales == 1);
+            structure.scaleSize = 0;
+            structure.countScales = 1;
             total_response_size_padded = total_response_size;
+            structure.nEarlyCofficients = total_response_size_padded;
         }
-        
-        for(auto & v : deinterlaced_coeffs) {
-            v.resize(total_response_size_padded);
-        }
-
-      structure.totalSizePadded = total_response_size_padded;
+        structure.totalSizePadded = total_response_size_padded;
 
       auto const n_channels = deinterlaced_coeffs.size();
       auto const nSources = n_channels / nAudioOut;
@@ -325,13 +376,13 @@ struct ResponseStructure {
 
         for(auto & rev : conv_reverbs)
         {
-          prepare(*spec.cost, rev, n_scales, scale_sz);
+          prepare(*spec.cost, rev, n_scales, structure.scaleSize);
           rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
           assert(rev.isValid());
-          assert(scalesAreValid(n_scales, rev));
-          assert(imajuscule::countScales(rev) == n_scales);
           // uncomment to debug
           /*
+          assert(scalesAreValid(n_scales, rev));
+          assert(imajuscule::countScales(rev) == n_scales);
           while(!scalesAreValid(n_scales, rev)) {
             rev.reset();
             prepare(*spec.cost, rev, n_scales, scale_sz);
@@ -364,7 +415,7 @@ struct ResponseStructure {
             a[j] = std::move(deinterlaced_coeffs[i+nAudioOut*j]);
           }
 
-          spatializer.addSourceLocation(std::move(a), *spec.cost, n_scales, scale_sz);
+          spatializer.addSourceLocation(std::move(a), *spec.cost, n_scales, structure.scaleSize);
           assert(!spatializer.empty());
         }
         assert(!spatializer.empty());
@@ -373,77 +424,26 @@ struct ResponseStructure {
         
     }
 
-    template<typename T>
-    int countDecimalNumbersBeforeTheDot(T val){
-        val = std::abs(val);
-        int count = 0;
-        while(true) {
-            if(val < 1) {
-                return count;
-            }
-            val /= 10;
-            ++count;
-        }
-    }
-    void logReport(int n_channels, PS & partitionning, double theoretical_max_avg_time_per_frame, double sampleRate, std::ostream & os) {
+    void logReport(double sampleRate, std::ostream & os) {
       using namespace std;
-        
-        auto actual = partitionning.getCost();
-        auto theoretical = theoretical_max_avg_time_per_frame / static_cast<float>(n_channels);
-        auto ratio = actual / theoretical;
-        
-        /*
-        os << "Dropouts probability    : ";
-        static_assert(ratio_soft_limit < ratio_hard_limit);
-        if(ratio >= ratio_soft_limit) {
-            if(ratio > ratio_hard_limit) {
-                os << "100 %";
-            }
-            else {
-                os << " 50 %";
-            }
-        }
-        else {
-            os << " 0 %";
-        }
-        os << endl;
-         */
-        
-        auto nActual = countDecimalNumbersBeforeTheDot(actual);
-        auto nTheoretical = countDecimalNumbersBeforeTheDot(theoretical);
-        std::string prefixActual =
-        std::string(std::max(0, nTheoretical-nActual), ' ');
-        std::string prefixTheoretical =
-        std::string(std::max(0, nActual-nTheoretical), ' ');
-        os << "Foreseen CPU load (1 core)          : " << std::fixed << std::setprecision(2) << 100.*ratio << "%" << endl;
-        os << "Average computation time per sample : " << std::fixed << std::setprecision(0) << actual << " ns" << endl;
-        //os << "- Actual                : " << prefixActual      << actual      << " ns" << endl;
-        //os << "- Allowed (theoretical) : " << prefixTheoretical << theoretical << " ns" << endl;
 
-      auto index = 1;
-      for(auto const & r : conv_reverbs)
-      {
-        if(r.isZero()) {
-          continue;
-        }
-          auto lat = r.getLatency();
-          if(lat) {
-              os << "Channel " << index << " latency : " << lat << " frames (" << lat * 1e3 / sampleRate <<  " ms)" << endl;
+        auto index = 1;
+        for(auto const & r : conv_reverbs)
+        {
+          if(r.isZero()) {
+            continue;
           }
-        ++index;
-      }
+            auto lat = r.getLatency();
+            if(lat) {
+                os << "Channel " << index << " latency : " << lat << " frames (" << lat * 1e3 / sampleRate <<  " ms)" << endl;
+            }
+          ++index;
+        }
 
-      if(!spatializer.empty()) {
-        os <<  "Spatialization with '" << spatializer.countSources() << "' sources" << endl;
-      }
-
-      //os << endl;
-      //os << *partitionning.cost << endl;
-      constexpr auto debug_gradient_descent = false;
-      if(debug_gradient_descent) {
-        os << "Gradient descent report :" << endl;
-        partitionning.gd.debug(true, os);
-      }
+        if(!spatializer.empty()) {
+          os <<  "Spatialization with '" << spatializer.countSources() << "' sources" << endl;
+        }
+        
     }
 
     void reset() {

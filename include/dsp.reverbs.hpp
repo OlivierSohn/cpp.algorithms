@@ -36,7 +36,7 @@ struct ResponseTopology {
     }
     
     std::string toString() const {
-        std::ostringstream os;
+        std::stringstream os;
         os << "totalSize : " << totalSize << std::endl;
         os << "nSources : " << nSources << std::endl;
         os << "nChannels : " << nChannels << std::endl;
@@ -76,7 +76,7 @@ struct ResponseStructure {
     }
 
     std::string toString() const {
-        std::ostringstream os;
+        std::stringstream os;
         os << "nEarlyCofficients : " << nEarlyCofficients << std::endl;
         os << "totalSizePadded : " << totalSizePadded << std::endl;
         os << "scaleSize : " << scaleSize << std::endl;
@@ -90,6 +90,18 @@ struct ResponseStructure {
         Realtime_Synchronous,
         Realtime_Asynchronous
     };
+
+static inline std::string toString(ReverbType t) {
+    switch(t) {
+        case ReverbType::Offline :
+            return "Offline";
+        case ReverbType::Realtime_Synchronous :
+            return "Realtime_Synchronous";
+        case ReverbType::Realtime_Asynchronous :
+            return "Realtime_Asynchronous";
+    }
+    return "?";
+}
   /*
    Depending on the number of sources, represents a convolution reverb
    or a spatialization.
@@ -133,10 +145,10 @@ struct ResponseStructure {
       
       template<typename FPT2>
       void assignWet(FPT2 const * const * const input_buffers,
-                               int nInputBuffers,
-                               FPT2 ** output_buffers,
-                               int nOutputBuffers,
-                               int nFramesToCompute) {
+                     int nInputBuffers,
+                     FPT2 ** output_buffers,
+                     int nOutputBuffers,
+                     int nFramesToCompute) {
           // raw convolutions and spatializer are mutually exclusive.
           if(nAudioOut && !conv_reverbs[0].isZero()) {
               Assert(conv_reverbs.size() == nAudioOut);
@@ -275,18 +287,17 @@ struct ResponseStructure {
       assert(nAudioOut == conv_reverbs.size());
 
 
-      auto mayRes =
-      algo.optimize_reverb_parameters(rts, os);
+      auto mayRes = algo.optimize_reverb_parameters(rts, os);
       if(!mayRes) {
           std::stringstream ss;
-          ss << "could not optimize (1)";
+          ss << "could not optimize (1) :" << std::endl << os.rdbuf();
           throw std::runtime_error(ss.str());
       }
 
       auto [partitionning,n_scales] = *mayRes;
       if(!partitionning.cost) {
           std::stringstream ss;
-          ss << "could not optimize (2)";
+          ss << "could not optimize (2) :" << std::endl << os.rdbuf();
           throw std::runtime_error(ss.str());
       }
         

@@ -6,8 +6,9 @@
 
 #define NON_COPYABLE_NOR_MOVABLE(T) \
 T(T const &) = delete; \
-void operator=(T const &t) = delete; \
-T(T &&) = delete;
+T(T &&) = delete; \
+T& operator=(T const &) = delete; \
+T& operator=(T &&) = delete;
 
 namespace imajuscule {
 
@@ -139,32 +140,6 @@ namespace imajuscule {
 
     public:
         static constexpr bool value = sizeof(Test(safe_cast<D*>(nullptr))) == sizeof(Yes) ? 1 : 0;
-    };
-
-    template<typename F>
-    struct Periodically {
-
-        NON_COPYABLE_NOR_MOVABLE(Periodically);
-
-        Periodically(int period, F f) : f(f), period(period) {}
-        ~Periodically() {
-            if(i) {
-                // the last period is shorter
-                f();
-            }
-        }
-
-        void step() {
-            ++i;
-            if(i >= period) {
-                i = 0;
-                f();
-            }
-        }
-    private:
-        int i=0;
-        F f;
-        int period;
     };
 
 

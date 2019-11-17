@@ -267,7 +267,7 @@ public:
                                          os);
         auto & part = partit.getWithSpread();
         if(!part.cost) {
-          os << "Discard n_scales " << n_scales << std::endl;
+          os << "Discard n_scales " << n_scales << std::endl;
           continue;
         }
         

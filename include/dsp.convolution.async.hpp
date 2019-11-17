@@ -14,7 +14,7 @@ namespace imajuscule
       // We leave room for one more element in worker_2_rt queue so that the worker
       //   can push immediately if its computation is faster than the real-time thread
       //   (which is very unlikely, though).
-      static constexpr int room_sz = 1;
+      static constexpr int queue_room_sz = 1;
 
       AsyncCPUConvolution() = default;
       
@@ -75,25 +75,133 @@ namespace imajuscule
         worker_2_rt = std::make_unique<Queue>(queueSize);
         rt_2_worker = std::make_unique<Queue>(queueSize);
 
-        for(int i=0; i<queueSize - room_sz; ++i) {
+        for(int i=0; i<queueSize - queue_room_sz; ++i) {
             auto zeros = std::make_unique<vec>();
             zeros->resize(N, {});
             worker_2_rt->push(zeros);
             ++jobs;
         }
+        
+        // by now:
+        // #rt_2_worker 0
+        // #worker_2_rt queueSize - queue_room_sz
+        //
+        // later, we will submit and receive (in that order) in the same iteration.
+        //
+        // so in the worst case, if "the worker is doing nothing" (not reading from rt_2_worker),
+        // we will empty worker_2_rt:
+        //
+        // #rt_2_worker queueSize - queue_room_sz
+        // #worker_2_rt 0
+        //
+        // and then, we will submit one more to rt_2_worker, then block on reading from worker_2_rt:
+        // #rt_2_worker queueSize
+        // #worker_2_rt 0
+        //
+        // Note that the blocking could also occur ** before **, when writing to rt_2_worker
+        // if a sentinel has been written to rt_2_worker just before.
+        //
+        // the situation will unblock when the worker reads from rt_2_worker:
+        // #rt_2_worker queueSize - queue_room_sz
+        // #worker_2_rt 0
+        // and then writes to worker_2_rt:
+        // #rt_2_worker queueSize - queue_room_sz
+        // #worker_2_rt 1
 
         curIndex = 0;
         
-        worker = std::make_unique<std::thread>([this]() {
-            while(true) {
+        worker = std::make_unique<std::thread>([this]()
+        {
+            std::mutex dummyMut; // used for rt_2_worker_cond.
+            auto popWork = [&dummyMut, this]() -> vec_ptr
+            {
                 vec_ptr work;
-                while(!rt_2_worker->try_pop(work)) {
-                    std::this_thread::yield();
+                
+                auto try_pop = [this, &work] {
+                    return rt_2_worker->try_pop(work);
+                };
+                
+                // We look in the queue before yielding, for performance in case
+                // the queue is not empty.
+                
+                if(try_pop()) {
+                    return std::move(work);
                 }
+                
+                // !!! We yield here to reduce the likelyhood of a preemption
+                // at the location of the race condition hereunder.
+
+                std::this_thread::yield();
+                if(try_pop()) {
+                    return std::move(work);
+                }
+                
+                // !!! Race condition if the producer notifies HERE:
+                // the consumer is not yet waiting so it won't be woken up.
+                //
+                // To reduce the likelihood of tat race condition, we yield just before try_pop()
+                // so the scheduler will probably not preempt our thread now because it has just begun
+                // its time slice.
+                //
+                // Still, the race exists even without preemption, in case of multi-core concurrence.
+                //
+                // If the race condition occurs, the worker will miss the wake up,
+                // and will wake up at the next notification (one audio callback later)
+                //
+                // To ensure that this will not generate an audio dropout,
+                // we augment the size of the queue by the number of frames in an audio callback.
+                
+                while(true)
+                {
+                    std::unique_lock l(dummyMut);
+                    rt_2_worker_cond.wait(l);
+
+                    // This could be :
+                    // - a real wake-up :
+                    //     - the producer has pushed to the queue
+                    // - a race-condition wake-up :
+                    //     - the producer has pushed to the queue, but since the producer didn't own the mutex 'dummyMut'
+                    //       when pushing to the queue, there is a race and from the point of view of the consumer thread,
+                    //       the queue may not have changed yet.
+                    // - a spurious wake-up :
+                    //     - the producer has not pushed to the queue
+                    //
+                    // To account for race-condition wake-up, we retry to read from the queue for some time, and then
+                    // to account for spurious wake-ups, we return to condition-variable wait.
+
+                    if(likely(try_pop())) {
+                        // This was a real wake-up
+                        return std::move(work);
+                    }
+                    for(int busy_wait=10; busy_wait; --busy_wait) {
+                        if(try_pop()) {
+                            // this was a race-condition wake-up
+                            return std::move(work);
+                        };
+                    }
+                    for(auto dt = std::chrono::nanoseconds(100);
+                        dt < std::chrono::microseconds(200);
+                        dt *= 10) {
+                        std::this_thread::sleep_for(dt);
+                        if(try_pop()) {
+                            // this was a race-condition wake-up (the information took way longer to arrive)
+                            return std::move(work);
+                        }
+                    }
+                    // this was a spurious wake-up,
+                    // or a race-condition wake-up and it takes more than 200 microseconds for cpu stuff to synchronize?
+                }
+            };
+            
+            while(true) {
+                
+                auto work = popWork();
+                
                 if(unlikely(!work)) {
                     // sentinel
                     vec_ptr sentinel;
-                    worker_2_rt->push(std::move(sentinel));
+                    auto res = worker_2_rt->try_push_(std::move(sentinel));
+                    Assert(!res);
                     return;
                 }
                 Assert(N == worker_vec->size());
@@ -101,7 +209,8 @@ namespace imajuscule
                 algo.stepAssignVectorized(work->data(),
                                           worker_vec->data(),
                                           worker_vec->size());
-                worker_2_rt->push(std::move(worker_vec));
+                auto res = worker_2_rt->try_push_(std::move(worker_vec));
+                Assert(!res);
                 worker_vec = std::move(work);
             }
         });
@@ -124,13 +233,13 @@ namespace imajuscule
     bool isValid() const {
         return N > 0 && queueSize > 0 && algo.isValid();
     }
-    
-    int getLatency() const {
-      return
-      N-1 + // we need N inputs before we can submit
-      (queueSize-room_sz)*N + // we have some levels of asynchronicity
-      algo.getLatency();
-    }
+      
+      int getLatency() const {
+          return
+          N*((queueSize-queue_room_sz) // we have some levels of asynchronicity
+             +1) -1 // we need N inputs before we can submit
+          + algo.getLatency();
+      }
       
       int countCoefficients() const {
           return algo.countCoefficients();
@@ -138,8 +247,15 @@ namespace imajuscule
     
     FPT step(FPT val) {
       (*signal)[curIndex++] = val;
-      if(unlikely(curIndex == N)) {
-          submit_signal(std::move(signal));
+      if(unlikely(curIndex == N))
+      {
+          {
+              auto signal2 = try_submit_signal(std::move(signal));
+              if(unlikely(signal2)) {
+                  ++error_worker_too_slow;
+                  submit_signal(std::move(*signal2));
+              }
+          }
           signal.swap(previous_result);
           if(unlikely(!try_receive_result(previous_result))) {
               ++error_worker_too_slow;
@@ -192,12 +308,22 @@ namespace imajuscule
           }
           return worker_2_rt->unsafe_num_elements();
       }
+      int getSignalQueueSize() const {
+          if(!rt_2_worker) {
+              return 0;
+          }
+          return rt_2_worker->unsafe_num_elements();
+      }
+      
+      int countErrorsWorkerTooSlow() const {
+          return error_worker_too_slow;
+      }
 
   private:
     int N = 0;
     int curIndex = 0;
       Async algo;
-      using vec = std::vector<FPT>;
+      using vec = a64::vector<FPT>;
       using vec_ptr = std::unique_ptr<vec>;
       
       // Let's assume single producer single consumer for the moment.
@@ -213,6 +339,7 @@ namespace imajuscule
       >;
       
       std::unique_ptr<Queue> rt_2_worker, worker_2_rt;
+      std::condition_variable rt_2_worker_cond;
       int jobs = 0;
       int queueSize = 0;
       int error_worker_too_slow = 0;
@@ -239,10 +366,21 @@ namespace imajuscule
         rt_2_worker.reset();
         worker_2_rt.reset();
     }
-      
+
       void submit_signal(vec_ptr s) {
           rt_2_worker->push(std::move(s));
+
+          rt_2_worker_cond.notify_one();
           ++jobs;
+      }
+
+      std::optional<vec_ptr> try_submit_signal(vec_ptr s) {
+          std::optional<vec_ptr> s2 = rt_2_worker->try_push_(std::move(s));
+          if(likely(!s2)) {
+              rt_2_worker_cond.notify_one();
+              ++jobs;
+          }
+          return s2;
       }
       
       void flush_results() {
@@ -253,7 +391,7 @@ namespace imajuscule
       
       bool try_receive_result(vec_ptr & res) {
           bool success = worker_2_rt->try_pop(res);
-          if(success) {
+          if(likely(success)) {
               --jobs;
           }
           return success;

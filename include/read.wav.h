@@ -1008,7 +1008,7 @@ namespace imajuscule::audio {
     {
         auto mod = reader.countChannels() % nouts;
         if((reader.countChannels() > nouts) && mod) {
-            std::ostringstream msg;
+            std::stringstream msg;
             msg << "Cannot use a '" << reader.countChannels() << "' channels reverb for '" << nouts << "' output channels. The reverb channels count must be a multiple of the output channels count.";
             throw std::runtime_error(msg.str());
         }

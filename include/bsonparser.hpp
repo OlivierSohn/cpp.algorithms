@@ -186,6 +186,33 @@ namespace imajuscule {
             Elems elements;
         };
         
+    
+    template<typename F>
+    struct Periodically {
+
+        NON_COPYABLE_NOR_MOVABLE(Periodically);
+
+        Periodically(int period, F f) : f(f), period(period) {}
+        ~Periodically() {
+            if(i) {
+                // the last period is shorter
+                f();
+            }
+        }
+
+        void step() {
+            ++i;
+            if(i >= period) {
+                i = 0;
+                f();
+            }
+        }
+    private:
+        int i=0;
+        F f;
+        int period;
+    };
+
         struct BinaryData : public Object {
             enum class SubType { // the order should match the bson spec
                 GENERIC,

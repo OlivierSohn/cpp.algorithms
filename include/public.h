@@ -181,6 +181,7 @@ extern "C"
 #include "dsp.resample.h"
 #include "read.wav.h"
 
+#include "dsp.host.simulation.hpp"
 #include "dsp.convolution.optimization.hpp"
 #include "dsp.filter.hpp"
 #include "dsp.filter.fir.hpp"

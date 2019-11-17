@@ -259,13 +259,19 @@ namespace imajuscule
 */
 
 
-  /*
-   * The default value is optimal for the system I developped on (OSX / Macbook Air 2015 / intel core i7).
-   * see 'TEST(BenchmarkConvolutions, scaled_vs_brute)' on how to determine the best value for a given system.
-   *
-   * TODO ideally this value should be a global, computed at initialization time.
-   */
-  constexpr int scaleConvolutionOptimalNDropped = 6;
+struct ScaleConvolution_ {
+    static constexpr int latencyForDroppedConvolutions(int nDropped) {
+        return static_cast<int>(pow2(static_cast<size_t>(nDropped)))-1;
+    }
+
+    /*
+     * The default value is optimal for the system I developped on (OSX / Macbook Air 2015 / intel core i7).
+     * see 'TEST(BenchmarkConvolutions, scaled_vs_brute)' on how to determine the best value for a given system.
+     *
+     * TODO ideally this value should be a global, computed at initialization time.
+     */
+    static constexpr int nDroppedOptimalFor_Split_Bruteforce_Fft = 6;
+};
 
   /*
    * Creates a 0-latency convolution by combining 'n' sub-convolutions
@@ -287,7 +293,7 @@ namespace imajuscule
       static constexpr bool has_subsampling = A::has_subsampling;
       
     struct SetupParam : public Cost {
-        SetupParam(int nDropped = scaleConvolutionOptimalNDropped)
+        SetupParam(int nDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
         : nDropped(nDropped)
         {}
         
@@ -474,7 +480,7 @@ public:
     }
 
     auto getLatency() const {
-        return pow2(nDroppedConvolutions)-1;
+        return ScaleConvolution_::latencyForDroppedConvolutions(nDroppedConvolutions);
     }
       
       int countCoefficients() const {
@@ -650,85 +656,30 @@ public:
           using PS = PartitionningSpec<SetupParam>;
           using PSpecs = PartitionningSpecs<SetupParam>;
 
-          struct Periodically {
-              Periodically(std::chrono::steady_clock::duration time_step,
-                           int n_max_periods = 1000000)
-              : time_step(time_step)
-              {
-                  time_calls.reserve(n_max_periods);
-                  t_zero = std::chrono::steady_clock::now();
-              }
-              
-              template<typename F>
-              void exec(F f) {
-                  while(true) {
-                      nextPeriod();
-                      if(!f()) {
-                          return;
-                      }
-                  }
-              }
-              
-              std::chrono::steady_clock::time_point t_zero;
-              std::chrono::steady_clock::duration time_step;
-              std::vector<std::chrono::steady_clock::time_point> time_calls;
-          private:
-              void nextPeriod() {
-                  auto t = time_step * i + t_zero;
-                  ++i;
-                  auto now = std::chrono::steady_clock::now();
-                  if(now < t) {
-                      auto dt = t - now;
-                      std::this_thread::sleep_for(dt);
-                  }
-                  time_calls.push_back(std::chrono::steady_clock::now());
-              };
-              
-              int i=0;
-          };
+          using AsyncPart = typename Convolution::LateHandler;
 
-          struct AudioHostSimulator {
-              double const frame_rate;
-              int const n_audio_frames_per_cb;
-              int const n_audio_channels;
-              
-              // returns the size of the variation of the queue size
-              template<typename F>
-              Periodically simulate(F f) {
-                  std::vector<std::vector<float>> inputs, outputs;
-                  inputs.resize(n_audio_channels);
-                  outputs.resize(n_audio_channels);
-                  
-                  for(auto & i : inputs) {
-                      i.resize(n_audio_frames_per_cb);
-                  }
-                  for(auto & o : outputs) {
-                      o.resize(n_audio_frames_per_cb);
-                  }
-                  
-                  auto f2 = [&inputs, &outputs, f](){ return f(inputs, outputs); };
-
-                  Periodically p(std::chrono::nanoseconds(static_cast<int>(1e9 * n_audio_frames_per_cb / frame_rate)));
-                  p.exec(f2);
-                  return p;
-              }
-          };
-          
           struct Metrics {
-              range<int> queueSizeRange;
+              bool errorWorkerTooSlow = false;
+              range<int> resultQueueEltsCountRange;
               
-              // if gradients are positive it means the worker is too slow:
-              // the queue, on average, keeps increasing in size.
+              // We are interested in the minimum size, by period, of the result queue.
+              // If the minimum size keeps being smaller over the periods, it meens that
+              // the background thread is too slow.
 
-              double maxQueueSize_gradient = 0; // diff between first and last period over number of periods
-              int maxQueueSize_max_local_gradient = 0; // diff between consecutive periods
+              double minResultQueueEltsCountRange_gradient = 0; // diff between last and first period over number of periods
+              // a strictly negative gradient means that the system is not fast enough.
+              
+              int minResultQueueEltsCountRange_min_local_gradient = 0; // diff between consecutive periods
               
               void mergeWorst(Metrics const & o) {
-                  queueSizeRange.extend(o.queueSizeRange);
-                  maxQueueSize_gradient = std::max(maxQueueSize_gradient,
-                                                   o.maxQueueSize_gradient);
-                  maxQueueSize_max_local_gradient = std::max(maxQueueSize_max_local_gradient,
-                                                             o.maxQueueSize_max_local_gradient);
+                  if(!errorWorkerTooSlow) {
+                      errorWorkerTooSlow = o.errorWorkerTooSlow;
+                  }
+                  resultQueueEltsCountRange.extend(o.resultQueueEltsCountRange);
+                  minResultQueueEltsCountRange_gradient = std::min(minResultQueueEltsCountRange_gradient,
+                                                   o.minResultQueueEltsCountRange_gradient);
+                  minResultQueueEltsCountRange_min_local_gradient = std::min(minResultQueueEltsCountRange_min_local_gradient,
+                                                             o.minResultQueueEltsCountRange_min_local_gradient);
               }
           };
           
@@ -740,24 +691,29 @@ public:
                   if(nPeriods < 2) {
                       throw std::logic_error("2 periods are required to compute a gradient");
                   }
-                  queueSizeRangeByPeriod.reserve(nPeriods);
-                  queueSizeRangeByPeriod.resize(1);
+                  resultQueueEltsCountRangeByPeriod.reserve(nPeriods);
+                  resultQueueEltsCountRangeByPeriod.resize(1);
+                  signalQueueEltsCountRangeByPeriod.reserve(nPeriods);
+                  signalQueueEltsCountRangeByPeriod.resize(1);
               }
               
           private:
-              int skip = 5;
               int const nPeriods;
               int const period_frames;
               int period = 0;
               int n_cur_frame = 0;
+              bool hasErrorWorkerTooSlow = false;
               
-              std::vector<range<int>> queueSizeRangeByPeriod;
+              std::vector<range<int>> resultQueueEltsCountRangeByPeriod, signalQueueEltsCountRangeByPeriod;
           public:
-              bool recordQueueSize(int queueSize, int nFrames) {
+              bool recordQueueSize(int resultQueueEltsCount,
+                                   int signalQueueEltsCount,
+                                   int countErrorsWorkerTooSlow,
+                                   int nFrames) {
                   assert(period < nPeriods);
-                  if(skip) {
-                      --skip;
-                      return true;
+                  if(countErrorsWorkerTooSlow) {
+                      hasErrorWorkerTooSlow = true;
+                      return false;
                   }
                   n_cur_frame += nFrames;
                   if(n_cur_frame >= period_frames) {
@@ -766,37 +722,61 @@ public:
                       if(period >= nPeriods) {
                           return false;
                       }
-                      queueSizeRangeByPeriod.emplace_back();
+                      Assert(resultQueueEltsCountRangeByPeriod.size() < resultQueueEltsCountRangeByPeriod.capacity());
+                      Assert(signalQueueEltsCountRangeByPeriod.size() < signalQueueEltsCountRangeByPeriod.capacity());
+                      resultQueueEltsCountRangeByPeriod.emplace_back();
+                      signalQueueEltsCountRangeByPeriod.emplace_back();
                   }
-                  queueSizeRangeByPeriod.back().extend(queueSize);
+                  resultQueueEltsCountRangeByPeriod.back().extend(resultQueueEltsCount);
+                  signalQueueEltsCountRangeByPeriod.back().extend(signalQueueEltsCount);
                   return true;
               }
               
+              std::vector<range<int>> const & getResultQueueEltsCountRangeByPeriod () const {
+                  return resultQueueEltsCountRangeByPeriod;
+              }
+              std::vector<range<int>> const & getSignalQueueEltsCountRangeByPeriod () const {
+                  return signalQueueEltsCountRangeByPeriod;
+              }
+
               Metrics getMetrics() const {
                   Metrics m;
-                  for(auto const & r : queueSizeRangeByPeriod) {
-                      m.queueSizeRange.extend(r);
+                  m.errorWorkerTooSlow = hasErrorWorkerTooSlow;
+                  for(auto const & r : resultQueueEltsCountRangeByPeriod) {
+                      m.resultQueueEltsCountRange.extend(r);
                   }
                   {
-                      std::optional<int> prevMaxQueueSize;
-                      std::optional<int> maxGradient;
-                      for(auto const & r : queueSizeRangeByPeriod) {
-                          if(!prevMaxQueueSize) {
-                              prevMaxQueueSize = r.getMax();
+                      std::optional<int> prevMinQueueSize;
+                      std::optional<int> minGradient;
+                      bool first = true;
+                      for(auto const & r : resultQueueEltsCountRangeByPeriod) {
+                          if(first) {
+                              // discard first period for gradient computation
+                              // (we are not in a stable mode at the beginning of the first period)
+                              first = false;
+                              break;
+                          }
+                          auto minResultQueueSizeDuringPeriod = r.getMin();
+                          if(!prevMinQueueSize) {
+                              prevMinQueueSize = minResultQueueSizeDuringPeriod;
                           }
                           else {
-                              auto gradient = std::abs(*prevMaxQueueSize - r.getMax());
-                              if(!maxGradient || *maxGradient < gradient) {
-                                  maxGradient = gradient;
+                              auto gradient = minResultQueueSizeDuringPeriod - *prevMinQueueSize;
+                              if(!minGradient || *minGradient > gradient) {
+                                  minGradient = gradient;
                               }
                           }
                       }
-                      m.maxQueueSize_max_local_gradient = *maxGradient;
+                      m.minResultQueueEltsCountRange_min_local_gradient = *minGradient;
                   }
+                  if(resultQueueEltsCountRangeByPeriod.size() >= 3)
                   {
-                      auto & first = queueSizeRangeByPeriod.front();
-                      auto & last = queueSizeRangeByPeriod.back();
-                      m.maxQueueSize_gradient = std::abs(first.getMax() - last.getMax()) / static_cast<double>(nPeriods);
+                      auto & first = *(resultQueueEltsCountRangeByPeriod.begin() + 1);
+                      auto & last = resultQueueEltsCountRangeByPeriod.back();
+                      m.minResultQueueEltsCountRange_gradient = (last.getMin() - first.getMin()) / static_cast<double>(nPeriods);
+                  }
+                  else {
+                      throw std::logic_error("not enough periods to compute a gradient");
                   }
                   return m;
               }
@@ -813,16 +793,37 @@ public:
               if(n_scales > 1) {
                   throw std::logic_error("ZeroLatencyScaledAsyncConvolution doesn't support subsampling");
               }
-
-              // optimize the variables of ZeroLatencyScaledAsyncConvolution, i.e:
-              // - submission period
-              // - queue size
               
-              auto [periodically, queueMetrics] = computeQueueMetrics(n_channels,
-                                                                      n_audio_channels,
-                                                                      n_audio_frames_per_cb,
-                                                                      total_response_size,
-                                                                      frame_rate);
+              // There is a balance to find between the risk of audio dropouts due to:
+              //   - A : the earlyhandler having too many coefficients to handle
+              //   - B : the latehandler having too many (small) scales to handle
+              //
+              // in the choice of nAsyncScalesDropped, here we chose to care about 'B':
+              //
+              // We set nAsyncScalesDropped such that, in the async part, we can use scale convolution
+              // on the range of ffts where it's more optimal than brute force convolution.
+              //
+              // But using nDroppedOptimalFor_Split_Bruteforce_Fft instead of 0 for nAsyncScalesDropped
+              // incurs more latency in the latehandler, hence more coefficients to handle in the early handler.
+              //
+              // So this design choice may be changed in the future.
+              int const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
+              
+              auto res =  computeQueueMetrics(n_channels,
+                                              n_audio_channels,
+                                              n_audio_frames_per_cb,
+                                              total_response_size,
+                                              frame_rate,
+                                              nAsyncScalesDropped);
+              if(!res) {
+                  os << "Synchronous thread is too slow" << std::endl;
+                  return {};
+              }
+              auto [periodically, queueMetrics] = *res;
+
+              // If there was jitter during the simulation, the metrics might be pessimistic.
+              // The jitter of the simulation could be analyzed using 'periodically'
+
               std::vector<Metrics> metrics;
               metrics.reserve(queueMetrics.size());
               for(auto const & m : queueMetrics) {
@@ -834,49 +835,78 @@ public:
                   worst.mergeWorst(m);
               }
               
-              if(worst.maxQueueSize_gradient > 0.1) {
-                  os << "Background worker is too slow";
+              if(worst.errorWorkerTooSlow) {
+                  os << "Background worker is too slow : result queue was empty" << std::endl;
+                  return {};
+              }
+              auto normalizedGradient = worst.minResultQueueEltsCountRange_gradient / (1 + worst.resultQueueEltsCountRange.getSpan());
+              if(normalizedGradient < -0.05) {
+                  os << "Background worker is too slow : normalizedGradient on min queue elts count = " << normalizedGradient << std::endl;
+                  int i=0;
+                  for(auto const & m : queueMetrics) {
+                      std::cout << i << std::endl;
+                      for(auto const & r : m.getResultQueueEltsCountRangeByPeriod()) {
+                          std::cout << r.getMin() << " " << r.getMax() << std::endl;
+                      }
+                      std::cout << std::endl;
+                      for(auto const & r : m.getSignalQueueEltsCountRangeByPeriod()) {
+                          std::cout << r.getMin() << " " << r.getMax() << std::endl;
+                      }
+                      std::cout << std::endl;
+                      ++i;
+                  }
                   return {};
               }
               
-              int minNumFramesPerQueue = 4 * (1 + worst.queueSizeRange.getSpan());
+              constexpr int safeFactor = 4;
               
-              /*
-               Pour masquer la latence due a l'asynchronicite il faut qu'il y aie un overlap de scales
-               entre les scalings asynchrones et synchrones:
+              int minNumFramesPerQueue =
+              safeFactor * // to account for a system that is under heavier load
+              n_audio_frames_per_cb * // assumes that the submission_period was n_audio_frames_per_cb during the simulation
+              (1 +
+               worst.resultQueueEltsCountRange.getSpan());
+              // to avoid audio dropouts in case of the occurence of the race condition
+              // commented in the code of the worker of AsyncCPUConvolution:
+              minNumFramesPerQueue += n_audio_frames_per_cb;
 
-               synchrone
-                     asynchrone
-               
-                     ...
-                     8192
-                     4096
-                     2048
-               1024  1024
-               512   512
-               256
-               128
-               64
-               32
-               16
-               8
-               4
-               2
-               1
-               
-               Si le nombre de frames par callback est faible, il se peut que l'on doive utiliser fingrainedpartition
+              int submission_period = n_audio_frames_per_cb;
+
+              int const queueSize = minNumFramesPerQueue/submission_period;
+
+              os << "minNumFramesPerQueue=" << minNumFramesPerQueue << std::endl;
+
+              /*
+               Si le nombre de frames par callback est faible, il se peut que l'on doive utiliser finegrainedpartition
                pour lisser les pics (et du coup changer le type de reverb).
                */
-              
 
-              // ideally, all samples should be submitted at the end of the callback.
-              int submission_period = std::max(1,
-                                               static_cast<int>(floor_power_of_two(n_audio_frames_per_cb)/4));
-              int latency = 10000;
-              int queue_size = latency/submission_period;
-              
-              int const nAsyncScaledDropped = 9;
-              int const minAsynchronousFftSize = pow2(nAsyncScaledDropped);
+              {
+                  int const expectedAsyncLatency =
+                  submission_period*(1+queueSize-AsyncPart::queue_room_sz) -1 +
+                  ScaleConvolution_::latencyForDroppedConvolutions(nAsyncScalesDropped);
+                  os << "expectedAsyncLatency=" << expectedAsyncLatency << std::endl;
+
+                  int const expectedNumEarlyCoeffs = expectedAsyncLatency;
+                  {
+                      // if early handler is a simple scale convolution, we can add latency to the late handler
+                      // (by adjusting the queuesize / submission_period)
+                      // so that no padding occurs in the early handler.
+                      
+                      // However, this looks like premature optimization, and we will probably need
+                      // finegrained partitionning in the early handler to avoid computational peaks.
+                      // this is why the code in this scope is commented out:
+                      
+                      /*
+                      // if expectedNumEarlyCoeffs     is a power of 2 - 1, no padding occurs.
+                      // if expectedNumEarlyCoeffs + 1 is a power of 2    , no padding occurs.
+                      int const next_power_of_2 = ceil_power_of_two(expectedNumEarlyCoeffs+1);
+                      int const numEarlyPaddedCoefficients = (next_power_of_2 - 1) - expectedNumEarlyCoeffs;
+                      assert(numEarlyPaddedCoefficients >= 0);
+                      queueSize += numEarlyPaddedCoefficients / submission_period;
+                       */
+                  }
+
+              }
               
               PS minimalPs;
               minimalPs.cost = SetupParam({
@@ -884,9 +914,9 @@ public:
                   
               },{
                   submission_period,
-                  queue_size,
+                  queueSize,
                   {
-                      nAsyncScaledDropped
+                      nAsyncScalesDropped
                   }
               });
               minimalPs.cost->setCost(0.);
@@ -896,14 +926,14 @@ public:
               };
           }
       private:
-          static std::pair<Periodically,std::vector<QueueMetrics>>
+          static std::optional<std::pair<Periodically,std::vector<QueueMetrics>>>
           computeQueueMetrics(int n_channels,
                               int n_audio_channels,
                               int n_audio_frames_per_cb,
                               int total_response_size,
-                              double frame_rate)
+                              double frame_rate,
+                              int const nAsyncScalesDropped)
           {
-              using AsyncPart = typename Convolution::LateHandler;
               std::vector<std::unique_ptr<AsyncPart>> async_convs;
               async_convs.reserve(n_channels);
               for(int i=0; i<n_channels; ++i) {
@@ -913,6 +943,7 @@ public:
               // todo dephase
 
               int const num_frames_in_queue = 2*total_response_size; // total_response_size should be enough
+              // the problem of using a big queue size like this is that the sync part will miss its deadline because it ha so many coefficients to handle.
 
               int const submission_period = n_audio_frames_per_cb;
               int queue_size = num_frames_in_queue / submission_period;
@@ -920,12 +951,12 @@ public:
                   ++queue_size;
               }
               
-              // this is pessimistic, we can adjust this later based on the results of the simulation
-              int const min_num_scales_dropped = power_of_two_exponent(n_audio_frames_per_cb);
-
-              int const nDroppedCoeffs = std::max(0,
-                                                  static_cast<int>(pow2(min_num_scales_dropped)) - 1);
-              int const nLateCoeffs = total_response_size-nDroppedCoeffs;
+              // this is pessimistic, it will be more depending on the computed queue size
+              // (the bigger the queue size,
+              //  the bigger the latency of the latehandler,
+              //  the more coefficients are handled by the early handler)
+              int const nMinDroppedCoeffs = n_audio_frames_per_cb;
+              int const nLateCoeffs = total_response_size-nMinDroppedCoeffs;
               a64::vector<double> coeffs;
               coeffs.resize(nLateCoeffs);
 
@@ -935,7 +966,7 @@ public:
                       submission_period,
                       queue_size,
                       {
-                          min_num_scales_dropped
+                          nAsyncScalesDropped
                       }
                   });
                   c->setCoefficients(coeffs);
@@ -951,12 +982,12 @@ public:
               for(auto const & c : async_convs) {
                   int const metric_period = c->getAsyncAlgo().getBiggestScale();
                   m.emplace_back(metric_period,
-                                 4);
+                                 10);
               }
               
               auto p = simu.simulate([&async_convs, &m]
-                       (std::vector<std::vector<float>> const & inputs,
-                        std::vector<std::vector<float>> & outputs) {
+                       (std::vector<a64::vector<float>> const & inputs,
+                        std::vector<a64::vector<float>> & outputs) {
                   assert(inputs.size() == outputs.size());
                   assert(inputs.size());
                   int const n_frames = inputs[0].size();
@@ -980,17 +1011,24 @@ public:
                                                  output.data(),
                                                  input.size());
                       }
-
+            
+                      
                       if(!m[i].recordQueueSize(conv.getResultQueueSize(),
+                                               conv.getSignalQueueSize(),
+                                               conv.countErrorsWorkerTooSlow(),
                                                n_frames)) {
-                          // this means the end of the simulation
+                          // the number of periods has elapsed or the worker is too slow
                           return false;
                       }
                   }
                   return true;
               });
               
-              return std::make_pair(p,m);
+              if(!p) {
+                  // missed deadline
+                  return {};
+              }
+              return std::make_pair(*p,m);
           }
       };
 
@@ -1058,7 +1096,7 @@ public:
   };
 
   
-  constexpr int minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter = static_cast<int>(pow2(scaleConvolutionOptimalNDropped))-1;
+  constexpr int minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter = ScaleConvolution_::latencyForDroppedConvolutions(ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft);
 
   template<typename C>
   int constexpr lateHandlerLatency(int partition_sz) {

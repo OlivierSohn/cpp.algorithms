@@ -23,14 +23,15 @@ namespace imajuscule::bench::vecto {
      
      In this test, input data is aligned on cache line boundaries.
      */
-    template<typename FPT, int nResponses, int nOut, int nIn = nOut>
-    void test() {
+    template<typename FPT, ReverbType reverbType, int nResponses, int nOut, int nIn = nOut>
+    void profile() {
         using namespace imajuscule;
         using namespace imajuscule::profiling;
         using namespace std::chrono;
-        std::cout << "bench vectorization ["; COUT_TYPE(FPT); std::cout << "] " << nResponses << " response(s) " << nIn << " ins " << nOut << " outs." << std::endl;
+        std::cout << "bench vectorization ["; COUT_TYPE(FPT); std::cout << "] " << toString(reverbType) << " " << nResponses << " response(s) " << nIn << " ins " << nOut << " outs." << std::endl;
         
-        std::array<a64::vector<FPT>, nIn> a_inputs;
+        std::vector<a64::vector<FPT>> a_inputs;
+        a_inputs.resize(nIn);
         constexpr auto inputSz = 1000000;
         for(auto & inputs:a_inputs) {
             inputs.reserve(inputSz);
@@ -39,11 +40,11 @@ namespace imajuscule::bench::vecto {
             }
         }
         constexpr auto outputSz = inputSz;
-        std::array<a64::vector<FPT>, nOut> a_outputs;
+        std::vector<a64::vector<FPT>> a_outputs;
+        a_outputs.resize(nOut);
         for(auto & outputs:a_outputs) {
             outputs.resize(outputSz);
         }
-        
         
         int nCoeffs = 500 * 1000;
         std::vector<a64::vector<double>> db;
@@ -56,21 +57,23 @@ namespace imajuscule::bench::vecto {
         }
         DeinterlacedBuffers<double> deinterlaced_buffers(std::move(db));
         
-        int audio_cb_size = 128;
-        Reverbs<nOut> rs;
+        int n_audio_frames_per_cb = 128;
+        double frame_rate = 44100.;
+        Reverbs<nOut, reverbType> rs;
         ResponseStructure structure;
         {
-            NullBuffer null_buffer;
-            std::ostream null_stream(&null_buffer);
+            std::stringstream os;
             rs.setConvolutionReverbIR(deinterlaced_buffers,
-                                      audio_cb_size,
-                                      44100.,
+                                      n_audio_frames_per_cb,
+                                      frame_rate,
                                       ResponseTailSubsampling::HighestAffordableResolution,
-                                      null_stream,
+                                      os,
                                       structure);
         }
         
-        std::cout << "  szCoeffs=" << nCoeffs << " szAudioCb=" << audio_cb_size << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        
+        std::cout << "  szCoeffs=" << nCoeffs << " szAudioCb=" << n_audio_frames_per_cb << std::endl;
         
         int vectorLength = 0;
         std::array<FPT*, nIn> input_buffers;
@@ -82,33 +85,45 @@ namespace imajuscule::bench::vecto {
             output_buffers[i] = a_outputs[i].data();
         }
         
+        AudioHostSimulator simu{
+            frame_rate,
+            n_audio_frames_per_cb,
+            std::move(a_inputs),
+            std::move(a_outputs)
+        };
+        
         constexpr int nPeriods = 12;
-        auto dt = measure_one<high_resolution_clock>([&]() {
-            for(auto per=0; per<nPeriods; ++per) {
-                // one "period" of computations has a length of structure.totalSizePadded.
-                for(int i=0; i<structure.totalSizePadded; i += audio_cb_size) {
-                    // emulate what would be done by the audio callback
-                    int numFrames = std::min(structure.totalSizePadded-i, audio_cb_size);
-                    if(vectorLength==0) {
-                        rs.assignWet(input_buffers.data(),
-                                     nIn,
-                                     output_buffers.data(),
-                                     nOut,
-                                     numFrames
-                                     );
-                    }
-                    else {
-                        rs.assignWetVectorized(input_buffers.data(),
-                                               nIn,
-                                               output_buffers.data(),
-                                               nOut,
-                                               numFrames,
-                                               vectorLength
-                                               );
-                    }
-                }
+        // one "period" of computations has a length of structure.totalSizePadded.
+        int nTotalFrames = nPeriods * structure.totalSizePadded;
+        auto p = simu.simulate([&rs, &nTotalFrames, input_buffers, &output_buffers, vectorLength]
+                               (std::vector<a64::vector<float>> const & inputs,
+                                std::vector<a64::vector<float>> & outputs) {
+            assert(inputs.size() == outputs.size());
+            assert(inputs.size());
+            int const n_frames = inputs[0].size();
+            
+            if(vectorLength==0) {
+                rs.assignWet(input_buffers.data(),
+                             nIn,
+                             output_buffers.data(),
+                             nOut,
+                             n_frames
+                             );
             }
-        }).count();
+            else {
+                rs.assignWetVectorized(input_buffers.data(),
+                                       nIn,
+                                       output_buffers.data(),
+                                       nOut,
+                                       n_frames,
+                                       vectorLength
+                                       );
+            }
+            
+            
+            nTotalFrames -= n_frames;
+            return nTotalFrames > 0;
+        });
     }
 }
 
@@ -129,6 +144,9 @@ int main(int argc, const char * argv[]) {
         throw;
     }
     
-    test<float,4,2>();
+    //profile<float, ReverbType::Realtime_Synchronous, 4,2>(); // 72 % of multiply add, 10% dotptr, 3% forward
+    //profile<float, ReverbType::Realtime_Asynchronous, 4,2>();
+    //profile<float, ReverbType::Offline, 1,1>();
+    profile<float, ReverbType::Realtime_Asynchronous, 1,1>();
     return 0;
 }

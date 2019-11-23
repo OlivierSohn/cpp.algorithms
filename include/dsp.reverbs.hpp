@@ -142,6 +142,17 @@ static inline std::string toString(ReverbType t) {
         }
         return 0;
     }
+      template<typename F>
+      void foreachConvReverb(F f) const {
+          if(nAudioOut && !conv_reverbs.empty()) {
+              for(auto const & c : conv_reverbs) {
+                  f(*c);
+              }
+          }
+          else if(!spatializer.empty()) {
+              return spatializer.foreachConvReverb(f);
+          }
+      }
       
       template<typename FPT2>
       void assignWet(FPT2 const * const * const input_buffers,
@@ -150,15 +161,15 @@ static inline std::string toString(ReverbType t) {
                      int nOutputBuffers,
                      int nFramesToCompute) {
           // raw convolutions and spatializer are mutually exclusive.
-          if(nAudioOut && !conv_reverbs[0].isZero()) {
+          if(!conv_reverbs.empty()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
               Assert(nOutputBuffers == nAudioOut);
               Assert(nInputBuffers == nAudioOut);
               for(int j=0; j<nAudioOut; ++j) {
-                  conv_reverbs[j].stepAssignVectorized(input_buffers[j],
-                                                       output_buffers[j],
-                                                       nFramesToCompute);
+                  conv_reverbs[j]->stepAssignVectorized(input_buffers[j],
+                                                        output_buffers[j],
+                                                        nFramesToCompute);
               }
           }
           else if(!spatializer.empty()) {
@@ -186,7 +197,7 @@ static inline std::string toString(ReverbType t) {
                                int vectorLength) {
           assert(vectorLength > 0);
           // raw convolutions and spatializer are mutually exclusive.
-          if(nAudioOut && !conv_reverbs[0].isZero()) {
+          if(!conv_reverbs.empty()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
               Assert(nOutputBuffers == nAudioOut);
@@ -195,9 +206,9 @@ static inline std::string toString(ReverbType t) {
                   auto input_buffer = input_buffers[j];
                   auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                      conv_reverbs[j].stepAssignVectorized(input_buffer + i,
-                                                           output_buffer+ i,
-                                                           std::min(vectorLength, nFramesToCompute-i));
+                      conv_reverbs[j]->stepAssignVectorized(input_buffer + i,
+                                                            output_buffer+ i,
+                                                            std::min(vectorLength, nFramesToCompute-i));
                   }
               }
           }
@@ -256,9 +267,7 @@ static inline std::string toString(ReverbType t) {
 
     void disable()
     {
-      for(auto & r : conv_reverbs) {
-        r.reset();
-      }
+      conv_reverbs.clear();
       spatializer.clear();
     }
 
@@ -283,9 +292,6 @@ static inline std::string toString(ReverbType t) {
                                                        n_audiocb_frames,
                                                        nAudioOut,
                                                        sampleRate);
-
-      assert(nAudioOut == conv_reverbs.size());
-
 
       auto mayRes = algo.optimize_reverb_parameters(rts, os);
       if(!mayRes) {
@@ -325,7 +331,7 @@ static inline std::string toString(ReverbType t) {
 
   private:
 
-    std::array<ConvolutionReverb, nAudioOut> conv_reverbs;
+    std::vector<std::unique_ptr<ConvolutionReverb>> conv_reverbs;
     Spatializer spatializer;
     int total_response_size = 0;
     int total_response_size_padded = 0;
@@ -380,13 +386,21 @@ static inline std::string toString(ReverbType t) {
       auto const n_channels = deinterlaced_coeffs.size();
       auto const nSources = n_channels / nAudioOut;
         
-      // if we have enough sources, we can spatialize them, i.e each ear will receive
+      assert(conv_reverbs.empty());
+      assert(spatializer.empty());
+
+        // if we have enough sources, we can spatialize them, i.e each ear will receive
       // the sum of multiple convolutions.
       if(nSources <= 1) {
         auto n = 0;
+          conv_reverbs.reserve(nAudioOut);
+          for(int i=0; i<nAudioOut; ++i) {
+              conv_reverbs.emplace_back(std::make_unique<ConvolutionReverb>());
+          }
 
-        for(auto & rev : conv_reverbs)
+        for(auto & prev : conv_reverbs)
         {
+          auto & rev = *prev;
           prepare(*spec.cost, rev, n_scales, structure.scaleSize);
           rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
           assert(rev.isValid());
@@ -410,7 +424,6 @@ static inline std::string toString(ReverbType t) {
           throw std::logic_error("wrong number of channels");
         }
 
-        assert(spatializer.empty());
         for(int i=0; i<nSources; ++i) {
           std::array<a64::vector<double>, nAudioOut> a;
           for(int j=0; j<nAudioOut; ++j) {
@@ -439,8 +452,9 @@ static inline std::string toString(ReverbType t) {
       using namespace std;
 
         auto index = 1;
-        for(auto const & r : conv_reverbs)
+        for(auto const & pr : conv_reverbs)
         {
+            auto & r = *pr;
           if(r.isZero()) {
             continue;
           }

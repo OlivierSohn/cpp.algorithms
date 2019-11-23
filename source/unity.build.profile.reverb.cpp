@@ -23,8 +23,13 @@ namespace imajuscule::bench::vecto {
      
      In this test, input data is aligned on cache line boundaries.
      */
-    template<typename FPT, ReverbType reverbType, int nResponses, int nOut, int nIn = nOut>
-    void profile() {
+    template<typename FPT, ReverbType reverbType, int nOut, int nIn = nOut, typename F>
+    void profile(int nResponses,
+                 int const nCoeffs,
+                 int const n_audio_frames_per_cb,
+                 double frame_rate,
+                 double system_load,
+                 F f) {
         using namespace imajuscule;
         using namespace imajuscule::profiling;
         using namespace std::chrono;
@@ -46,7 +51,6 @@ namespace imajuscule::bench::vecto {
             outputs.resize(outputSz);
         }
         
-        int nCoeffs = 500 * 1000;
         std::vector<a64::vector<double>> db;
         db.resize(nResponses);
         for(auto & coeffs:db) {
@@ -57,20 +61,20 @@ namespace imajuscule::bench::vecto {
         }
         DeinterlacedBuffers<double> deinterlaced_buffers(std::move(db));
         
-        int n_audio_frames_per_cb = 128;
-        double frame_rate = 44100.;
         Reverbs<nOut, reverbType> rs;
         ResponseStructure structure;
         {
             std::stringstream os;
             rs.setConvolutionReverbIR(deinterlaced_buffers,
                                       n_audio_frames_per_cb,
-                                      frame_rate,
+                                      system_load*frame_rate,
                                       ResponseTailSubsampling::HighestAffordableResolution,
                                       os,
                                       structure);
         }
-        
+        if(!f(rs)) {
+            return;
+        }
         std::this_thread::sleep_for(std::chrono::seconds(5));
         
         std::cout << "  szCoeffs=" << nCoeffs << " szAudioCb=" << n_audio_frames_per_cb << std::endl;
@@ -133,20 +137,79 @@ void printUsage() {
     cout << "- profile reverb usage : " << endl;
 }
 
+enum class SystemLoadModelization {
+    Frequency,
+    Convolutions
+};
+
+static int getFramesInQueue(SystemLoadModelization slm, int system_load) {
+    using namespace imajuscule::bench::vecto;
+
+    std::optional<int> nFramesInQueue;
+    profile<float, ReverbType::Realtime_Asynchronous, 1>((slm == SystemLoadModelization::Frequency) ? 1 : system_load, // n_responses
+                                                         500 * 1000,
+                                                         128,
+                                                         44100.,
+                                                         (slm == SystemLoadModelization::Frequency) ? system_load : 1., // system_load
+                                                         [&nFramesInQueue](auto const & rs){
+        rs.foreachConvReverb([&nFramesInQueue](auto const & conv){
+            auto & l = conv.getB();
+            auto n = l.getQueueSize() * l.getSubmissionPeriod();
+            if(nFramesInQueue) {
+                if(*nFramesInQueue != n) {
+                    throw std::logic_error("*nFramesInQueue != n");
+                }
+            }
+            else {
+                nFramesInQueue = n;
+            }
+        });
+        return false;
+    });
+    if(!nFramesInQueue) {
+        throw std::logic_error("!nFramesInQueue");
+    }
+    return *nFramesInQueue;
+}
+
 int main(int argc, const char * argv[]) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
-    
+
     if(argc != 1) {
         cerr << "0 argument is needed, " << argc-1 << " given" << endl;
         printUsage();
         throw;
     }
     
-    //profile<float, ReverbType::Realtime_Synchronous, 4,2>(); // 72 % of multiply add, 10% dotptr, 3% forward
-    //profile<float, ReverbType::Realtime_Asynchronous, 4,2>();
-    //profile<float, ReverbType::Offline, 1,1>();
-    profile<float, ReverbType::Realtime_Asynchronous, 1,1>();
+    //profile<float, ReverbType::Realtime_Synchronous, 2>(4, 500 * 1000, 128, 44100., 1.); // 72 % of multiply add, 10% dotptr, 3% forward
+    //profile<float, ReverbType::Realtime_Asynchronous, 2>(4, 500 * 1000, 128, 44100., 1.);
+    //profile<float, ReverbType::Offline, 1>(1, 500 * 1000, 128, 44100., 1.);
+
+    std::array<SystemLoadModelization, 2> systemLoadModelizations = {
+        SystemLoadModelization::Convolutions,
+        SystemLoadModelization::Frequency
+    };
+    for(auto slm : systemLoadModelizations) {
+        std::vector<int> nFramesInQueues;
+        for(int system_load = 1; system_load<10; ++system_load) {
+            int n = 0;
+            std::cout << system_load << " : " ;
+            try {
+                n = getFramesInQueue(slm, system_load);
+                std::cout << n;
+            }
+            catch (std::exception const & e) {
+                std::cout << e.what();
+            }
+            std::cout << std::endl;
+            nFramesInQueues.push_back(n);
+        }
+        auto plot = StringPlot(20,nFramesInQueues.size());
+        plot.draw(nFramesInQueues);
+        plot.log();
+    }
+
     return 0;
 }

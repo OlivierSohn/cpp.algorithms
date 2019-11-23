@@ -78,7 +78,7 @@ namespace imajuscule
         for(int i=0; i<queueSize - queue_room_sz; ++i) {
             auto zeros = std::make_unique<vec>();
             zeros->resize(N, {});
-            worker_2_rt->push(zeros);
+            worker_2_rt->push(std::move(zeros));
             ++jobs;
         }
         
@@ -317,6 +317,13 @@ namespace imajuscule
       
       int countErrorsWorkerTooSlow() const {
           return error_worker_too_slow;
+      }
+      
+      int getQueueSize() const {
+          return queueSize;
+      }
+      int getSubmissionPeriod() const {
+          return N;
       }
 
   private:

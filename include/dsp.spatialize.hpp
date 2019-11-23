@@ -331,7 +331,15 @@ namespace imajuscule
                     }
                 });
             }
-
+            
+            template<typename F>
+            void foreachConvReverb(F f) const {
+                for(auto const & earConvs : earsConvs) {
+                    for(auto const & c : earConvs) {
+                        f(*c);
+                    }
+                }
+            }
         private:
             std::array<std::vector<std::unique_ptr<Convolution>>, nEars> earsConvs;
 

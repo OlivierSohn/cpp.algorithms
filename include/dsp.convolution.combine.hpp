@@ -165,6 +165,8 @@ namespace imajuscule
 
     auto & getA() { return a; }
     auto & getB() { return b; }
+      auto const & getA() const { return a; }
+      auto const & getB() const { return b; }
 
   private:
     int split = undefinedSplit; // we have 'split' ** early ** coefficients, the rest are ** late ** coefficients.
@@ -782,6 +784,9 @@ public:
               }
           };
 
+          static constexpr int numPeriods = 5; // the first period is not taken into account for gradient computation
+          static constexpr double normalizedGradientThreshold = -0.05;
+
           static PSpecs run(int n_channels,
                             int n_audio_channels,
                             int n_audio_frames_per_cb,
@@ -840,7 +845,7 @@ public:
                   return {};
               }
               auto normalizedGradient = worst.minResultQueueEltsCountRange_gradient / (1 + worst.resultQueueEltsCountRange.getSpan());
-              if(normalizedGradient < -0.05) {
+              if(normalizedGradient < normalizedGradientThreshold) {
                   os << "Background worker is too slow : normalizedGradient on min queue elts count = " << normalizedGradient << std::endl;
                   int i=0;
                   for(auto const & m : queueMetrics) {
@@ -982,7 +987,7 @@ public:
               for(auto const & c : async_convs) {
                   int const metric_period = c->getAsyncAlgo().getBiggestScale();
                   m.emplace_back(metric_period,
-                                 10);
+                                 numPeriods);
               }
               
               auto p = simu.simulate([&async_convs, &m]
@@ -997,7 +1002,7 @@ public:
                   for(int i=0; i < async_convs.size(); ++i) {
                       auto & conv = *async_convs[i];
                       auto const & input = inputs[i/n];
-                      auto & output = outputs[i%n];
+                      auto & output = outputs[i%outputs.size()];
 
                       bool const assign = i < inputs.size();
 

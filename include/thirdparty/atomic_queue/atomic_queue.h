@@ -232,14 +232,14 @@ protected:
             while(ATOMIC_QUEUE_UNLIKELY(state.load(A) != EMPTY))
                 if(Derived::maximize_throughput_)
                     spin_loop_pause();
-            q_element = std::move(std::forward<U>(element));
+            q_element = std::forward<U>(element);
             state.store(STORED, R);
         }
         else {
             for(;;) {
                 unsigned char expected = EMPTY;
                 if(ATOMIC_QUEUE_LIKELY(state.compare_exchange_strong(expected, STORING, X, X))) {
-                    q_element = std::move(std::forward<U>(element));
+                    q_element = std::forward<U>(element);
                     state.store(STORED, R);
                     return;
                 }

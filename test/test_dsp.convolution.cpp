@@ -361,7 +361,7 @@ namespace imajuscule {
     
     template<typename T, typename FFTTag = fft::Fastest>
     auto mkRealTimeConvolution() {
-      using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>;
+      using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
       auto c = C{};
       applySetup(c,typename C::SetupParam
       {
@@ -422,7 +422,8 @@ namespace imajuscule {
                 for(auto queueSize:queueSizes) {
                     applySetup(c,{
                         submisionPeriod,
-                        queueSize
+                        queueSize,
+                        {}
                     });
                     testDirac2(i, c);
                 }

@@ -77,17 +77,14 @@ namespace imajuscule
   struct FinegrainedSetupParam : public Cost {
     FinegrainedSetupParam() {}
 
-    FinegrainedSetupParam(int partitionSz, int multiplication_group_size, int phase) : Cost(),
+    FinegrainedSetupParam(int partitionSz, int multiplication_group_size, int phase) : Cost(phase),
     multiplication_group_size(multiplication_group_size),
-    phase(phase),
     partition_size(partitionSz)
     {}
 
-    void setPhase(int ph) { phase = ph; }
     void setGrainsCosts(GrainsCosts gcosts) { grains_costs = gcosts; }
 
     int multiplication_group_size = 0;
-    int phase = 0;
     int partition_size = 0;
     GrainsCosts grains_costs;
       
@@ -113,7 +110,9 @@ namespace imajuscule
     using FPT = T;
     using Tag = typename Parent::FFTTag;
 
+    static constexpr int nComputePhaseable = 1;
     static constexpr int nCoefficientsFadeIn = 0;
+      static constexpr bool has_subsampling = false;
 
     using SetupParam = FinegrainedSetupParam;
 
@@ -124,6 +123,24 @@ namespace imajuscule
       set_partition_size(p.partition_size);
       setMultiplicationGroupLength(p.multiplication_group_size);
     }
+      std::array<int, 1> getComputePeriodicities() const {
+          return {getBlockSize()};
+      }
+      // in [0, getComputePeriodicity())
+      std::array<int, 1> getComputeProgresses() const {
+          auto const sz = getBlockSize();
+          auto const res = sz ? static_cast<int>(x.size() % sz) : 0;
+          return {res};
+      }
+      void setComputeProgresses(std::array<int, 1> const & progresses) {
+          if(!getBlockSize()) {
+              return;
+          }
+          auto const p = progresses[0];
+          while(getComputeProgresses()[0] != p) {
+              step(0);
+          }
+      }
 
     static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
     static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;
@@ -794,7 +811,7 @@ namespace imajuscule
 
         void evaluate(float multiplication_grain_time, int n_multiplicative_grains, int grain_period,
                       PhasedCost & result) const {
-          result.phase = 0;
+          result.setPhase(0);
 
           // factor 2 because the unit is half grain in 'grains_costs'.
           auto max_n_halfgrains_per_cb = 2 * nAudioCbFrames / grain_period;
@@ -851,7 +868,7 @@ namespace imajuscule
             auto n_min_empty_cb_between_consecutive_grains = -1 + n_samples_between_grains / nAudioCbFrames;
             if(n_min_empty_cb_between_consecutive_grains >= n_channels - 1) {
               // easy case : there is enough room between grains to evenly distribute all channels
-              result.phase = grain_period / n_channels;
+              result.setPhase(grain_period / n_channels);
             }
             else {
               // harder case: we need to go more in detail, and find the phase that minimizes
@@ -859,7 +876,7 @@ namespace imajuscule
 
               cost *= n_channels;
               // now cost is the 'phase == 0' cost
-              result.phase = 0;
+              result.setPhase(0);
 
               cyclic<float> phased_grains_costs(grains_costs.size());
               for(int phase = 1; phase < grains_costs.size(); ++phase) {
@@ -872,12 +889,12 @@ namespace imajuscule
                                                         max_n_halfgrains_per_cb);
                 if(phased_cost < cost) {
                   cost = phased_cost;
-                  result.phase = phase; // unit is "half of grain period"
+                  result.setPhase(phase); // unit is "half of grain period"
                 }
               }
 
               // convert phase units from "half of grain period" to "frames"
-              result.phase *= 2 * grain_period;
+              result.setPhase(result.getPhase().value() * 2 * grain_period);
             }
             // cost is now the cost of each channel
             // but cost should be per sample, not per frame, so
@@ -946,7 +963,7 @@ namespace imajuscule
       val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, phased_cost);
       val.setCost(phased_cost.getCost());
       val.setGrainsCosts(phased_cost.grains_costs);
-      val.setPhase(phased_cost.phase);
+      val.setPhase(phased_cost.getPhase().value_or(0));
 
       constexpr auto debug = false;
       if(debug) {
@@ -1055,7 +1072,6 @@ static std::ostream& operator<<(std::ostream& os, const GrainsCosts& g)
   {
     using namespace std;
     os
-    << "phase : " << p.phase << endl
     << p.grains_costs
     << "multiplication group size : " << p.multiplication_group_size << endl;
     return os;

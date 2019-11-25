@@ -115,11 +115,15 @@ namespace imajuscule
             bool empty() const { return earsConvs.empty() || earsConvs[0].empty() || earsConvs[0][0]->isZero(); }
 
             bool isValid() const {
-                return !empty() && earsConvs[0][0].isValid();
+                return !empty() && earsConvs[0][0]->isValid();
             }
 
             int countSources() const {
               return earsConvs.empty() ? 0 : earsConvs[0].size();
+            }
+            
+            int countConvolutions() const {
+                return nEars * countSources();
             }
           
           int countScales() {
@@ -127,7 +131,7 @@ namespace imajuscule
                   return 0;
               }
               if constexpr(Convolution::has_subsampling) {
-                  return imajuscule::countScales(earsConvs[0][0]);
+                  return imajuscule::countScales(*earsConvs[0][0]);
               }
               else {
                   return 1;
@@ -135,7 +139,7 @@ namespace imajuscule
           }
 
             int getLatency() const {
-                return (earsConvs.empty() || earsConvs[0].empty()) ? 0 : earsConvs[0][0].getLatency();
+                return (earsConvs.empty() || earsConvs[0].empty()) ? 0 : earsConvs[0][0]->getLatency();
             }
 
             template<typename SetupP>
@@ -322,11 +326,12 @@ namespace imajuscule
                 }
             }
 
-            void dephaseComputations(int phase, int n_scales) {
+            void dephaseComputations(std::optional<int> latehandler_phase_increment, int n_scales) {
                 int n = 0;
-                forEachEar([phase, n_scales, &n](auto & earConvs) {
+                int const total = countConvolutions();
+                forEachEar([latehandler_phase_increment, n_scales, total, &n](auto & earConvs) {
                     for(auto & c : earConvs) {
-                      dephase(n * phase, n_scales, *c);
+                      dephase(total, n, latehandler_phase_increment, n_scales, *c);
                       ++n;
                     }
                 });

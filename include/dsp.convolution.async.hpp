@@ -8,6 +8,7 @@ namespace imajuscule
   struct AsyncCPUConvolution {
       using FPT = typename Async::FPT;
 
+      static constexpr int nComputePhaseable = Async::nComputePhaseable;
       static constexpr int nCoefficientsFadeIn = Async::nCoefficientsFadeIn;
       static constexpr bool has_subsampling = Async::has_subsampling;
 
@@ -139,7 +140,7 @@ namespace imajuscule
                 // !!! Race condition if the producer notifies HERE:
                 // the consumer is not yet waiting so it won't be woken up.
                 //
-                // To reduce the likelihood of tat race condition, we yield just before try_pop()
+                // To reduce the likelihood of that race condition, we yield just before try_pop()
                 // so the scheduler will probably not preempt our thread now because it has just begun
                 // its time slice.
                 //
@@ -200,8 +201,8 @@ namespace imajuscule
                 if(unlikely(!work)) {
                     // sentinel
                     vec_ptr sentinel;
-                    auto res = worker_2_rt->try_push_(std::move(sentinel));
-                    Assert(!res);
+                    auto res = worker_2_rt->try_push(std::move(sentinel));
+                    Assert(res);
                     return;
                 }
                 Assert(N == worker_vec->size());
@@ -209,8 +210,8 @@ namespace imajuscule
                 algo.stepAssignVectorized(work->data(),
                                           worker_vec->data(),
                                           worker_vec->size());
-                auto res = worker_2_rt->try_push_(std::move(worker_vec));
-                Assert(!res);
+                auto res = worker_2_rt->try_push(std::move(worker_vec));
+                Assert(res);
                 worker_vec = std::move(work);
             }
         });
@@ -241,6 +242,17 @@ namespace imajuscule
           + algo.getLatency();
       }
       
+      std::array<int, nComputePhaseable> getComputePeriodicities() const {
+          return algo.getComputePeriodicities();
+      }
+      // in [0, getComputePeriodicity())
+      std::array<int, nComputePhaseable> getComputeProgresses() const {
+          return algo.getComputeProgresses();
+      }
+      void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
+          algo.setComputeProgresses(progresses);
+      }
+
       int countCoefficients() const {
           return algo.countCoefficients();
       }
@@ -249,17 +261,14 @@ namespace imajuscule
       (*signal)[curIndex++] = val;
       if(unlikely(curIndex == N))
       {
-          {
-              auto signal2 = try_submit_signal(std::move(signal));
-              if(unlikely(signal2)) {
-                  ++error_worker_too_slow;
-                  submit_signal(std::move(*signal2));
-              }
+          while(unlikely(!try_submit_signal(std::move(signal)))) {
+              ++error_worker_too_slow;
+              rt_2_worker_cond.notify_one(); // in case this is because of the race condition
           }
           signal.swap(previous_result);
-          if(unlikely(!try_receive_result(previous_result))) {
+          while(unlikely(!try_receive_result(previous_result))) {
               ++error_worker_too_slow;
-              previous_result = receive_result();
+              rt_2_worker_cond.notify_one(); // in case this is because of the race condition
           }
           
           curIndex = 0;
@@ -366,6 +375,7 @@ namespace imajuscule
             if(jobs == 0) {
                 break;
             }
+            rt_2_worker_cond.notify_one(); // in case this is because of the race condition
             std::this_thread::yield();
         }
         worker->join();
@@ -381,13 +391,13 @@ namespace imajuscule
           ++jobs;
       }
 
-      std::optional<vec_ptr> try_submit_signal(vec_ptr s) {
-          std::optional<vec_ptr> s2 = rt_2_worker->try_push_(std::move(s));
-          if(likely(!s2)) {
+      bool try_submit_signal(vec_ptr && s) {
+          bool res = rt_2_worker->try_push(std::forward<vec_ptr>(s));
+          if(likely(res)) {
               rt_2_worker_cond.notify_one();
               ++jobs;
           }
-          return s2;
+          return res;
       }
       
       void flush_results() {

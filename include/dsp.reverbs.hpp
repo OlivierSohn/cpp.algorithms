@@ -88,6 +88,7 @@ struct ResponseStructure {
     enum class ReverbType {
         Offline,
         Realtime_Synchronous,
+        Realtime_Synchronous_Subsampled,
         Realtime_Asynchronous
     };
 
@@ -97,6 +98,8 @@ static inline std::string toString(ReverbType t) {
             return "Offline";
         case ReverbType::Realtime_Synchronous :
             return "Realtime_Synchronous";
+        case ReverbType::Realtime_Synchronous_Subsampled :
+            return "Realtime_Synchronous_Subsampled";
         case ReverbType::Realtime_Asynchronous :
             return "Realtime_Asynchronous";
     }
@@ -117,10 +120,13 @@ static inline std::string toString(ReverbType t) {
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
         ZeroLatencyScaledFineGrainedPartitionnedConvolution<double>,
-      
+
+      std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
+        ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double>,
+
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
         ZeroLatencyScaledAsyncConvolution<double>,
-      void >>>;
+      void >>>>;
       
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
 
@@ -129,9 +135,9 @@ static inline std::string toString(ReverbType t) {
     using PS = typename PartitionAlgo<ConvolutionReverb>::PS;
 
     int countScales() {
-        if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0].isZero()) {
+        if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0]->isZero()) {
             if constexpr(ConvolutionReverb::has_subsampling) {
-                return imajuscule::countScales(conv_reverbs[0]);
+                return imajuscule::countScales(*conv_reverbs[0]);
             }
             else {
                 return 1;
@@ -392,12 +398,12 @@ static inline std::string toString(ReverbType t) {
         // if we have enough sources, we can spatialize them, i.e each ear will receive
       // the sum of multiple convolutions.
       if(nSources <= 1) {
-        auto n = 0;
           conv_reverbs.reserve(nAudioOut);
           for(int i=0; i<nAudioOut; ++i) {
               conv_reverbs.emplace_back(std::make_unique<ConvolutionReverb>());
           }
 
+        auto n = 0;
         for(auto & prev : conv_reverbs)
         {
           auto & rev = *prev;
@@ -415,7 +421,7 @@ static inline std::string toString(ReverbType t) {
           }*/
           // to "spread" the computations of each channel's convolution reverbs
           // on different audio callback calls, we separate them as much as possible using a phase:
-          dephase(n * spec.cost->phase, n_scales, rev);
+          dephase(nAudioOut, n, spec.cost->getPhase(), n_scales, rev);
           ++n;
         }
       }
@@ -443,7 +449,7 @@ static inline std::string toString(ReverbType t) {
           assert(!spatializer.empty());
         }
         assert(!spatializer.empty());
-        spatializer.dephaseComputations(spec.cost->phase, n_scales);
+        spatializer.dephaseComputations(spec.cost->getPhase(), n_scales);
       }
         
     }

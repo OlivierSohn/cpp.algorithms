@@ -14,7 +14,7 @@
 
 #include "test_dsp.convolution.cpp"
 #include "test_dsp.reverbs.cpp"
-/*
+//*
 #include "test_dsp.spatialize.cpp"
 #include "test_math_roots.cpp"
 #include "test_dsp.resample.cpp"

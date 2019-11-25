@@ -10,6 +10,7 @@ namespace imajuscule
   template<typename T>
   struct FIRFilter {
     using FPT = T;
+    static constexpr int nComputePhaseable = 0;
     static constexpr int nCoefficientsFadeIn = 0;
     static constexpr bool has_subsampling = false;
 
@@ -22,7 +23,17 @@ namespace imajuscule
     static constexpr auto dotpr = fft::RealSignal_<fft::Fastest, FPT>::dotpr;
     
     void applySetup(SetupParam const &) const {}
-    
+
+      std::array<int, 0> getComputePeriodicities() const {
+          return {};
+      }
+      // in [0, getComputePeriodicity())
+      std::array<int, 0> getComputeProgresses() const {
+          return {};
+      }
+      void setComputeProgresses(std::array<int, 0> const & progresses) {
+      }
+      
     void setCoefficients(a64::vector<T> v) {
       past.resize(v.size());
         std::reverse(v.begin(), v.end());

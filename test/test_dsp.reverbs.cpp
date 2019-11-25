@@ -88,7 +88,18 @@ void testReverbDirac() {
         ASSERT_EQ(output, prevOutput);
     }
     
-    std::vector<int> sizes = {1,2,3,121,1476,37860,385752,2957213};
+    std::vector<int> sizes = {
+        1,
+        2,
+        3,
+        121,
+        1476,
+        37860
+#ifdef NDEBUG
+       ,385752
+       ,2957213
+#endif
+    };
     for(auto const sz : sizes) {
         std::vector<double> const input = mkDirac<double>(sz);
         auto const coeffs = mkCoefficientsTriangle(sz);
@@ -218,7 +229,8 @@ void testReverbDirac() {
 
 TEST(Reverbs, dirac) {
     using namespace imajuscule;
+    testReverbDirac<ReverbType::Realtime_Asynchronous>();
     testReverbDirac<ReverbType::Offline>();
     testReverbDirac<ReverbType::Realtime_Synchronous>();
-    testReverbDirac<ReverbType::Realtime_Asynchronous>();
+    testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled>();
 }

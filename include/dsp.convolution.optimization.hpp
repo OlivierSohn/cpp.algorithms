@@ -50,6 +50,12 @@ struct PartitionningSpecs {
 
 struct Cost {
     virtual ~Cost() = default;
+
+    Cost() = default;
+    
+    Cost(int phase)
+    : phase(phase)
+    {}
     
   void setCost(float c) { cost = c; }
 
@@ -58,8 +64,8 @@ struct Cost {
 
   float getCost() const { return cost; }
     
-    // phase, in frames (in case 2 or more convolutions run at the same time, we can dephase them)
-    int phase = 0;
+    void setPhase(int ph) { phase = ph; }
+    std::optional<int> getPhase() const { return phase; }
 
     virtual void logSubReport(std::ostream & os) = 0;
 
@@ -93,18 +99,24 @@ struct Cost {
         std::string(std::max(0, nTheoretical-nActual), ' ');
         std::string prefixTheoretical =
         std::string(std::max(0, nActual-nTheoretical), ' ');
+        auto const precision = os.precision();
         os << "Foreseen CPU load (1 core)          : " << std::fixed << std::setprecision(2) << 100.*ratio << "%" << endl;
         os << "Average computation time per sample : " << std::fixed << std::setprecision(0) << actual << " ns" << endl;
         //os << "- Actual                : " << prefixActual      << actual      << " ns" << endl;
         //os << "- Allowed (theoretical) : " << prefixTheoretical << theoretical << " ns" << endl;
-        
-        
+        os.precision(precision);
+        if(phase) {
+            os << "Optimized computation phase : " << *phase << endl;
+        }
+
         //os << endl;
         //os << *partitionning.cost << endl;
     }
 private:
     // worst computation time over one callback, averaged per sample.
   float cost = std::numeric_limits<float>::max();
+    // phase (of the late handler), in frames (in case 2 or more convolutions run at the same time, we can dephase them)
+    std::optional<int> phase;
 };
 
 }

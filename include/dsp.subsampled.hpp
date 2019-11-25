@@ -29,6 +29,7 @@ namespace imajuscule
   struct SubSampled {
     using T = typename Algo::FPT;
     using FPT = T;
+    static constexpr int nComputePhaseable = 0; // SubSampled phases will be set manually
     static constexpr int nCoefficientsFadeIn = scaleFadeSz::inSmallerUnits;
     static constexpr bool has_subsampling = true;
 
@@ -53,7 +54,17 @@ namespace imajuscule
       }
       return res;
     }
-    
+      
+    std::array<int, 0> getComputePeriodicities() const {
+        return {};
+    }
+    // in [0, getComputePeriodicity())
+    std::array<int, 0> getComputeProgresses() const {
+        return {};
+    }
+      void setComputeProgresses(std::array<int, 0> const & progresses) {
+      }
+      
     SubSampled() {
       resetStates();
     }

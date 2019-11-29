@@ -339,7 +339,7 @@ namespace imajuscule
       int n_levels; // max number of simultaneously queued kernels
     };
     
-    void applySetup(SetupParam const & s) {
+    void setup(SetupParam const & s) {
       waitForGPUJobsCompletion();
       
       gpu_works.clear();
@@ -378,7 +378,7 @@ namespace imajuscule
       previous_result.resize(fft_length);
       
       if(gpu_works.empty()) {
-        throw std::logic_error("0 levels. did you forget to call applySetup?");
+        throw std::logic_error("0 levels. did you forget to call setup?");
       }
       for(auto & w : gpu_works) {
         w.result.clear();
@@ -656,7 +656,7 @@ namespace imajuscule
     
     struct SetupParam {};
     
-    void applySetup(SetupParam const &) const {}
+    void setup(SetupParam const &) const {}
     
     void setCoefficients(a64::vector<T> coeffs_) {
       if(coeffs_.size() <= 2) {
@@ -842,7 +842,7 @@ namespace imajuscule
     
     struct SetupParam {};
     
-    void applySetup(SetupParam const &) const {}
+    void setup(SetupParam const &) const {}
     
     void setCoefficients(a64::vector<T> coeffs_) {
       waitForGPUJobsCompletion();
@@ -1058,7 +1058,7 @@ namespace imajuscule
       int n_levels; // max number of simultaneously queued kernels
     };
     
-    void applySetup(SetupParam const & s) {
+    void setup(SetupParam const & s) {
       waitForGPUJobsCompletion();
 
       gpu_works.clear();
@@ -1085,7 +1085,7 @@ namespace imajuscule
       previous_result.resize(fft_length);
 
       if(gpu_works.empty()) {
-        throw std::logic_error("0 levels. did you forget to call applySetup?");
+        throw std::logic_error("0 levels. did you forget to call setup?");
       }
       for(auto & w : gpu_works) {
         w.result.clear();

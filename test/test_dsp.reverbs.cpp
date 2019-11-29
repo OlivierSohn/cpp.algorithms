@@ -39,11 +39,12 @@ static inline void scaleVec(double coeff, std::vector<double> & v) {
 }
 
 namespace imajuscule {
-template<ReverbType reverbType>
-void testReverbDirac() {
-    
+template<ReverbType reverbType, typename ...Args>
+void testReverbDirac(Args ...args) {
+
     Reverbs<1, reverbType> rs;
-    
+    using Convolution = typename decltype(rs)::ConvolutionReverb;
+
     constexpr int audio_cb_size = 99;
     
     // by default, reverb is inactive.
@@ -67,8 +68,16 @@ void testReverbDirac() {
     {
         try {
             ResponseStructure structure;
-            rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100., ResponseTailSubsampling::HighestAffordableResolution,
-                                      std::cout, structure);
+            if constexpr (Convolution::has_subsampling) {
+                rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100.,
+                                          std::cout, structure, ResponseTailSubsampling::HighestAffordableResolution,
+                                          args...);
+            }
+            else {
+                rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100.,
+                                          std::cout, structure,
+                                          args...);
+            }
             ASSERT_TRUE(false);
         }
         catch(std::exception const &) {
@@ -103,8 +112,12 @@ void testReverbDirac() {
     for(auto const sz : sizes) {
         std::vector<double> const input = mkDirac<double>(sz);
         auto const coeffs = mkCoefficientsTriangle(sz);
-        for(int rts_i=0; rts_i<5; ++rts_i) {
-            using Convolution = typename decltype(rs)::ConvolutionReverb;
+        
+        for(int rts_i=0;
+            rts_i<(Convolution::has_subsampling?5:1);
+            ++rts_i) {
+            bool retried = false;
+       retry:
             LG(INFO, "%d, %d,", sz, rts_i);
             auto const rts = static_cast<ResponseTailSubsampling>(rts_i);
 
@@ -114,8 +127,14 @@ void testReverbDirac() {
                 bool res = false;
                 ResponseStructure structure;
                 try {
-                    rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100., rts,
-                                              std::cout, structure);
+                    if constexpr (Convolution::has_subsampling) {
+                        rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100.,
+                                                  std::cout, structure, rts, args...);
+                    }
+                    else {
+                        rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100.,
+                                                  std::cout, structure, args...);
+                    }
                     res = true;
                 }
                 catch(std::exception const &e) {
@@ -135,8 +154,14 @@ void testReverbDirac() {
                 if(scaleRange.getMin() > 1 && !res) {
                     continue;
                 }
-                if(!res) {
-                    ASSERT_TRUE(res);
+                if(!res) { // retry once, to allow debugging
+                    if(retried) {
+                        ASSERT_TRUE(res);
+                    }
+                    else {
+                        retried = true;
+                        goto retry;
+                    }
                 }
             }
             std::vector<double> output;
@@ -229,8 +254,8 @@ void testReverbDirac() {
 
 TEST(Reverbs, dirac) {
     using namespace imajuscule;
-    testReverbDirac<ReverbType::Realtime_Asynchronous>();
-    testReverbDirac<ReverbType::Offline>();
-    testReverbDirac<ReverbType::Realtime_Synchronous>();
     testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled>();
+    testReverbDirac<ReverbType::Realtime_Synchronous>();
+    testReverbDirac<ReverbType::Realtime_Asynchronous>(SimulationPhasing::no_phasing());
+    testReverbDirac<ReverbType::Offline>();
 }

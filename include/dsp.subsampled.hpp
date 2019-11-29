@@ -68,7 +68,11 @@ namespace imajuscule
     SubSampled() {
       resetStates();
     }
-    
+      
+      void setup(SetupParam const & p) {
+          algo.setup(p);
+      }
+
     void setCoefficients(a64::vector<T> const & coeffs) {
       resetStates();
 

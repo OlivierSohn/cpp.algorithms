@@ -179,7 +179,7 @@ namespace imajuscule {
           audio::Spatializer<nOutMono, Convolution> spatialized;
           {
             int nScales = 1;
-            spatialized.addSourceLocation({{coefficients}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{coefficients}}, setup);
           }
           
           test(spatialized, {{coefficients}});
@@ -192,12 +192,10 @@ namespace imajuscule {
           // source1 has only left component
           // source2 has only right component
           {
-            int nScales = 1;
-            spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup);
           }
           {
-            int nScales = 1;
-            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
           }
           
           test(spatialized, {{coefficients, coefficients}});
@@ -215,12 +213,10 @@ namespace imajuscule {
           // source1 right component is the opposite of source 2
           // source2 right component is the opposite of source 1
           {
-            int nScales = 1;
-            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
           }
           {
-            int nScales = 1;
-            spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup);
           }
 
           test(spatialized, {{zero_coeffs,zero_coeffs}});
@@ -235,12 +231,10 @@ namespace imajuscule {
           }
           
           {
-            int nScales = 1;
-            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
           }
           {
-            int nScales = 1;
-            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup, nScales, coefficients.size());
+            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
           }
 
           test(spatialized, {{coefficients,zero_coeffs}});

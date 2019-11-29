@@ -22,11 +22,12 @@ namespace imajuscule
             innerParams.logSubReport(os);
         }
     };
-    
-    // instead of calling that directly, use applySetup
-    void setTheDelay(int d) {
+
+    void setup(SetupParam const & p) {
       ring.reset();
-      ring.resize(d);
+      ring.resize(p.delay);
+        
+      algo.setup(p.innerParams);
     }
     
     auto getEpsilon() const {

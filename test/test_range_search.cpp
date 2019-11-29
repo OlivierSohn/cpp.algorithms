@@ -1,13 +1,24 @@
 
 namespace testRangeSearch {
 
+struct Number {
+    float getCost() const {
+        return f;
+    }
+    float f;
+    
+    bool operator == (Number const & o) const {
+        return f == o.f;
+    }
+};
+
     /*
      Creates a "V" function where the bottom of the V touches the x axis at 'x==a'
      */
     constexpr auto n_lin_steps = 256;
     auto create_lin_f(int min_step, int & counter) {
         auto a = min_step / static_cast<float>(n_lin_steps-1);
-        return [a, &counter](int p_x, float & val) {
+        return [a, &counter](int p_x, Number & val) {
             assert(p_x >= 0);
             assert(p_x < n_lin_steps);
             
@@ -17,34 +28,34 @@ namespace testRangeSearch {
             auto x = p_x / static_cast<float>(n_lin_steps-1);
             
             if(a < 0.00001) {
-                val = x;
+                val.f = x;
             }
             else if(a > 0.99999) {
-                val = 1-x;
+                val.f = 1-x;
             }
             else if(x < a) {
-                val = 1 - x/a;
+                val.f = 1 - x/a;
             }
             else if(a != 1) {
-                val = (x-a)/(1-a);
+                val.f = (x-a)/(1-a);
             }
             else {
-                val = 1;
+                val.f = 1;
             }
             
             return ParamState::Ok;
         };
     }
-    
+
     template<typename ARRAY>
     auto create_f(ARRAY const & array, int & counter) {
-        return [&array, &counter](int x, float & val) {
+        return [&array, &counter](int x, Number & val) {
             using namespace imajuscule;
             ++counter;
             if(x < 0 || x >= array.size()) {
                 return ParamState::OutOfRange;
             }
-            val = array[x];
+            val.f = array[x];
             return ParamState::Ok;
         };
     }
@@ -57,14 +68,14 @@ namespace testRangeSearch {
         
         for(int i=0; i<values.size(); ++i) {
             counter = 0;
-            float min_;
+            Number min_;
             int m = findRangedLocalMinimum(
                                            1,
                                            { 0, 5 },
                                            f,
                                            min_);
-            ASSERT_EQ(0, min_);
-            ASSERT_EQ(values[m], min_);
+            ASSERT_EQ(0, min_.f);
+            ASSERT_EQ(values[m], min_.f);
             ASSERT_TRUE(6 == counter || 5 == counter);
         }
     }
@@ -77,13 +88,13 @@ namespace testRangeSearch {
             auto f = create_lin_f(m, counter);
             
             counter = 0;
-            float min_;
+            Number min_;
             int m_index = findRangedLocalMinimum(
                                                  1,
                                                  { 0, n_lin_steps-1 },
                                                  f,
                                                  min_);
-            ASSERT_EQ(0.f, min_);
+            ASSERT_EQ(0.f, min_.f);
             ASSERT_EQ(m, m_index);
         }
     }

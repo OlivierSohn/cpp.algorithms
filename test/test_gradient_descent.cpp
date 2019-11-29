@@ -3,13 +3,13 @@
 namespace testGradientDescent {
     template<typename ARRAY>
     auto create_f(ARRAY const & array, int & counter) {
-        return [&array, &counter](int x, float & val) {
+        return [&array, &counter](int x, testRangeSearch::Number & val) {
             using namespace imajuscule;
             ++counter;
             if(x < 0 || x >= array.size()) {
                 return ParamState::OutOfRange;
             }
-            val = array[x];
+            val.f = array[x];
             return ParamState::Ok;
         };
     }
@@ -31,9 +31,9 @@ namespace testGradientDescent {
             
             for(int i=0; i<values.size(); ++i) {
                 counter = 0;
-                Optional<float> min_;
+                Optional<testRangeSearch::Number> min_;
                 Optional<int> m = findLocalMinimum(n_iterations, i, f, min_);
-                ASSERT_EQ(values[*m], *min_);
+                ASSERT_EQ(values[*m], min_->f);
                 ASSERT_EQ(values[index_min], values[*m]);
             }
             
@@ -41,7 +41,7 @@ namespace testGradientDescent {
                 -1, -2, -3, values.size(), values.size() + 1, values.size() + 2
             }};
             for(int i : invalid_starts) {
-              Optional<float> min_;
+                Optional<testRangeSearch::Number> min_;
               findLocalMinimum(n_iterations, i, f, min_);
               ASSERT_FALSE(min_);
             }

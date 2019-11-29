@@ -2,150 +2,10 @@
 namespace imajuscule
 {
 
-//////////////////////////////////////////
-
-  template<typename C>
-  void applySetup(C&c,
-                  typename C::SetupParam const & p) {
-    c.applySetup(p);
-  }
-  
-  template<typename C>
-  void applySetup(Delayed<C>&c,
-                  typename Delayed<C>::SetupParam const & p) {
-    c.setTheDelay(p.delay);
-    applySetup(c.getInner(),p.innerParams);
-  }
-  template<LatencySemantic L, typename C>
-  void applySetup(SubSampled<L, C>&c,
-                  typename C::SetupParam const & p) {
-    applySetup(c.getInner(), p);
-  }
-  
-  template<typename A, typename B>
-  void applySetup(SplitConvolution<A,B> &c,
-                  typename SplitConvolution<A,B>::SetupParam const & p) {
-    applySetup(c.getA(), p.aParams);
-    applySetup(c.getB(), p.bParams);
-    if(!c.getB().isValid()) { // for case where lower resolution tail is not used
-      c.setSplit(noSplit);
-    }
-    else {
-      c.setSplit( B::nCoefficientsFadeIn + c.getB().getLatency() - c.getA().getLatency() );
-    }
-  }
-
-
-// todo replace prepare by applySetup
-////////////////////////////////////////
-
-  template<typename SP, typename T, typename FFTTag>
-  void prepare(SP const & params,
-               FinegrainedPartitionnedFFTConvolution<T,FFTTag> & rev,
-               int const n_scales,
-               int const scale_sz ) {    
-    assert(n_scales == 1);
-    applySetup(rev, params);
-  }
-  
-  template<typename SP, typename T, typename FFTTag>
-  void prepare(SP const & params,
-               ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> & rev,
-               int const n_scales,
-               int const scale_sz ) {
-    assert(n_scales == 1);
-      applySetup(rev,
-      {
-          {{},{}},
-          params
-      });
-  }
-  
-// TODO put n_scales and scale_sz in params and use applySetup instead
-  template<typename SP, typename T, typename FFTTag>
-  void prepare(SP const & params,
-               ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag> & rev,
-               int const n_scales,
-               int const scale_sz ) {
-    int delay = 0;
-    if(n_scales > 1) {
-      delay = SameSizeScales::getDelays(scale_sz, params.partition_size);
-      assert(delay > 0);
-    }
-
-    // set the delays
-    
-    // we disable the unused scales by setting the partition size to 0.
-    auto zero = SP::makeInactive();
-    static_assert(4==nMaxScales);
-    std::array<SP, nMaxScales> ps {
-      params,
-      (n_scales >= 2)?params:zero,
-      (n_scales >= 3)?params:zero,
-      (n_scales >= 4)?params:zero
-    };
-    assert(n_scales <= nMaxScales);
-    typename ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag>::SetupParam p
-    {
-        {{},{}},
-      {
-        ps[0],
-        {
-          (n_scales >= 2)?delay:0,
-          {
-            ps[1],
-            {
-              (n_scales >= 3)?delay:0,
-              {
-                ps[2],
-                {
-                  (n_scales >= 4)?delay:0,
-                  ps[3]
-                }
-              }
-            }
-          }
-        }
-      }
-    };
-    applySetup(rev, p);
-  }
-  
-  template<typename SP, typename T, typename FFTTag>
-  void prepare(SP const & params,
-               ZeroLatencyScaledAsyncConvolution<T,FFTTag> & rev,
-               int const n_scales,
-               int const scale_sz ) {
-    assert(n_scales <= 1);
-    applySetup(rev, params);
-  }
-
-  template<typename SP, typename T>
-  void prepare(SP const & params,
-               FIRFilter<T> & rev,
-               int const n_scales,
-               int const scale_sz) {
-    assert(n_scales <= 1);
-    applySetup(rev, params);
-  }
-
-template<typename SP, typename T, typename FFTTag>
-void prepare(SP const & params,
-             OptimizedFIRFilter<T, FFTTag> & rev,
-             int const n_scales,
-             int const scale_sz) {
-    assert(n_scales <= 1);
-    applySetup(rev, params);
-}
-
-  /////////////////////////////////
-
-
-template<typename C>
+template<typename C, typename PS>
 void dephase(int const total_instances,
              int const index_instance,
-             std::optional<int> const phase_increments_late_handler,
-             int const n_scales,
+             PS const & ps,
              C & rev)
 {
     Assert(total_instances);
@@ -155,6 +15,7 @@ void dephase(int const total_instances,
         for(auto &p :periodicities) {
             p = static_cast<int>(p * ratio);
         }
+        auto const phase_increments_late_handler = ps.getPhase();
         if(phase_increments_late_handler &&
            phase_increments_late_handler.value() &&
            !periodicities.empty())
@@ -171,6 +32,19 @@ void dephase(int const total_instances,
     
     if constexpr(C::has_subsampling) {
         auto & lateHandler = rev.getB();
+        int n_scales = 0;
+        if(ps.bParams.aParams.partition_size) {
+            n_scales = 1;
+            if(ps.bParams.bParams.innerParams.aParams.partition_size) {
+                n_scales = 2;
+                if(ps.bParams.bParams.innerParams.bParams.innerParams.aParams.partition_size) {
+                    n_scales = 3;
+                    if(ps.bParams.bParams.innerParams.bParams.innerParams.bParams.innerParams.partition_size) {
+                        n_scales = 4;
+                    }
+                }
+            }
+        }
         for(int i=1; i<n_scales; ++i) {
             // the top-most will be stepped 'base_phase' times,
             // then each scale after that will be stepped by a quarter grain size.

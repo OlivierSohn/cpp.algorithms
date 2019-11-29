@@ -90,7 +90,7 @@ namespace imajuscule
                         // find index in array of min
                         int m = 0;
                         for(int i=1; i<5; ++i) {
-                            if(a[i].val < a[m].val) {
+                            if(a[i].val.getCost() < a[m].val.getCost()) {
                                 m = i;
                             }
                         }
@@ -127,7 +127,7 @@ namespace imajuscule
                         result = r;
                         continue;
                     }
-                    if( static_cast<float>(r.val) < static_cast<float>(result.val)) {
+                    if( r.val.getCost() < result.val.getCost()) {
                         result = r;
                     }
                 }
@@ -162,13 +162,13 @@ namespace imajuscule
      *
      * @return the 'x index' at which the 'y min_value' was found
      */
-    template<typename F>
+    template<typename V, typename F>
     int findRangedLocalMinimum(int n_iterations,
                                range<int> r,
                                F f,
-                               float & min_value)
+                               V & min_value)
     {
-        RangedGradientDescent<float> gd(f);
+        RangedGradientDescent<V> gd(f);
         
         return gd.findLocalMinimum(n_iterations,
                                    r,

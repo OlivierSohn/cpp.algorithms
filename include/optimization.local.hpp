@@ -50,13 +50,16 @@ namespace imajuscule
                     }
                 }
               if(min_value) {
-                min_val = *min_value;
+                min_val = min_value;
               }
               if(min_param) {
                 start_param = *min_param;
               }
             }
             
+            if(min_val) {
+                Assert(*min_val == *min_value);
+            }
             return min_param;
         }
         
@@ -110,7 +113,8 @@ namespace imajuscule
                     min_param = param;
                     return first_param + 1; // + 1 is arbitrary it could have been - 1 too
                 }
-                if(val <= min_value) {
+                Assert(min_value);
+                if(val.getCost() <= min_value->getCost()) {
                     // we want to continue in this direction
                     min_value = val;
                     min_param = param;
@@ -125,7 +129,8 @@ namespace imajuscule
             }
             else {
                 assert(param != first_param);
-                if(val <= min_value) {
+                Assert(min_value);
+                if(val.getCost() <= min_value->getCost()) {
                     // we want to continue
                     min_value = val;
                     min_param = param;
@@ -170,13 +175,13 @@ namespace imajuscule
      *
      * @return the 'x index' at which the 'y min_value' was found
      */
-    template<typename F>
+    template<typename V, typename F>
     Optional<int> findLocalMinimum(int n_iterations,
                          int from,
                          F f,
-                         Optional<float> & min_value)
+                         Optional<V> & min_value)
     {
-        GradientDescent<float> gd(f);
+        GradientDescent<V> gd(f);
         
         return gd.findLocalMinimum(n_iterations,
                                    from,

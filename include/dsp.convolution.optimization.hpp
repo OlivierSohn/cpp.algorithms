@@ -7,9 +7,10 @@ template<typename T>
 struct PartitionAlgo;
 
 template<typename SetupParam>
-struct PartitionningSpec {
+struct PartitionningSpec
+{    
     Optional<SetupParam> cost; // todo rename 'optimal_setup'
-  float getCost() const { return cost ? static_cast<float>(*cost) : std::numeric_limits<float>::max(); }
+  float getCost() const { return cost ? cost->getCost() : std::numeric_limits<float>::max(); }
     GradientDescent<SetupParam> gd;
 
     void logReport(int n_channels,
@@ -31,10 +32,63 @@ struct PartitionningSpec {
     }
 };
 
+
+template<typename SetupParam>
+struct PartitionningSpec2
+{
+    Optional<SetupParam> cost; // todo rename 'optimal_setup'
+    float getCost() const { return cost ? cost->getCost() : std::numeric_limits<float>::max(); }
+  
+    void logReport(int n_channels,
+                   double theoretical_max_avg_time_per_frame,
+                   std::ostream & os)
+    {
+        using namespace std;
+        if(cost) {
+            cost->logReport(n_channels,
+                            theoretical_max_avg_time_per_frame,
+                            os);
+        }
+    }
+};
+
+
+
+
 template<typename SetupParam>
 struct PartitionningSpecs {
     using PS = PartitionningSpec<SetupParam>;
 
+    PS & getWithSpread() {
+      if(with_spread.cost) {
+        if(without_spread.cost) {
+          return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
+        }
+        return with_spread;
+      }
+      return without_spread;
+    }
+
+    PS with_spread, without_spread;
+};
+
+template<typename SetupParam>
+struct PartitionningSpecs2 {
+    using PS = PartitionningSpec2<SetupParam>;
+
+    std::optional<float> getCost() const {
+        std::optional<float> c;
+        if(with_spread.cost) {
+            c = with_spread.cost->getCost();
+        }
+        if(without_spread.cost) {
+            auto c2 = with_spread.cost->getCost();
+            if(!c || *c < c2) {
+                c = c2;
+            }
+        }
+        return c;
+    }
     PS & getWithSpread() {
       if(with_spread.cost) {
         if(without_spread.cost) {
@@ -58,9 +112,6 @@ struct Cost {
     {}
     
   void setCost(float c) { cost = c; }
-
-  operator float() const { return cost; }
-  operator float&() { return cost; }
 
   float getCost() const { return cost; }
     

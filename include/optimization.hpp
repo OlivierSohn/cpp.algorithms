@@ -78,7 +78,7 @@ namespace imajuscule
 
             for(auto const & v : results) {
                 if(v.second.state == ParamState::Ok) {
-                    values[v.first - range_index.getMin()] = v.second.val;
+                    values[v.first - range_index.getMin()] = v.second.val.getCost();
                 }
             }
 
@@ -116,8 +116,8 @@ namespace imajuscule
                 static auto count = 0;
                 ++count;
                 os << "mistake " << count << " : "
-                << index_min_before << " (" << log(static_cast<float>(min_before)) << ") != "
-                << index_min_after  << " (" << log(static_cast<float>(min_after))  << ")" << endl;
+                << index_min_before << " (" << log(min_before.getCost()) << ") != "
+                << index_min_after  << " (" << log(min_after.getCost())  << ")" << endl;
             }
             return index_min_after;
         }
@@ -142,7 +142,9 @@ namespace imajuscule
                 if(s == ParamState::OutOfRange) {
                     return {};
                 }
-                val = std::min(val, value);
+                if(value.getCost() < val.getCost()) {
+                    val = value;
+                }
                 return val;
             }
 
@@ -167,7 +169,7 @@ namespace imajuscule
                     res = r.index;
                     continue;
                 }
-                if(static_cast<float>(r.val) < static_cast<float>(min_value)) {
+                if(r.val.getCost() < min_value.getCost()) {
                     min_value = r.val;
                     res = r.index;
                 }

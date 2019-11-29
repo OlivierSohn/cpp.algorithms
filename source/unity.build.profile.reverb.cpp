@@ -25,6 +25,7 @@ namespace imajuscule::bench::vecto {
      */
     template<typename FPT, ReverbType reverbType, int nOut, int nIn = nOut, typename F>
     void profile(int nResponses,
+                 SimulationPhasing const sim_phasing,
                  int const nCoeffs,
                  int const n_audio_frames_per_cb,
                  double frame_rate,
@@ -68,9 +69,9 @@ namespace imajuscule::bench::vecto {
             rs.setConvolutionReverbIR(deinterlaced_buffers,
                                       n_audio_frames_per_cb,
                                       system_load*frame_rate,
-                                      ResponseTailSubsampling::HighestAffordableResolution,
                                       os,
-                                      structure);
+                                      structure,
+                                      sim_phasing);
         }
         if(!f(rs)) {
             return;
@@ -142,11 +143,14 @@ enum class SystemLoadModelization {
     Convolutions
 };
 
-static int getFramesInQueue(SystemLoadModelization slm, int system_load) {
+static int getFramesInQueue(SystemLoadModelization slm, int system_load, bool phasing) {
     using namespace imajuscule::bench::vecto;
 
+    int const n_channels = 1;
+    auto sim_phasing = phasing? SimulationPhasing::phasing_with_group_size(n_channels): SimulationPhasing::no_phasing();
     std::optional<int> nFramesInQueue;
-    profile<float, ReverbType::Realtime_Asynchronous, 1>((slm == SystemLoadModelization::Frequency) ? 1 : system_load, // n_responses
+    profile<float, ReverbType::Realtime_Asynchronous, 1>(n_channels * ((slm == SystemLoadModelization::Frequency) ? 1 : system_load), // n_responses
+                                                         sim_phasing,
                                                          500 * 1000,
                                                          128,
                                                          44100.,
@@ -192,23 +196,27 @@ int main(int argc, const char * argv[]) {
         SystemLoadModelization::Frequency
     };
     for(auto slm : systemLoadModelizations) {
-        std::vector<int> nFramesInQueues;
-        for(int system_load = 1; system_load<10; ++system_load) {
-            int n = 0;
-            std::cout << system_load << " : " ;
-            try {
-                n = getFramesInQueue(slm, system_load);
-                std::cout << n;
+        for(int i=0; i<2; ++i) {
+            bool phasing = static_cast<bool>(i);
+            std::vector<int> nFramesInQueues;
+            for(int system_load = 1; system_load<10; ++system_load) {
+                int n = 0;
+                std::cout << "phasing : " << (phasing ? "yes" : "no") << std::endl;
+                std::cout << system_load << " : " ;
+                try {
+                    n = getFramesInQueue(slm, system_load, phasing);
+                    std::cout << n;
+                }
+                catch (std::exception const & e) {
+                    std::cout << e.what();
+                }
+                std::cout << std::endl;
+                nFramesInQueues.push_back(n);
             }
-            catch (std::exception const & e) {
-                std::cout << e.what();
-            }
-            std::cout << std::endl;
-            nFramesInQueues.push_back(n);
+            auto plot = StringPlot(20,nFramesInQueues.size());
+            plot.draw(nFramesInQueues);
+            plot.log();
         }
-        auto plot = StringPlot(20,nFramesInQueues.size());
-        plot.draw(nFramesInQueues);
-        plot.log();
     }
 
     return 0;

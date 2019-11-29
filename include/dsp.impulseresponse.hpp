@@ -1,57 +1,6 @@
 
 namespace imajuscule
 {
-  // Subsampling can be used to diminish the resolution of the impulse response tail,
-  // it makes the computations use less CPU cycles:
-  enum class ResponseTailSubsampling {
-    // response is used at full resolution everywhere (most CPU intensive):
-    FullRes, // 0
-    ScaleCount_1 = FullRes,
-    // the beginning of the response is at full resolution, then half resolution:
-    UpToHalfRes, // 1
-    ScaleCount_2 = UpToHalfRes,
-    // the beginning of the response is at full resolution, then half resolution, then quarter resolution:
-    UpToQuarterRes, // 2
-    ScaleCount_3 = UpToQuarterRes,
-    // the beginning of the response is at full resolution, then half resolution, then quarter resolution, then heighth resolution:
-    UpToHeighthRes, // 3
-    ScaleCount_4 = UpToHeighthRes,
-    // If in doubt, use this mode: the least number of scales will be used
-    // if we can afford the induced computations (using an auto optimizing algorithm).
-    HighestAffordableResolution, // 4
-  };
-
-template<typename Convolution>
-range<int> getScaleCountRanges(ResponseTailSubsampling rts) {
-    range<int> r;
-    
-    if constexpr (Convolution::has_subsampling) {
-        switch(rts) {
-            case ResponseTailSubsampling::ScaleCount_1:
-                r.extend(1);
-                break;
-            case ResponseTailSubsampling::ScaleCount_2:
-                r.extend(2);
-                break;
-            case ResponseTailSubsampling::ScaleCount_3:
-                r.extend(3);
-                break;
-            case ResponseTailSubsampling::ScaleCount_4:
-                r.extend(4);
-                break;
-            default:
-                assert(0);
-            case ResponseTailSubsampling::HighestAffordableResolution:
-                r.set(1, nMaxScales);
-                break;
-        }
-    }
-    else {
-        r.extend(1);
-    }
-    
-    return r;
-}
 
 template<typename T>
 struct DeinterlacedBuffers {
@@ -241,67 +190,24 @@ public:
       double const max_avg_time_per_sample;
       
   public:
-        
-    Optional<std::pair<PS,int>> optimize_reverb_parameters(ResponseTailSubsampling rts,
-                                                           std::ostream & os) const {
-      using namespace std;
       
-        if constexpr (!ConvolutionReverb::has_subsampling) {
-            if(rts != ResponseTailSubsampling::FullRes &&
-               rts != ResponseTailSubsampling::HighestAffordableResolution) {
-                throw std::logic_error("This reverb type cannot subsample");
-            }
-        }
-      Optional<std::pair<PS,int>> res;
-      
-      range<int> const scales = getScaleCountRanges<ConvolutionReverb>(rts);
-
-      for(int n_scales = scales.getMin(); n_scales <= scales.getMax(); ++n_scales) {
-        
-        auto partit = PartitionAlgo::run(n_response_channels,
-                                         nAudioOut,
-                                         n_audiocb_frames,
-                                         n_response_frames,
-                                         n_scales,
-                                         frame_rate,
-                                         os);
-        auto & part = partit.getWithSpread();
-        if(!part.cost) {
-          os << "Discard n_scales " << n_scales << std::endl;
-          continue;
-        }
-        
-        if(!res || res->first.getCost() > part.getCost()) {
-          res = {part, n_scales};
-        }
-
-        assert(res);
-        if(res->first.getCost() < max_avg_time_per_sample) {
-          os << "Optimization criteria met with " << n_scales << " scaling levels." << std::endl;
-          break;
-        }
-        os << "cost " << res->first.getCost() << " >= " << max_avg_time_per_sample << std::endl;
-        if(n_scales == scales.getMax()) {
-            throw std::runtime_error("Optimization criteria not met, there are not enough scaling levels.");
-        }
+      template<typename ...Args>
+      auto optimize_reverb_parameters(std::ostream & os, Args ...args) const
+      {
+          return PartitionAlgo::run(n_response_channels,
+                                    nAudioOut,
+                                    n_audiocb_frames,
+                                    n_response_frames,
+                                    frame_rate,
+                                    max_avg_time_per_sample,
+                                    os,
+                                    args...);
       }
-      
-      return res;
-    }
     
-    void logReport(int n_scales, std::ostream & os) const {
+    void logReport(std::ostream & os) const {
       using namespace std;
         os << "Render block size : " << n_audiocb_frames << " frames" << endl;
         os << "- dephasing computation schedule over " << n_response_channels << " channel(s)" << endl;
-      os << "- using ";
-      // TODO range of subsampling regions: highest quality region: xxx samples / 2-subsampled region : xxx samples / 4-subsampled
-        if(n_scales <= 1) {
-            os << "full tail resolution";
-        }
-        else {
-            os << "reduced tail resolution with " << n_scales - 1 << " subsampling regions";
-        }
-        os << endl;
     }
   };
 

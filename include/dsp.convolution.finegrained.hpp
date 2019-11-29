@@ -71,6 +71,12 @@ namespace imajuscule
 
   struct GrainsCosts {
     float fft, ifft, mult;
+      
+      bool operator == (GrainsCosts const & o) const {
+          return fft == o.fft &&
+          ifft == o.ifft &&
+          mult == o.mult;
+      }
   };
 
 
@@ -98,6 +104,13 @@ namespace imajuscule
       res.setCost(0.f);
       return res;
     }
+      
+      bool operator ==(FinegrainedSetupParam const & o) const {
+          return o.multiplication_group_size == multiplication_group_size &&
+          o.partition_size == partition_size &&
+          o.grains_costs == grains_costs &&
+          getCost() == o.getCost();
+      }
   };
 
 
@@ -119,7 +132,7 @@ namespace imajuscule
     using Parent::set_partition_size;
     using Parent::getLatencyForPartitionSize;
 
-    void applySetup(SetupParam const & p) {
+    void setup(SetupParam const & p) {
       set_partition_size(p.partition_size);
       setMultiplicationGroupLength(p.multiplication_group_size);
     }
@@ -693,7 +706,7 @@ namespace imajuscule
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
 
-    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_tests, n_iterations, n_channels, &os] (int lg2_partition_size, auto & val){
+    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_tests, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
       using namespace profiling;
       using namespace std;
       using namespace std::chrono;
@@ -728,8 +741,7 @@ namespace imajuscule
 
           // the value for multiplication group size is not very important (it will be overriden later on)
           // but needs to lead to a valid convolution. We use the highest valid number:
-          applySetup(pfftcv, {partition_size, countPartitions(coeffs.size(), partition_size), 0});
-
+          pfftcv.setup({partition_size, countPartitions(coeffs.size(), partition_size), 0});
           pfftcv.setCoefficients(std::move(coeffs));
         }
 
@@ -964,6 +976,7 @@ namespace imajuscule
       val.setCost(phased_cost.getCost());
       val.setGrainsCosts(phased_cost.grains_costs);
       val.setPhase(phased_cost.getPhase().value_or(0));
+      val.partition_size = partition_size;
 
       constexpr auto debug = false;
       if(debug) {
@@ -984,7 +997,7 @@ namespace imajuscule
                                                  min_val);
     if(res) {
       assert(min_val);
-      min_val->partition_size = pow2(*res);
+      assert(min_val->partition_size == pow2(*res));
     }
   }
 

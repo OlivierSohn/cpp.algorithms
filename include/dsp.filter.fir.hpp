@@ -22,7 +22,7 @@ namespace imajuscule
     
     static constexpr auto dotpr = fft::RealSignal_<fft::Fastest, FPT>::dotpr;
     
-    void applySetup(SetupParam const &) const {}
+    void setup(SetupParam const &) const {}
 
       std::array<int, 0> getComputePeriodicities() const {
           return {};

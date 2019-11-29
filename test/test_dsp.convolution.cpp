@@ -300,7 +300,7 @@ namespace imajuscule {
         {
           FinegrainedPartitionnedFFTConvolution<T, Tag> conv;
           
-          applySetup(conv, {part_size, 1000, 0});
+          conv.setup({part_size, 1000, 0});
           if(!conv.isValid()) {
             continue;
           }
@@ -337,7 +337,7 @@ namespace imajuscule {
       auto f = [](int part_size, auto & coefficients){
         PartitionnedFFTConvolution<T,Tag> conv;
         
-        applySetup(conv, {1.f,{part_size}});
+        conv.setup({1.f,{part_size}});
 
         test(conv, coefficients);
       };
@@ -363,7 +363,7 @@ namespace imajuscule {
     auto mkRealTimeConvolution() {
       using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
       auto c = C{};
-      applySetup(c,typename C::SetupParam
+      c.setup(typename C::SetupParam
       {
         {{},{}},
         {
@@ -420,7 +420,7 @@ namespace imajuscule {
           };
             for(auto submisionPeriod:submisionPeriods) {
                 for(auto queueSize:queueSizes) {
-                    applySetup(c,{
+                    c.setup({
                         submisionPeriod,
                         queueSize,
                         {}
@@ -431,7 +431,7 @@ namespace imajuscule {
         }
         {
           auto c = Delayed<FIRFilter<double>>{};
-          applySetup(c,{10,{}});
+          c.setup({10,{}});
           testDirac2(i, c);
         }
         /*
@@ -455,25 +455,25 @@ namespace imajuscule {
         }
         {
           auto c = FIRFilterGPUAsyncN<float>{};
-          applySetup(c,{10});
+          c.setup({10});
           testDirac2(i, c);
         }
         {
           // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
           auto c = FIRFilterGPUAsyncN<double>{};
-          applySetup(c,{10});
+          c.setup({10});
           testDirac2(i, c);
         }
          */
         {
           auto c = PartitionnedFIRFilterGPUAsyncN<float>{};
-          applySetup(c,{10});
+          c.setup({10});
           testDirac2(i, c);
         }
         {
           // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
           auto c = PartitionnedFIRFilterGPUAsyncN<double>{};
-          applySetup(c,{10});
+          c.setup({10});
           testDirac2(i, c);
         }
         {

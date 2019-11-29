@@ -144,13 +144,11 @@ namespace imajuscule
 
             template<typename SetupP>
             void addSourceLocation(std::array<a64::vector<T>, nEars> vcoeffs,
-                                   SetupP const & setup,
-                                   int & n_scales,
-                                   int scale_sz) {
-                forEachEar(vcoeffs, [&n_scales, scale_sz, &setup](auto & earConvs, auto & coeffs) {
+                                   SetupP const & setup) {
+                forEachEar(vcoeffs, [&setup](auto & earConvs, auto & coeffs) {
                     earConvs.push_back(std::make_unique<Convolution>());
                     auto & c = earConvs.back();
-                    prepare(setup, *c, n_scales, scale_sz);
+                    c->setup(setup);
                     c->setCoefficients(std::move(coeffs));
                 });
             }
@@ -326,12 +324,13 @@ namespace imajuscule
                 }
             }
 
-            void dephaseComputations(std::optional<int> latehandler_phase_increment, int n_scales) {
+            template<typename PS>
+            void dephaseComputations(PS spec) {
                 int n = 0;
                 int const total = countConvolutions();
-                forEachEar([latehandler_phase_increment, n_scales, total, &n](auto & earConvs) {
+                forEachEar([spec, total, &n](auto & earConvs) {
                     for(auto & c : earConvs) {
-                      dephase(total, n, latehandler_phase_increment, n_scales, *c);
+                      dephase(total, n, spec, *c);
                       ++n;
                     }
                 });

@@ -23,7 +23,7 @@ namespace imajuscule {
   auto mkBruteThenScale(int nDropped) {
     using C = SplitConvolution<FIRFilter<FPT>,ScaleConvolution<FFTConvolutionCore<FPT, FFTTag>>> ;
     C c;
-    applySetup(c, typename C::SetupParam{{},{nDropped}});
+    c.setup(typename C::SetupParam{{},{nDropped}});
     return c;
   }
 }

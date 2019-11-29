@@ -277,12 +277,13 @@ static inline std::string toString(ReverbType t) {
       spatializer.clear();
     }
 
+    template<typename ...Args>
       void setConvolutionReverbIR(DeinterlacedBuffers<FPT> const & deinterlaced,
                                   int n_audiocb_frames,
                                   double sampleRate,
-                                  ResponseTailSubsampling rts,
                                   std::ostream & os,
-                                  ResponseStructure & structure)
+                                  ResponseStructure & structure,
+                                  Args... args)
     {
       disable();
         
@@ -299,7 +300,8 @@ static inline std::string toString(ReverbType t) {
                                                        nAudioOut,
                                                        sampleRate);
 
-      auto mayRes = algo.optimize_reverb_parameters(rts, os);
+      auto partitionning = algo.optimize_reverb_parameters(os, args...).getWithSpread();
+        /*
       if(!mayRes) {
           std::stringstream ss;
           ss << "could not optimize (1) :" << std::endl << os.rdbuf();
@@ -307,19 +309,24 @@ static inline std::string toString(ReverbType t) {
       }
 
       auto [partitionning,n_scales] = *mayRes;
-      if(!partitionning.cost) {
-          std::stringstream ss;
-          ss << "could not optimize (2) :" << std::endl << os.rdbuf();
-          throw std::runtime_error(ss.str());
-      }
-        
-      setCoefficients(partitionning,
-                      n_scales,
-                      deinterlaced.getBuffers(),
-                      structure);
+      */
+        if(!partitionning.cost) {
+            std::stringstream ss;
+            ss << "could not optimize (2) :" << std::endl << os.rdbuf();
+            throw std::runtime_error(ss.str());
+        }
+
+        auto buffers = deinterlaced.getBuffers();
+        auto const & param = handleScales(partitionning.cost.value(),
+                        buffers,
+                        structure);
+
+      setCoefficients(param,
+                      buffers);
 
         logReport(sampleRate, os);
-        algo.logReport(n_scales, os);
+        algo.logReport(os);
+
         partitionning.logReport(deinterlaced.countChannels(),
                                 algo.theoretical_max_ns_per_frame,
                                 os);
@@ -342,53 +349,68 @@ static inline std::string toString(ReverbType t) {
     int total_response_size = 0;
     int total_response_size_padded = 0;
 
-    void setCoefficients(PS const & spec,
-                         int n_scales,
-                         std::vector<a64::vector<double>> deinterlaced_coeffs,
-                         ResponseStructure & structure) {
+      template<typename U>
+      SetupParam const & handleScales(U const & spec,
+                           std::vector<a64::vector<double>> & deinterlaced_coeffs,
+                           ResponseStructure & structure) {
+        using namespace std;
+          
+          
+          total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
+          for(auto const & v:deinterlaced_coeffs) {
+              if(total_response_size != v.size()) {
+                  throw std::runtime_error("deinterlaced coefficients have different sizes");
+              }
+          }
+
+          SetupParam const * p = nullptr;
+          if constexpr (ConvolutionReverb::has_subsampling) {
+              assert(spec.n_scales >= 1);
+              int lateHandlerFirstScalePartitionSize = spec.val.bParams.aParams.partition_size;
+              int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
+                                                          lateHandlerLatency<ConvolutionReverb>(lateHandlerFirstScalePartitionSize));
+              int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
+              int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, spec.n_scales);
+
+                structure.scaleSize = scale_sz;
+                structure.countScales = spec.n_scales;
+                structure.nEarlyCofficients = n_coeffs_early_handler;
+
+                if(spec.n_scales > 1) {
+                    // pad the coefficients so that all scales have the same rythm.
+                    int const target_late_response_sz = SameSizeScales::get_max_response_sz(spec.n_scales, scale_sz);
+                    
+                    total_response_size_padded = n_coeffs_early_handler + target_late_response_sz;
+                }
+                else {
+                    total_response_size_padded = total_response_size;
+                }
+                
+                for(auto & v : deinterlaced_coeffs) {
+                    v.resize(total_response_size_padded);
+                }
+              
+              static_assert(std::is_same_v<U, WithNScales<SetupParam>>);
+              p = &spec.val;
+          }
+          else {
+              structure.scaleSize = 0;
+              structure.countScales = 1;
+              total_response_size_padded = total_response_size;
+              structure.nEarlyCofficients = total_response_size_padded;
+              
+              static_assert(std::is_same_v<U, SetupParam>);
+              p = &spec;
+          }
+          structure.totalSizePadded = total_response_size_padded;
+          
+          return *p;
+      }
+      
+    void setCoefficients(SetupParam const & spec,
+                         std::vector<a64::vector<double>> const & deinterlaced_coeffs) {
       using namespace std;
         
-        total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
-        for(auto const & v:deinterlaced_coeffs) {
-            if(total_response_size != v.size()) {
-                throw std::runtime_error("deinterlaced coefficients have different sizes");
-            }
-        }
-        
-        if constexpr (ConvolutionReverb::has_subsampling) {
-            assert(n_scales >= 1);
-            int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
-                                                        lateHandlerLatency<ConvolutionReverb>(spec.cost->partition_size));
-            int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
-            int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
-
-              structure.scaleSize = scale_sz;
-              structure.countScales = n_scales;
-              structure.nEarlyCofficients = n_coeffs_early_handler;
-
-              if(n_scales > 1) {
-                  // pad the coefficients so that all scales have the same rythm.
-                  int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
-                  
-                  total_response_size_padded = n_coeffs_early_handler + target_late_response_sz;
-              }
-              else {
-                  total_response_size_padded = total_response_size;
-              }
-              
-              for(auto & v : deinterlaced_coeffs) {
-                  v.resize(total_response_size_padded);
-              }
-        }
-        else {
-            assert(n_scales == 1);
-            structure.scaleSize = 0;
-            structure.countScales = 1;
-            total_response_size_padded = total_response_size;
-            structure.nEarlyCofficients = total_response_size_padded;
-        }
-        structure.totalSizePadded = total_response_size_padded;
-
       auto const n_channels = deinterlaced_coeffs.size();
       auto const nSources = n_channels / nAudioOut;
         
@@ -407,7 +429,7 @@ static inline std::string toString(ReverbType t) {
         for(auto & prev : conv_reverbs)
         {
           auto & rev = *prev;
-          prepare(*spec.cost, rev, n_scales, structure.scaleSize);
+          rev.setup(spec);
           rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
           assert(rev.isValid());
           // uncomment to debug
@@ -421,7 +443,7 @@ static inline std::string toString(ReverbType t) {
           }*/
           // to "spread" the computations of each channel's convolution reverbs
           // on different audio callback calls, we separate them as much as possible using a phase:
-          dephase(nAudioOut, n, spec.cost->getPhase(), n_scales, rev);
+          dephase(nAudioOut, n, spec, rev);
           ++n;
         }
       }
@@ -445,11 +467,11 @@ static inline std::string toString(ReverbType t) {
             a[j] = std::move(deinterlaced_coeffs[i+nAudioOut*j]);
           }
 
-          spatializer.addSourceLocation(std::move(a), *spec.cost, n_scales, structure.scaleSize);
+          spatializer.addSourceLocation(std::move(a), spec);
           assert(!spatializer.empty());
         }
         assert(!spatializer.empty());
-        spatializer.dephaseComputations(spec.cost->getPhase(), n_scales);
+        spatializer.dephaseComputations(spec);
       }
         
     }

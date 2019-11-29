@@ -48,13 +48,13 @@ namespace imajuscule
         }
     };
     
-    void applySetup(SetupParam const & s) {
+    void setup(SetupParam const & s) {
       terminateAsyncJobs();
         
         N = s.inputSubmissionPeriod;
         queueSize = s.queueSize;
         
-        algo.applySetup(s.innerParams);
+        algo.setup(s.innerParams);
     }
     
     void setCoefficients(a64::vector<FPT> coeffs) {

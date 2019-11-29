@@ -2,13 +2,13 @@
 namespace testGlobalSearch {
     template<typename ARRAY>
     auto create_f(ARRAY const & array, int & counter) {
-        return [&array, &counter](int x, float & val) {
+        return [&array, &counter](int x, testRangeSearch::Number & val) {
             using namespace imajuscule;
             ++counter;
             if(x < 0 || x >= array.size()) {
                 return ParamState::OutOfRange;
             }
-            val = array[x];
+            val.f = array[x];
             return ParamState::Ok;
         };
     }
@@ -23,24 +23,24 @@ namespace testGlobalSearch {
             
             for(int i=0; i<values.size(); ++i) {
                 counter = 0;
-                float min_;
+                testRangeSearch::Number min_;
                 int m = findGlobalMinimum({ 0, 5 },
                                           f,
                                           min_);
-                ASSERT_EQ(0, min_);
-                ASSERT_EQ(values[m], min_);
+                ASSERT_EQ(0, min_.f);
+                ASSERT_EQ(values[m], min_.f);
                 ASSERT_EQ(6, counter);
             }
             
             for(int i=0; i<values.size(); ++i) {
                 counter = 0;
-                float min_;
+                testRangeSearch::Number min_;
                 constexpr auto threshold = 8;
                 int m = findGlobalMinimumOrSmallerThan({ 0, 5 },
                                                        threshold,
                                                        f,
                                                        min_);
-                ASSERT_EQ(values[m], min_);
+                ASSERT_EQ(values[m], min_.f);
                 ASSERT_TRUE(values[m] < threshold);
                 ASSERT_EQ(1, counter);
             }
@@ -48,13 +48,13 @@ namespace testGlobalSearch {
             
             for(int i=0; i<values.size(); ++i) {
                 counter = 0;
-                float min_;
+                testRangeSearch::Number min_;
                 constexpr auto threshold = 3;
                 int m = findGlobalMinimumOrSmallerThan({ 0, 5 },
                                                        threshold,
                                                        f,
                                                        min_);
-                ASSERT_EQ(values[m], min_);
+                ASSERT_EQ(values[m], min_.f);
                 ASSERT_TRUE(values[m] < threshold);
                 ASSERT_TRUE(counter <= 4);
             }

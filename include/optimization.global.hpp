@@ -107,17 +107,17 @@ namespace imajuscule
     /*
      * finds the global minimum or a minimum smaller than threshold, in the given range.
      */
-    template<typename F>
-    int findGlobalMinimumOrSmallerThan(range<int> r, float threshold, F f, float & min_) {
-        RangeSearch<float> rs(r, f);
+    template<typename V, typename F>
+    int findGlobalMinimumOrSmallerThan(range<int> r, float threshold, F f, V & min_) {
+        RangeSearch<V> rs(r, f);
         
-        return rs.findMinimum([threshold](auto cost){
-            return cost < threshold;
+        return rs.findMinimum([threshold](auto const & cost){
+            return cost.getCost() < threshold;
         }, min_);
     }
-    template<typename F>
-    int findGlobalMinimum(range<int> r, F f, float & min_) {
-        RangeSearch<float> rs(r, f);
+    template<typename V, typename F>
+    int findGlobalMinimum(range<int> r, F f, V & min_) {
+        RangeSearch<V> rs(r, f);
         
         return rs.findMinimum([](auto){
             return false;

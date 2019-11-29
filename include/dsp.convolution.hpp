@@ -122,7 +122,7 @@ namespace imajuscule
       typename Parent::SetupParam param;
     };
 
-    void applySetup(SetupParam const & p) {
+    void setup(SetupParam const & p) {
       doApplySetup(p.param);
     }
     

@@ -41,13 +41,29 @@ namespace imajuscule
         int queueSize;
         InnerParams innerParams;
         
-        void logSubReport(std::ostream & os) override {
-            os << "submission_period : " << inputSubmissionPeriod << std::endl;
-            os << "queue_size : " << queueSize << std::endl;
-            innerParams.logSubReport(os);
+        int getImpliedLatency() const {
+            return
+            inputSubmissionPeriod*((queueSize-queue_room_sz) + 1)
+            - 1
+            + innerParams.getImpliedLatency();
+        }
+        
+        void logSubReport(std::ostream & os) const override {
+            os << "Async, period : " << inputSubmissionPeriod <<  " size : " << queueSize << std::endl;
+            {
+                IndentingOStreambuf i(os);
+                innerParams.logSubReport(os);
+            }
         }
     };
-    
+
+    void logComputeState(std::ostream & os) const {
+        os << "Async [" << curIndex << "/" << N << "], queueSize : " << queueSize << std::endl;
+
+        IndentingOStreambuf i(os);
+        algo.logComputeState(os);
+    }
+      
     void setup(SetupParam const & s) {
       terminateAsyncJobs();
         
@@ -61,27 +77,35 @@ namespace imajuscule
       terminateAsyncJobs();
 
       algo.setCoefficients(std::move(coeffs));
-
-        previous_result = std::make_unique<vec>();
-        previous_result->resize(N, {});
         
-        signal = std::make_unique<vec>();
-        signal->resize(N); // no need to 0-initialize
-
-        worker_vec = std::make_unique<vec>();
-        worker_vec->resize(N); // no need to 0-initialize
+        buffer.clear();
+        buffer.resize(
+                      N * // size of a block
+                      (1+ // previous_result
+                       1+ // signal
+                       1+ // worker_vec
+                       queueSize-queue_room_sz)
+                      , {});
+        
+        int i=0;
+        previous_result = i;
+        i += N;
+        signal = i;
+        i += N;
+        worker_vec = i;
+        i += N;
         
         Assert(jobs==0);
 
         worker_2_rt = std::make_unique<Queue>(queueSize);
         rt_2_worker = std::make_unique<Queue>(queueSize);
 
-        for(int i=0; i<queueSize - queue_room_sz; ++i) {
-            auto zeros = std::make_unique<vec>();
-            zeros->resize(N, {});
-            worker_2_rt->push(std::move(zeros));
+        for(int j=0; j<queueSize - queue_room_sz; ++j) {
+            worker_2_rt->push(i);
+            i += N;
             ++jobs;
         }
+        Assert(i==buffer.size());
         
         // by now:
         // #rt_2_worker 0
@@ -108,15 +132,13 @@ namespace imajuscule
         // and then writes to worker_2_rt:
         // #rt_2_worker queueSize - queue_room_sz
         // #worker_2_rt 1
-
-        curIndex = 0;
         
         worker = std::make_unique<std::thread>([this]()
         {
             std::mutex dummyMut; // used for rt_2_worker_cond.
-            auto popWork = [&dummyMut, this]() -> vec_ptr
+            auto popWork = [&dummyMut, this]() -> block_index
             {
-                vec_ptr work;
+                block_index work;
                 
                 auto try_pop = [this, &work] {
                     return rt_2_worker->try_pop(work);
@@ -126,7 +148,7 @@ namespace imajuscule
                 // the queue is not empty.
                 
                 if(try_pop()) {
-                    return std::move(work);
+                    return work;
                 }
                 
                 // !!! We yield here to reduce the likelyhood of a preemption
@@ -134,7 +156,7 @@ namespace imajuscule
 
                 std::this_thread::yield();
                 if(try_pop()) {
-                    return std::move(work);
+                    return work;
                 }
                 
                 // !!! Race condition if the producer notifies HERE:
@@ -172,12 +194,12 @@ namespace imajuscule
 
                     if(likely(try_pop())) {
                         // This was a real wake-up
-                        return std::move(work);
+                        return work;
                     }
                     for(int busy_wait=10; busy_wait; --busy_wait) {
                         if(try_pop()) {
                             // this was a race-condition wake-up
-                            return std::move(work);
+                            return work;
                         };
                     }
                     for(auto dt = std::chrono::nanoseconds(100);
@@ -186,7 +208,7 @@ namespace imajuscule
                         std::this_thread::sleep_for(dt);
                         if(try_pop()) {
                             // this was a race-condition wake-up (the information took way longer to arrive)
-                            return std::move(work);
+                            return work;
                         }
                     }
                     // this was a spurious wake-up,
@@ -194,32 +216,47 @@ namespace imajuscule
                 }
             };
             
+            int const N = this->N;
+            auto const bufferData = this->buffer.data();
+            
             while(true) {
                 
                 auto work = popWork();
-                
-                if(unlikely(!work)) {
-                    // sentinel
-                    vec_ptr sentinel;
-                    auto res = worker_2_rt->try_push(std::move(sentinel));
+#ifdef IMJ_WITH_ASYNCCONV_STATS
+                std::optional<profiling::CpuDuration> threadCPUDuration;
+                {
+                    profiling::ThreadCPUTimer tt(threadCPUDuration);
+#endif // IMJ_WITH_ASYNCCONV_STATS
+                    if(unlikely(work==sentinel)) {
+                        auto res = worker_2_rt->try_push(sentinel);
+                        Assert(res);
+                        return;
+                    }
+                    algo.stepAssignVectorized(bufferData + work,
+                                              bufferData + worker_vec,
+                                              N);
+                    auto res = worker_2_rt->try_push(worker_vec);
                     Assert(res);
-                    return;
+                    worker_vec = work;
+#ifdef IMJ_WITH_ASYNCCONV_STATS
                 }
-                Assert(N == worker_vec->size());
-                Assert(N == work->size());
-                algo.stepAssignVectorized(work->data(),
-                                          worker_vec->data(),
-                                          worker_vec->size());
-                auto res = worker_2_rt->try_push(std::move(worker_vec));
-                Assert(res);
-                worker_vec = std::move(work);
+                if(!threadCPUDuration) {
+                    throw std::runtime_error("cannot measure time");
+                }
+                async_durations.emplace_back(*threadCPUDuration);
+#endif // IMJ_WITH_ASYNCCONV_STATS
             }
         });
     }
       
       void reset() {
           terminateAsyncJobs();
+          Assert(jobs == 0);
           algo.reset();
+          queueSize = 0;
+          error_worker_too_slow = 0;
+          N = 0;
+          buffer = {};
       }
       
       void flushToSilence() {
@@ -258,14 +295,14 @@ namespace imajuscule
       }
     
     FPT step(FPT val) {
-      (*signal)[curIndex++] = val;
+        buffer[signal+(curIndex++)] = val;
       if(unlikely(curIndex == N))
       {
           while(unlikely(!try_submit_signal(std::move(signal)))) {
               ++error_worker_too_slow;
               rt_2_worker_cond.notify_one(); // in case this is because of the race condition
           }
-          signal.swap(previous_result);
+          std::swap(signal, previous_result);
           while(unlikely(!try_receive_result(previous_result))) {
               ++error_worker_too_slow;
               rt_2_worker_cond.notify_one(); // in case this is because of the race condition
@@ -273,7 +310,7 @@ namespace imajuscule
           
           curIndex = 0;
       }
-      return (*previous_result)[curIndex];
+      return buffer[previous_result + curIndex];
     }
     
     template<typename FPT2>
@@ -340,15 +377,17 @@ namespace imajuscule
     int curIndex = 0;
       Async algo;
       using vec = a64::vector<FPT>;
-      using vec_ptr = std::unique_ptr<vec>;
+
+      using block_index = int;
+      static constexpr block_index sentinel = -1;
       
       // Let's assume single producer single consumer for the moment.
       // But in the end, when we have multiple convolutions for multiple channels, we may want to
       // do multiple producer, single consumer.
       
       using Queue = atomic_queue::AtomicQueueB2<
-      /* T = */ vec_ptr,
-      /* A = */ std::allocator<vec_ptr>,
+      /* T = */ block_index,
+      /* A = */ std::allocator<block_index>,
       /* MAXIMIZE_THROUGHPUT */ true,
       /* TOTAL_ORDER = */ true,
       /* SPSC = */ true
@@ -360,16 +399,24 @@ namespace imajuscule
       int queueSize = 0;
       int error_worker_too_slow = 0;
 
-        vec_ptr signal, previous_result;
-      vec_ptr worker_vec;
+      block_index signal, previous_result;
+      block_index worker_vec;
+      a64::vector<FPT> buffer; // block_index are indices into this buffer.
       std::unique_ptr<std::thread> worker;
 
+#ifdef IMJ_WITH_ASYNCCONV_STATS
+  public:
+      std::vector<profiling::CpuDuration> async_durations;
+  private:
+#endif
+
     void terminateAsyncJobs() {
+        curIndex = 0;
         if(!worker) {
             Assert(jobs==0);
             return;
         }
-        submit_signal({}); // sentinel
+        submit_signal(sentinel);
         while(true) {
             flush_results();
             if(jobs == 0) {
@@ -384,15 +431,15 @@ namespace imajuscule
         worker_2_rt.reset();
     }
 
-      void submit_signal(vec_ptr s) {
-          rt_2_worker->push(std::move(s));
+      void submit_signal(block_index s) {
+          rt_2_worker->push(s);
 
           rt_2_worker_cond.notify_one();
           ++jobs;
       }
 
-      bool try_submit_signal(vec_ptr && s) {
-          bool res = rt_2_worker->try_push(std::forward<vec_ptr>(s));
+      bool try_submit_signal(block_index s) {
+          bool res = rt_2_worker->try_push(s);
           if(likely(res)) {
               rt_2_worker_cond.notify_one();
               ++jobs;
@@ -401,12 +448,12 @@ namespace imajuscule
       }
       
       void flush_results() {
-          vec_ptr res;
+          block_index res;
           while(try_receive_result(res)) {
           }
       }
       
-      bool try_receive_result(vec_ptr & res) {
+      bool try_receive_result(block_index & res) {
           bool success = worker_2_rt->try_pop(res);
           if(likely(success)) {
               --jobs;
@@ -414,8 +461,8 @@ namespace imajuscule
           return success;
       }
       
-      vec_ptr receive_result() {
-          vec_ptr res = std::move(worker_2_rt->pop());
+      block_index receive_result() {
+          block_index res = std::move(worker_2_rt->pop());
           --jobs;
           return res;
       }

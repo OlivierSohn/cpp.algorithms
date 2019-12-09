@@ -21,17 +21,13 @@ namespace imajuscule
         using VAL = typename ITER::value_type;
         using Tr = NumTraits<VAL>;
 
-        bool first = true;
-        VAL prev;
+        std::optional<VAL> prev;
         while(it != end) {
             auto cur = *it;
             if(cur == Tr::zero()) {
                 break;
             }
-            if(first) {
-                first = false;
-            }
-            else if(prev * cur < Tr::zero()) {
+            if(prev && (*prev * cur < Tr::zero())) {
                 break;
             }
             prev = cur;
@@ -45,15 +41,11 @@ namespace imajuscule
     ITER first_non_abs_decreasing(ITER it, ITER end) {
         using VAL = typename ITER::value_type;
 
-        bool first = true;
-        VAL prev;
+        std::optional<VAL> prev;
         auto prev_it = it;
         while(it != end) {
             auto cur = std::abs(*it);
-            if(first) {
-                first = false;
-            }
-            else if(prev < cur ) {
+            if(prev && (*prev < cur)) {
                 break;
             }
             prev = cur;
@@ -70,16 +62,12 @@ namespace imajuscule
 
         slidingAverage<VAL> avg(avg_size);
 
-        bool first = true;
-        VAL prev_avg;
+        std::optional<VAL> prev_avg;
         auto prev_it = it;
         while(it != end) {
             avg.feed(std::abs(*it));
             auto cur_avg = avg.compute();
-            if(first) {
-                first = false;
-            }
-            else if(prev_avg < cur_avg ) {
+            if(prev_avg && (*prev_avg < cur_avg)) {
                 break;
             }
             prev_avg = cur_avg;

@@ -63,7 +63,8 @@ namespace imajuscule::vecto {
                 try {
                     NullBuffer null_buffer;
                     std::ostream null_stream(&null_buffer);
-                    rs.setConvolutionReverbIR(deinterlaced_buffers,
+                    rs.setConvolutionReverbIR(1,
+                                              deinterlaced_buffers,
                                               audio_cb_size,
                                               44100.,
                                               ResponseTailSubsampling::HighestAffordableResolution,

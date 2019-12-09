@@ -470,8 +470,7 @@ namespace imajuscule::audio {
     };
 
     struct ResampleSincStats {
-        std::chrono::steady_clock::duration dt_resample = {};
-        std::chrono::steady_clock::duration dt_read_source = {};
+        std::optional<profiling::CpuDuration> dt_resample, dt_read_source;
 
         friend std::ostream& operator<<(std::ostream& os, const ResampleSincStats& dt);
         
@@ -480,19 +479,14 @@ namespace imajuscule::audio {
 
     
     template<typename OriginalBuffer, typename ResampledBuffer, typename F>
-    std::chrono::steady_clock::duration resampleSincBufferVariableRate(OriginalBuffer const & original,
-                                                                       int const n_channels,
-                                                                       F fFs_over_FsPrime,
-                                                                       ResampledBuffer & resampled)
+    void resampleSincBufferVariableRate(OriginalBuffer const & original,
+                                        int const n_channels,
+                                        F fFs_over_FsPrime,
+                                        ResampledBuffer & resampled)
     {
-        using namespace std::chrono;
-        using namespace profiling;
-        std::chrono::steady_clock::duration dt;
-        Timer<steady_clock> t(dt);
-        
         resampled.clear();
         if(!n_channels) {
-            return dt;
+            return;
         }
         int64_t const n_orig_frames = original.size() / n_channels;
         
@@ -683,7 +677,6 @@ namespace imajuscule::audio {
             }
 #endif
         });
-        return dt;
     }
     // 0 o/n 2*o/n ...
     
@@ -702,32 +695,27 @@ namespace imajuscule::audio {
     // si on utilise 4 threads, on porurait diviser [0 147) en 4 intervalles
     
     template<typename OriginalBuffer, typename ResampledBuffer>
-    std::chrono::steady_clock::duration resampleSincBuffer(OriginalBuffer const & original,
-                                                           int const n_channels,
-                                                           double const Fs_over_FsPrime,
-                                                           ResampledBuffer & resampled)
+    void resampleSincBuffer(OriginalBuffer const & original,
+                            int const n_channels,
+                            double const Fs_over_FsPrime,
+                            ResampledBuffer & resampled)
     {
-        using namespace std::chrono;
-        using namespace profiling;
-        std::chrono::steady_clock::duration dt;
-        Timer<steady_clock> t(dt);
-
         resampled.clear();
         if(!n_channels) {
-            return dt;
+            return;
         }
         int64_t const n_orig_frames = original.size() / n_channels;
 
         if(!Fs_over_FsPrime) {
-            return dt;
+            return;
         }
         int64_t const target_frame_count = static_cast<int>(1 + (n_orig_frames-1) / Fs_over_FsPrime);
         if(target_frame_count <= 0) {
-            return dt;
+            return;
         }
         if(std::abs(Fs_over_FsPrime - 1.) < 1e-8) {
             resampled = original;
-            return dt;
+            return;
         }
         
         // using notations found in https://ccrma.stanford.edu/~jos/resample/resample.pdf
@@ -880,7 +868,6 @@ namespace imajuscule::audio {
 #endif
             return true;
         });
-        return dt;
     }
     
     template<typename Reader, typename Buffer, typename F>
@@ -897,7 +884,7 @@ namespace imajuscule::audio {
         std::vector<VAL> original;
         // TODO faire cela dans un thread a part et en meme temps resampler?
         {
-            Timer<steady_clock> t(stats.dt_read_source);
+            Timer t(stats.dt_read_source);
             auto const nOrigSamples = reader.countSamples();
             original.reserve(nOrigSamples);
             while(reader.HasMore()) {
@@ -922,10 +909,14 @@ namespace imajuscule::audio {
             return Fs / FsPrime;
         };
 
-        stats.dt_resample = resampleSincBufferVariableRate(original,
-                                                           reader.countChannels(),
-                                                           fFs_over_FsPrime,
-                                                           resampled);
+        {
+            using namespace profiling;
+            Timer t(stats.dt_resample);
+            resampleSincBufferVariableRate(original,
+                                           reader.countChannels(),
+                                           fFs_over_FsPrime,
+                                           resampled);
+        }
         return stats;
     }
 
@@ -943,7 +934,7 @@ namespace imajuscule::audio {
         std::vector<VAL> original;
         // TODO faire cela dans un thread a part et en meme temps resampler?
         {
-            Timer<steady_clock> t(stats.dt_read_source);
+            Timer t(stats.dt_read_source);
             auto const nOrigSamples = reader.countSamples();
             original.reserve(nOrigSamples);
             while(reader.HasMore()) {
@@ -962,10 +953,15 @@ namespace imajuscule::audio {
         
         double const Fs_over_FsPrime = Fs / FsPrime;
 
-        stats.dt_resample = resampleSincBuffer(original,
-                                               reader.countChannels(),
-                                               Fs_over_FsPrime,
-                                               resampled);
+        {
+            using namespace profiling;
+            Timer t(stats.dt_resample);
+            resampleSincBuffer(original,
+                               reader.countChannels(),
+                               Fs_over_FsPrime,
+                               resampled);
+            
+        }
         return stats;
     }
 

@@ -94,8 +94,8 @@ namespace imajuscule
     int partition_size = 0;
     GrainsCosts grains_costs;
       
-      void logSubReport(std::ostream & os) override {
-          os << "- using max fft size = " << partition_size << std::endl;
+      void logSubReport(std::ostream & os) const override {
+          os << "Finegrained, fft size: " << partition_size << std::endl;
       }
 
 
@@ -131,6 +131,19 @@ namespace imajuscule
 
     using Parent::set_partition_size;
     using Parent::getLatencyForPartitionSize;
+    using Parent::doLogComputeState;
+
+      void logComputeState(std::ostream & os) const {
+          os << "Finegrained ";
+          if(isZero()) {
+              os << "zero" << std::endl;
+          }
+          else {
+              os << " grain " << grain_counter << "/" << countGrains()
+              << " progress " << x.size() << "/" << getBlockSize() << std::endl;
+              doLogComputeState(os);
+          }
+      }
 
     void setup(SetupParam const & p) {
       set_partition_size(p.partition_size);
@@ -511,7 +524,11 @@ namespace imajuscule
     static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
 
     using Algo = typename fft::Algo_<Tag, FPT>;
-
+      void doLogComputeState(std::ostream & os) const {
+          os << countPartitions() << " partitions "
+          << getMultiplicationsGroupMaxSize() << " multGroupMaxSize" << std::endl;
+      }
+      
     auto get_fft_length() const { return 2 * partition_size; }
     auto get_fft_length(int) const { return get_fft_length(); }
 
@@ -701,18 +718,20 @@ namespace imajuscule
                                                              int min_lg2_partitionsz, // must yield a valid result
                                                                bool constraint,
                                                                Optional<SetupParam> & min_val,
-                                                               int n_tests,
                                                              std::ostream & os) {
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
 
-    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_tests, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
+    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
       using namespace profiling;
       using namespace std;
       using namespace std::chrono;
 
-      constexpr auto n_atoms_repeat = 1;
-      constexpr auto n_atoms_repeat_warmup = 1;
+        // repeat 3 times (and take the min duration):
+        // - first time used to cache things,
+        // - then we do 2 others so that if one is preempted, the other is (likely) not
+      constexpr auto n_atoms_repeat = 3;
+      constexpr auto n_atoms_repeat_warmup = 0; // no need to warmup, because we take the _minimum_ duration
 
       if(lg2_partition_size < 0) {
         return ParamState::OutOfRange;
@@ -769,16 +788,11 @@ namespace imajuscule
 
       // prepare tests
 
-      vector<Test> tests;
-      tests.reserve(n_tests);
-      for(int i=0; i<n_tests;++i) {
-        // TODO [early coefficients cost] substract the early coefficients from length_impulse
-        tests.emplace_back(partition_size, length_impulse);
-        if(!tests[i].isValid()) {
-          //cout << "invalid test" << endl;
+      // TODO [early coefficients cost] substract the early coefficients from length_impulse
+      Test test(partition_size, length_impulse);
+        if(!test.isValid()) {
           return ParamState::OutOfRange;
         }
-      }
 
       constexpr auto n_non_multiplicative_grains = NonAtomicConvolution::countNonMultiplicativeGrains();
       static_assert(2 == n_non_multiplicative_grains);
@@ -789,26 +803,18 @@ namespace imajuscule
       int index = 0;
       for(auto g : grain_types)
       {
-        auto prepare = [&tests, g] () { for(auto & t : tests) { t.prepare(g); } };
-        auto measure = [&tests   ] () { for(auto & t : tests) { t.run();      } };
-
-
-        times[index] = min_(measure_n<high_resolution_clock>(n_atoms_repeat_warmup,
-                                                             n_atoms_repeat,
-                                                             prepare,
-                                                             measure)) / static_cast<float>(tests.size());
+          times[index] = min_(measure_thread_cpu_n(n_atoms_repeat_warmup,
+                                                   n_atoms_repeat,
+                                                   [&test, g] () { test.prepare(g);},
+                                                   [&test   ] () { test.run();}));
         ++index;
       }
-
-      //            cout << endl;
-      //            cout << "fft  time : " << times[index_fft ] << endl;
-      //            cout << "ifft time : " << times[index_ifft] << endl;
 
       struct PhasedCost : public Cost {
         GrainsCosts grains_costs;
           
-          void logSubReport(std::ostream & os) override {
-              os << "grain fft : " << grains_costs.fft << std::endl;
+          void logSubReport(std::ostream & os) const override {
+              os << "grain fft  : " << grains_costs.fft << std::endl;
               os << "grain ifft : " << grains_costs.ifft << std::endl;
               os << "grain mult : " << grains_costs.mult << std::endl;
           }
@@ -925,38 +931,24 @@ namespace imajuscule
         }
       } cost_evaluator{times, n_scales, n_frames, n_channels, constraint};
 
-      RangedGradientDescent<PhasedCost> rgd([ &cost_evaluator, &tests ](int multiplication_group_size, auto & cost) {
+      RangedGradientDescent<PhasedCost> rgd([ &cost_evaluator, &test ](int multiplication_group_size, auto & cost) {
         // compute multiplication time for the group
 
-        for(auto & t : tests) {
-          t.setMultiplicationGroupLength(multiplication_group_size);
-        }
+        test.setMultiplicationGroupLength(multiplication_group_size);
 
-        if(!tests[0].isValid()) {
+        if(!test.isValid()) {
           return ParamState::OutOfRange;
         }
-
-        auto prepare = [&tests]() {
-          for(auto & t : tests) {
-            t.prepare(GrainType::MultiplicationGroup);
-          }
-        };
-        auto measure = [&tests](){
-          for(auto & t : tests) {
-            t.run();
-          }
-        };
-
-        auto multiplication_grain_time = min_(measure_n<high_resolution_clock>(n_atoms_repeat_warmup,
-                                                                               n_atoms_repeat,
-                                                                               prepare,
-                                                                               measure)) / static_cast<float>(tests.size());
+          auto multiplication_grain_time = min_(measure_thread_cpu_n(n_atoms_repeat_warmup,
+                                                                     n_atoms_repeat,
+                                                                     [&test](){ test.prepare(GrainType::MultiplicationGroup); },
+                                                                     [&test](){ test.run(); }));
 
         // TODO [early coefficients cost] we should pass a vector of additional costs (where we take into account the early coefficient handling)
 
         cost_evaluator.evaluate(multiplication_grain_time,
-                                tests[0].countMultiplicativeGrains(),
-                                tests[0].getGranularMinPeriod(),
+                                test.countMultiplicativeGrains(),
+                                test.getGranularMinPeriod(),
                                 cost);
 
         //cout
@@ -967,8 +959,8 @@ namespace imajuscule
       });
 
       range<int> const multiplication_group_length {
-        tests[0].getLowestValidMultiplicationsGroupSize(),
-        tests[0].getHighestValidMultiplicationsGroupSize()
+        test.getLowestValidMultiplicationsGroupSize(),
+        test.getHighestValidMultiplicationsGroupSize()
       };
 
       PhasedCost phased_cost;
@@ -1013,7 +1005,6 @@ namespace imajuscule
                                                             std::ostream & os)
   {
     constexpr auto n_iterations = 1;
-    constexpr auto n_tests = 1;
     find_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
                                                                                 n_iterations,
                                                                                 n_channels,
@@ -1023,7 +1014,6 @@ namespace imajuscule
                                                                                 min_lg2_partition_sz,
                                                                                 with_spread,
                                                                                 value,
-                                                                                n_tests,
                                                                                 os);
   }
 

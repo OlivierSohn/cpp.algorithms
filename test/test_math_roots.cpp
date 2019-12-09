@@ -284,20 +284,20 @@ TEST(MathRoots, find_roots) {
     using namespace std::chrono;
     using namespace profiling;
     {
-        std::chrono::steady_clock::duration dt;
+        std::optional<CpuDuration> dt;
         double sum=0;
         std::cout << "sinc" << std::endl;
         {
-            Timer<steady_clock> t(dt);
+            Timer t(dt);
             for(double i=1; i<numIteration; ++i) {
                 sum += fSinc(i);
             }
         }
         std::cout << sum << std::endl;
-        std::cout << duration_cast<milliseconds>(dt).count() << " ms" << std::endl;
+        std::cout << dt->count()/1000.f << " ms" << std::endl;
     }
     {
-        std::chrono::steady_clock::duration dt;
+        std::optional<CpuDuration> dt;
         double sum=0;
         UniformSampler s(fSinc<double>,
                         0.,
@@ -305,16 +305,16 @@ TEST(MathRoots, find_roots) {
                         numSamples);
         std::cout << "sinc resampled uniform" << std::endl;
         {
-            Timer<steady_clock> t(dt);
+            Timer t(dt);
             for(double i=1; i<numIteration; ++i) {
                 sum += s.getAt(i);
             }
         }
         std::cout << sum << std::endl;
-        std::cout << duration_cast<milliseconds>(dt).count() << " ms" << std::endl;
+        std::cout << dt->count()/1000.f << " ms" << std::endl;
     }
     {
-        std::chrono::steady_clock::duration dt;
+        std::optional<CpuDuration> dt;
         double sum=0;
         UniformSampler s(fSinc<double>,
                         0.,
@@ -322,31 +322,31 @@ TEST(MathRoots, find_roots) {
                         numSamples);
         std::cout << "sinc resampled uniform opt" << std::endl;
         {
-            Timer<steady_clock> t(dt);
+            Timer t(dt);
             for(double i=1; i<numIteration; ++i) {
                 sum += s.getAt(i);
             }
         }
         std::cout << sum << std::endl;
-        std::cout << duration_cast<milliseconds>(dt).count() << " ms" << std::endl;
+        std::cout << dt->count()/1000.f << " ms" << std::endl;
     }
     {
-        std::chrono::steady_clock::duration dt;
+        std::optional<CpuDuration> dt;
         double sum=0;
         KaiserWindow window;
         std::cout << "kaiser" << std::endl;
         {
-            Timer<steady_clock> t(dt);
+            Timer t(dt);
             constexpr double last = numIteration;
             for(double i=1; i<last; ++i) {
                 sum += window.getAt(i/last);
             }
         }
         std::cout << sum << std::endl;
-        std::cout << duration_cast<milliseconds>(dt).count() << " ms" << std::endl;
+        std::cout << dt->count()/1000.f << " ms" << std::endl;
     }
     {
-        std::chrono::steady_clock::duration dt;
+        std::optional<CpuDuration> dt;
         double sum=0;
         KaiserWindow window;
         auto kaiser = [&window](double x) { return window.getAt(x); };
@@ -356,17 +356,17 @@ TEST(MathRoots, find_roots) {
                         numSamples);
         std::cout << "kaiser resampled uniform" << std::endl;
         {
-            Timer<steady_clock> t(dt);
+            Timer t(dt);
             constexpr double last = numIteration;
             for(double i=1; i<last; ++i) {
                 sum += s.getAt(i/last);
             }
         }
         std::cout << sum << std::endl;
-        std::cout << duration_cast<milliseconds>(dt).count() << " ms" << std::endl;
+        std::cout << dt->count()/1000.f << " ms" << std::endl;
     }
     {
-        std::chrono::steady_clock::duration dt;
+        std::optional<CpuDuration> dt;
         double sum=0;
         KaiserWindow window;
         auto kaiser = [&window](double x) { return window.getAt(x); };
@@ -376,14 +376,14 @@ TEST(MathRoots, find_roots) {
                         numSamples);
         std::cout << "kaiser resampled uniform opt" << std::endl;
         {
-            Timer<steady_clock> t(dt);
+            Timer t(dt);
             constexpr double last = numIteration;
             for(double i=1; i<last; ++i) {
                 sum += s.getAt(i/last);
             }
         }
         std::cout << sum << std::endl;
-        std::cout << duration_cast<milliseconds>(dt).count() << " ms" << std::endl;
+        std::cout << dt->count()/1000.f << " ms" << std::endl;
     }
     {
         auto linear = [](double x) { return 2*x+1; };

@@ -83,7 +83,7 @@ struct PartitionningSpecs2 {
         }
         if(without_spread.cost) {
             auto c2 = with_spread.cost->getCost();
-            if(!c || *c < c2) {
+            if(!c || *c < c2) {
                 c = c2;
             }
         }
@@ -118,7 +118,7 @@ struct Cost {
     void setPhase(int ph) { phase = ph; }
     std::optional<int> getPhase() const { return phase; }
 
-    virtual void logSubReport(std::ostream & os) = 0;
+    virtual void logSubReport(std::ostream & os) const = 0;
 
     void logReport(int n_channels, double theoretical_max_avg_time_per_frame, std::ostream & os)
     {
@@ -160,6 +160,12 @@ struct Cost {
             os << "Optimized computation phase : " << *phase << endl;
         }
 
+        {
+            os << "Composition:" << std::endl;
+            IndentingOStreambuf i(os);
+            logSubReport(os);
+        }
+        
         //os << endl;
         //os << *partitionning.cost << endl;
     }

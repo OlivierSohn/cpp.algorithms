@@ -59,18 +59,4 @@ namespace imajuscule
       std::ofstream file;
       ScopedLog log;
     };
-
-    template<typename T>
-    class ScopedIndent {
-    public:
-        ScopedIndent(T & ref) : ref(ref) {
-            ref.addIndent();
-        }
-        ~ScopedIndent() {
-            ref.removeIndent();
-        }
-    private:
-        T & ref;
-    };
-
 }

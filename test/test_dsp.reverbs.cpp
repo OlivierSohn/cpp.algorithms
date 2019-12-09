@@ -69,12 +69,14 @@ void testReverbDirac(Args ...args) {
         try {
             ResponseStructure structure;
             if constexpr (Convolution::has_subsampling) {
-                rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100.,
+                rs.setConvolutionReverbIR(1,
+                                          {{}, 1}, audio_cb_size, 44100.,
                                           std::cout, structure, ResponseTailSubsampling::HighestAffordableResolution,
                                           args...);
             }
             else {
-                rs.setConvolutionReverbIR({{}, 1}, audio_cb_size, 44100.,
+                rs.setConvolutionReverbIR(1,
+                                          {{}, 1}, audio_cb_size, 44100.,
                                           std::cout, structure,
                                           args...);
             }
@@ -128,11 +130,13 @@ void testReverbDirac(Args ...args) {
                 ResponseStructure structure;
                 try {
                     if constexpr (Convolution::has_subsampling) {
-                        rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100.,
+                        rs.setConvolutionReverbIR(1,
+                                                  {coeffs, 1}, audio_cb_size, 44100.,
                                                   std::cout, structure, rts, args...);
                     }
                     else {
-                        rs.setConvolutionReverbIR({coeffs, 1}, audio_cb_size, 44100.,
+                        rs.setConvolutionReverbIR(1,
+                                                  {coeffs, 1}, audio_cb_size, 44100.,
                                                   std::cout, structure, args...);
                     }
                     res = true;
@@ -257,5 +261,6 @@ TEST(Reverbs, dirac) {
     testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled>();
     testReverbDirac<ReverbType::Realtime_Synchronous>();
     testReverbDirac<ReverbType::Realtime_Asynchronous>(SimulationPhasing::no_phasing());
+    testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Offline>();
 }

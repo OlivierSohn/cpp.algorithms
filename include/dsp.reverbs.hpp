@@ -89,19 +89,28 @@ struct ResponseStructure {
         Offline,
         Realtime_Synchronous,
         Realtime_Synchronous_Subsampled,
+        Realtime_Asynchronous_Legacy,
         Realtime_Asynchronous
     };
 
-static inline std::string toString(ReverbType t) {
+bool constexpr isAsync(ReverbType r) {
+    return
+    (r == ReverbType::Realtime_Asynchronous_Legacy) ||
+    (r == ReverbType::Realtime_Asynchronous);
+}
+
+static inline std::string toJustifiedString(ReverbType t) {
     switch(t) {
         case ReverbType::Offline :
-            return "Offline";
+            return "Offline                        ";
         case ReverbType::Realtime_Synchronous :
-            return "Realtime_Synchronous";
+            return "Realtime_Synchronous           ";
         case ReverbType::Realtime_Synchronous_Subsampled :
             return "Realtime_Synchronous_Subsampled";
+        case ReverbType::Realtime_Asynchronous_Legacy :
+            return "Realtime_Asynchronous_Legacy   ";
         case ReverbType::Realtime_Asynchronous :
-            return "Realtime_Asynchronous";
+            return "Realtime_Asynchronous          ";
     }
     return "?";
 }
@@ -124,9 +133,12 @@ static inline std::string toString(ReverbType t) {
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
         ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double>,
 
-      std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
+      std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
         ZeroLatencyScaledAsyncConvolution<double>,
-      void >>>>;
+
+      std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
+        ZeroLatencyScaledAsyncConvolutionOptimized<double>,
+      void >>>>>;
       
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
 
@@ -243,14 +255,14 @@ static inline std::string toString(ReverbType t) {
                                      int vectorLength) {
           assert(vectorLength > 0);
           // raw convolutions and spatializer are mutually exclusive.
-          if(nAudioOut && !conv_reverbs[0].isZero()) {
+          if(!conv_reverbs.empty()) {
               Assert(conv_reverbs.size() == nAudioOut);
               Assert(spatializer.empty());
               Assert(nOutputBuffers == nAudioOut);
               for(int j=0; j<nAudioOut; ++j) {
                   auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                      conv_reverbs[j].stepAddInputZeroVectorized(output_buffer + i,
+                      conv_reverbs[j]->stepAddInputZeroVectorized(output_buffer + i,
                                                                  std::min(vectorLength, nFramesToCompute-i));
                   }
               }
@@ -266,7 +278,7 @@ static inline std::string toString(ReverbType t) {
     void flushToSilence()
     {
         for(auto & r : conv_reverbs) {
-            r.flushToSilence();
+            r->flushToSilence();
         }
         spatializer.flushToSilence();
     }
@@ -278,59 +290,74 @@ static inline std::string toString(ReverbType t) {
     }
 
     template<typename ...Args>
-      void setConvolutionReverbIR(DeinterlacedBuffers<FPT> const & deinterlaced,
+      void setConvolutionReverbIR(int const n_sources,
+                                  DeinterlacedBuffers<FPT> const & deinterlaced,
                                   int n_audiocb_frames,
                                   double sampleRate,
                                   std::ostream & os,
                                   ResponseStructure & structure,
                                   Args... args)
-    {
-      disable();
-        
-      if(n_audiocb_frames <= 0) {
-          std::stringstream ss;
-          ss << "Negative or zero callback size (" << n_audiocb_frames << ")";
-          throw std::runtime_error(ss.str());
+      {
+          disable();
+          
+          if(n_audiocb_frames <= 0) {
+              std::stringstream ss;
+              ss << "Negative or zero callback size (" << n_audiocb_frames << ")";
+              throw std::runtime_error(ss.str());
+          }
+          
+          using namespace std;
+          
+          int const n_response_channels = deinterlaced.countChannels();
+          
+          static constexpr double ratio_hard_limit = 1.0;
+          //    because of overhead due to os managing audio, because of "other things running on the device", etc...
+          // at 0.38f on ios release we have glitches when putting the app in the background
+          // at 0.25f on linux we have glitches
+          static constexpr double ratio_soft_limit = 0.15 * ratio_hard_limit;
+          
+          double const theoretical_max_ns_per_frame(1e9/sampleRate);
+          double const max_avg_time_per_sample(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_response_channels));
+          
+          os << "Partitioning:" << std::endl;
+          
+          
+          auto indent = std::make_unique<IndentingOStreambuf>(os);
+          auto partitionning = PartitionAlgo<ConvolutionReverb>::run(n_response_channels,
+                                                                     nAudioOut,
+                                                                     n_audiocb_frames,
+                                                                     deinterlaced.countFrames(),
+                                                                     sampleRate,
+                                                                     max_avg_time_per_sample,
+                                                                     os,
+                                                                     args...).getWithSpread();
+          indent.reset();
+          
+          if(!partitionning.cost) {
+              std::stringstream ss;
+              ss << "could not optimize (2) :" << std::endl << os.rdbuf();
+              throw std::runtime_error(ss.str());
+          }
+          
+          auto buffers = deinterlaced.getBuffers();
+          auto const & param = handleScales(partitionning.cost.value(),
+                                            buffers,
+                                            structure);
+          
+          partitionning.logReport(deinterlaced.countChannels(),
+                                  theoretical_max_ns_per_frame,
+                                  os);
+
+          setCoefficients(n_sources,
+                          param,
+                          buffers);
+          
+          os << "Reports:" << std::endl;
+          IndentingOStreambuf i(os);
+          
+          logReport(sampleRate, os);
+          
       }
-
-      using namespace std;
-      ImpulseResponseOptimizer<ConvolutionReverb> algo(deinterlaced.countChannels(),
-                                                       deinterlaced.countFrames(),
-                                                       n_audiocb_frames,
-                                                       nAudioOut,
-                                                       sampleRate);
-
-      auto partitionning = algo.optimize_reverb_parameters(os, args...).getWithSpread();
-        /*
-      if(!mayRes) {
-          std::stringstream ss;
-          ss << "could not optimize (1) :" << std::endl << os.rdbuf();
-          throw std::runtime_error(ss.str());
-      }
-
-      auto [partitionning,n_scales] = *mayRes;
-      */
-        if(!partitionning.cost) {
-            std::stringstream ss;
-            ss << "could not optimize (2) :" << std::endl << os.rdbuf();
-            throw std::runtime_error(ss.str());
-        }
-
-        auto buffers = deinterlaced.getBuffers();
-        auto const & param = handleScales(partitionning.cost.value(),
-                        buffers,
-                        structure);
-
-      setCoefficients(param,
-                      buffers);
-
-        logReport(sampleRate, os);
-        algo.logReport(os);
-
-        partitionning.logReport(deinterlaced.countChannels(),
-                                algo.theoretical_max_ns_per_frame,
-                                os);
-    }
       
     bool hasSpatializer() const { return !spatializer.empty(); }
       
@@ -407,19 +434,24 @@ static inline std::string toString(ReverbType t) {
           return *p;
       }
       
-    void setCoefficients(SetupParam const & spec,
+    void setCoefficients(int const n_sources,
+                         SetupParam const & spec,
                          std::vector<a64::vector<double>> const & deinterlaced_coeffs) {
       using namespace std;
         
       auto const n_channels = deinterlaced_coeffs.size();
-      auto const nSources = n_channels / nAudioOut;
+      Assert(nAudioOut <= n_channels);
+        int const n_conv_per_source = n_channels / n_sources;
+        if(n_channels != n_conv_per_source * n_sources) {
+            throw std::runtime_error("inconsistent number of audio sources / channels");
+        }
         
       assert(conv_reverbs.empty());
       assert(spatializer.empty());
 
-        // if we have enough sources, we can spatialize them, i.e each ear will receive
+      // if we have more channels than sources, each ear will receive
       // the sum of multiple convolutions.
-      if(nSources <= 1) {
+      if(n_sources == n_channels) {
           conv_reverbs.reserve(nAudioOut);
           for(int i=0; i<nAudioOut; ++i) {
               conv_reverbs.emplace_back(std::make_unique<ConvolutionReverb>());
@@ -448,11 +480,8 @@ static inline std::string toString(ReverbType t) {
         }
       }
       else {
-        if(nSources * nAudioOut != n_channels) {
-          throw std::logic_error("wrong number of channels");
-        }
 
-        for(int i=0; i<nSources; ++i) {
+        for(int i=0; i<n_sources; ++i) {
           std::array<a64::vector<double>, nAudioOut> a;
           for(int j=0; j<nAudioOut; ++j) {
             // for wir files of wave, it seems the order is by "ears" then by "source":
@@ -464,7 +493,7 @@ static inline std::string toString(ReverbType t) {
             // ...
             // ear Right source N
 
-            a[j] = std::move(deinterlaced_coeffs[i+nAudioOut*j]);
+            a[j] = std::move(deinterlaced_coeffs[nAudioOut*i+j]);
           }
 
           spatializer.addSourceLocation(std::move(a), spec);
@@ -478,20 +507,21 @@ static inline std::string toString(ReverbType t) {
 
     void logReport(double sampleRate, std::ostream & os) {
       using namespace std;
+        
+        int i=0;
+        auto logConv = [&os, &i](auto const & r) mutable {
+            ++i;
+            os << "Convolution " << i << ":" << std::endl;
+            IndentingOStreambuf indent(os);
+            r.logComputeState(os);
+        };
 
-        auto index = 1;
         for(auto const & pr : conv_reverbs)
         {
-            auto & r = *pr;
-          if(r.isZero()) {
-            continue;
-          }
-            auto lat = r.getLatency();
-            if(lat) {
-                os << "Channel " << index << " latency : " << lat << " frames (" << lat * 1e3 / sampleRate <<  " ms)" << endl;
-            }
-          ++index;
+            logConv(*pr);
         }
+
+        spatializer.foreachConvReverb([&logConv](auto const & r){ logConv(r); });
 
         if(!spatializer.empty()) {
           os <<  "Spatialization with '" << spatializer.countSources() << "' sources" << endl;

@@ -17,11 +17,19 @@ namespace imajuscule
         
         int delay;
         InnerParams innerParams;
-        void logSubReport(std::ostream & os) override {
-            os << "delay: " << delay << std::endl;
-            innerParams.logSubReport(os);
+        void logSubReport(std::ostream & os) const override {
+            os << "Delayed by " << delay << std::endl;
+            {
+                IndentingOStreambuf i(os);
+                innerParams.logSubReport(os);
+            }
         }
     };
+      void logComputeState(std::ostream & os) const {
+          os << "Delayed by " << ring.size() << std::endl;
+          IndentingOStreambuf i(os);
+          algo.logComputeState(os);
+      }
 
     void setup(SetupParam const & p) {
       ring.reset();

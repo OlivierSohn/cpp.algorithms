@@ -25,12 +25,17 @@ namespace imajuscule
         using Parent::get_fft_length;
       using Parent::getBlockSize;
       using Parent::getEpsilon;
-        using Parent::doSetCoefficients;
+      using Parent::doLogComputeState;
+      using Parent::doSetCoefficients;
         using Parent::doFlushToSilence;
         using Parent::compute_convolution;
 
         FFTConvolutionIntermediate() {
             it = y.end();
+        }
+        void logComputeState(std::ostream & os) const {
+            os << "FFTConv [" << std::distance(y.begin(), it) << "/" << getBlockSize() << "]" << std::endl;
+            doLogComputeState(os);
         }
 
         void setCoefficients2(a64::vector<T> coeffs_) {
@@ -106,7 +111,7 @@ namespace imajuscule
     private:
         Algo fft;
         RealSignal y, result;
-        typename decltype(y)::iterator it;
+        typename decltype(y)::const_iterator it;
     };
 
   template <typename Parent>
@@ -197,7 +202,9 @@ namespace imajuscule
       struct SetupParam {};
       
       void doApplySetup(SetupParam const &) {}
-
+        void doLogComputeState(std::ostream & os) const {
+            os << "1 block of size " << N << std::endl;
+        }
     private:
         int N;
 
@@ -306,6 +313,10 @@ namespace imajuscule
         static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
 
         using Algo = typename fft::Algo_<Tag, FPT>;
+        
+        void doLogComputeState(std::ostream & os) const {
+            os << countPartitions() << " partitions " << std::endl;
+        }
 
         auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
         auto get_fft_length(int) const { return get_fft_length(); }
@@ -495,7 +506,7 @@ namespace imajuscule
                 tests.emplace_back(partition_size, length_impulse);
             }
 
-            val = measure_one<high_resolution_clock>([&tests](){
+            val = measure_thread_cpu_one([&tests](){
                 for(auto & t : tests) {
                     t.run();
                 }

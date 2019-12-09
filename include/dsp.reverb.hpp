@@ -24,10 +24,14 @@ void dephase(int const total_instances,
             *periodicities.rbegin() = phase_increments_late_handler.value() * index_instance;
         }
         rev.setComputeProgresses(periodicities);
+
+        // commented out because not true when a late handler is zero
+        /*
         auto progresses = rev.getComputeProgresses();
         if(progresses != periodicities) {
             throw std::logic_error("setComputeProgresses error");
         }
+         */
     }
     
     if constexpr(C::has_subsampling) {

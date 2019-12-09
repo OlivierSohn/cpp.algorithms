@@ -16,10 +16,13 @@ namespace imajuscule
 
     struct SetupParam : public Cost {
         
-        void logSubReport(std::ostream & os) override {
+        void logSubReport(std::ostream & os) const override {
+            os << "Brute" << std::endl;
         }
     };
-    
+    void logComputeState(std::ostream & os) const {
+        os << "Brute [" << past.getIndex() << "/" << reversed_coefficients.size() << "]" << std::endl;
+    }
     static constexpr auto dotpr = fft::RealSignal_<fft::Fastest, FPT>::dotpr;
     
     void setup(SetupParam const &) const {}

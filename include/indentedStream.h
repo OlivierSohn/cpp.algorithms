@@ -1,40 +1,44 @@
 namespace imajuscule
 {
-    class indentedStream {
+    // https://stackoverflow.com/questions/9599807/how-to-add-indention-to-the-stream-operator
+    class IndentingOStreambuf : public std::streambuf
+    {
+        std::streambuf*     myDest;
+        bool                myIsAtStartOfLine;
+        std::string         myIndent;
+        std::ostream*       myOwner;
+    protected:
+        virtual int         overflow( int ch )
+        {
+            if ( myIsAtStartOfLine && ch != '\n' ) {
+                myDest->sputn( myIndent.data(), myIndent.size() );
+            }
+            myIsAtStartOfLine = ch == '\n';
+            return myDest->sputc( ch );
+        }
     public:
-        indentedStream() : beginline(true) {}
-        template <typename T>
-        indentedStream & operator << (T t) {
-            handleIndent();
-            return add(t);
+        explicit            IndentingOStreambuf(
+                                std::streambuf* dest, int indent = 4 )
+            : myDest( dest )
+            , myIsAtStartOfLine( true )
+            , myIndent( indent, ' ' )
+            , myOwner( NULL )
+        {
         }
-        
-        std::string str() const {
-            return stream.str();
+        explicit            IndentingOStreambuf(
+                                std::ostream& dest, int indent = 4 )
+            : myDest( dest.rdbuf() )
+            , myIsAtStartOfLine( true )
+            , myIndent( indent, ' ' )
+            , myOwner( &dest )
+        {
+            myOwner->rdbuf( this );
         }
-        void addIndent() {
-            indent_level++;
-        }
-        void removeIndent() {
-            indent_level--;
-        }
-    private:
-        std::stringstream stream;
-        bool beginline : 1;
-        int8_t indent_level = 0;
-        void handleIndent() {
-            if(beginline) {
-                beginline = false;
-                add(std::string(indent_level * 4, ' '));
+        virtual             ~IndentingOStreambuf()
+        {
+            if ( myOwner != NULL ) {
+                myOwner->rdbuf( myDest );
             }
         }
-        template <typename T>
-        indentedStream & add(T t) {
-            stream << t;
-            return *this;
-        }
     };
-    
-    template <>
-    indentedStream & indentedStream::operator << <const char*>(const char * t);
 }

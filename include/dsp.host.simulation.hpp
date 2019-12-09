@@ -84,16 +84,22 @@ private:
 struct AudioHostSimulator {
     double const frame_rate;
     int const n_audio_frames_per_cb;
+private:
     std::vector<a64::vector<float>> inputs, outputs;
+    int curFrame = 0;
+    int maxSz;
+public:
     
     AudioHostSimulator(double const frame_rate,
                        int const n_audio_frames_per_cb,
-                       int const n_audio_channels)
+                       int const n_input_channels,
+                       int const n_output_channels)
     : frame_rate(frame_rate)
     , n_audio_frames_per_cb(n_audio_frames_per_cb)
+    , maxSz(n_audio_frames_per_cb)
     {
-        inputs.resize(n_audio_channels);
-        outputs.resize(n_audio_channels);
+        inputs.resize(n_input_channels);
+        outputs.resize(n_output_channels);
         
         for(auto & i : inputs) {
             i.resize(n_audio_frames_per_cb);
@@ -111,12 +117,33 @@ struct AudioHostSimulator {
     , n_audio_frames_per_cb(n_audio_frames_per_cb)
     , inputs(std::move(inputs))
     , outputs(std::move(outputs))
-    {}
+    {
+        maxSz = 0;
+        for(auto const & i : this->inputs) {
+            if(i.size() < n_audio_frames_per_cb) {
+                throw std::logic_error("input too short");
+            }
+            maxSz = std::max(maxSz, static_cast<int>(i.size()));
+        }
+        for(auto const & o : this->outputs) {
+            if(o.size() < n_audio_frames_per_cb) {
+                throw std::logic_error("output too short");
+            }
+            maxSz = std::max(maxSz, static_cast<int>(o.size()));
+        }
+    }
 
     template<typename F>
     std::optional<Periodically> simulate(F f) {
         
-        auto f2 = [this, f](){ return f(inputs, outputs); };
+        auto f2 = [this, f](){
+            if(curFrame + n_audio_frames_per_cb > maxSz) {
+                curFrame = 0;
+            }
+            auto res = f(inputs, outputs, curFrame, n_audio_frames_per_cb);
+            curFrame += n_audio_frames_per_cb;
+            return res;
+        };
 
         Periodically p(std::chrono::nanoseconds(static_cast<int>(1e9 * n_audio_frames_per_cb / frame_rate)));
         if(!p.exec(f2)) {

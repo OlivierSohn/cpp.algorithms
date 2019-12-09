@@ -34,7 +34,12 @@ namespace imajuscule
     static constexpr bool has_subsampling = true;
 
     using SetupParam = typename Algo::SetupParam;
- 
+ void logComputeState(std::ostream & os) const {
+     os << "2x subsampled" << std::endl;
+     IndentingOStreambuf i(os);
+     algo.logComputeState(os);
+ }
+
     auto getEpsilon() const {
       return algo.getEpsilon();
     }

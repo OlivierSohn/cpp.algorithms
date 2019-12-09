@@ -103,6 +103,15 @@ std::string formatSecondsDurationWithPrecision(T length_in_seconds, int n_decima
         return s;
     }
 
+inline std::string justifyRight(int n, std::string s) {
+    std::string res;
+    if(n > s.size()) {
+        res = std::string(n-s.size(), ' ');
+    }
+    res += s;
+    return res;
+}
+
 std::string stripNewLine(std::string const & s);
     
     enum Correspondance : unsigned char { NOT_CORRESPONDING, CORRESPONDS_BACKWARD, CORRESPONDS_FORWARD, CORRESPONDS_ANY };

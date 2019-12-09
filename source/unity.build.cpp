@@ -16,9 +16,22 @@ a64::vector<int8_t> & getFFTTmp() {
 }
 namespace audio {
 std::ostream & operator << (std::ostream & os, const ResampleSincStats& s) {
-    os <<
-    "resample    : " << std::chrono::duration<double>(s.dt_resample).count() << " s" << std::endl <<
-    "read source : " << std::chrono::duration<double>(s.dt_read_source).count() << " s";
+    os << "resample    : ";
+    if (s.dt_resample) {
+        os << s.dt_resample->count()/1000000.f << " s";
+    }
+    else {
+        os << "?";
+    }
+    os << std::endl;
+    os << "read source : ";
+    if (s.dt_read_source) {
+        os << s.dt_read_source->count()/1000000.f << " s";
+    }
+    else {
+        os << "?";
+    }
+    os << std::endl;
     return os;
 }
 }
@@ -41,7 +54,7 @@ std::ostream & operator << (std::ostream & os, const ResampleSincStats& s) {
 #include "string.manip.cpp"
 #include "debugging.cpp"
 #include "scheduler.cpp"
-#include "indentedStream.cpp"
+#include "IndentedStream.cpp"
 #include "color.cpp"
 #include "gen.names.cpp"
 #include "os.storage.cpp"

@@ -102,7 +102,7 @@
 #include "linalg.h"
 #include "binary.h"
 #include "angles.h"
-#include "indentedStream.h"
+#include "IndentedStream.h"
 #include "logging.h"
 #include "container.hpp"
 #include "optional.h"

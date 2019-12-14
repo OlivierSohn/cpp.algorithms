@@ -1,6 +1,6 @@
 
 namespace imajuscule::audio {
-    
+
         // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 
         enum class WaveFormat : uint16_t {
@@ -1004,29 +1004,9 @@ namespace imajuscule::audio {
         }
     
     template<typename WAVRead, typename SR>
-    InterlacedBuffer readReverb(int nouts, SR sample_rate, ResampleSincStats& stats, WAVRead & reader)
+    InterlacedBuffer readReverb(SR sample_rate, ResampleSincStats& stats, WAVRead & reader)
     {
-        auto mod = reader.countChannels() % nouts;
-        if((reader.countChannels() > nouts) && mod) {
-            std::stringstream msg;
-            msg << "Cannot use a '" << reader.countChannels() << "' channels reverb for '" << nouts << "' output channels. The reverb channels count must be a multiple of the output channels count.";
-            throw std::runtime_error(msg.str());
-        }
-        
         return {reader, sample_rate, stats};
     }
     
-    template<typename SR>
-    InterlacedBuffer readReverbFromBuffer(int nouts, SR sample_rate, ResampleSincStats & stats, void const * buffer, std::size_t const sz) {
-        WAVReaderFromBlock reader(buffer, sz);
-        reader.Initialize();
-        return readReverb(nouts, sample_rate, stats, reader);
-    }
-    
-    template<typename SR>
-    InterlacedBuffer readReverbFromFile(int nouts, SR sample_rate, ResampleSincStats & stats, std::string const & dirname, std::string const & filename) {
-        WAVReader reader(dirname, filename);
-        reader.Initialize();
-        return readReverb(nouts, sample_rate, stats, reader);
-    }
 } // namespace imajuscule::audio

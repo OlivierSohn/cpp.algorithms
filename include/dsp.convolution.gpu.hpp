@@ -329,7 +329,6 @@ namespace imajuscule
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
     using Algo = typename fft::Algo_<Tag, FPT>;
@@ -648,7 +647,6 @@ namespace imajuscule
     static constexpr auto makeRealSignal = fft::RealSignal_<Tag, FPT>::make;
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
     using Algo = typename fft::Algo_<Tag, FPT>;
@@ -834,7 +832,6 @@ namespace imajuscule
     static constexpr auto makeRealSignal = fft::RealSignal_<Tag, FPT>::make;
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
     using Algo = typename fft::Algo_<Tag, FPT>;
@@ -1048,7 +1045,6 @@ namespace imajuscule
     static constexpr auto makeRealSignal = fft::RealSignal_<Tag, FPT>::make;
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
     using Algo = typename fft::Algo_<Tag, FPT>;

@@ -92,14 +92,36 @@ double epsilonOfNaiveSummation(C const & cont) {
     };
       
       void logComputeState(std::ostream & os) const {
-          os << "[0.." << split-1 << "]" << std::endl;
+          
+          os << "[";
+          if(split==undefinedSplit) {
+              os << "undefined";
+          }
+          else {
+              os << "0..";
+              if(split!=noSplit) {
+                  os << split-1;
+              }
+          }
+          os << "]" << std::endl;
+          
           {
-              IndentingOStreambuf indent{std::cout};
+              IndentingOStreambuf indent{os};
               a.logComputeState(os);
           }
-          os << "[" << split << "..]" << std::endl;
+          
+          os << "[";
+          if(split==undefinedSplit) {
+              os << "undefined";
+          } else {
+              if(split!=noSplit) {
+                  os << split << "..";
+              }
+          }
+          os << "]" << std::endl;
+          
           {
-              IndentingOStreambuf indent{std::cout};
+              IndentingOStreambuf indent{os};
               b.logComputeState(os);
           }
       }
@@ -477,9 +499,8 @@ struct ScaleConvolution_ {
           auto withPadding = a64::vector<FPT>{start,end};
           // We pad up-to sizeBlock. Benchmarks showed that this is time-wise better
           // than padding to the next power of 2 + delaying input.
-          auto nextPowOf2 = ceil_power_of_two(withPadding.size());
           withPadding.resize(sizeBlock);
-          conv.setCoefficients2(withPadding);
+          conv.setCoefficients2(std::move(withPadding));
         }
         else {
           conv.setCoefficients2({start,it});
@@ -538,6 +559,8 @@ struct ScaleConvolution_ {
         r += it->doStep();
       }
 
+        // todo it is probably more efficient to write the padding exactly when we need it,
+        // and remember not to write the second half of the vector which is by design already zero padded.
       if(nUpdates == v.size()) {
         Assert(2*progress == x.size());
         // fill with zeros so that padding is appropriate in the future.

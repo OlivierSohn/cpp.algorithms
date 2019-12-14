@@ -99,7 +99,9 @@ namespace imajuscule {
 
             auto get_hybrid_split() {
                 return SC {
+                    // 64 byte aligned:
                     &buffer[0],
+                    // for doubles, and a buffer size of at least 4, this is at least 16 bytes aligned:
                     &buffer[0] + buffer.size()/2
                 };
             }

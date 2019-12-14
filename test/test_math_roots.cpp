@@ -230,8 +230,11 @@ TEST(MathRoots, find_roots) {
         
         std::vector<double> precisions {
             10., 1.,
-            1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10,
-            1e-11, 1e-12};
+            1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6
+#ifdef NDEBUG
+            , 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12
+#endif
+        };
         
         for(auto precision : precisions) {
             std::cout << "with precision " << precision << std::endl;

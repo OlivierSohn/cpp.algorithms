@@ -435,7 +435,7 @@ struct ScaleConvolution_ {
     };
       
       void logComputeState(std::ostream & os) const {
-          os << "Scaling ["<< progress <<"/"<< x.size()/2 <<"], dropped: " << nDroppedConvolutions.toInteger() << std::endl;
+          os << "Scaling ["<< progress <<"/"<< x_halfSize <<"], dropped: " << nDroppedConvolutions.toInteger() << std::endl;
           IndentingOStreambuf indent(os);
           int i=nDroppedConvolutions.toInteger();
           for(auto const & algo : v)
@@ -453,17 +453,17 @@ struct ScaleConvolution_ {
     void reset() {
       v.clear();
       x.clear();
+      x_halfSize = 0;
       progress = 0;
+      endPadding = 0;
       nDroppedConvolutions = CountDroppedScales(0);
     }
     void flushToSilence() {
       for(auto & c:v) {
         c.flushToSilence();
       }
-      if(!x.empty()) {
-        zero_signal(x);
-      }
       progress = 0;
+      endPadding = 0;
     }
 
     void setup(SetupParam const & p) {
@@ -483,7 +483,7 @@ struct ScaleConvolution_ {
       assert( s > 0 );
       // note that these dropped coefficients are not passed to this function
       auto nFirstCoefficients = getLatency();
-      auto n = power_of_two_exponent(ceil_power_of_two(nFirstCoefficients+s+1));
+      int n = power_of_two_exponent(ceil_power_of_two(nFirstCoefficients+s+1));
       Assert(nDroppedConvolutions.toInteger() < n);
       v.resize(n-nDroppedConvolutions.toInteger());
       auto it = coeffs_.begin();
@@ -514,6 +514,14 @@ struct ScaleConvolution_ {
         }
       }
       x.resize(pow2(n)); // including padding for biggest convolution
+        x_halfSize = static_cast<int>(x.size() / 2);
+        Assert(2*x_halfSize == static_cast<int>(x.size()));
+        
+      // fill the first half with a non-zero value to verify during tests that padding is done at the right time.
+      std::fill(x.begin(),
+                x.begin() + x_halfSize,
+               typename RealSignal::value_type(1.9)
+               );
     }
 
     bool isValid() const {
@@ -539,19 +547,32 @@ struct ScaleConvolution_ {
 
       x[progress] = typename RealSignal::value_type(val);
       ++progress;
+      endPadding = std::max(progress, endPadding);
+        if(unlikely(x_halfSize == progress)) {
+            Assert(endPadding == x_halfSize);
+            // the second half of x is by design already zero padded
+            endPadding = 2*x_halfSize;
+        }
 
       FPT r{};
       int nUpdates = 1 + (static_cast<int>(count_trailing_zeroes(progress))) - nDroppedConvolutions.toInteger();
       if(nUpdates > 0) {
-        typename RealSignal::const_iterator xBegin = x.begin();
-        auto xBeginPadding = xBegin + progress;
+        auto const xBeginPadding = x.begin() + progress;
         auto endUpdate = it + nUpdates;
 
-        int lengthInputBeforePadding = pow2(nDroppedConvolutions.toInteger());
-        for(;it != endUpdate; ++it, lengthInputBeforePadding <<= 1) {
-          // the start location should be 16 byte aligned for best performance.
-          r += it->doStep(xBeginPadding - lengthInputBeforePadding);
-          // and it's important that x[progress] to x[progress+lengthInputBeforePadding-1] are 0 (padding)
+        for(int paddingSize = static_cast<int>(pow2(nDroppedConvolutions.toInteger()));
+            it != endUpdate;
+            ++it, paddingSize <<= 1)
+        {
+            // write the padding exactly when we need it to optimize cache use
+            for(int const neededEndPadding = progress + paddingSize;
+                endPadding < neededEndPadding;
+                ++endPadding)
+            {
+                x[endPadding] = typename RealSignal::value_type(0);
+            }
+            
+            r += it->doStep(xBeginPadding - paddingSize);
         }
       }
 
@@ -559,16 +580,11 @@ struct ScaleConvolution_ {
         r += it->doStep();
       }
 
-        // todo it is probably more efficient to write the padding exactly when we need it,
-        // and remember not to write the second half of the vector which is by design already zero padded.
-      if(nUpdates == v.size()) {
-        Assert(2*progress == x.size());
-        // fill with zeros so that padding is appropriate in the future.
-        auto start = x.begin();
-        auto end = start + progress; // not x.end() because by design, the second half of the vector is already zero-ed.
-        std::fill(start, end, typename RealSignal::value_type(0));
-        progress = 0;
-      }
+        if(unlikely(x_halfSize == progress)) {
+            Assert(nUpdates == v.size());
+            progress = 0;
+            endPadding = 0;
+        }
 
       return r;
     }
@@ -617,7 +633,7 @@ public:
         return ScaleConvolution_::latencyForDroppedConvolutions(nDroppedConvolutions);
     }
       std::array<int, 1> getComputePeriodicities() const {
-          int res = x.size() / 2;
+          int res = x_halfSize;
           Assert(res == getBiggestScale());
         return {res};
       }
@@ -646,7 +662,7 @@ public:
   private:
     std::vector<A> v;
     RealSignal x;
-    unsigned int progress = 0;
+    int x_halfSize = 0, progress = 0, endPadding = 0;
     CountDroppedScales nDroppedConvolutions = CountDroppedScales(0);
   };
 

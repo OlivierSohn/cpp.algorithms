@@ -106,6 +106,8 @@
 		092A421B237B0723009546C6 /* unity.build.profile.reverb.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.profile.reverb.cpp; path = source/unity.build.profile.reverb.cpp; sourceTree = "<group>"; };
 		092A4224237B0732009546C6 /* profile.reverb */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = profile.reverb; sourceTree = BUILT_PRODUCTS_DIR; };
 		092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.roots.hpp; path = include/fft.roots.hpp; sourceTree = "<group>"; };
+		092C185C23A57F01003EAA72 /* dsp.convolution.bycbsize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.bycbsize.hpp; path = include/dsp.convolution.bycbsize.hpp; sourceTree = "<group>"; };
+		092C185D23A58056003EAA72 /* either.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = either.hpp; path = include/either.hpp; sourceTree = "<group>"; };
 		092EAA8F1E2A4733006C11E9 /* strplot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = strplot.h; path = include/strplot.h; sourceTree = "<group>"; };
 		092EAAB81E2A4994006C11E9 /* range.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = range.h; path = include/range.h; sourceTree = "<group>"; };
 		092EAAB91E2A49F3006C11E9 /* numtraits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = numtraits.h; path = include/numtraits.h; sourceTree = "<group>"; };
@@ -538,6 +540,8 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				092C185D23A58056003EAA72 /* either.hpp */,
+				092C185C23A57F01003EAA72 /* dsp.convolution.bycbsize.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -939,6 +943,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAFB1DB3F0F80075CB05 /* osx.debug.xcconfig */;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(PROJECT_DEBUG__GCC_PREPROCESSOR_DEFINITIONS)",
+					"IMJ_WITH_ASYNCCONV_STATS=1",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -947,6 +955,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0960BAFC1DB3F0F80075CB05 /* osx.release.xcconfig */;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"IMJ_WITH_ASYNCCONV_STATS=1",
+					"$(PROJECT_RELEASE__GCC_PREPROCESSOR_DEFINITIONS)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

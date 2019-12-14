@@ -44,6 +44,7 @@
 #include <typeinfo>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #ifdef __APPLE__
@@ -102,7 +103,8 @@
 #include "linalg.h"
 #include "binary.h"
 #include "angles.h"
-#include "IndentedStream.h"
+#include "indentedStream.h"
+#include "either.hpp"
 #include "logging.h"
 #include "container.hpp"
 #include "optional.h"
@@ -200,6 +202,7 @@ extern "C"
 #include "dsp.spatialize.hpp"
 #include "dsp.reverb.hpp"
 #include "dsp.reverbs.hpp"
+#include "dsp.convolution.bycbsize.hpp"
 #include "dsp.compresser.hpp"
 #include "enum.h"
 #include "interpolation.h"

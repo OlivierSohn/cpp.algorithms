@@ -85,6 +85,23 @@ struct ResponseStructure {
     }
 };
 
+struct ConvReverbOptimizationReportSuccess {
+    std::string optimizationReport;
+    ResponseStructure structure;
+    
+    bool isConsistent() const {
+        return structure.isConsistent();
+    }
+};
+
+
+static std::ostream & operator << (std::ostream &ss, const ConvReverbOptimizationReportSuccess & r) {
+    ss << r.optimizationReport << std::endl;
+    return ss;
+}
+
+using ConvReverbOptimizationReport = Either<std::string, ConvReverbOptimizationReportSuccess>;
+
     enum class ReverbType {
         Offline,
         Realtime_Synchronous,

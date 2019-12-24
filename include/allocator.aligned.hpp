@@ -20,6 +20,11 @@
 
 namespace imajuscule {
 
+template<size_t alignment, typename T>
+struct alignas(alignment) Aligned {
+    T value;
+};
+
     constexpr auto cache_line_n_bytes = 64;
 
     enum class Alignment {

@@ -89,6 +89,7 @@
 
 #include "thirdparty/atomic_queue/atomic_queue.h"
 
+#include "csv.writer.hpp"
 #include "log.stack.h"
 #include "maybe.atomic.hpp"
 #include "likely.h"
@@ -183,6 +184,7 @@ extern "C"
 #include "dsp.resample.h"
 #include "read.wav.h"
 
+#include "dsp.cost.hpp"
 #include "dsp.host.simulation.hpp"
 #include "dsp.convolution.optimization.hpp"
 #include "dsp.filter.hpp"

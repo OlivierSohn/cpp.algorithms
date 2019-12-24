@@ -28,7 +28,7 @@ namespace imajuscule
             return std::min_element(a.begin(), a.end())->count();
         }
 
-        void pollute_cache(std::ostream &);
+    int32_t pollute_cache(std::vector<int32_t> & v);
 
     // inspired from https://stackoverflow.com/questions/5919996/how-to-detect-reliably-mac-os-x-ios-linux-windows-in-c-preprocessor
     
@@ -142,25 +142,6 @@ namespace imajuscule
         timeval kernel;
     };
     
-    static inline std::ostream& operator <<(std::ostream& out, timeval const& tv)
-    {
-        char usfill = ' ';
-        std::stringstream ss;
-        constexpr int szSec = 4;
-        if(true || tv.tv_sec) {
-            ss << std::setw(szSec-1) << std::setfill(' ');
-            ss << tv.tv_sec;
-            ss << ".";
-            usfill = '0';
-        }
-        else {
-            ss << std::string(szSec, ' ');
-        }
-        ss << std::setw(6) << std::setfill(usfill) << tv.tv_usec;
-        return out << ss.str();
-    }
-    
-    
     struct ThreadCPUTimer {
         ThreadCPUTimer(std::optional<CpuDuration> & d)
         : d(d)
@@ -198,6 +179,10 @@ namespace imajuscule
     template<typename F>
     CpuDuration measure_thread_cpu_one(F f) {
         std::optional<CpuDuration> duration;
+        {
+            // this is just to load the corresponding code in the instruction cache.
+            Timer t(duration);
+        }
         {
             Timer t(duration);
             f();
@@ -255,6 +240,26 @@ namespace imajuscule
             resolution* duration;
         };
 
+    template<typename Clock>
+    struct IntervalsTimer
+    {
+        using rep = typename Clock::rep;
+        using time_point = typename Clock::time_point;
+        using resolution = typename Clock::duration;
+
+        IntervalsTimer() :
+        lastTime(Clock::now())
+        {}
+        
+        resolution elapsedSinceLast() {
+            auto prev = lastTime;
+            lastTime = Clock::now();
+            return lastTime - prev;
+        }
+    private:
+
+        time_point lastTime;
+    };
 /*
         template<typename Clock, typename F, typename dur = typename Clock::duration>
         dur measure_one(F f) {
@@ -284,4 +289,23 @@ namespace imajuscule
             return {durations.begin() + n_warmup, durations.end()};
         }*/
     }
+
+}
+
+static inline std::ostream& operator <<(std::ostream& out, timeval const& tv)
+{
+    char usfill = ' ';
+    std::stringstream ss;
+    constexpr int szSec = 4;
+    if(true || tv.tv_sec) {
+        ss << std::setw(szSec-1) << std::setfill(' ');
+        ss << tv.tv_sec;
+        ss << ".";
+        usfill = '0';
+    }
+    else {
+        ss << std::string(szSec, ' ');
+    }
+    ss << std::setw(6) << std::setfill(usfill) << tv.tv_usec;
+    return out << ss.str();
 }

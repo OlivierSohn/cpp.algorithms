@@ -7,6 +7,8 @@ namespace imajuscule
   template <typename Async>
   struct AsyncCPUConvolution {
       using FPT = typename Async::FPT;
+      
+      using AsyncPart = Async;
 
       static constexpr int nComputePhaseable = Async::nComputePhaseable;
       static constexpr int nCoefficientsFadeIn = Async::nCoefficientsFadeIn;

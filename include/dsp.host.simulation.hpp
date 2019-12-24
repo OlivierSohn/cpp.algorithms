@@ -154,4 +154,118 @@ public:
     }
 };
 
+
+
+struct MaxWallTimeIncrementEval {
+    // Alignment of values eliminates false sharing
+    using BythreadMaxIncrements =
+    std::vector<Aligned<cache_line_n_bytes, std::optional<std::chrono::steady_clock::duration>>>;
+
+    MaxWallTimeIncrementEval(BythreadMaxIncrements & v)
+    : bythread_max_increments(&v)
+    {}
+    
+    void prepare(int thread_index) {
+        Assert(bythread_max_increments);
+        max_increments = &(*bythread_max_increments)[thread_index].value;
+    }
+    
+    void eval() {
+        Assert(max_increments);
+        auto t = std::chrono::steady_clock::now();
+        if(last_time) {
+            std::chrono::steady_clock::duration dt = t-*last_time;
+            if(!*max_increments) {
+                *max_increments = dt;
+            }
+            else {
+                *max_increments = std::max(**max_increments, dt);
+            }
+        }
+        last_time = t;
+    }
+    
+    std::optional<std::chrono::steady_clock::duration> getMaxIncrement() const {
+        if(!max_increments) {
+            return {};
+        }
+        return *max_increments;
+    }
+    
+    std::optional<std::chrono::steady_clock::time_point> last_time;
+    std::optional<std::chrono::steady_clock::duration> * max_increments = nullptr;
+    
+    BythreadMaxIncrements * bythread_max_increments;
+};
+
+/*
+ Returns the percentages (between 0 and 1) of cpu time allocated to a single thread,
+ when n threads run in parallel.
+ */
+template<typename Duration, typename F>
+std::vector<double> computeAllocationFactors(int nThreads,
+                                             Duration const & dt,
+                                             F f) {
+    using namespace profiling;
+
+    std::vector<std::pair<
+    std::optional<profiling::CpuDuration>,
+    std::chrono::steady_clock::duration>> durations;
+    
+    durations.resize(nThreads);
+
+    std::atomic<int> state = 0;
+
+    std::vector<std::thread> threads;
+    
+    for(int i=0; i<nThreads; ++i) {
+        threads.emplace_back([&durations,
+                              i,
+                              &nThreads,
+                              &state,
+                              f] // need to capture by copy
+() mutable {
+            ++state;
+            f.prepare(i);
+            do { f.eval(); } while(state < nThreads);
+            // all threads are running, we can start timers
+            {
+                WallTimer<std::chrono::steady_clock> twall(durations[i].second);
+                ThreadCPUTimer tcpu(durations[i].first);
+                ++state;
+                do { f.eval(); } while(state <= 2*nThreads);
+            }
+            // the main thread has declared the test to be finished. we stop the timers.
+            // but we continue calling f until all threads have stoped their timers.
+            ++state;
+            do { f.eval(); } while(state != 1 + 3*nThreads);
+            // all threads have stopped their timers.
+        });
+    }
+    
+    while(state < 2*nThreads) {
+        std::this_thread::yield();
+    }
+    // all threads have started their timers
+    std::this_thread::sleep_for(dt);
+    ++state;
+    for(auto & t : threads) {
+        t.join();
+    }
+    
+    std::vector<double> ratios;
+    ratios.reserve(durations.size());
+    
+    for(auto const & d : durations) {
+        auto const & cpu = d.first;
+        if(!cpu) {
+            throw std::logic_error("no cpu duration");
+        }
+        auto wall = d.second;
+        ratios.push_back(cpu->count() / static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(wall).count()));
+    }
+    
+    return ratios;
+}
+
 } // namespace imajuscule

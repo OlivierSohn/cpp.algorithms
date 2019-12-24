@@ -18,6 +18,7 @@ namespace imajuscule {
 
         template<typename T>
         struct RealSignal_<accelerate::Tag, T> {
+            using This = RealSignal_<accelerate::Tag, T>;
             using type = a64::vector<T>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
@@ -43,7 +44,36 @@ namespace imajuscule {
                                            N);
 
             }
-
+            
+            static double cost_add_scalar_multiply(int64_t sz) {
+                static std::unordered_map<int, double> stats;
+                static std::mutex mut;
+                std::lock_guard<std::mutex> l(mut);
+                
+                auto it = stats.find(sz);
+                if(it != stats.end()) {
+                    return it->second;
+                }
+                double t = nocache_cost_add_scalar_multiply(sz).count() / 1000000.;
+                stats[sz] = t;
+                return t;
+            }
+            
+            static auto nocache_cost_add_scalar_multiply(int64_t sz) {
+                std::array<type, 3> a;
+                for(auto & v:a) {
+                    v.resize(sz);
+                }
+                using namespace profiling;
+                return measure_thread_cpu_one([&a, sz](){
+                    This::add_scalar_multiply(a[0].begin(),
+                                              a[1].begin(),
+                                              a[2].begin(),
+                                              0.7,
+                                              sz);
+                });
+            }
+            
             static void copy(iter dest, const_iter from, int N) {
                 // these 2 are equivalent:
                 /*accelerate::API<T>::f_vcpy(N,
@@ -52,7 +82,34 @@ namespace imajuscule {
                 */
                 accelerate::API<T>::f_mmov(&*from, &*dest, 1, N, 1, 1);
             }
-
+            
+            static double cost_copy(int64_t sz) {
+                static std::unordered_map<int, double> stats;
+                static std::mutex mut;
+                std::lock_guard<std::mutex> l(mut);
+                
+                auto it = stats.find(sz);
+                if(it != stats.end()) {
+                    return it->second;
+                }
+                double t = nocache_cost_copy(sz).count() / 1000000.;
+                stats[sz] = t;
+                return t;
+            }
+            
+            static auto nocache_cost_copy(int64_t sz) {
+                std::array<type, 2> a;
+                for(auto & v:a) {
+                    v.resize(sz);
+                }
+                using namespace profiling;
+                return measure_thread_cpu_one([&a, sz](){
+                    This::copy(a[0].begin(),
+                               a[1].begin(),
+                               sz);
+                });
+            }
+            
             static void zero_n_raw(T * p, int n) {
                 T zero{};
 
@@ -118,6 +175,7 @@ namespace imajuscule {
 
         template<typename T>
         struct RealFBins_<accelerate::Tag, T> {
+            using This = RealFBins_<accelerate::Tag, T>;
             using Tag = accelerate::Tag;
             using type = RealFBinsImpl<T>;
 
@@ -155,7 +213,32 @@ namespace imajuscule {
                                             &W, 1,
                                             &V, 1, v.vector_size(), 1);
             }
-
+            
+            static double cost_mult_assign(int64_t sz) {
+                static std::unordered_map<int, double> stats;
+                static std::mutex mut;
+                std::lock_guard<std::mutex> l(mut);
+                
+                auto it = stats.find(sz);
+                if(it != stats.end()) {
+                    return it->second;
+                }
+                double t = nocache_cost_mult_assign(sz).count() / 1000000.;
+                stats[sz] = t;
+                return t;
+            }
+            
+            static auto nocache_cost_mult_assign(int64_t sz) {
+                std::array<type, 2> a;
+                for(auto & v:a) {
+                    v.resize(sz);
+                }
+                using namespace profiling;
+                return measure_thread_cpu_one([&a, sz](){
+                    This::mult_assign(a[0],
+                                      a[1]);
+                });
+            }
             static void zero(type & v) {
                 T zero{};
 
@@ -256,6 +339,7 @@ namespace imajuscule {
             using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
             using RealFBins  = typename RealFBins_<accelerate::Tag, T>::type;
             using Context    = typename Context_   <accelerate::Tag, T>::type;
+            using Contexts = fft::Contexts_<accelerate::Tag, T>;
             using Tr = NumTraits<T>;
 
             // scaling factor of 2 :
@@ -347,6 +431,63 @@ namespace imajuscule {
                                inputStride * 2,
                                N/2);
 
+            }
+            
+            static double cost_fft_inverse(int64_t sz) {
+                static std::unordered_map<int, double> stats;
+                static std::mutex mut;
+                std::lock_guard<std::mutex> l(mut);
+                
+                auto it = stats.find(sz);
+                if(it != stats.end()) {
+                    return it->second;
+                }
+                double t = nocache_cost_fft_inverse(sz).count() / 1000000.;
+                stats[sz] = t;
+                return t;
+            }
+            
+            
+            static auto nocache_cost_fft_inverse(int64_t sz) {
+                RealFBins f;
+                RealInput i;
+                f.resize(sz);
+                i.resize(sz);
+                Algo_<accelerate::Tag, T> a(Contexts::getInstance().getBySize(sz));
+                
+                using namespace profiling;
+                return measure_thread_cpu_one([&a, &f, &i, sz](){
+                    a.inverse(f, i, sz);
+                });
+            }
+                        
+            static double cost_fft_forward(int64_t sz) {
+                static std::unordered_map<int, double> stats;
+                static std::mutex mut;
+                std::lock_guard<std::mutex> l(mut);
+                
+                auto it = stats.find(sz);
+                if(it != stats.end()) {
+                    return it->second;
+                }
+                double t = nocache_cost_fft_forward(sz, 1).count() / 1000000.;
+                stats[sz] = t;
+                return t;
+            }
+            
+            static auto nocache_cost_fft_forward(int64_t sz, int ntests) {
+                RealFBins f;
+                RealInput i;
+                f.resize(sz);
+                i.resize(sz);
+                Algo_<accelerate::Tag, T> a(Contexts::getInstance().getBySize(sz));
+                
+                using namespace profiling;
+                return measure_thread_cpu_one([&a, &f, &i, sz, ntests](){
+                    for(int n=0; n<ntests; ++n) {
+                        a.forward(i.begin(), f, sz);
+                    }
+                });
             }
             Context context;
         };

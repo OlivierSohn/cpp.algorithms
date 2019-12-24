@@ -375,7 +375,7 @@ double epsilonOfNaiveSummation(C const & cont) {
       };
 
 struct ScaleConvolution_ {
-    static constexpr int latencyForDroppedConvolutions(CountDroppedScales nDropped) {
+    static constexpr int latencyForDroppedConvolutions(CountDroppedScales const & nDropped) {
         return static_cast<int>(pow2(static_cast<size_t>(nDropped.toInteger())))-1;
     }
 
@@ -388,6 +388,160 @@ struct ScaleConvolution_ {
     static constexpr CountDroppedScales nDroppedOptimalFor_Split_Bruteforce_Fft = CountDroppedScales(6);
 };
 
+struct ScaleConvolutionSetupParam : public Cost {
+    ScaleConvolutionSetupParam(CountDroppedScales nDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
+    : nDropped(nDropped)
+    {}
+    
+  /*
+   * The number of early convolutions that are dropped.
+   * The coefficients associated to these dropped convolutions are typically handled
+   * by another convolution handler. (there are '2^nDropped - 1' such coefficients)
+   *
+   * (todo refactor to remove this warning : every PartitionAlgo should explicitely set this value)
+   * WARNING: Do not change the default value unless you know what you are doing:
+   * PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> >
+   * assumes that this value will be the default value.
+   */
+  CountDroppedScales nDropped;
+  
+  int getImpliedLatency() const {
+    return ScaleConvolution_::latencyForDroppedConvolutions(nDropped);
+  }
+  
+  void logSubReport(std::ostream & os) const override {
+    os << "Scaling, dropped: " << nDropped.toInteger() << std::endl;
+  }
+};
+
+static std::vector<int> getScalingBlockSizes(int const szCoeffs, CountDroppedScales const & nDroppedConvolutions)
+{
+    assert( szCoeffs > 0 );
+    
+    std::vector<int> v;
+    
+    // note that these dropped coefficients are not passed to this function
+    auto nFirstCoefficients = ScaleConvolution_::latencyForDroppedConvolutions(nDroppedConvolutions);
+    int n = power_of_two_exponent(ceil_power_of_two(nFirstCoefficients+szCoeffs+1));
+    Assert(nDroppedConvolutions.toInteger() < n);
+    v.resize(n-nDroppedConvolutions.toInteger());
+    for(int i=nDroppedConvolutions.toInteger(); i<n; ++i) {
+        v[i-nDroppedConvolutions.toInteger()] = static_cast<int>(pow2(i));
+    }
+    return v;
+}
+
+template<typename A>
+struct ScaleConvolutionSimulation {
+    // note that it wouldn't make much sense for 'A' to have subsampling in a ScaleConvolution
+    static constexpr bool has_subsampling = A::has_subsampling;
+    using FPT = typename A::FPT;
+    
+    using SetupParam = ScaleConvolutionSetupParam;
+    void setup(SetupParam const & p) {
+      reset();
+      nDroppedConvolutions = p.nDropped;
+    }
+    bool isZero() const {
+      return v.empty();
+    }
+    void reset() {
+      v.clear();
+      x_halfSize = 0;
+      progress = 0;
+      endPadding = 0;
+      nDroppedConvolutions = CountDroppedScales(0);
+    }
+    
+    void setCoefficientsCount(int szCoeffs) {
+        auto scalingSizes = getScalingBlockSizes(szCoeffs, nDroppedConvolutions);
+        v.clear();
+        v.reserve(scalingSizes.size());
+        
+        for(auto sizeBlock : scalingSizes) {
+            v.emplace_back();
+            auto & conv = v.back();
+            conv.setCoefficientsCount(sizeBlock);
+            if(conv.getLatency() != sizeBlock - 1) {
+              // This breaks the class logic, and would lead to wrong results.
+              //   for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.
+              throw std::logic_error("ScaleConvolutionSimulation is applied to a type that doesn't respect the latency constraints.");
+            }
+        }
+        x_halfSize = scalingSizes.empty() ? 0 : scalingSizes.back();
+    }
+
+    auto getLatency() const {
+        return ScaleConvolution_::latencyForDroppedConvolutions(nDroppedConvolutions);
+    }
+    std::array<int, 1> getComputePeriodicities() const {
+        int res = x_halfSize;
+        return {res};
+    }
+    // in [0, getComputePeriodicity())
+    std::array<int, 1> getComputeProgresses() const {
+        return {static_cast<int>(progress)};
+    }
+    void setComputeProgresses(std::array<int, 1> const & progresses) {
+        auto const p = progresses[0];
+        while(getComputeProgresses()[0] != p) {
+            simuStep();
+        }
+    }
+
+    /*
+     Dual method of ScaleConvolution::step()
+     */
+    double simuStep() {
+        if(unlikely(isZero())) {
+          return {};
+        }
+
+        auto it = v.begin();
+        auto end = v.end();
+        
+        double cost = costWriteNConsecutive<FPT>(1);
+        ++progress;
+        endPadding = std::max(progress, endPadding);
+        if(unlikely(x_halfSize == progress)) {
+            Assert(endPadding == x_halfSize);
+            // the second half of x is by design already zero padded
+            endPadding = 2*x_halfSize;
+        }
+        
+        int nUpdates = 1 + (static_cast<int>(count_trailing_zeroes(progress))) - nDroppedConvolutions.toInteger();
+        if(nUpdates > 0) {
+            auto endUpdate = it + nUpdates;
+            
+            for(int paddingSize = static_cast<int>(pow2(nDroppedConvolutions.toInteger()));
+                it != endUpdate;
+                ++it, paddingSize <<= 1)
+            {
+                // write padding
+                int const neededEndPadding = progress + paddingSize;
+                cost += costWriteNConsecutive<FPT>(neededEndPadding-endPadding);
+                cost += it->simuMajorStep();
+            }
+        }
+        
+        for(; it!= end; ++it) {
+            cost += it->simuMinorStep();
+        }
+        
+        if(unlikely(x_halfSize == progress)) {
+            Assert(nUpdates == v.size());
+            progress = 0;
+            endPadding = 0;
+        }
+        
+        return cost;
+    }
+private:
+    std::vector<A> v;
+    int x_halfSize = 0, progress = 0, endPadding = 0;
+    CountDroppedScales nDroppedConvolutions = CountDroppedScales(0);
+};
+
   /*
    * Creates a 0-latency convolution by combining 'n' sub-convolutions
    * of latencies 2^k-1, where k is in [0,n-1].
@@ -396,6 +550,9 @@ struct ScaleConvolution_ {
    */
   template<typename A>
   struct ScaleConvolution {
+      using Simulation = ScaleConvolutionSimulation<typename A::Simulation>;
+      using SetupParam = ScaleConvolutionSetupParam;
+      
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
     using Tag = typename A::Tag;
@@ -407,33 +564,7 @@ struct ScaleConvolution_ {
 
     // note that it wouldn't make much sense for 'A' to have subsampling in a ScaleConvolution
       static constexpr bool has_subsampling = A::has_subsampling;
-      
-    struct SetupParam : public Cost {
-        SetupParam(CountDroppedScales nDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
-        : nDropped(nDropped)
-        {}
-        
-      /*
-       * The number of early convolutions that are dropped.
-       * The coefficients associated to these dropped convolutions are typically handled
-       * by another convolution handler. (there are '2^nDropped - 1' such coefficients)
-       *
-       * (todo refactor to remove this warning : every PartitionAlgo should explicitely set this value)
-       * WARNING: Do not change the default value unless you know what you are doing:
-       * PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> >
-       * assumes that this value will be the default value.
-       */
-      CountDroppedScales nDropped;
-      
-      int getImpliedLatency() const {
-        return ScaleConvolution_::latencyForDroppedConvolutions(nDropped);
-      }
-      
-      void logSubReport(std::ostream & os) const override {
-        os << "Scaling, dropped: " << nDropped.toInteger() << std::endl;
-      }
-    };
-      
+            
       void logComputeState(std::ostream & os) const {
           os << "Scaling ["<< progress <<"/"<< x_halfSize <<"], dropped: " << nDroppedConvolutions.toInteger() << std::endl;
           IndentingOStreambuf indent(os);
@@ -450,6 +581,10 @@ struct ScaleConvolution_ {
     bool isZero() const {
       return v.empty();
     }
+    void setup(SetupParam const & p) {
+      reset();
+      nDroppedConvolutions = p.nDropped;
+    }
     void reset() {
       v.clear();
       x.clear();
@@ -465,11 +600,6 @@ struct ScaleConvolution_ {
       progress = 0;
       endPadding = 0;
     }
-
-    void setup(SetupParam const & p) {
-      reset();
-      nDroppedConvolutions = p.nDropped;
-    }
       
     /*
      *   Unless the count of coefficients is of the form
@@ -479,49 +609,43 @@ struct ScaleConvolution_ {
     // and then this class could allocate the memory in one big chunk, and split it among 'A's.
     // This way, step / get could benefit from better memory locality, and memory accesses may be more predictable.
     void setCoefficients(a64::vector<FPT> coeffs_) {
-      auto s = coeffs_.size();
-      assert( s > 0 );
-      // note that these dropped coefficients are not passed to this function
-      auto nFirstCoefficients = getLatency();
-      int n = power_of_two_exponent(ceil_power_of_two(nFirstCoefficients+s+1));
-      Assert(nDroppedConvolutions.toInteger() < n);
-      v.resize(n-nDroppedConvolutions.toInteger());
-      auto it = coeffs_.begin();
-      auto end = coeffs_.end();
-      for(int i=nDroppedConvolutions.toInteger(); i<n; ++i) {
-        auto & conv = v[i-nDroppedConvolutions.toInteger()];
-        Assert(it <= end);
-        auto start = it;
-        auto sizeBlock = pow2(i);
-        it += sizeBlock;
-        if(it > end) {
-          Assert(i == n-1);
-          auto withPadding = a64::vector<FPT>{start,end};
-          // We pad up-to sizeBlock. Benchmarks showed that this is time-wise better
-          // than padding to the next power of 2 + delaying input.
-          withPadding.resize(sizeBlock);
-          conv.setCoefficients2(std::move(withPadding));
-        }
-        else {
-          conv.setCoefficients2({start,it});
-        }
-        if(conv.getLatency() != sizeBlock - 1) {
-          // This breaks the class logic, and would lead to wrong results.
-          //   (for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.)
-          LG(ERR,"ScaleConvolution is applied to a type that doesn't respect the latency constraints.");
-          v.clear();
-          return;
-        }
-      }
-      x.resize(pow2(n)); // including padding for biggest convolution
-        x_halfSize = static_cast<int>(x.size() / 2);
-        Assert(2*x_halfSize == static_cast<int>(x.size()));
+        auto scalingSizes = getScalingBlockSizes(coeffs_.size(), nDroppedConvolutions);
+        v.clear();
+        v.reserve(scalingSizes.size());
         
-      // fill the first half with a non-zero value to verify during tests that padding is done at the right time.
-      std::fill(x.begin(),
-                x.begin() + x_halfSize,
-               typename RealSignal::value_type(1.9)
-               );
+        auto it = coeffs_.begin();
+        auto end = coeffs_.end();
+        for(auto sizeBlock : scalingSizes) {
+            Assert(it <= end);
+            auto start = it;
+            it += sizeBlock;
+            
+            v.emplace_back();
+            auto & conv = v.back();
+            if(it > end) {
+              auto withPadding = a64::vector<FPT>{start,end};
+              // We pad up-to sizeBlock. Benchmarks showed that this is time-wise better
+              // than padding to the next power of 2 + delaying input.
+              withPadding.resize(sizeBlock);
+              conv.setCoefficients2(std::move(withPadding));
+            }
+            else {
+              conv.setCoefficients2({start,it});
+            }
+            if(conv.getLatency() != sizeBlock - 1) {
+              // This breaks the class logic, and would lead to wrong results.
+              //   for example, ScaleConvolution<FinegrainedPartitionnedFFTConvolution<float>> is not usable with this class.
+              throw std::logic_error("ScaleConvolution is applied to a type that doesn't respect the latency constraints.");
+            }
+        }
+        x_halfSize = scalingSizes.empty() ? 0 : scalingSizes.back();
+        x.resize(2*x_halfSize); // including padding for biggest convolution
+        
+        // fill the first half with a non-zero value to verify during tests that padding is done at the right time.
+        std::fill(x.begin(),
+                  x.begin() + x_halfSize,
+                  typename RealSignal::value_type(1.9)
+                  );
     }
 
     bool isValid() const {
@@ -534,6 +658,9 @@ struct ScaleConvolution_ {
       return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
 
+    /*
+     Dual method of ScaleConvolutionSimulation::step()
+     */
     FPT step(FPT val) {
       if(unlikely(isZero())) {
         return {};
@@ -629,9 +756,9 @@ public:
       return epsilonOfNaiveSummation(v);
     }
 
-    auto getLatency() const {
-        return ScaleConvolution_::latencyForDroppedConvolutions(nDroppedConvolutions);
-    }
+      auto getLatency() const {
+          return ScaleConvolution_::latencyForDroppedConvolutions(nDroppedConvolutions);
+      }
       std::array<int, 1> getComputePeriodicities() const {
           int res = x_halfSize;
           Assert(res == getBiggestScale());
@@ -850,6 +977,33 @@ public:
         return o;
       }
 
+template<typename F>
+int computeQueueSize(F nextProcessingDuration,
+                     double const producerPeriod,
+                     int nIterations) {
+    double time = 0;
+    int consecutiveMiss = 0;
+    int minQueueSz = 1;
+    double timeNextProduced = time + producerPeriod;
+    double timeNextProcessed = time + nextProcessingDuration();
+    while(nIterations >= 0) {
+        if(timeNextProduced < timeNextProcessed) {
+            ++consecutiveMiss;
+            timeNextProduced += producerPeriod;
+        }
+        else {
+            if(consecutiveMiss) {
+                --consecutiveMiss;
+            }
+            timeNextProcessed += nextProcessingDuration();
+            --nIterations;
+        }
+        Assert(consecutiveMiss >= 0);
+        minQueueSz = std::max(minQueueSz, consecutiveMiss);
+    }
+    return minQueueSz;
+}
+
 
         template<typename Algo>
         struct PartitionAlgo< AsyncCPUConvolution<Algo> > {
@@ -984,6 +1138,9 @@ public:
 
             // todo use a better approach than this threshold
             static constexpr double normalizedGradientThreshold = -0.2;
+            
+            // to account for a system that is under heavier load
+            static constexpr int safeFactor = 4;
 
             static PSpecs run(int n_channels,
                               int n_audio_channels,
@@ -993,77 +1150,28 @@ public:
                               double max_avg_time_per_sample,
                               std::ostream & os,
                               SimulationPhasing const & phasing,
-                              CountDroppedScales const & nAsyncScalesDropped) // todo gerer en args...
+                              CountDroppedScales const & nAsyncScalesDropped)
             {
                 auto res = computeQueueMetrics(n_channels,
-                                                n_audio_channels,
-                                                n_audio_frames_per_cb,
-                                                total_response_size,
-                                                frame_rate,
-                                                nAsyncScalesDropped,
-                                                phasing);
+                                               n_audio_channels,
+                                               n_audio_frames_per_cb,
+                                               total_response_size,
+                                               frame_rate,
+                                               nAsyncScalesDropped,
+                                               phasing,
+                                               os);
                 if(!res) {
                     os << "Synchronous thread is too slow" << std::endl;
                     return {};
                 }
-                auto [periodically, queueMetrics] = *res;
+                // minNumFramesPerQueue == 0 means 0 late coefficient
+                int minNumFramesPerQueue = *res;
+                
+                os << "minNumFramesPerQueue=" << minNumFramesPerQueue << std::endl;
 
                 // If there was jitter during the simulation, the metrics might be pessimistic.
                 // The jitter of the simulation could be analyzed using 'periodically'
                 int const submission_period = n_audio_frames_per_cb;
-                int minNumFramesPerQueue = 0;
-                if(queueMetrics.empty()) {
-                  // no late coeffs
-                }
-                else {
-                    std::vector<Metrics> metrics;
-                    metrics.reserve(queueMetrics.size());
-                    for(auto const & m : queueMetrics) {
-                        auto mayMetric = m.getMetrics();
-                        if(!mayMetric) {
-                            os << "Background worker is too slow : a result queue was empty" << std::endl;
-                            return {};
-                        }
-                        metrics.push_back(*mayMetric);
-                    }
-                    
-                    Metrics worst;
-                    for(auto const & m : metrics) {
-                      worst.mergeWorst(m);
-                    }
-                    
-                    auto normalizedGradient = worst.minResultQueueEltsCountRange_gradient / (1 + worst.resultQueueEltsCountRange.getSpan());
-                    if(normalizedGradient < normalizedGradientThreshold) {
-                        os << "Background worker is too slow : normalizedGradient on min queue elts count = " << normalizedGradient << std::endl;
-                        int i=0;
-                        for(auto const & m : queueMetrics) {
-                            std::cout << i << std::endl;
-                            for(auto const & r : m.getResultQueueEltsCountRangeByPeriod()) {
-                              std::cout << r.getMin() << " " << r.getMax() << std::endl;
-                            }
-                            std::cout << std::endl;
-                            for(auto const & r : m.getSignalQueueEltsCountRangeByPeriod()) {
-                              std::cout << r.getMin() << " " << r.getMax() << std::endl;
-                            }
-                            std::cout << std::endl;
-                            ++i;
-                        }
-                        return {};
-                    }
-                    
-                    constexpr int safeFactor = 4;
-                    
-                    minNumFramesPerQueue =
-                    safeFactor * // to account for a system that is under heavier load
-                    n_audio_frames_per_cb * // assumes that the submission_period was n_audio_frames_per_cb during the simulation
-                    (1 +
-                     worst.resultQueueEltsCountRange.getSpan());
-                    // to avoid audio dropouts in case of the occurence of the race condition
-                    // commented in the code of the worker of AsyncCPUConvolution:
-                    minNumFramesPerQueue += n_audio_frames_per_cb;
-                }
-                os << "minNumFramesPerQueue=" << minNumFramesPerQueue << std::endl;
-
                 int const queueSize = minNumFramesPerQueue/submission_period;
                 
                 PS minimalPs;
@@ -1081,14 +1189,157 @@ public:
                 };
             }
         private:
-            static std::optional<std::pair<std::optional<Periodically>,std::vector<QueueMetrics>>>
+            static std::optional<int>
             computeQueueMetrics(int n_channels,
                                 int n_audio_channels,
                                 int n_audio_frames_per_cb,
                                 int total_response_size,
                                 double frame_rate,
                                 CountDroppedScales const & nAsyncScalesDropped,
-                                SimulationPhasing const & phasing)
+                                SimulationPhasing const & phasing,
+                                std::ostream & os)
+            {
+                int const nMinDroppedCoeffs = n_audio_frames_per_cb;
+                int const nLateCoeffs = total_response_size-nMinDroppedCoeffs;
+                if(nLateCoeffs <= 0) {
+                    // the size of the queue doesn't really matter since there is 0 late coefficient.
+                    return {0};
+                }
+                return computeQueueMetricsWithVirtualSimulation(n_channels,
+                                                                n_audio_channels,
+                                                                n_audio_frames_per_cb,
+                                                                nLateCoeffs,
+                                                                frame_rate,
+                                                                nAsyncScalesDropped,
+                                                                phasing,
+                                                                os
+                                                                );
+            }
+            
+            static std::optional<int>
+            computeQueueMetricsWithVirtualSimulation(int const n_channels,
+                                                     int const n_audio_channels,
+                                                     int const n_audio_frames_per_cb,
+                                                     int const nLateCoeffs,
+                                                     double const frame_rate,
+                                                     CountDroppedScales const & nAsyncScalesDropped,
+                                                     SimulationPhasing const & phasing,
+                                                     std::ostream & os)
+            {
+                if(n_channels <= 0) {
+                    throw std::runtime_error("0 channel");
+                }
+                if(n_audio_frames_per_cb <= 0) {
+                    throw std::runtime_error("0 n_audio_frames_per_cb");
+                }
+
+                using Sim = typename Convolution::AsyncPart::Simulation;
+                
+                std::vector<std::unique_ptr<Sim>> simu_convs;
+                simu_convs.reserve(n_channels);
+                for(int i=0; i<n_channels; ++i) {
+                    simu_convs.push_back(std::make_unique<Sim>());
+                }
+
+                for(auto & c : simu_convs) {
+                    c->setup({nAsyncScalesDropped});
+                    c->setCoefficientsCount(nLateCoeffs);
+                }
+                if(phasing.mode == SimulationPhasingMode::On)
+                {
+                    int n=0;
+                    int const total_sz = phasing.groupSize ? *phasing.groupSize : simu_convs.size();
+                    Assert(total_sz);
+                    typename Sim::SetupParam sp(
+                        CountDroppedScales(1)
+                    );
+                    for(auto & c : simu_convs) {
+                        dephase(total_sz,
+                                n % total_sz,
+                                sp,
+                                *c);
+                        ++n;
+                    }
+                }
+                
+                // at the moment, every AsyncCPUConvolution has it's own worler thread, so we simulate
+                // 'n_channels' threads runnign at the same time, to see what percentage of the time they
+                // are actually running on the cpu, and what if their max 'sleep' time.
+                
+                auto const nThreads = n_channels;
+                
+                MaxWallTimeIncrementEval::BythreadMaxIncrements maxIncrements;
+                maxIncrements.resize(nThreads);
+                
+                // We simulate without taking into  account the effects of the realtime audio thread.
+                // We will take this into account later.
+                
+                auto allocs = computeAllocationFactors(nThreads,
+                                                       std::chrono::seconds(1),
+                                                       MaxWallTimeIncrementEval(maxIncrements));
+                
+                std::vector<std::chrono::steady_clock::duration> maxIncrementsValues;
+                maxIncrementsValues.reserve(maxIncrements.size());
+                std::transform(maxIncrements.begin(),
+                               maxIncrements.end(),
+                               maxIncrementsValues.begin(),
+                               [](auto & o) {
+                    if(!o.value) {
+                        throw std::runtime_error("no max increment");
+                    }
+                    return *o.value;
+                });
+                
+                auto const max_sleep_time = *std::max_element(maxIncrementsValues.begin(),
+                                                              maxIncrementsValues.end());
+                // we apply the safe factor
+                double max_sleep_time_seconds = safeFactor * std::chrono::duration_cast<std::chrono::microseconds>(max_sleep_time).count() / 1000000.;
+                
+                double const cb_period_seconds = n_audio_frames_per_cb / frame_rate;
+                max_sleep_time_seconds = std::max(max_sleep_time_seconds,
+                                                  // 1 because the audio thread could preempt and run at most cb_period
+                                                  // 1 to avoid audio dropouts in case of the occurence of the race condition
+                                                  //   commented in the code of the worker of AsyncCPUConvolution
+                                                  2. * cb_period_seconds
+                                                  );
+                
+                int const submission_period_frames = n_audio_frames_per_cb;
+                int const max_sleep_frames = static_cast<int>(0.5 + std::ceil(max_sleep_time_seconds * frame_rate));
+                int const max_sleep_submissions = 1 + (max_sleep_frames-1) / n_audio_frames_per_cb;
+                Assert(max_sleep_submissions >= 0);
+                
+                double min_allocation_factor = *std::min_element(allocs.begin(), allocs.end());
+
+                // the realtime audio thread also uses some cpu, here we assume the worst case could be that
+                // it takes half the cpu - which is a lot.
+                min_allocation_factor /= 2.;
+                // and we apply the safe factor
+                min_allocation_factor /= safeFactor;
+                Assert(min_allocation_factor > 0.);
+                Assert(min_allocation_factor < 1.);
+
+                double const submission_period_seconds = submission_period_frames / frame_rate;
+
+                int queueSize = computeQueueSize([&simu_convs,
+                                                  min_allocation_factor](){
+                    // take only the first one into account (each of them is equivalent over a period)
+                    return simu_convs[0]->simuStep() / min_allocation_factor;
+                },
+                                                 submission_period_seconds,
+                                                 2*nLateCoeffs);
+                
+                return queueSize + max_sleep_submissions;
+            }
+            
+            static std::optional<int>
+            computeQueueMetricsWithRealSimulation(int n_channels,
+                                                  int n_audio_channels,
+                                                  int n_audio_frames_per_cb,
+                                                  int nLateCoeffs,
+                                                  double frame_rate,
+                                                  CountDroppedScales const & nAsyncScalesDropped,
+                                                  SimulationPhasing const & phasing,
+                                                  std::ostream & os)
             {
                 std::vector<std::unique_ptr<Convolution>> async_convs;
                 async_convs.reserve(n_channels);
@@ -1096,27 +1347,17 @@ public:
                     async_convs.push_back(std::make_unique<Convolution>());
                 }
 
+                a64::vector<double> coeffs;
+                coeffs.resize(nLateCoeffs);
+
                 // we use a huge queue so that we can have room for queue size variations
-                int const num_frames_in_queue = std::max(10000, total_response_size/2);
+                int const num_frames_in_queue = std::max(10000, nLateCoeffs/2);
         
                 int const submission_period = n_audio_frames_per_cb;
                 int queue_size = num_frames_in_queue / submission_period;
                 if(queue_size * submission_period < num_frames_in_queue) {
                     ++queue_size;
                 }
-                
-                // this is pessimistic, it will be more depending on the computed queue size
-                // (the bigger the queue size,
-                //  the bigger the latency of the latehandler,
-                //  the more coefficients are handled by the early handler)
-                int const nMinDroppedCoeffs = n_audio_frames_per_cb;
-                int const nLateCoeffs = total_response_size-nMinDroppedCoeffs;
-                if(nLateCoeffs <= 0) {
-                    // the size of the queue doesn't really matter since there is 0 late coefficient.
-                  return {{{}, {}}};
-                }
-                a64::vector<double> coeffs;
-                coeffs.resize(nLateCoeffs);
 
                 for(auto & c : async_convs) {
                     c->setup(
@@ -1207,7 +1448,59 @@ public:
                     // missed deadline
                     return {};
                 }
-                return std::make_pair(*p,m);
+                auto & periodically = *p;
+                auto & queueMetrics = m;
+                int minNumFramesPerQueue=0;
+                if(queueMetrics.empty()) {
+                    // no late coeffs
+                }
+                else {
+                    std::vector<Metrics> metrics;
+                    metrics.reserve(queueMetrics.size());
+                    for(auto const & m : queueMetrics) {
+                        auto mayMetric = m.getMetrics();
+                        if(!mayMetric) {
+                            os << "Background worker is too slow : a result queue was empty" << std::endl;
+                            return {};
+                        }
+                        metrics.push_back(*mayMetric);
+                    }
+                    
+                    Metrics worst;
+                    for(auto const & m : metrics) {
+                      worst.mergeWorst(m);
+                    }
+                    
+                    auto normalizedGradient = worst.minResultQueueEltsCountRange_gradient / (1 + worst.resultQueueEltsCountRange.getSpan());
+                    if(normalizedGradient < normalizedGradientThreshold) {
+                        os << "Background worker is too slow : normalizedGradient on min queue elts count = " << normalizedGradient << std::endl;
+                        int i=0;
+                        for(auto const & m : queueMetrics) {
+                            std::cout << i << std::endl;
+                            for(auto const & r : m.getResultQueueEltsCountRangeByPeriod()) {
+                              std::cout << r.getMin() << " " << r.getMax() << std::endl;
+                            }
+                            std::cout << std::endl;
+                            for(auto const & r : m.getSignalQueueEltsCountRangeByPeriod()) {
+                              std::cout << r.getMin() << " " << r.getMax() << std::endl;
+                            }
+                            std::cout << std::endl;
+                            ++i;
+                        }
+                        return {};
+                    }
+                                        
+                    minNumFramesPerQueue =
+                    n_audio_frames_per_cb * // assumes that the submission_period was n_audio_frames_per_cb during the simulation
+                    (1 +
+                     worst.resultQueueEltsCountRange.getSpan());
+                }
+                
+                // to avoid audio dropouts in case of the occurence of the race condition
+                // commented in the code of the worker of AsyncCPUConvolution:
+                minNumFramesPerQueue += n_audio_frames_per_cb;
+
+                return minNumFramesPerQueue * safeFactor;
             }
         };
       

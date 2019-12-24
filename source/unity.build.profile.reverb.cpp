@@ -8,32 +8,6 @@
 
 
 namespace imajuscule::bench::vecto {
-    struct CsvFile {
-        CsvFile(std::string path) {
-            file.open (path);
-        }
-        ~CsvFile() {
-            file.close();
-        }
-        
-        template<typename T>
-        void push(T && v) {
-            using namespace imajuscule::profiling;
-            if(n) {
-                file << ", ";
-            }
-            file << v;
-            ++n;
-        }
-        void newline() {
-            file << std::endl;
-            file.flush();
-            n = 0;
-        }
-    private:
-        std::ofstream file;
-        int n = 0;
-    };
     
     CsvFile csv_file("/Users/Olivier/profile_reverb.csv");
 
@@ -358,10 +332,395 @@ void getFramesInQueue(SystemLoadModelization slm,
                                       args...);
 }
 
+void testCostsReadWrites() {
+    using namespace imajuscule;
+
+    // mesurable à partir de 10000 écritures.
+    //
+    // pour chaque taille, la premiere execution est plus lente
+    // (donc malloc nous renvoie probablement les memes blocs memoire
+    //  qui finissent par être dans les caches)
+    //
+    for(int i=1; i<10000000; i*=10) {
+        a64::vector<double> v;
+        v.reserve(i);
+        for(int k=0; k<2; ++k) {
+            auto duration = imajuscule::profiling::measure_thread_cpu_one([&v, i](){
+                for(int j=0; j<i; ++j) {
+                    v[j] = j;
+                }
+            });
+            std::cout << "write " << i << ":" << duration.count() << std::endl;
+        }
+    }
+}
+
+
+void testCostsReadWrites2() {
+    using namespace imajuscule;
+
+    // mesurable à partir de 10000 écritures.
+    //
+    // pour chaque taille, la premiere execution est plus lente
+    // (donc malloc nous renvoie probablement les memes blocs memoire
+    //  qui finissent par être dans les caches)
+    //
+    int constexpr Max = 10000000;
+    for(int i=1; i<Max; i*=10) {
+        std::vector<a64::vector<double>> v;
+        v.resize(Max/i);
+        for(auto & vv : v) {
+            vv.resize(i);
+        }
+        for(int k=0; k<2; ++k) {
+            auto duration = imajuscule::profiling::measure_thread_cpu_one([&v, i](){
+                for(auto & vv : v) {
+                    for(int j=0; j<i; ++j) {
+                        vv[j] = j;
+                    }
+                }
+            });
+            std::cout << "write " << i << ":" << duration.count() / static_cast<double>(Max/i) << std::endl;
+            /*
+            double sum = 0;
+            for(auto & vv : v) {
+                for(int j=0; j<i; ++j) {
+                    sum += vv[j];
+                }
+            }
+            std::cout << sum << std::endl;
+             */
+        }
+    }
+}
+
+void testCostsReadWrites3() {
+    using namespace imajuscule;
+    mersenne<SEEDED::Yes>().seed(0);
+    
+    int constexpr Max = 10000000;
+    using T = double;
+    a64::vector<T> v;
+    int constexpr nTPerCacheline = 64/sizeof(T);
+    v.resize(Max);
+
+    std::vector<int32_t> pollution;
+    
+    std::vector<int> indexes;
+    indexes.reserve(Max);
+
+    for(int i=1; i<Max; i>100?(i*=10):++i) {
+        // different tests sit at least 4 cachelines appart
+        int offsetBetweenTests = i + 4*nTPerCacheline;
+        // make it a multiple of 512
+        if(offsetBetweenTests < 512) {
+            offsetBetweenTests = 512;
+        }
+        offsetBetweenTests = (offsetBetweenTests/512) * 512;
+        std::cout << "offsetBetweenTests " << offsetBetweenTests << std::endl;
+        indexes.clear();
+        for(int index=0;index+i <= Max; index += offsetBetweenTests) {
+            indexes.push_back(index);
+        }
+        std::shuffle(indexes.begin(), indexes.end(), mersenne<SEEDED::Yes>());
+        
+        for(int k=0; k<2; ++k) {
+            auto res = imajuscule::profiling::pollute_cache(pollution);
+            std::cout << "                                         " << res << std::endl;
+            {
+                // put indexes in cache
+                auto sum = std::accumulate(indexes.begin(), indexes.end(), 0);
+                std::cout << "                                   " << sum << std::endl;
+            }
+            auto duration = imajuscule::profiling::measure_thread_cpu_one([&v, &indexes, i](){
+                for(auto index : indexes) {
+                    for(int j=0; j<i; ++j) {
+                        v[index + j] = j;
+                    }
+                }
+            });
+            std::cout << "write " << i << ":" << duration.count() / static_cast<double>(indexes.size()) << " over " << indexes.size() << std::endl;
+            /*
+            double sum = 0;
+            for(auto & vv : v) {
+                for(int j=0; j<i; ++j) {
+                    sum += vv[j];
+                }
+            }
+            std::cout << sum << std::endl;
+             */
+        }
+    }
+}
+
+namespace imajuscule::profiling {
+struct StatBucket {
+    static constexpr float width = 10.f;
+
+    StatBucket(int64_t value):
+    r(value, value)
+    {}
+    
+    bool tryFeed(int64_t value) {
+        int64_t expectedMin = std::min(r.getMin(), value);
+        int64_t expectedMax = std::max(r.getMax(), value);
+        int64_t expectedSpan =  expectedMax - expectedMin;
+        if(expectedSpan > width*expectedMin) {
+            return false;
+        }
+        r.extend(value);
+        ++count;
+        return true;
+    }
+    
+    auto getRange() const {
+        return r;
+    }
+
+    auto getCount() const {
+        return count;
+    }
+private:
+    range<int64_t> r;
+    int64_t count = 1;
+};
+    std::ostream & operator << (std::ostream & os, const StatBucket& s) {
+        os << "[" << s.getRange().getMin() << " " << s.getRange().getMax() << "] " << s.getCount();
+        return os;
+    }
+struct Stats {
+    static constexpr int nBuckets = 5;
+    
+    Stats() {
+        v.reserve(nBuckets);
+    }
+    
+    void start() {
+        wallTimes.first = std::chrono::steady_clock::now();
+        rusage ru;
+        int res = my_getrusage(RUSAGE_THREAD,&ru);
+        if(res) {
+            throw std::runtime_error("cannot measure time");
+        }
+        cpuTimes.first = {ru};
+    }
+    void stop() {
+        wallTimes.second = std::chrono::steady_clock::now();
+        rusage ru;
+        int res = my_getrusage(RUSAGE_THREAD,&ru);
+        if(res) {
+            throw std::runtime_error("cannot measure time");
+        }
+        cpuTimes.second = {ru};
+    }
+
+    template<typename Duration>
+    bool feed(Duration d) {
+        auto i = std::chrono::duration_cast<std::chrono::nanoseconds>(d).count();
+        for(auto & s:v) {
+            if(s.tryFeed(i)) {
+                return true;
+            }
+        }
+        if(v.size() < nBuckets) {
+            v.emplace_back(i);
+            return true;
+        }
+        return false;
+    }
+    
+    auto getSortedBuckets() const {
+        auto v2 = v;
+        std::sort(v2.begin(), v2.end(), [](auto const & a, auto const & b){ return a.getRange().getMin() < b.getRange().getMin(); });
+        return v2;
+    }
+    CpuDuration getCpuDuration() const {
+        return cpuTimes.second - cpuTimes.first;
+    }
+    std::chrono::steady_clock::duration getWallDuration() const {
+        return wallTimes.second - wallTimes.first;
+    }
+    
+private:
+    std::vector<StatBucket> v;
+    std::pair<std::chrono::steady_clock::time_point, std::chrono::steady_clock::time_point> wallTimes;
+    std::pair<CpuDuration, CpuDuration> cpuTimes;
+};
+    std::ostream & operator << (std::ostream & os, const Stats& s) {
+        for(auto & b:s.getSortedBuckets()) {
+            os << b << std::endl;
+        }
+        os << s.getCpuDuration().count() << " us cpu" << std::endl;
+        os << std::chrono::duration_cast<std::chrono::microseconds>(s.getWallDuration()).count() << " us wall" << std::endl;
+        return os;
+    }
+
+}
+
+
+void testScheduling(imajuscule::profiling::Stats & s, int64_t niterations, std::atomic<bool> const & start)
+{
+    while(!start) {
+        std::this_thread::yield();
+    }
+    s.start();
+    {
+        imajuscule::profiling::IntervalsTimer<std::chrono::steady_clock> t;
+        for(int64_t i=0;i<niterations; ++i) {
+            s.feed(t.elapsedSinceLast());
+        }
+    }
+    s.stop();
+}
+
+void testScheduling()
+{
+    int64_t constexpr nThreads = 2;
+    int64_t constexpr nIterations = 1000000000 / nThreads;
+    std::vector<imajuscule::profiling::Stats> stats;
+    stats.resize(nThreads);
+    {
+        std::vector<std::thread> threads;
+        threads.reserve(nThreads);
+        std::atomic<bool> start = false;
+        for(auto & s : stats) {
+            threads.emplace_back([&s, &start](){testScheduling(s, nIterations, start);});
+        }
+        start = true;
+        for(auto & t : threads) {
+            t.join();
+        }
+    }
+    
+    for(auto const & s : stats) {
+        std::cout << s << std::endl;
+    }
+    
+}
+
+struct NopEval {
+    void prepare(int thread_index) {
+    }
+
+    void eval() {
+    }
+};
+struct FFTEval {
+    FFTEval(int64_t sz)
+    : sz(sz)
+    {}
+    
+    void prepare(int thread_index) {
+        a = Algo::Contexts::getInstance().getBySize(sz);
+        f.resize(sz);
+        i.resize(sz);
+    }
+
+    void eval() {
+        a.forward(i.begin(), f, sz);
+    }
+
+    int64_t sz;
+    using Algo = imajuscule::fft::Algo_<accelerate::Tag, double>;
+    Algo::RealFBins f;
+    Algo::RealInput i;
+    Algo a;
+};
+
+void testAllocationFactors2() {
+    using namespace imajuscule::fft;
+    using namespace imajuscule::profiling;
+    for(int64_t sz = 16; sz < 10000000; sz *= 4) {
+        for(int nThreads = 1; nThreads < 20; nThreads *= 2) {
+            int nMicroSecs = 1000000;
+            
+            std::cout << nThreads << " " << sz;
+            {
+                MaxWallTimeIncrementEval::BythreadMaxIncrements maxIncrements;
+                maxIncrements.resize(nThreads);
+                auto allocs = computeAllocationFactors(nThreads,
+                                                       std::chrono::microseconds(nMicroSecs),
+                                                       MaxWallTimeIncrementEval(maxIncrements));
+                
+                std::vector<std::chrono::steady_clock::duration> maxIncrementsValues;
+                maxIncrementsValues.reserve(maxIncrements.size());
+                std::transform(maxIncrements.begin(),
+                               maxIncrements.end(),
+                               maxIncrementsValues.begin(),
+                               [](auto & o) {
+                    if(!o.value) {
+                        throw std::runtime_error("no max increment");
+                    }
+                    return *o.value;
+                });
+                
+                std::cout << " " << std::chrono::duration_cast<std::chrono::microseconds>(*std::max_element(maxIncrementsValues.begin(),
+                                                                                                            maxIncrementsValues.end())).count() / 1000000.;
+                std::cout << " " << *std::min_element(allocs.begin(), allocs.end());
+            }
+            {
+                auto allocs = computeAllocationFactors(nThreads,
+                                                       std::chrono::microseconds(nMicroSecs),
+                                                       FFTEval(sz));
+                std::cout << " " << *std::min_element(allocs.begin(), allocs.end());
+            }
+            std::cout << std::endl;
+            
+        }
+    }
+}
+
+
+void testAllocationFactors() {
+    std::vector<int> nmicros{
+        100000,
+        1000000,
+        10000000,
+    };
+    for(int nThreads = 1; nThreads < 100; ++nThreads) {
+        for(auto nMicroSecs : nmicros) {
+            auto allocs = computeAllocationFactors(nThreads,
+                                                   std::chrono::microseconds(nMicroSecs),
+                                                   NopEval());
+            
+            auto totalAllocation = std::accumulate(allocs.begin(),
+                                                   allocs.end(),
+                                                   0.);
+            std::cout << nThreads;
+            std::cout << " " << totalAllocation;
+            std::cout << " " << *std::min_element(allocs.begin(), allocs.end());
+            std::cout << " " << *std::max_element(allocs.begin(), allocs.end());
+            /*
+            for(auto a : allocs) {
+                std::cout << " " << a;
+            }*/
+            std::cout << std::endl;
+        }
+    }
+}
+void testFFT() {
+//    for(int64_t sz = 1; sz < 100000000; sz *=2)
+    for(int64_t sz = floor_power_of_two(100000000); sz > 0 ; sz /=2)
+    {
+        using namespace imajuscule::fft;
+        using namespace imajuscule::profiling;
+        CpuDuration secs = Algo_<accelerate::Tag, double>::nocache_cost_fft_forward(sz, 100000000);
+        std::cout << secs.count() << " " << sz << std::endl;
+    }
+}
+
 int main(int argc, const char * argv[]) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
+
+    testAllocationFactors2();
+    return 0;
+    testFFT();
+    return 0;
+    testScheduling();
+    return 0;
+    testCostsReadWrites3();
 
     if(argc != 1) {
         cerr << "0 argument is needed, " << argc-1 << " given" << endl;

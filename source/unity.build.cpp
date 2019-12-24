@@ -42,6 +42,7 @@ std::ostream & operator << (std::ostream & os, const ResampleSincStats& s) {
 #include "log.stack.cpp"
 #include "thread.cpp"
 #include "profiling.cpp"
+#include "dsp.cost.cpp"
 #include "dsp.convolution.cpp"
 #include "hash_table.cpp"
 #include "pool.adaptive_stack.cpp"

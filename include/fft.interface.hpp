@@ -46,7 +46,7 @@ namespace imajuscule {
                 assert(is_power_of_two(size));
                 auto index = power_of_two_exponent(size);
                 if(index >= contexts.size()) {
-                    contexts.resize(index+1);
+                    contexts.resize(2*index);
                 }
                 auto & ret = contexts[index];
                 if(!ret) {

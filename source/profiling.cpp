@@ -31,29 +31,25 @@ namespace imajuscule
         return s;
       }
 
-        void pollute_cache(std::ostream & os)
+        int32_t pollute_cache(std::vector<int32_t> & v)
         {
-          // to have alternating characters we need some state:
-          static unsigned int n = 0;
-          ++n;
-
-            std::vector<unsigned int> pollution(100000);
-            unsigned int i = 0;
-            for(auto & p : pollution) {
-                p = i++;
+            v.resize(10000000); // big enough to fill caches (?)
+            
+            std::iota(v.begin(), v.end(), 0);
+            std::shuffle(v.begin(), v.end(),
+                         lagged_fibonacci<SEEDED::No>() // "fast"
+                         );
+            
+            int32_t res=0;
+            for(auto val:v) {
+                if(res & 1) {
+                    res += val;
+                }
+                else {
+                    res -= val;
+                }
             }
-            i = 0;
-            for(auto & p : pollution) {
-                i += p;
-            }
-            // erase last char after the flush so that it is visible until a new flush occurs.
-            constexpr int szProgress = 20;
-            os
-            << progressStr(szProgress, i+n)
-            << std::flush
-            << std::string(szProgress, '\b')
-            << std::string(szProgress, ' ')
-            << std::string(szProgress, '\b');
+            return res;
         };
     }
 }

@@ -16,36 +16,23 @@ struct ConvReverbsByBlockSize {
     
     using FPT = typename Rev::FPT;
     
+    template<typename ...Args>
     void setConvolutionReverbIR(int const n_sources,
-                                audio::InterlacedBuffer const & ib,
-                                int maxCountFramesPerBlock,
+                                DeinterlacedBuffers<FPT> const & deinterlaced,
+                                int const maxCountFramesPerBlock,
+                                int const minSize,
                                 double sampleRate,
-                                ResponseTailSubsampling rts,
-                                ResponseTopology & topology,
-                                std::map<int, ConvReverbOptimizationReport> & results)
-    {
+                                std::map<int, ConvReverbOptimizationReport> & results,
+                                Args... args)
+    {        
         // it's ok not to lock here : we are the only thread using these
         reverbsByBlockSize.clear();
         deprecated.clear();
         current = {};
         
         results.clear();
-        
-        int n_channels = ib.countChannels();
-        
-        // also trims the beginning!
-        DeinterlacedBuffers<FPT> deinterlaced(ib.getBuffer(),
-                                              n_channels); // throws std::exception
-        int size_truncation = deinterlaced.truncate_irrelevant_head();
-        
-        topology.amplitudeNormalizationFactor = deinterlaced.symmetrically_scale();
-        topology.truncatedFrames = size_truncation;
-        topology.totalSize = deinterlaced.countFrames();
-        topology.nChannels = n_channels;
-        topology.nSources = n_sources;
 
         // we make reverbs optimized exactly for maxCountFramesPerBlock, and smaller powers of 2
-        constexpr int minSize = 16;
         for(int max2 = maxCountFramesPerBlock;
             max2 > 0;
             max2 = floor_power_of_two(max2)/2)
@@ -61,7 +48,7 @@ struct ConvReverbsByBlockSize {
                                           sampleRate,
                                           os,
                                           result.structure,
-                                          rts);
+                                          args...);
                 result.optimizationReport = os.str();
                 {
                     auto res = results.try_emplace(max2, result);

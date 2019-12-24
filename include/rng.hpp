@@ -16,6 +16,13 @@ namespace imajuscule {
         thread_local std::mt19937 mersenne_engine_(std::random_device{}());
         return mersenne_engine_;
     }
+
+
+template<SEEDED S>
+std::ranlux24_base & lagged_fibonacci() {
+    thread_local std::ranlux24_base e;
+    return e;
+}
     
 } // NS imajuscule
 

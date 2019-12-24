@@ -336,7 +336,7 @@ static inline std::string toJustifiedString(ReverbType t) {
           double const theoretical_max_ns_per_frame(1e9/sampleRate);
           double const max_avg_time_per_sample(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_response_channels));
           
-          os << "Partitioning:" << std::endl;
+          os << "Partitioning:" << std::endl;
           
           
           auto indent = std::make_unique<IndentingOStreambuf>(os);

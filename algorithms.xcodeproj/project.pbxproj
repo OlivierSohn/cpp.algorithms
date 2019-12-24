@@ -108,6 +108,11 @@
 		092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.roots.hpp; path = include/fft.roots.hpp; sourceTree = "<group>"; };
 		092C185C23A57F01003EAA72 /* dsp.convolution.bycbsize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.bycbsize.hpp; path = include/dsp.convolution.bycbsize.hpp; sourceTree = "<group>"; };
 		092C185D23A58056003EAA72 /* either.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = either.hpp; path = include/either.hpp; sourceTree = "<group>"; };
+		092C185E23A58595003EAA72 /* test_dsp.reverbsbycbsize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.reverbsbycbsize.cpp; path = test/test_dsp.reverbsbycbsize.cpp; sourceTree = "<group>"; };
+		092C185F23A5860F003EAA72 /* test_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = test_utils.h; path = test/test_utils.h; sourceTree = "<group>"; };
+		092C186023A654F3003EAA72 /* csv.writer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = csv.writer.hpp; path = include/csv.writer.hpp; sourceTree = "<group>"; };
+		092C186123A6AF90003EAA72 /* dsp.cost.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.cost.hpp; path = include/dsp.cost.hpp; sourceTree = "<group>"; };
+		092C186223AA8349003EAA72 /* dsp.cost.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dsp.cost.cpp; path = source/dsp.cost.cpp; sourceTree = "<group>"; };
 		092EAA8F1E2A4733006C11E9 /* strplot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = strplot.h; path = include/strplot.h; sourceTree = "<group>"; };
 		092EAAB81E2A4994006C11E9 /* range.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = range.h; path = include/range.h; sourceTree = "<group>"; };
 		092EAAB91E2A49F3006C11E9 /* numtraits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = numtraits.h; path = include/numtraits.h; sourceTree = "<group>"; };
@@ -371,6 +376,7 @@
 				098DC8EE1F65B55500C5A8B2 /* color.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
+				092C186223AA8349003EAA72 /* dsp.cost.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
 				0993AE5A20CDA5EA00E2AE89 /* file2string.cpp */,
 				09F1577920C6AA0300662939 /* gen.names.cpp */,
@@ -484,6 +490,8 @@
 		09EF8F2B1DB3E87E00DC7342 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				092C185F23A5860F003EAA72 /* test_utils.h */,
+				092C185E23A58595003EAA72 /* test_dsp.reverbsbycbsize.cpp */,
 				093239CA1DB3F3E7003C168E /* extern */,
 				0912152A1E0861CB00B860CB /* measure_containers.cpp */,
 				0979762120EF4E6500D586A5 /* measure_sin.cpp */,
@@ -540,8 +548,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				092C185D23A58056003EAA72 /* either.hpp */,
-				092C185C23A57F01003EAA72 /* dsp.convolution.bycbsize.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -559,15 +565,18 @@
 				09BA149A1E387D1B00A05F83 /* complex.hpp */,
 				0910E37E20C823850094EE76 /* container.hpp */,
 				094DE2381F69C10A007191A0 /* convex_hull.h */,
+				092C186023A654F3003EAA72 /* csv.writer.hpp */,
 				09BA14C81E38840800A05F83 /* cyclic.h */,
 				099FD6221E9188FE0067C18D /* debugging.h */,
 				0979762320EF5AD800D586A5 /* dsp.compresser.hpp */,
 				09C66082237B4306002CB787 /* dsp.convolution.async.hpp */,
+				092C185C23A57F01003EAA72 /* dsp.convolution.bycbsize.hpp */,
 				09286409210CBFBF00607088 /* dsp.convolution.combine.hpp */,
 				0981FAAB1EAD33BA002F3048 /* dsp.convolution.finegrained.hpp */,
 				09B372B72222BF9E00909898 /* dsp.convolution.gpu.hpp */,
 				096C6D3F1E9C17F400389746 /* dsp.convolution.hpp */,
 				097FB600237D764000D884C1 /* dsp.convolution.optimization.hpp */,
+				092C186123A6AF90003EAA72 /* dsp.cost.hpp */,
 				09D0464C217A675D00A00F70 /* dsp.delayed.hpp */,
 				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
@@ -578,6 +587,7 @@
 				09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */,
+				092C185D23A58056003EAA72 /* either.hpp */,
 				09BA14C41E387E4200A05F83 /* enum.h */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
 				09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */,

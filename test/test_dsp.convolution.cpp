@@ -1,27 +1,8 @@
-template<typename T>
-static inline std::vector<T> mkDirac(int sz, T amplitude = 1.) {
-  std::vector<T> res;
-  res.resize(sz);
-  if(res.empty()) {
-    throw std::logic_error("0-size");
-  }
-  res[0] = amplitude;
-  return res;
-}
+
 
 static inline float randf(float high = 1.f, float low = 0.f)
 {
   return low + ((high-low) * ((float)std::rand() / (float)(RAND_MAX + 1.f)));
-}
-template<typename T>
-bool areNear(T a, T b, double eps) {
-  if(std::abs(a) < eps && std::abs(b) < eps) {
-    return true;
-  }
-  if(std::abs(a-b) < eps) {
-    return true;
-  }
-  return std::abs(a-b)/std::abs(std::max(a,b)) < eps;
 }
 
 namespace imajuscule {
@@ -633,3 +614,102 @@ TEST(Convolution, freq) {
 }
 
 
+TEST(Convolution, testComputeQueueSize) {
+    using namespace imajuscule;
+    {
+        int resultZeroIteration = computeQueueSize([](){ return 1.; }, 1., 0);
+        ASSERT_EQ(1, resultZeroIteration);
+    }
+    {
+        int resultSameSpeed = computeQueueSize([](){ return 12.; }, 12., 100);
+        ASSERT_EQ(1, resultSameSpeed);
+    }
+    {
+        int resultProcessingFaster = computeQueueSize([](){ return 1.; }, 12., 100);
+        ASSERT_EQ(1, resultProcessingFaster);
+    }
+    {
+        int i=-1;
+        int resultProcessingFaster = computeQueueSize([&i]() mutable {
+            ++i;
+            switch(i%10) {
+                case 3:
+                    return 2.5;
+                default:
+                    return 0.01;
+            }
+            return 1.;
+        }, 1., 100);
+        ASSERT_EQ(3, resultProcessingFaster);
+    }
+    {
+        int i=-1;
+        int resultProcessingFaster = computeQueueSize([&i]() mutable {
+            ++i;
+            switch(i%10) {
+                case 1:
+                case 2:
+                    return 0.01;
+                case 3:
+                    return 2.5;
+                case 4:
+                case 5:
+                case 6:
+                    return 0.01;
+                case 7:
+                    return 2.5;
+                default:
+                    return 0.01;
+            }
+            return 1.;
+        }, 1., 100);
+        ASSERT_EQ(3, resultProcessingFaster);
+    }
+    {
+        int i=-1;
+        int resultProcessingFaster = computeQueueSize([&i]() mutable {
+            ++i;
+            switch(i%10) {
+                case 1:
+                case 2:
+                    return 0.01;
+                case 3:
+                    return 2.5;
+                case 4:
+                    return 3.0;
+                case 5:
+                case 6:
+                case 7:
+                    return 0.01;
+                default:
+                    return 0.01;
+            }
+            return 1.;
+        }, 1., 100);
+        ASSERT_EQ(5, resultProcessingFaster);
+    }
+    {
+        int i=-1;
+        int resultProcessingFaster = computeQueueSize([&i]() mutable {
+            ++i;
+            switch(i%10) {
+                case 1:
+                case 2:
+                    return 0.01;
+                case 3:
+                    return 2.5;
+                case 4:
+                    return 0.01;
+                case 5:
+                    return 3.0;
+                case 6:
+                case 7:
+                    return 0.01;
+                default:
+                    return 0.01;
+            }
+            return 1.;
+        }, 1., 100);
+        ASSERT_EQ(4, resultProcessingFaster);
+    }
+}

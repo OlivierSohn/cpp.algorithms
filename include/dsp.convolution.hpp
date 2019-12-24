@@ -1,11 +1,47 @@
 
 namespace imajuscule
 {
+    template <typename Parent>
+    struct FFTConvolutionIntermediateSimulation : public Parent {
+        using FPT = typename Parent::FPT;
+        using FFTTag = typename Parent::FFTTag;
+        using FFTAlgo = typename fft::Algo_<FFTTag, FPT>;
+        using Parent::doSetCoefficientsCount;
+        static constexpr bool has_subsampling = false;
+
+        static constexpr auto cost_copy = fft::RealSignal_<FFTTag, FPT>::cost_copy;
+        static constexpr auto cost_add_scalar_multiply = fft::RealSignal_<FFTTag, FPT>::cost_add_scalar_multiply;
+
+        using Parent::cost_compute_convolution;
+        using Parent::get_fft_length;
+        using Parent::getBlockSize;
+
+        void setCoefficientsCount(int szCoeffs) {
+            doSetCoefficientsCount(szCoeffs);
+        }
+
+        double simuMinorStep() {
+            double cost = costWriteNConsecutive<FPT*>(1) + costReadNConsecutive<FPT>(1);
+            return cost;
+        }
+
+        double simuMajorStep() {
+            double cost = cost_compute_convolution();
+            cost += FFTAlgo::cost_fft_inverse(get_fft_length());
+            cost += cost_add_scalar_multiply(getBlockSize());
+            cost += cost_copy(getBlockSize());
+            cost += costReadNConsecutive<FPT>(1);
+            return cost;
+        }
+    };
+
     /*
      * cf. https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method
      */
     template <typename Parent>
     struct FFTConvolutionIntermediate : public Parent {
+        using Simulation = FFTConvolutionIntermediateSimulation<typename Parent::Simulation>;
+        
         using T = typename Parent::FPT;
         using FPT = T;
         using Tag = typename Parent::FFTTag;
@@ -69,12 +105,14 @@ namespace imajuscule
         return result.empty();
       }
 
+        // minor step
       FPT doStep() {
         ++it;
         assert(it < y.begin() + getBlockSize());
         return get_signal(*it);
       }
 
+        // major step
       // the input vector is expected to be padded.
       FPT doStep(typename RealSignal::const_iterator xBegin)
       {
@@ -186,8 +224,48 @@ namespace imajuscule
     RealSignal x;
   };
 
+struct FFTConvolutionCRTPSetupParam {};
+
+template <typename T, typename Tag>
+struct FFTConvolutionCRTPSimulation {
+    using SetupParam = FFTConvolutionCRTPSetupParam;
+    using FPT = T;
+    using FFTTag = Tag;
+    using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+    
+    static constexpr auto cost_mult_assign = fft::RealFBins_<Tag, FPT>::cost_mult_assign;
+
+    void doSetCoefficientsCount(int szCoeffs) {
+        N = szCoeffs;
+        fft_length = get_fft_length(szCoeffs);
+    }
+
+    double cost_compute_convolution() {
+        double cost = FFTAlgo::cost_fft_forward(get_fft_length());
+        cost += cost_mult_assign(get_fft_length());
+        return cost;
+    }
+    
+    static auto get_fft_length(int n) {
+        auto N_nonzero_y = 2 * n;
+        return ceil_power_of_two(N_nonzero_y);
+    }
+
+    auto get_fft_length() const {
+        return fft_length;
+    }
+    
+    auto getBlockSize() const { return N; }
+
+    int getLatency() const { return N-1; }
+
+    int N, fft_length = 0;
+};
+
     template <typename T, typename Tag>
     struct FFTConvolutionCRTP {
+        using Simulation = FFTConvolutionCRTPSimulation<T, Tag>;
+        
         using FPT = T;
         using FFTTag = Tag;
 
@@ -198,12 +276,12 @@ namespace imajuscule
         static constexpr auto mult_assign = fft::RealFBins_<Tag, FPT>::mult_assign;
 
         using Algo = typename fft::Algo_<Tag, FPT>;
-      
-      struct SetupParam {};
+
+        using SetupParam = FFTConvolutionCRTPSetupParam;
       
       void doApplySetup(SetupParam const &) {}
         void doLogComputeState(std::ostream & os) const {
-            os << "1 block of size " << N << std::endl;
+            os << "1 block of size " << N << std::endl;
         }
     private:
         int N;
@@ -300,8 +378,19 @@ namespace imajuscule
      * Notes : Convolution in "time" space is the same as multiplication in "frequency" space.
      */
 
+struct PartitionnedFFTConvolutionCRTPSetupParam {
+  int partition_size;
+};
+
+template <typename T, typename Tag>
+struct PartitionnedFFTConvolutionCRTPSimulation {
+    using SetupParam = PartitionnedFFTConvolutionCRTPSetupParam;
+};
+
     template <typename T, typename Tag>
     struct PartitionnedFFTConvolutionCRTP {
+        using Simulation = PartitionnedFFTConvolutionCRTPSimulation<T, Tag>;
+        using SetupParam = PartitionnedFFTConvolutionCRTPSetupParam;
         using FPT = T;
         using FFTTag = Tag;
 
@@ -332,9 +421,6 @@ namespace imajuscule
         auto countPartitions() const { return ffts_of_partitionned_h.size(); }
 
       
-      struct SetupParam {
-        int partition_size;
-      };
 
       void doApplySetup(SetupParam const & p) {
         auto sz = p.partition_size;
@@ -572,7 +658,7 @@ namespace imajuscule
                                                                                                      value,
                                                                                                      n_tests);
 
-        return pow2(lg2_part_size);
+        return static_cast<int>(pow2(lg2_part_size));
     }
 
     /*

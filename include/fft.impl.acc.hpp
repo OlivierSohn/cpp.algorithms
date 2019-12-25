@@ -54,24 +54,35 @@ namespace imajuscule {
                 if(it != stats.end()) {
                     return it->second;
                 }
-                double t = nocache_cost_add_scalar_multiply(sz).count() / 1000000.;
+                double t = nocache_cost_add_scalar_multiply(sz);
                 stats[sz] = t;
                 return t;
             }
             
-            static auto nocache_cost_add_scalar_multiply(int64_t sz) {
+            static double nocache_cost_add_scalar_multiply(int64_t sz) {
                 std::array<type, 3> a;
                 for(auto & v:a) {
-                    v.resize(sz);
+                    v.resize(sz, 1.);
                 }
+                int64_t ntests = std::max(static_cast<int64_t>(1),
+                                          10000 / sz);
                 using namespace profiling;
-                return measure_thread_cpu_one([&a, sz](){
-                    This::add_scalar_multiply(a[0].begin(),
-                                              a[1].begin(),
-                                              a[2].begin(),
-                                              0.7,
-                                              sz);
+                auto duration = measure_thread_cpu_one([&a, sz, ntests](){
+                    std::array<int, 3> idx {0,1,2};
+                    
+                    for(int i=0; i<ntests; i++) {
+                        This::add_scalar_multiply(a[idx[0]].begin(),
+                                                  a[idx[1]].begin(),
+                                                  a[idx[2]].begin(),
+                                                  0.7,
+                                                  sz);
+                        std::rotate(idx.begin(),
+                                    idx.begin()+1,
+                                    idx.end());
+                    }
                 });
+                T avg = std::abs(std::accumulate(a[2].begin(), a[2].end(), T{})) / static_cast<T>(a[2].size());
+                return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(0.000001, avg));
             }
             
             static void copy(iter dest, const_iter from, int N) {
@@ -92,22 +103,36 @@ namespace imajuscule {
                 if(it != stats.end()) {
                     return it->second;
                 }
-                double t = nocache_cost_copy(sz).count() / 1000000.;
+                double t = nocache_cost_copy(sz);
                 stats[sz] = t;
                 return t;
             }
             
             static auto nocache_cost_copy(int64_t sz) {
                 std::array<type, 2> a;
-                for(auto & v:a) {
-                    v.resize(sz);
+                {
+                    int i=0;
+                    for(auto & v:a) {
+                        ++i;
+                        v.resize(sz, static_cast<T>(i));
+                    }
                 }
+                int64_t ntests = std::max(static_cast<int64_t>(1),
+                                          10000 / sz);
                 using namespace profiling;
-                return measure_thread_cpu_one([&a, sz](){
-                    This::copy(a[0].begin(),
-                               a[1].begin(),
-                               sz);
+                auto duration = measure_thread_cpu_one([&a, sz, ntests](){
+                    std::array<int, 3> idx {0,1};
+                    for(int i=0; i<ntests; i++) {
+                        This::copy(a[idx[0]].begin(),
+                                   a[idx[1]].begin(),
+                                   sz);
+                        std::rotate(idx.begin(),
+                                    idx.begin()+1,
+                                    idx.end());
+                    }
                 });
+                T avg = std::abs(std::accumulate(a[1].begin(), a[1].end(), T{})) / static_cast<T>(a[1].size());
+                return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(0.000001, avg));
             }
             
             static void zero_n_raw(T * p, int n) {
@@ -152,9 +177,13 @@ namespace imajuscule {
             auto size() const { return buffer.size(); }
           auto empty() const { return buffer.empty(); }
 
-            auto vector_size() const { return buffer.size() / 2 - 1; }
+            auto vector_size() const {
+                return buffer.size() / 2;
+            }
 
             auto get_hybrid_split() {
+                Assert(buffer.size() >= 2);
+                Assert(0 == buffer.size() % 2);
                 return SC {
                     // 64 byte aligned:
                     &buffer[0],
@@ -209,9 +238,15 @@ namespace imajuscule {
                 advance(V);
                 advance(W);
 
-                accelerate::API<T>::f_zvmul(&V, 1,
-                                            &W, 1,
-                                            &V, 1, v.vector_size(), 1);
+                auto const sz = v.vector_size();
+                Assert(sz >= 0);
+                if(likely(sz > 0)) {
+                    accelerate::API<T>::f_zvmul(&V, 1,
+                                                &W, 1,
+                                                &V, 1,
+                                                sz - 1,
+                                                1);
+                }
             }
             
             static double cost_mult_assign(int64_t sz) {
@@ -223,21 +258,37 @@ namespace imajuscule {
                 if(it != stats.end()) {
                     return it->second;
                 }
-                double t = nocache_cost_mult_assign(sz).count() / 1000000.;
+                double t = nocache_cost_mult_assign(sz);
                 stats[sz] = t;
                 return t;
             }
             
             static auto nocache_cost_mult_assign(int64_t sz) {
                 std::array<type, 2> a;
+                int i=0;
                 for(auto & v:a) {
+                    ++i;
                     v.resize(sz);
+                    *v.get_hybrid_split().realp = i;
                 }
+                int64_t ntests = std::max(static_cast<int64_t>(1),
+                                          10000 / sz);
                 using namespace profiling;
-                return measure_thread_cpu_one([&a, sz](){
-                    This::mult_assign(a[0],
-                                      a[1]);
+                auto duration = measure_thread_cpu_one([&a, sz, ntests](){
+                    for(int i=0; i<ntests; ++i) {
+                        This::mult_assign(a[0],
+                                          a[1]);
+                    }
                 });
+                T sum = 0;
+                auto s = a[0].get_hybrid_split();
+                for(int i=0; i<a[0].vector_size(); ++i) {
+                    sum += s.realp[i];
+                    sum += s.imagp[i];
+                }
+                sum /= a[0].size();
+                sum = std::abs(sum);
+                return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(0.000001, sum));
             }
             static void zero(type & v) {
                 T zero{};
@@ -249,7 +300,9 @@ namespace imajuscule {
 
                 auto V = v.get_hybrid_split();
                 accelerate::API<T>::f_zvfill(&sc,
-                                             &V, 1, v.vector_size() + 1);
+                                             &V,
+                                             1,
+                                             v.vector_size());
             }
 
             static void multiply_add(type & accum, type const & const_m1, type const & const_m2) {
@@ -271,11 +324,13 @@ namespace imajuscule {
                 advance(M1);
                 advance(M2);
 
-                accelerate::API<T>::f_zvma(&M1, 1,
-                                           &M2, 1,
-                                           &Accum, 1,
-                                           &Accum, 1, accum.vector_size());
-
+                auto const sz = accum.vector_size();
+                if(likely(sz > 0)) {
+                    accelerate::API<T>::f_zvma(&M1, 1,
+                                               &M2, 1,
+                                               &Accum, 1,
+                                               &Accum, 1, sz - 1);
+                }
             }
 
             static std::pair<int, T> getMaxSquaredAmplitude(type const & const_v) {
@@ -284,22 +339,25 @@ namespace imajuscule {
                 auto & v = const_cast<type &>(const_v);
                 auto V = v.get_hybrid_split();
                 auto index = 0;
+                auto const sz = v.vector_size();
                 Max = std::max(Max, *V.realp * *V.realp);
                 {
                     auto M = *V.imagp * *V.imagp;
                     if(M > Max) {
-                        index = v.vector_size()+1;
+                        index = sz;
                         Max = M;
                     }
                 }
 
-                auto n = v.vector_size();
-                for(int i=0; i<n; ++i) {
-                    advance(V);
-                    auto M = (*V.realp * *V.realp) + (*V.imagp * *V.imagp);
-                    if(M > Max) {
-                        index = i+1;
-                        Max = M;
+                if(sz > 0) {
+                    int const n = sz - 1;
+                    for(int i=0; i<n; ++i) {
+                        advance(V);
+                        auto M = (*V.realp * *V.realp) + (*V.imagp * *V.imagp);
+                        if(M > Max) {
+                            index = i+1;
+                            Max = M;
+                        }
                     }
                 }
 
@@ -442,7 +500,7 @@ namespace imajuscule {
                 if(it != stats.end()) {
                     return it->second;
                 }
-                double t = nocache_cost_fft_inverse(sz).count() / 1000000.;
+                double t = nocache_cost_fft_inverse(sz);
                 stats[sz] = t;
                 return t;
             }
@@ -450,15 +508,25 @@ namespace imajuscule {
             
             static auto nocache_cost_fft_inverse(int64_t sz) {
                 RealFBins f;
-                RealInput i;
+                RealInput input;
                 f.resize(sz);
-                i.resize(sz);
+                input.resize(sz);
                 Algo_<accelerate::Tag, T> a(Contexts::getInstance().getBySize(sz));
-                
+
+                int64_t ntests = std::max(static_cast<int64_t>(1),
+                                          10000 / sz);
+
                 using namespace profiling;
-                return measure_thread_cpu_one([&a, &f, &i, sz](){
-                    a.inverse(f, i, sz);
+                T sum = 0;
+                auto duration = measure_thread_cpu_one([&sum, &a, &f, &input, sz, ntests](){
+                    for(int i=0; i<ntests; ++i) {
+                        *f.get_hybrid_split().realp = static_cast<T>(i);
+                        a.inverse(f, input, sz);
+                        sum += input[0];
+                    }
                 });
+                sum = std::abs(sum);
+                return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(0.000001, sum));
             }
                         
             static double cost_fft_forward(int64_t sz) {
@@ -470,24 +538,32 @@ namespace imajuscule {
                 if(it != stats.end()) {
                     return it->second;
                 }
-                double t = nocache_cost_fft_forward(sz, 1).count() / 1000000.;
+                double t = nocache_cost_fft_forward(sz);
                 stats[sz] = t;
                 return t;
             }
             
-            static auto nocache_cost_fft_forward(int64_t sz, int ntests) {
+            static auto nocache_cost_fft_forward(int64_t sz) {
                 RealFBins f;
-                RealInput i;
+                RealInput input;
                 f.resize(sz);
-                i.resize(sz);
+                input.resize(sz);
                 Algo_<accelerate::Tag, T> a(Contexts::getInstance().getBySize(sz));
                 
+                int64_t ntests = std::max(static_cast<int64_t>(1),
+                                          10000 / sz);
+
                 using namespace profiling;
-                return measure_thread_cpu_one([&a, &f, &i, sz, ntests](){
-                    for(int n=0; n<ntests; ++n) {
-                        a.forward(i.begin(), f, sz);
+                T sum = 0;
+                auto duration = measure_thread_cpu_one([&sum, &a, &f, &input, sz, ntests](){
+                    for(int i=0; i<ntests; ++i) {
+                        input[0] = static_cast<T>(i);
+                        a.forward(input.begin(), f, sz);
+                        sum += *f.get_hybrid_split().realp;
                     }
                 });
+                sum = std::abs(sum);
+                return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(0.000001, sum));
             }
             Context context;
         };

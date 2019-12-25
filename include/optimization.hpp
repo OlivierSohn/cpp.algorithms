@@ -131,7 +131,7 @@ namespace imajuscule
                     return val;
                 }
                 else {
-                    return {};
+                    return Value{};
                 }
             }
 
@@ -140,7 +140,7 @@ namespace imajuscule
                     throw std::runtime_error("different param states for the same index");
                 }
                 if(s == ParamState::OutOfRange) {
-                    return {};
+                    return Value{};
                 }
                 if(value.getCost() < val.getCost()) {
                     val = value;

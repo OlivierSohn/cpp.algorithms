@@ -667,6 +667,13 @@ private:
       }
       return doStep(val);
     }
+  
+      int get_first_fft_length() const {
+          if(isZero()) {
+            return 0;
+          }
+         return v[0].get_fft_length();
+      }
   private:
     FPT doStep(FPT val) {
       auto it = v.begin();
@@ -1012,133 +1019,6 @@ int computeQueueSize(F nextProcessingDuration,
             using PS = PartitionningSpec<SetupParam>;
             using PSpecs = PartitionningSpecs<SetupParam>;
 
-            struct Metrics {
-                range<int> resultQueueEltsCountRange;
-                
-                // We are interested in the minimum size, by period, of the result queue.
-                // If the minimum size keeps being smaller over the periods, it meens that
-                // the background thread is too slow.
-
-                double minResultQueueEltsCountRange_gradient = 0; // diff between last and first period over number of periods
-                // a strictly negative gradient means that the system is not fast enough.
-                
-                int minResultQueueEltsCountRange_min_local_gradient = 0; // diff between consecutive periods
-                
-                void mergeWorst(Metrics const & o) {
-                    resultQueueEltsCountRange.extend(o.resultQueueEltsCountRange);
-                    minResultQueueEltsCountRange_gradient = std::min(minResultQueueEltsCountRange_gradient,
-                                                     o.minResultQueueEltsCountRange_gradient);
-                    minResultQueueEltsCountRange_min_local_gradient = std::min(minResultQueueEltsCountRange_min_local_gradient,
-                                                               o.minResultQueueEltsCountRange_min_local_gradient);
-                }
-            };
-            
-            struct QueueMetrics {
-                QueueMetrics(int period, int nPeriods)
-                : nPeriods(nPeriods)
-                , period_frames(period)
-                {
-                    if(nPeriods < 2) {
-                        throw std::logic_error("2 periods are required to compute a gradient");
-                    }
-                    resultQueueEltsCountRangeByPeriod.reserve(nPeriods);
-                    resultQueueEltsCountRangeByPeriod.resize(1);
-                    signalQueueEltsCountRangeByPeriod.reserve(nPeriods);
-                    signalQueueEltsCountRangeByPeriod.resize(1);
-                }
-                
-            private:
-                int const nPeriods;
-                int const period_frames;
-                int period = 0;
-                int n_cur_frame = 0;
-                bool hasErrorWorkerTooSlow = false;
-                
-                std::vector<range<int>> resultQueueEltsCountRangeByPeriod, signalQueueEltsCountRangeByPeriod;
-            public:
-                bool recordQueueSize(int resultQueueEltsCount,
-                                     int signalQueueEltsCount,
-                                     int countErrorsWorkerTooSlow,
-                                     int nFrames) {
-                    assert(period < nPeriods);
-                    if(countErrorsWorkerTooSlow) {
-                        hasErrorWorkerTooSlow = true;
-                        return false;
-                    }
-                    n_cur_frame += nFrames;
-                    if(n_cur_frame >= period_frames) {
-                        n_cur_frame -= period_frames;
-                        ++period;
-                        if(period >= nPeriods) {
-                            return false;
-                        }
-                        Assert(resultQueueEltsCountRangeByPeriod.size() < resultQueueEltsCountRangeByPeriod.capacity());
-                        Assert(signalQueueEltsCountRangeByPeriod.size() < signalQueueEltsCountRangeByPeriod.capacity());
-                        resultQueueEltsCountRangeByPeriod.emplace_back();
-                        signalQueueEltsCountRangeByPeriod.emplace_back();
-                    }
-                    resultQueueEltsCountRangeByPeriod.back().extend(resultQueueEltsCount);
-                    signalQueueEltsCountRangeByPeriod.back().extend(signalQueueEltsCount);
-                    return true;
-                }
-                
-                std::vector<range<int>> const & getResultQueueEltsCountRangeByPeriod () const {
-                    return resultQueueEltsCountRangeByPeriod;
-                }
-                std::vector<range<int>> const & getSignalQueueEltsCountRangeByPeriod () const {
-                    return signalQueueEltsCountRangeByPeriod;
-                }
-
-                std::optional<Metrics> getMetrics() const {
-                    if(hasErrorWorkerTooSlow) {
-                      return {};
-                    }
-                    Metrics m;
-                    for(auto const & r : resultQueueEltsCountRangeByPeriod) {
-                        m.resultQueueEltsCountRange.extend(r);
-                    }
-                    {
-                        std::optional<int> prevMinQueueSize;
-                        std::optional<int> minGradient;
-                        bool first = true;
-                        for(auto const & r : resultQueueEltsCountRangeByPeriod) {
-                            if(first) {
-                                // discard first period for gradient computation
-                                // (we are not in a stable mode at the beginning of the first period)
-                                first = false;
-                                break;
-                            }
-                            auto minResultQueueSizeDuringPeriod = r.getMin();
-                            if(!prevMinQueueSize) {
-                                prevMinQueueSize = minResultQueueSizeDuringPeriod;
-                            }
-                            else {
-                                auto gradient = minResultQueueSizeDuringPeriod - *prevMinQueueSize;
-                                if(!minGradient || *minGradient > gradient) {
-                                    minGradient = gradient;
-                                }
-                            }
-                        }
-                        m.minResultQueueEltsCountRange_min_local_gradient = *minGradient;
-                    }
-                    if(resultQueueEltsCountRangeByPeriod.size() >= 3)
-                    {
-                        auto & first = *(resultQueueEltsCountRangeByPeriod.begin() + 1);
-                        auto & last = resultQueueEltsCountRangeByPeriod.back();
-                        m.minResultQueueEltsCountRange_gradient = (last.getMin() - first.getMin()) / static_cast<double>(nPeriods);
-                    }
-                    else {
-                        throw std::logic_error("not enough periods to compute a gradient");
-                    }
-                    return m;
-                }
-            };
-
-            static constexpr int numPeriods = 5; // the first period is not taken into account for gradient computation
-
-            // todo use a better approach than this threshold
-            static constexpr double normalizedGradientThreshold = -0.2;
-            
             // to account for a system that is under heavier load
             static constexpr int safeFactor = 4;
 
@@ -1152,27 +1032,24 @@ int computeQueueSize(F nextProcessingDuration,
                               SimulationPhasing const & phasing,
                               CountDroppedScales const & nAsyncScalesDropped)
             {
+                int const submission_period = n_audio_frames_per_cb;
                 auto res = computeQueueMetrics(n_channels,
                                                n_audio_channels,
                                                n_audio_frames_per_cb,
                                                total_response_size,
                                                frame_rate,
                                                nAsyncScalesDropped,
+                                               submission_period,
                                                phasing,
                                                os);
                 if(!res) {
                     os << "Synchronous thread is too slow" << std::endl;
                     return {};
                 }
-                // minNumFramesPerQueue == 0 means 0 late coefficient
-                int minNumFramesPerQueue = *res;
+                // queueSize == 0 means 0 late coefficient
+                int const queueSize = *res;
                 
-                os << "minNumFramesPerQueue=" << minNumFramesPerQueue << std::endl;
-
-                // If there was jitter during the simulation, the metrics might be pessimistic.
-                // The jitter of the simulation could be analyzed using 'periodically'
-                int const submission_period = n_audio_frames_per_cb;
-                int const queueSize = minNumFramesPerQueue/submission_period;
+                os << "queueSize=" << queueSize << std::endl;
                 
                 PS minimalPs;
                 minimalPs.cost = SetupParam{
@@ -1196,6 +1073,7 @@ int computeQueueSize(F nextProcessingDuration,
                                 int total_response_size,
                                 double frame_rate,
                                 CountDroppedScales const & nAsyncScalesDropped,
+                                int const submission_period,
                                 SimulationPhasing const & phasing,
                                 std::ostream & os)
             {
@@ -1211,6 +1089,7 @@ int computeQueueSize(F nextProcessingDuration,
                                                                 nLateCoeffs,
                                                                 frame_rate,
                                                                 nAsyncScalesDropped,
+                                                                submission_period,
                                                                 phasing,
                                                                 os
                                                                 );
@@ -1223,6 +1102,7 @@ int computeQueueSize(F nextProcessingDuration,
                                                      int const nLateCoeffs,
                                                      double const frame_rate,
                                                      CountDroppedScales const & nAsyncScalesDropped,
+                                                     int const submission_period_frames,
                                                      SimulationPhasing const & phasing,
                                                      std::ostream & os)
             {
@@ -1303,7 +1183,6 @@ int computeQueueSize(F nextProcessingDuration,
                                                   2. * cb_period_seconds
                                                   );
                 
-                int const submission_period_frames = n_audio_frames_per_cb;
                 int const max_sleep_frames = static_cast<int>(0.5 + std::ceil(max_sleep_time_seconds * frame_rate));
                 int const max_sleep_submissions = 1 + (max_sleep_frames-1) / n_audio_frames_per_cb;
                 Assert(max_sleep_submissions >= 0);
@@ -1338,9 +1217,132 @@ int computeQueueSize(F nextProcessingDuration,
                                                   int nLateCoeffs,
                                                   double frame_rate,
                                                   CountDroppedScales const & nAsyncScalesDropped,
+                                                  int const submission_period_frames,
                                                   SimulationPhasing const & phasing,
                                                   std::ostream & os)
             {
+                struct Metrics {
+                    range<int> resultQueueEltsCountRange;
+                    
+                    // We are interested in the minimum size, by period, of the result queue.
+                    // If the minimum size keeps being smaller over the periods, it meens that
+                    // the background thread is too slow.
+
+                    double minResultQueueEltsCountRange_gradient = 0; // diff between last and first period over number of periods
+                    // a strictly negative gradient means that the system is not fast enough.
+                    
+                    int minResultQueueEltsCountRange_min_local_gradient = 0; // diff between consecutive periods
+                    
+                    void mergeWorst(Metrics const & o) {
+                        resultQueueEltsCountRange.extend(o.resultQueueEltsCountRange);
+                        minResultQueueEltsCountRange_gradient = std::min(minResultQueueEltsCountRange_gradient,
+                                                         o.minResultQueueEltsCountRange_gradient);
+                        minResultQueueEltsCountRange_min_local_gradient = std::min(minResultQueueEltsCountRange_min_local_gradient,
+                                                                   o.minResultQueueEltsCountRange_min_local_gradient);
+                    }
+                };
+                
+                struct QueueMetrics {
+                    QueueMetrics(int period, int nPeriods)
+                    : nPeriods(nPeriods)
+                    , period_frames(period)
+                    {
+                        if(nPeriods < 2) {
+                            throw std::logic_error("2 periods are required to compute a gradient");
+                        }
+                        resultQueueEltsCountRangeByPeriod.reserve(nPeriods);
+                        resultQueueEltsCountRangeByPeriod.resize(1);
+                        signalQueueEltsCountRangeByPeriod.reserve(nPeriods);
+                        signalQueueEltsCountRangeByPeriod.resize(1);
+                    }
+                    
+                private:
+                    int const nPeriods;
+                    int const period_frames;
+                    int period = 0;
+                    int n_cur_frame = 0;
+                    bool hasErrorWorkerTooSlow = false;
+                    
+                    std::vector<range<int>> resultQueueEltsCountRangeByPeriod, signalQueueEltsCountRangeByPeriod;
+                public:
+                    bool recordQueueSize(int resultQueueEltsCount,
+                                         int signalQueueEltsCount,
+                                         int countErrorsWorkerTooSlow,
+                                         int nFrames) {
+                        assert(period < nPeriods);
+                        if(countErrorsWorkerTooSlow) {
+                            hasErrorWorkerTooSlow = true;
+                            return false;
+                        }
+                        n_cur_frame += nFrames;
+                        if(n_cur_frame >= period_frames) {
+                            n_cur_frame -= period_frames;
+                            ++period;
+                            if(period >= nPeriods) {
+                                return false;
+                            }
+                            Assert(resultQueueEltsCountRangeByPeriod.size() < resultQueueEltsCountRangeByPeriod.capacity());
+                            Assert(signalQueueEltsCountRangeByPeriod.size() < signalQueueEltsCountRangeByPeriod.capacity());
+                            resultQueueEltsCountRangeByPeriod.emplace_back();
+                            signalQueueEltsCountRangeByPeriod.emplace_back();
+                        }
+                        resultQueueEltsCountRangeByPeriod.back().extend(resultQueueEltsCount);
+                        signalQueueEltsCountRangeByPeriod.back().extend(signalQueueEltsCount);
+                        return true;
+                    }
+                    
+                    std::vector<range<int>> const & getResultQueueEltsCountRangeByPeriod () const {
+                        return resultQueueEltsCountRangeByPeriod;
+                    }
+                    std::vector<range<int>> const & getSignalQueueEltsCountRangeByPeriod () const {
+                        return signalQueueEltsCountRangeByPeriod;
+                    }
+
+                    std::optional<Metrics> getMetrics() const {
+                        if(hasErrorWorkerTooSlow) {
+                          return {};
+                        }
+                        Metrics m;
+                        for(auto const & r : resultQueueEltsCountRangeByPeriod) {
+                            m.resultQueueEltsCountRange.extend(r);
+                        }
+                        {
+                            std::optional<int> prevMinQueueSize;
+                            std::optional<int> minGradient;
+                            bool first = true;
+                            for(auto const & r : resultQueueEltsCountRangeByPeriod) {
+                                if(first) {
+                                    // discard first period for gradient computation
+                                    // (we are not in a stable mode at the beginning of the first period)
+                                    first = false;
+                                    break;
+                                }
+                                auto minResultQueueSizeDuringPeriod = r.getMin();
+                                if(!prevMinQueueSize) {
+                                    prevMinQueueSize = minResultQueueSizeDuringPeriod;
+                                }
+                                else {
+                                    auto gradient = minResultQueueSizeDuringPeriod - *prevMinQueueSize;
+                                    if(!minGradient || *minGradient > gradient) {
+                                        minGradient = gradient;
+                                    }
+                                }
+                            }
+                            m.minResultQueueEltsCountRange_min_local_gradient = *minGradient;
+                        }
+                        if(resultQueueEltsCountRangeByPeriod.size() >= 3)
+                        {
+                            auto & first = *(resultQueueEltsCountRangeByPeriod.begin() + 1);
+                            auto & last = resultQueueEltsCountRangeByPeriod.back();
+                            m.minResultQueueEltsCountRange_gradient = (last.getMin() - first.getMin()) / static_cast<double>(nPeriods);
+                        }
+                        else {
+                            throw std::logic_error("not enough periods to compute a gradient");
+                        }
+                        return m;
+                    }
+                };
+
                 std::vector<std::unique_ptr<Convolution>> async_convs;
                 async_convs.reserve(n_channels);
                 for(int i=0; i<n_channels; ++i) {
@@ -1353,16 +1355,15 @@ int computeQueueSize(F nextProcessingDuration,
                 // we use a huge queue so that we can have room for queue size variations
                 int const num_frames_in_queue = std::max(10000, nLateCoeffs/2);
         
-                int const submission_period = n_audio_frames_per_cb;
-                int queue_size = num_frames_in_queue / submission_period;
-                if(queue_size * submission_period < num_frames_in_queue) {
+                int queue_size = num_frames_in_queue / submission_period_frames;
+                if(queue_size * submission_period_frames < num_frames_in_queue) {
                     ++queue_size;
                 }
 
                 for(auto & c : async_convs) {
                     c->setup(
                     {
-                        submission_period,
+                        submission_period_frames,
                         queue_size,
                         {
                             nAsyncScalesDropped
@@ -1402,6 +1403,9 @@ int computeQueueSize(F nextProcessingDuration,
                 m.reserve(async_convs.size());
                 for(auto const & c : async_convs) {
                     int const metric_period = c->getAsyncAlgo().getBiggestScale();
+
+                    static constexpr int numPeriods = 5; // the first period is not taken into account for gradient computation
+
                     m.emplace_back(metric_period,
                                    numPeriods);
                 }
@@ -1450,9 +1454,9 @@ int computeQueueSize(F nextProcessingDuration,
                 }
                 auto & periodically = *p;
                 auto & queueMetrics = m;
-                int minNumFramesPerQueue=0;
                 if(queueMetrics.empty()) {
                     // no late coeffs
+                    return 0;
                 }
                 else {
                     std::vector<Metrics> metrics;
@@ -1472,6 +1476,10 @@ int computeQueueSize(F nextProcessingDuration,
                     }
                     
                     auto normalizedGradient = worst.minResultQueueEltsCountRange_gradient / (1 + worst.resultQueueEltsCountRange.getSpan());
+
+                    // todo use a better approach than this threshold
+                    static constexpr double normalizedGradientThreshold = -0.2;
+
                     if(normalizedGradient < normalizedGradientThreshold) {
                         os << "Background worker is too slow : normalizedGradient on min queue elts count = " << normalizedGradient << std::endl;
                         int i=0;
@@ -1490,17 +1498,17 @@ int computeQueueSize(F nextProcessingDuration,
                         return {};
                     }
                                         
-                    minNumFramesPerQueue =
-                    n_audio_frames_per_cb * // assumes that the submission_period was n_audio_frames_per_cb during the simulation
-                    (1 +
-                     worst.resultQueueEltsCountRange.getSpan());
-                }
-                
-                // to avoid audio dropouts in case of the occurence of the race condition
-                // commented in the code of the worker of AsyncCPUConvolution:
-                minNumFramesPerQueue += n_audio_frames_per_cb;
+                    int minQueueSize = // assumes that the submission_period was n_audio_frames_per_cb during the simulation
+                    1 +
+                     worst.resultQueueEltsCountRange.getSpan();
 
-                return minNumFramesPerQueue * safeFactor;
+                    // to avoid audio dropouts in case of the occurence of the race condition
+                    // commented in the code of the worker of AsyncCPUConvolution:
+                    ++minQueueSize;
+                    
+                    minQueueSize *= safeFactor;
+                    return minQueueSize;
+                }
             }
         };
       

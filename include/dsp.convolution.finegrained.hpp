@@ -81,7 +81,7 @@ namespace imajuscule
 
 
   struct FinegrainedSetupParam : public Cost {
-    FinegrainedSetupParam() {}
+    explicit FinegrainedSetupParam() {}
 
     FinegrainedSetupParam(int partitionSz, int multiplication_group_size, int phase) : Cost(phase),
     multiplication_group_size(multiplication_group_size),
@@ -139,7 +139,7 @@ namespace imajuscule
               os << "zero" << std::endl;
           }
           else {
-              os << " grain " << grain_counter << "/" << countGrains()
+              os << "grain " << grain_counter << "/" << countGrains()
               << " progress " << x.size() << "/" << getBlockSize() << std::endl;
               doLogComputeState(os);
           }

@@ -379,7 +379,11 @@ struct FFTConvolutionCRTPSimulation {
      */
 
 struct PartitionnedFFTConvolutionCRTPSetupParam {
-  int partition_size;
+    PartitionnedFFTConvolutionCRTPSetupParam(int partition_size)
+    :partition_size(partition_size)
+    {}
+    
+    int partition_size;
 };
 
 template <typename T, typename Tag>

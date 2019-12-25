@@ -698,14 +698,150 @@ void testAllocationFactors() {
         }
     }
 }
-void testFFT() {
-//    for(int64_t sz = 1; sz < 100000000; sz *=2)
-    for(int64_t sz = floor_power_of_two(100000000); sz > 0 ; sz /=2)
-    {
-        using namespace imajuscule::fft;
-        using namespace imajuscule::profiling;
-        CpuDuration secs = Algo_<accelerate::Tag, double>::nocache_cost_fft_forward(sz, 100000000);
-        std::cout << secs.count() << " " << sz << std::endl;
+
+template<typename T>
+void printConvolutionCosts() {
+    using namespace imajuscule::fft;
+
+    auto compute = [](auto f){
+        std::vector<double> costs, costsPerSample;
+        constexpr int64_t startSz =
+        //2;
+        // start where we have a full cache lime of data
+        cache_line_n_bytes / sizeof(T);
+        for(int64_t sz = startSz;
+            sz<5000000;
+            sz *= 2)
+        {
+            double const totalCost = f(sz);
+            double const costPerSample = totalCost / sz;
+            costs.push_back(totalCost);
+            costsPerSample.push_back(costPerSample);
+            std::cout << sz << "\t" << costPerSample << "\t" << totalCost << std::endl;
+        }
+        {
+            StringPlot plot(20, costs.size());
+            plot.drawLog(costs, '*');
+            plot.log();
+        }
+        {
+            StringPlot plot(20, costsPerSample.size());
+            plot.draw(costsPerSample, '+');
+            plot.log();
+        }
+    };
+    
+    std::cout << std::endl << "fft forward" << std::endl << std::endl;
+    compute(Algo_<accelerate::Tag, T>::cost_fft_forward);
+
+    std::cout << std::endl << "fft inverse" << std::endl << std::endl;
+    compute(Algo_<accelerate::Tag, T>::cost_fft_inverse);
+
+    std::cout << std::endl << "sig add scalar multiply" << std::endl << std::endl;
+    compute(RealSignal_<accelerate::Tag, T>::cost_add_scalar_multiply);
+
+    std::cout << std::endl << "sig copy" << std::endl << std::endl;
+    compute(RealSignal_<accelerate::Tag, T>::cost_copy);
+
+    std::cout << std::endl << "freq mult assign" << std::endl << std::endl;
+    compute(RealFBins_<accelerate::Tag, T>::cost_mult_assign);
+}
+
+// proves that partitionning is more efficient than scaling for small numbers
+template<typename T, typename Tag>
+void compareConvs() {
+ 
+    using namespace imajuscule::profiling;
+    for(int64_t startSz = 512; startSz < 5000000; startSz *= 2) {
+        int64_t const maxSz = std::min(startSz * 1024,
+                                       static_cast<int64_t>(5000000));
+        std::vector<double> ratios;
+        for(int sz = startSz; sz<maxSz; sz *= 2) {
+            PartitionnedFFTConvolution<T, Tag> singlegrained;
+            //FinegrainedPartitionnedFFTConvolution<T, Tag> finegrained;
+            ScaleConvolution<FFTConvolutionCore<T, Tag>> scaled;
+            
+            a64::vector<T> coeffs;
+            coeffs.resize(sz);
+            {
+                int i=0;
+                for(auto & c : coeffs) {
+                    c = (i&1)? 0. : 1.;
+                    ++i;
+                }
+            }
+            
+            {
+                int const partition_size = startSz;
+                //finegrained.setup({partition_size, 1000000000, 0});
+                singlegrained.setup({0, {partition_size}});
+            }
+            //finegrained.setCoefficients(coeffs);
+            singlegrained.setCoefficients(coeffs);
+
+            scaled.setup(ScaleConvolutionSetupParam{CountDroppedScales(power_of_two_exponent(startSz))});
+            scaled.setCoefficients(coeffs);
+            
+            /*if(scaled.get_first_fft_length() != finegrained.get_fft_length()) {
+                throw std::logic_error("different fft sizes");
+            }*/
+            if(scaled.get_first_fft_length() != singlegrained.get_fft_length()) {
+                throw std::logic_error("different fft sizes");
+            }
+            /*
+            std::cout << "first fft length = " << scaled.get_first_fft_length() << std::endl;
+            std::cout << "scaled latency = " << scaled.getLatency() << std::endl;
+            std::cout << "singlegrainedsinglegrained latency = " << singlegrained.getLatency() << std::endl;
+            std::cout << "finegrained latency = " << finegrained.getLatency() << std::endl;
+             */
+            
+            // finegrained has a worse latency (double)
+            if(scaled.getLatency() != singlegrained.getLatency()) {
+                throw std::logic_error("different latencies");
+            }
+            
+            
+            int nperiods = 3*std::max(1,100000/sz);
+            int nsamples = nperiods*sz;
+            double sum = 0;
+            auto run = [&sum, nsamples](auto & conv) {
+                for(int i=0; i<nsamples; ++i) {
+                    sum += conv.step(0);
+                }
+            };
+            
+            /*run(finegrained);
+            auto finegrainedDuration = measure_thread_cpu_one([&run, &finegrained]{
+                run(finegrained);
+            });*/
+            run(singlegrained);
+            auto singlegrainedDuration = measure_thread_cpu_one([&run, &singlegrained]{
+                run(singlegrained);
+            });
+            run(scaled);
+            auto scaledDuration = measure_thread_cpu_one([&run, &scaled]{
+                run(scaled);
+            });
+            
+            double const ratio = singlegrainedDuration.count() / static_cast<float>(scaledDuration.count());
+            ratios.push_back(ratio);
+            
+            std::cout << startSz << "\t" << sz << "\t"
+            //<< finegrainedDuration.count() / static_cast<float>(scaledDuration.count()) << "\t"
+            << ratio << "\t"
+            //<< finegrainedDuration.count() / 1000000. << "\t"
+            << singlegrainedDuration.count() / 1000000. << "\t"
+            << scaledDuration.count() / 1000000. << "\t"
+            << ((sum > 1.) ? "" : " ")
+            << std::endl;
+            
+        }
+        std::vector<double> ones;
+        ones.resize(ratios.size(), 1.);
+        StringPlot plot(20, ratios.size(), {0,2});
+        plot.draw(ratios, '+');
+        plot.draw(ones, '=');
+        plot.log();
     }
 }
 
@@ -714,9 +850,11 @@ int main(int argc, const char * argv[]) {
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
 
-    testAllocationFactors2();
+    compareConvs<double, accelerate::Tag>();
     return 0;
-    testFFT();
+    printConvolutionCosts<double>();
+    return 0;
+    testAllocationFactors2();
     return 0;
     testScheduling();
     return 0;

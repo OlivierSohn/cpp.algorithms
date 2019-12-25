@@ -148,6 +148,42 @@ namespace imajuscule {
                 zero_n(v, v.size());
             }
             
+            
+            static double cost_zero_n_raw(int64_t sz) {
+                static std::unordered_map<int, double> stats;
+                static std::mutex mut;
+                std::lock_guard<std::mutex> l(mut);
+                
+                auto it = stats.find(sz);
+                if(it != stats.end()) {
+                    return it->second;
+                }
+                double t = nocache_cost_zero_n_raw(sz);
+                stats[sz] = t;
+                return t;
+            }
+            
+            static auto nocache_cost_zero_n_raw(int64_t sz) {
+                type a;
+                a.resize(sz, 1.);
+                
+                int64_t ntests = std::max(static_cast<int64_t>(1),
+                                          10000 / sz);
+                using namespace profiling;
+                T sum = 0;
+                auto duration = measure_thread_cpu_one([&sum, &a, sz, ntests](){
+                    for(int i=0; i<ntests; i++) {
+                        This::zero_n_raw(&a[0], sz);
+                        if(sz) {
+                            a[sz-1] += 1.;
+                            sum += a[sz-1];
+                        }
+                    }
+                });
+                sum = std::abs(sum);
+                return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(0.000001, sum));
+            }
+            
             static void dotpr(T const * const a, T const * const b, T * res, int n) {
                 accelerate::API<T>::f_dotpr(a, 1, b, 1, res, n);
             }
@@ -303,6 +339,36 @@ namespace imajuscule {
                                              &V,
                                              1,
                                              v.vector_size());
+            }
+            
+            static void multiply(type & res, type const & const_m1, type const & const_m2) {
+                // res = m1 * m2
+
+                auto & m1 = const_cast<type &>(const_m1);
+                auto & m2 = const_cast<type &>(const_m2);
+
+                auto Res = res.get_hybrid_split();
+                auto M1 = m1.get_hybrid_split();
+                auto M2 = m2.get_hybrid_split();
+
+                {
+                    *Res.realp = *M1.realp * *M2.realp;
+                    *Res.imagp = *M1.imagp * *M2.imagp;
+                }
+
+                advance(Res);
+                advance(M1);
+                advance(M2);
+
+                auto const sz = res.vector_size();
+                if(likely(sz > 0)) {
+                    constexpr auto conjugation = false;
+                    accelerate::API<T>::f_zvmul(&M1, 1,
+                                                &M2, 1,
+                                                &Res, 1,
+                                                sz - 1,
+                                                conjugation);
+                }
             }
 
             static void multiply_add(type & accum, type const & const_m1, type const & const_m2) {

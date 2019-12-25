@@ -107,7 +107,20 @@ namespace imajuscule {
                 complex<T> zero{};
                 std::fill(v.begin(), v.end(), zero);
             }
+            
+            static void multiply(type & res, type const & m1, type const & m2) {
+                auto * __restrict it_res = res.begin().base();
+                auto * __restrict it1 = m1.begin().base();
+                auto * __restrict it2 = m2.begin().base();
 
+                for(auto * __restrict end1 = m1.end().base();
+                    it1 != end1;
+                    ++it2, ++it1, ++it_res)
+                  {
+                    assert(it_res < res.end().base());
+                    *it_res = *it1 * *it2;
+                }
+            }
             static void multiply_add(type & accum, type const & m1, type const & m2) {
                 auto * __restrict it_accum = accum.begin().base();
                 auto * __restrict it1 = m1.begin().base();

@@ -850,7 +850,8 @@ int main(int argc, const char * argv[]) {
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
 
-    compareConvs<double, accelerate::Tag>();
+    compareConvs<double, imj::Tag>();
+    //compareConvs<double, accelerate::Tag>();
     return 0;
     printConvolutionCosts<double>();
     return 0;

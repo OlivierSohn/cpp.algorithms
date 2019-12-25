@@ -436,6 +436,7 @@ struct ScaleConvolutionSimulation {
     // note that it wouldn't make much sense for 'A' to have subsampling in a ScaleConvolution
     static constexpr bool has_subsampling = A::has_subsampling;
     using FPT = typename A::FPT;
+    using FFTTag = typename A::FFTTag;
     
     using SetupParam = ScaleConvolutionSetupParam;
     void setup(SetupParam const & p) {
@@ -519,7 +520,10 @@ struct ScaleConvolutionSimulation {
             {
                 // write padding
                 int const neededEndPadding = progress + paddingSize;
-                cost += costWriteNConsecutive<FPT>(neededEndPadding-endPadding);
+                int const countPadding = neededEndPadding-endPadding;
+                if(countPadding > 0) {
+                    cost += fft::RealSignal_<FFTTag, FPT>::cost_zero_n_raw(countPadding);
+                }
                 cost += it->simuMajorStep();
             }
         }
@@ -556,7 +560,7 @@ private:
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;
     using Tag = typename A::Tag;
-    static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
+    static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
 
     static constexpr int nComputePhaseable = 1;
     static constexpr int nCoefficientsFadeIn = 0;
@@ -699,11 +703,13 @@ private:
             ++it, paddingSize <<= 1)
         {
             // write the padding exactly when we need it to optimize cache use
-            for(int const neededEndPadding = progress + paddingSize;
-                endPadding < neededEndPadding;
-                ++endPadding)
             {
-                x[endPadding] = typename RealSignal::value_type(0);
+              int const neededEndPadding = progress + paddingSize;
+              int const countPadding = neededEndPadding - endPadding;
+              if(countPadding > 0) {
+                zero_n_raw(&x[endPadding], countPadding);
+                endPadding = neededEndPadding;
+              }
             }
             
             r += it->doStep(xBeginPadding - paddingSize);

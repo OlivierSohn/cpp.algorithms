@@ -180,29 +180,30 @@ namespace imajuscule
     using Parent::setCoefficients2;
 
     void setCoefficients(a64::vector<T> coeffs_) {
+        progress = 0;
       x.clear();
       auto const fft_length = get_fft_length(coeffs_.size());
-      x.reserve(fft_length);
+      x.resize(fft_length); // padding
       setCoefficients2(std::move(coeffs_));
     }
 
       void flushToSilence() {
           Parent::flushToSilence();
-          x.clear();
+          progress = 0;
       }
 
     bool willComputeNextStep() const {
-      return x.size() == getBlockSize()-1;
+      return progress == getBlockSize()-1;
     }
 
     T step(T val) {
-      x.emplace_back(val);
+      x[progress] = typename RealSignal::value_type(val);
+      ++progress;
 
-      if(x.size() == getBlockSize()) {
-        // pad x
-        x.resize(get_fft_length());
+      if(progress == getBlockSize()) {
+        // x is already padded
         auto res = doStep(x.begin());
-        x.clear();
+        progress = 0;
         return res;
       }
       else {
@@ -222,6 +223,7 @@ namespace imajuscule
 
   private:
     RealSignal x;
+    int progress = 0;
   };
 
 struct FFTConvolutionCRTPSetupParam {};
@@ -403,6 +405,7 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
 
         using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
         static constexpr auto zero = fft::RealFBins_<Tag, FPT>::zero;
+        static constexpr auto multiply = fft::RealFBins_<Tag, FPT>::multiply;
         static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
 
         using Algo = typename fft::Algo_<Tag, FPT>;
@@ -507,17 +510,19 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
                 ffts_of_delayed_x.advance();
             }
 
-            auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin();
+            int index = 0;
 
-            zero(work);
-
-            ffts_of_delayed_x.for_each_bkwd( [this, &it_fft_of_partitionned_h] (auto const & fft_of_delayed_x) {
-                assert(it_fft_of_partitionned_h < ffts_of_partitionned_h.end());
-
-                // work += fft_of_delayed_x * fft_of_partitionned_h
-                multiply_add(work, fft_of_delayed_x, *it_fft_of_partitionned_h);
-
-                ++ it_fft_of_partitionned_h;
+            ffts_of_delayed_x.for_each_bkwd( [this, &index] (auto const & fft_of_delayed_x) {
+                assert(index < ffts_of_partitionned_h.size());
+                auto const & fft_of_partitionned_h = ffts_of_partitionned_h[index];
+                
+                if(index == 0) {
+                    multiply(work /* = */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                }
+                else {
+                    multiply_add(work /* += */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                }
+                ++ index;
             });
 
             return work;

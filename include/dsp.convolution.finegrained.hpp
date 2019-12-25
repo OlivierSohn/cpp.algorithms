@@ -140,7 +140,7 @@ namespace imajuscule
           }
           else {
               os << "grain " << grain_counter << "/" << countGrains()
-              << " progress " << x.size() << "/" << getBlockSize() << std::endl;
+              << " progress " << this->progress << "/" << getBlockSize() << std::endl;
               doLogComputeState(os);
           }
       }
@@ -155,7 +155,7 @@ namespace imajuscule
       // in [0, getComputePeriodicity())
       std::array<int, 1> getComputeProgresses() const {
           auto const sz = getBlockSize();
-          auto const res = sz ? static_cast<int>(x.size() % sz) : 0;
+          auto const res = sz ? static_cast<int>(progress % sz) : 0;
           return {res};
       }
       void setComputeProgresses(std::array<int, 1> const & progresses) {
@@ -192,10 +192,6 @@ namespace imajuscule
     using Parent::do_some_multiply_add;
     using Parent::get_multiply_add_result;
 
-    FinegrainedFFTConvolutionBase() {
-      it = y.end();
-    }
-
     void setCoefficients(a64::vector<T> coeffs_) {
       if(coeffs_.size() < 2) {
         coeffs_.resize(2); // avoid ill-formed cases
@@ -207,7 +203,7 @@ namespace imajuscule
       assert(fft_length > 0);
 
       result.resize(fft_length);
-      x.reserve(fft_length);
+      x.resize(fft_length);
       {
         y.resize(fft_length);
       }
@@ -227,11 +223,10 @@ namespace imajuscule
         if(!result.empty()) {
             zero_signal(result);
         }
-        x.clear();
+        progress = 0;
         if(!y.empty()) {
             zero_signal(y);
         }
-        it = y.begin();
         grain_counter = 0;
     }
 
@@ -247,11 +242,10 @@ namespace imajuscule
   private:
     void reset_states() {
       Parent::reset_base_states();
-      x.clear();
+      progress = 0;
       if(!y.empty()) {
         zero_signal(y);
       }
-      it = y.begin();
       grain_counter = 0;
     }
 
@@ -261,7 +255,7 @@ namespace imajuscule
     void fastForwardToComputation(GrainType t, T val = 1) {
       switch(t) {
         case GrainType::FFT:
-          while(x.size() != getBlockSize()-1) {
+          while(progress != getBlockSize()-1) {
             step(val);
           }
           break;
@@ -274,7 +268,7 @@ namespace imajuscule
           }
           break;
         case GrainType::MultiplicationGroup:
-          while(!x.empty()) {
+          while(progress != 0) {
             step(val);
           }
           while(grain_counter != getGranularMinPeriod() - 1) {
@@ -286,7 +280,7 @@ namespace imajuscule
     }
     // Just used for calibration
     bool willComputeNextStep() const {
-      return (x.size() == getBlockSize()-1) || (grain_counter+1 == getBlockSize()/countGrains());
+      return (progress == getBlockSize()-1) || (grain_counter+1 == getBlockSize()/countGrains());
     }
       
       T step(T val) {
@@ -294,19 +288,19 @@ namespace imajuscule
           auto g = nextGrain();
           assert(g.first > 0);
 
-          x.emplace_back(val);
-          ++it;
+          x[progress] = typename RealSignal::value_type(val);
+          ++progress;
           ++grain_counter;
           
           if(g.first == 1 && g.second) {
             doGrain(*g.second);
           }
           
-          assert(it < y.begin() + getBlockSize());
-          assert(it >= y.begin());
+          assert(progress < getBlockSize());
+          assert(progress >= 0);
           assert(!y.empty());
           
-          return get_signal(*it);
+          return get_signal(y[progress]);
       }
       
       template<typename FPT2, typename F>
@@ -326,14 +320,12 @@ namespace imajuscule
               nSamples -= g.first;
               grain_counter += g.first;
               for(int i=0; i<g.first; ++i) {
-                  x.emplace_back(input_buffer[i]);
-              }
-              for(int i=0; i<g.first; ++i) {
-                  ++it;
+                  x[progress] = typename RealSignal::value_type(input_buffer[i]);
+                  ++progress;
                   if(i == g.first-1 && g.second) {
                       doGrain(*g.second);
                   }
-                  f(output_buffer[i], get_signal(*it));
+                  f(output_buffer[i], get_signal(y[progress]));
               }
               if(0 == nSamples) {
                   return;
@@ -378,14 +370,12 @@ namespace imajuscule
               nSamples -= g.first;
               grain_counter += g.first;
               for(int i=0; i<g.first; ++i) {
-                  x.push_back({});
-              }
-              for(int i=0; i<g.first; ++i) {
-                  ++it;
+                  x[progress] = {};
+                  ++progress;
                   if(i == g.first-1 && g.second) {
                       doGrain(*g.second);
                   }
-                  output_buffer[i] += get_signal(*it);
+                  output_buffer[i] += get_signal(y[progress]);
               }
               if(0 == nSamples) {
                   return;
@@ -397,9 +387,8 @@ namespace imajuscule
   private:
       
       std::pair<int, std::optional<GrainType>> nextGrain() const {
-          int xSize = static_cast<int>(x.size());
           int const block_size = getBlockSize();
-          int distanceToFFTGrain = block_size - xSize;
+          int distanceToFFTGrain = block_size - progress;
           assert(distanceToFFTGrain >= 0);
           
           int const n_grains = countGrains();
@@ -434,18 +423,14 @@ namespace imajuscule
               case GrainType::FFT:
               {
                   auto const block_size = getBlockSize();
-                  assert(it == y.begin() + block_size); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
-                  it = y.begin();
+                  assert(progress == block_size); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
+                  progress = 0;
                   
                   //////////////////////// FFT grain /////////////////////////////////////
                   
-                  // pad x
-                  
-                  x.resize(get_fft_length());
+                  // x is already padded
                   
                   compute_x_fft(fft, x);
-                  
-                  x.clear();
                   
                   // in the same "grain of computation" we do the following.
                   // if it is too costly we must delay the computation
@@ -496,9 +481,9 @@ namespace imajuscule
       
   private:
     int grain_counter = 0;
+    int progress = 0;
     Algo fft;
     RealSignal x, y, result;
-    typename decltype(y)::iterator it;
   };
 
   constexpr int countPartitions(int nCoeffs, int partition_size) {
@@ -521,6 +506,7 @@ namespace imajuscule
 
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
     static constexpr auto zero = fft::RealFBins_<Tag, FPT>::zero;
+    static constexpr auto multiply = fft::RealFBins_<Tag, FPT>::multiply;
     static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
 
     using Algo = typename fft::Algo_<Tag, FPT>;
@@ -657,10 +643,6 @@ namespace imajuscule
       auto const M = getMultiplicationsGroupMaxSize();
       auto const offset_base = M * (grain_number - 1);
       assert(offset_base >= 0);
-      if(0 == offset_base) {
-        zero(work);
-      }
-
       assert(offset_base < ffts_of_partitionned_h.size());
       auto it_fft_of_partitionned_h = ffts_of_partitionned_h.begin() + offset_base;
       for(auto offset = offset_base, offset_end = std::min((offset_base+M), static_cast<int>(ffts_of_partitionned_h.size()));
@@ -670,8 +652,14 @@ namespace imajuscule
 
         auto const & fft_of_delayed_x = ffts_of_delayed_x.get_backward(offset);
 
-        multiply_add(work                /*   +=   */,
-                     fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+          if(offset == 0) {
+              multiply(work                /*   =   */,
+                       fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+          }
+          else {
+              multiply_add(work                /*   +=   */,
+                           fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+          }
       }
     }
 

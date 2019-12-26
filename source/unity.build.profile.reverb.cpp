@@ -760,6 +760,7 @@ void compareConvs() {
             PartitionnedFFTConvolution<T, Tag> singlegrained;
             //FinegrainedPartitionnedFFTConvolution<T, Tag> finegrained;
             ScaleConvolution<FFTConvolutionCore<T, Tag>> scaled;
+            CustomScaleConvolution<PartitionnedFFTConvolution<T, Tag>> scaled2;
             
             a64::vector<T> coeffs;
             coeffs.resize(sz);
@@ -779,9 +780,11 @@ void compareConvs() {
             //finegrained.setCoefficients(coeffs);
             singlegrained.setCoefficients(coeffs);
 
-            scaled.setup(ScaleConvolutionSetupParam{CountDroppedScales(power_of_two_exponent(startSz))});
+            scaled.setup({CountDroppedScales(power_of_two_exponent(startSz))});
             scaled.setCoefficients(coeffs);
-            
+            scaled2.setup({CountDroppedScales(power_of_two_exponent(startSz))});
+            scaled2.setCoefficients(coeffs);
+
             /*if(scaled.get_first_fft_length() != finegrained.get_fft_length()) {
                 throw std::logic_error("different fft sizes");
             }*/

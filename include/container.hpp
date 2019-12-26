@@ -1,19 +1,5 @@
 
 namespace imajuscule {
-  template<typename T>
-  std::unique_ptr<T> extractFromEnd(std::vector<std::unique_ptr<T>> &c, T*o) {
-    for(auto i = c.rbegin(), e = c.rend(); i!=e; ++i) {
-      auto & p = *i;
-      if(p.get() != o) {
-        continue;
-      }
-      std::unique_ptr<T> res;
-      res.swap(p);
-      c.erase(std::next(i).base());
-      return res;
-    }
-    return {};
-  }
 
   namespace detail {
     template<typename C, typename Lock>

@@ -9,6 +9,20 @@ bool areNear(T a, T b, double eps) {
   return std::abs(a-b)/std::abs(std::max(a,b)) < eps;
 }
 
+template<typename T>
+std::unique_ptr<T> extractFromEnd(std::vector<std::unique_ptr<T>> &c, T*o) {
+  for(auto i = c.rbegin(), e = c.rend(); i!=e; ++i) {
+    auto & p = *i;
+    if(p.get() != o) {
+      continue;
+    }
+    std::unique_ptr<T> res;
+    res.swap(p);
+    c.erase(std::next(i).base());
+    return res;
+  }
+  return {};
+}
 
 template<typename T>
 static inline std::vector<T> mkDirac(int sz, T amplitude = 1.) {

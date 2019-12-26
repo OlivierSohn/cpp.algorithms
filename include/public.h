@@ -89,6 +89,7 @@
 
 #include "thirdparty/atomic_queue/atomic_queue.h"
 
+#include "array.utils.hpp"
 #include "csv.writer.hpp"
 #include "log.stack.h"
 #include "maybe.atomic.hpp"
@@ -184,6 +185,7 @@ extern "C"
 #include "dsp.resample.h"
 #include "read.wav.h"
 
+#include "dsp.epsilon.hpp"
 #include "dsp.cost.hpp"
 #include "dsp.host.simulation.hpp"
 #include "dsp.convolution.optimization.hpp"
@@ -194,6 +196,8 @@ extern "C"
 #include "dsp.convolution.hpp"
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.delayed.hpp"
+#include "dsp.convolution.scale.hpp"
+#include "dsp.convolution.split.hpp"
 #include "dsp.convolution.combine.hpp"
 
 #if IMJ_WITH_OPENCL

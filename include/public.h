@@ -126,8 +126,8 @@
 #include "range.h"
 #include "strplot.h"
 #include "thread.h"
-#include "profiling.h"
 #include "rng.hpp"
+#include "profiling.h"
 #include "optimization.hpp"
 #include "optimization.global.hpp"
 #include "optimization.local.hpp"
@@ -162,6 +162,7 @@
 #include "math.roots.hpp"
 
 #include "fft.interface.hpp"
+#include "fft.costs.hpp"
 
 #if __APPLE__
 # include "fft.impl.acc.hpp"
@@ -197,6 +198,8 @@ extern "C"
 #include "dsp.convolution.finegrained.hpp"
 #include "dsp.delayed.hpp"
 #include "dsp.convolution.scale.hpp"
+#include "dsp.convolution.scale.custom.hpp"
+#include "dsp.convolution.scaling.hpp"
 #include "dsp.convolution.split.hpp"
 #include "dsp.convolution.combine.hpp"
 

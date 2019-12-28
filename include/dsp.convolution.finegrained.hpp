@@ -149,16 +149,16 @@ namespace imajuscule
       set_partition_size(p.partition_size);
       setMultiplicationGroupLength(p.multiplication_group_size);
     }
-      std::array<int, 1> getComputePeriodicities() const {
+      std::array<int, nComputePhaseable> getComputePeriodicities() const {
           return {getBlockSize()};
       }
       // in [0, getComputePeriodicity())
-      std::array<int, 1> getComputeProgresses() const {
+      std::array<int, nComputePhaseable> getComputeProgresses() const {
           auto const sz = getBlockSize();
           auto const res = sz ? static_cast<int>(progress % sz) : 0;
           return {res};
       }
-      void setComputeProgresses(std::array<int, 1> const & progresses) {
+      void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
           if(!getBlockSize()) {
               return;
           }

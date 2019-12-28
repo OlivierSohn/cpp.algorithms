@@ -27,14 +27,14 @@ namespace imajuscule
     
     void setup(SetupParam const &) const {}
 
-      std::array<int, 0> getComputePeriodicities() const {
+      std::array<int, nComputePhaseable> getComputePeriodicities() const {
           return {};
       }
       // in [0, getComputePeriodicity())
-      std::array<int, 0> getComputeProgresses() const {
+      std::array<int, nComputePhaseable> getComputeProgresses() const {
           return {};
       }
-      void setComputeProgresses(std::array<int, 0> const & progresses) {
+      void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
       }
       
     void setCoefficients(a64::vector<T> v) {

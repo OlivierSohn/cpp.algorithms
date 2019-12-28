@@ -19,13 +19,44 @@ auto test2( Inputs const & is, Conv & conv ) {
 }
 
 namespace imajuscule {
-  template<typename FPT, typename FFTTag = fft::Fastest>
-  auto mkBruteThenScale(int nDropped) {
-    using C = SplitConvolution<FIRFilter<FPT>,ScaleConvolution<FFTConvolutionCore<FPT, FFTTag>>> ;
+template<typename T, typename Tag = fft::Fastest>
+auto mkBruteThenScale(int firstSz, int nCoeffs) {
+    using Scale = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>;
+    using C = SplitConvolution<FIRFilter<T>,Scale>;
+    using ScalingParam = typename Scale::SetupParam::ScalingParam;
+
+    std::map<std::vector<Scaling>, double> results;
+    
+    {
+        int count = 0;
+        ScalingsIterator{
+            firstSz,
+            nCoeffs
+        }.forEachScaling([nCoeffs, &count, &results](auto const & v){
+            results.emplace(v, virtualCostPerSample(mkSimulation(v, nCoeffs)));
+            ++count;
+        });
+        if(results.size() != count) {
+            throw std::logic_error("duplicate results");
+        }
+    }
+    auto byCost = orderByValue(results);
+
+    // write in the console the description of the latehandler
+    {
+        int const nDisplay = 1;
+        analyzeScalings(firstSz, nCoeffs, byCost, nDisplay);
+    }
+
+    if(byCost.empty()) {
+        throw std::logic_error("no optimal scaling");
+    }
     C c;
-    c.setup(typename C::SetupParam{{},{nDropped}});
+    std::vector<Scaling> optimalScalings = byCost.front()->first;
+    auto params = scalingsToParams<ScalingParam>(optimalScalings);
+    c.setup(typename C::SetupParam{{},{params}});
     return c;
-  }
+}
 }
 
 template<typename FPT>
@@ -41,37 +72,19 @@ void test() {
     inputs.push_back(sin(i));
   }
   
-  std::vector<FPT> dtBrute, epsilonBrute;
-  std::vector<FPT> dtScale, epsilonScale;
   std::vector<std::vector<FPT>> dtDropped;
-  static constexpr auto nDroppedMax = 10;
+  static constexpr auto nDroppedMax = 12;
   dtDropped.resize(nDroppedMax);
   
-  std::vector<int> coeffs;
+  std::vector<int> coeffsCount;
   
-  for(int powCoeffs=0; powCoeffs<16; ++powCoeffs) {
-    /*
-    for(int i=0; i<2; ++i) {
-      auto nCoeffs = pow2(powCoeffs);
-      if(i) {
-        nCoeffs *= 1.414;
-      }
-      coeffs.push_back(nCoeffs);
-    }*/
-    // count of cefficients used when doing 0-latency split convolutions:
-    coeffs.push_back(pow2(powCoeffs+1)-1);
-    //coeffs.push_back(pow2(powCoeffs));
+  for(int powCoeffs=nDroppedMax; powCoeffs<nDroppedMax+4; ++powCoeffs) {
+    coeffsCount.push_back(pow2(powCoeffs+1)-1);
   }
-  /*
-  coeffs.resize(511-255);
-  std::iota(coeffs.begin(), coeffs.end(), 255);
-  */
-  /*
-   coeffs.resize(128);
-   std::iota(coeffs.begin(), coeffs.end(), 1);
-*/
   
-  for(auto nCoeffs : coeffs) {
+  FPT res{};
+
+  for(auto nCoeffs : coeffsCount) {
     LG(INFO,"%d coefficients", nCoeffs);
     
     a64::vector<FPT> coeffs;
@@ -80,75 +93,18 @@ void test() {
       coeffs.push_back(cos(static_cast<FPT>(i)/100.f));
     }
 
-    for(int nDropped = 0; nDropped < nDroppedMax; ++nDropped) {
-      auto c = mkBruteThenScale<FPT>(nDropped);
+    for(int firstSz = 1, nDropped = 0;
+        nDropped < nDroppedMax;
+        firstSz *= 2, ++nDropped)
+    {
+      auto c = mkBruteThenScale<FPT>(firstSz, coeffs.size());
       c.setCoefficients(coeffs);
-      FPT res;
-      dtDropped[nDropped].push_back(measure_one<high_resolution_clock>([&inputs, &c, &res](){
-        res = test1(inputs,c);
+      dtDropped[nDropped].push_back(measure_thread_cpu_one([&inputs, &c, &res](){
+        res += test1(inputs,c);
       }).count());
-      
-      std::cout << res << std::endl;
     }
 
-    /*
-    {
-      //ScaleConvolution<FFTConvolutionCore<FPT>> c(0);
-      FFTConvolution<FPT> c;
-      c.setCoefficients(coeffs);
-      epsilonScale.push_back(c.getEpsilon());
-      
-      FPT res;
-      dtScale.push_back(measure_one<high_resolution_clock>([&inputs, &c, &res](){
-        res = test1(inputs,c);
-      }));
-      
-      std::cout << res << std::endl;
-    }
-    {
-      FIRFilter<FPT> c;
-      c.setCoefficients(coeffs);
-      epsilonBrute.push_back(c.getEpsilon());
-
-      FPT res;
-      dtBrute.push_back(measure_one<high_resolution_clock>([&inputs, &c, &res](){
-        res = test1(inputs,c);
-      }));
-      
-      std::cout << res << std::endl;
-    }*/
   }
-  /*
-  {
-    auto plot = StringPlot(20,dtBrute.size());
-    plot.drawLog(dtBrute, '*');
-    plot.drawLog(dtScale);
-    plot.log();
-  }
-  {
-    auto plot = StringPlot(20,dtBrute.size());
-    plot.drawLog(dtScale);
-    plot.log();
-  }
-  {
-    auto plot = StringPlot(20,dtBrute.size());
-    plot.draw(dtScale);
-    plot.log();
-  }
-
-  for(int i=0; i<dtBrute.size(); ++i) {
-    std::cout << coeffs[i] << " : " << dtBrute[i]/1e9 << " " << dtScale[i]/1e9 << std::endl;
-  }
-  {
-    auto plot = StringPlot(20,dtBrute.size());
-    plot.drawLog(epsilonBrute, '*');
-    plot.drawLog(epsilonScale);
-    plot.log();
-  }
-  for(int i=0; i<dtBrute.size(); ++i) {
-    std::cout << coeffs[i] << " : " << epsilonBrute[i] << " " << epsilonScale[i] << std::endl;
-  }
-  */
   for(int i = 0; i<nDroppedMax; ++i) {
     LG(INFO,"%d dropped", i);
     auto plot = StringPlot(20,dtDropped[i].size());
@@ -156,7 +112,7 @@ void test() {
     plot.log();
   }
   
-  for(int i = 0; i < coeffs.size(); ++i) {
+  for(int i = 0; i < coeffsCount.size(); ++i) {
     auto m = std::numeric_limits<FPT>::max();
     auto mi = -1;
     auto j = -1;
@@ -168,7 +124,7 @@ void test() {
       m = d[i];
       mi = j;
     }
-    LG(INFO, "coeff %d : min is dropped %d (%f)", coeffs[i], mi, m);
+    LG(INFO, "count coeffs: %d : min is dropped %d (%f)", coeffsCount[i], mi, m);
   }
   
   std::vector<std::vector<FPT>> dtDroppedTransposed;
@@ -180,19 +136,21 @@ void test() {
     }
   }
 
-  for(int i = 0; i<coeffs.size(); ++i) {
-    LG(INFO,"coeff %d", coeffs[i]);
+  for(int i = 0; i<coeffsCount.size(); ++i) {
+    LG(INFO,"count coeffs: %d", coeffsCount[i]);
     auto plot = StringPlot(20,dtDroppedTransposed[i].size());
     plot.drawLog(dtDroppedTransposed[i], '+');
     plot.log();
   }
+
+    std::cout << "dummy " << res << std::endl;
 }
 
 /*
  - Tuning of the number of dropped convolutions in
      SplitConvolution<
-       FIRFilter<FPT>,
-       ScaleConvolution<FFTConvolutionCore<FPT, FFTTag>>
+       FIRFilter<T>,
+       CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>
      >;
  
    The results show that on my platform, we should drop 5 scaled convolutions (sizes 1,2,4,8,16)

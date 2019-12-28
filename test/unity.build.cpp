@@ -14,6 +14,7 @@
 #include <thread>
 
 //*
+#include "test_dsp.convolution.scale.cpp"
 #include "test_dsp.reverbsbycbsize.cpp"
 #include "test_dsp.convolution.cpp"
 #include "test_dsp.reverbs.cpp"
@@ -60,6 +61,8 @@
 #if MEASURE_PERFS
 #  include "test_benchmark.reverbsvectorization.cpp"
 /*
+#  include "test_benchmark.convolution.scaling.cpp"
+#  include "test_benchmark.convolution.cpp"
 #  include "test_benchmark.convolution.cpp"
 #  include "measure_sin.cpp"
 #  include "measure_containers.cpp"

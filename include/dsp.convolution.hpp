@@ -9,30 +9,41 @@ namespace imajuscule
         using Parent::doSetCoefficientsCount;
         static constexpr bool has_subsampling = false;
 
-        static constexpr auto cost_copy = fft::RealSignal_<FFTTag, FPT>::cost_copy;
-        static constexpr auto cost_add_scalar_multiply = fft::RealSignal_<FFTTag, FPT>::cost_add_scalar_multiply;
-
+        static constexpr auto cost_copy = fft::RealSignalCosts<FFTTag, FPT>::cost_copy;
+        static constexpr auto cost_add_scalar_multiply = fft::RealSignalCosts<FFTTag, FPT>::cost_add_scalar_multiply;
+        static constexpr auto cost_fft_inverse = fft::AlgoCosts<FFTTag, FPT>::cost_fft_inverse;
+        
         using Parent::cost_compute_convolution;
         using Parent::get_fft_length;
         using Parent::getBlockSize;
-
-        void setCoefficientsCount(int szCoeffs) {
+        
+        void setCoefficientsCount(int64_t szCoeffs) {
             doSetCoefficientsCount(szCoeffs);
         }
 
+        FFTConvolutionIntermediateSimulation()
+        : minorCost(costWriteNConsecutive<FPT*>(1) +
+                    costReadNConsecutive<FPT>(1))
+        {}
+        
         double simuMinorStep() {
-            double cost = costWriteNConsecutive<FPT*>(1) + costReadNConsecutive<FPT>(1);
-            return cost;
+            return minorCost;
         }
 
         double simuMajorStep() {
-            double cost = cost_compute_convolution();
-            cost += FFTAlgo::cost_fft_inverse(get_fft_length());
-            cost += cost_add_scalar_multiply(getBlockSize());
-            cost += cost_copy(getBlockSize());
-            cost += costReadNConsecutive<FPT>(1);
-            return cost;
+            if(unlikely(!majorCost)) {
+                majorCost =
+                cost_compute_convolution() + // assuming that cost_compute_convolution is CONSTANT;
+                cost_fft_inverse(get_fft_length()) +
+                cost_add_scalar_multiply(getBlockSize()) +
+                cost_copy(getBlockSize()) +
+                costReadNConsecutive<FPT>(1);
+            }
+            return *majorCost;
         }
+    private:
+        double minorCost;
+        std::optional<double> majorCost;
     };
 
     /*
@@ -160,19 +171,11 @@ namespace imajuscule
       using Parent::flushToSilence;
     static constexpr int nCoefficientsFadeIn = 0;
 
-    struct SetupParam {
-        float cost = 0.f;
-      typename Parent::SetupParam param;
-    };
-
-    void setup(SetupParam const & p) {
-      doApplySetup(p.param);
-    }
+    using SetupParam = typename Parent::SetupParam;
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
       static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
 
-    using Parent::doApplySetup;
     using Parent::get_fft_length;
     using Parent::getBlockSize;
     using Parent::getEpsilon;
@@ -235,17 +238,18 @@ struct FFTConvolutionCRTPSimulation {
     using FFTTag = Tag;
     using FFTAlgo = typename fft::Algo_<Tag, FPT>;
     
-    static constexpr auto cost_mult_assign = fft::RealFBins_<Tag, FPT>::cost_mult_assign;
+    static constexpr auto cost_mult_assign = fft::RealFBinsCosts<Tag, FPT>::cost_mult_assign;
+    static constexpr auto cost_fft_forward = fft::AlgoCosts<Tag, FPT>::cost_fft_forward;
 
-    void doSetCoefficientsCount(int szCoeffs) {
+    void doSetCoefficientsCount(int64_t szCoeffs) {
         N = szCoeffs;
         fft_length = get_fft_length(szCoeffs);
     }
 
     double cost_compute_convolution() {
-        double cost = FFTAlgo::cost_fft_forward(get_fft_length());
-        cost += cost_mult_assign(get_fft_length());
-        return cost;
+        return
+        cost_fft_forward(get_fft_length()) +
+        cost_mult_assign(get_fft_length());
     }
     
     static auto get_fft_length(int n) {
@@ -281,7 +285,8 @@ struct FFTConvolutionCRTPSimulation {
 
         using SetupParam = FFTConvolutionCRTPSetupParam;
       
-      void doApplySetup(SetupParam const &) {}
+      void setup(SetupParam const &) {}
+        
         void doLogComputeState(std::ostream & os) const {
             os << "1 block of size " << N << std::endl;
         }
@@ -391,6 +396,50 @@ struct PartitionnedFFTConvolutionCRTPSetupParam {
 template <typename T, typename Tag>
 struct PartitionnedFFTConvolutionCRTPSimulation {
     using SetupParam = PartitionnedFFTConvolutionCRTPSetupParam;
+    using FPT = T;
+    using FFTTag = Tag;
+
+    static constexpr auto cost_multiply     = fft::RealFBinsCosts<Tag, FPT>::cost_multiply;
+    static constexpr auto cost_multiply_add = fft::RealFBinsCosts<Tag, FPT>::cost_multiply_add;
+    static constexpr auto cost_fft_forward = fft::AlgoCosts<Tag, FPT>::cost_fft_forward;
+
+    void setup(SetupParam const & p) {
+      partition_size = p.partition_size;
+      assert(partition_size > 0);
+      assert(is_power_of_two(partition_size));
+    }
+
+    void doSetCoefficientsCount(int64_t count) {
+        n_partitions = [&count, partition_size = this->partition_size](){
+            auto const N = count;
+            auto n_partitions = N/partition_size;
+            if(n_partitions * partition_size != N) {
+                // one partition is partial...
+                assert(n_partitions * partition_size < N);
+                ++n_partitions;
+                // ... pad it with zeros
+                count = n_partitions * partition_size;
+            }
+            return n_partitions;
+        }();
+    }
+    
+    double cost_compute_convolution() const
+    {
+        double cost = cost_fft_forward(get_fft_length());
+        if(n_partitions) {
+            cost += cost_multiply(get_fft_length());
+            cost += (n_partitions-1) * cost_multiply_add(get_fft_length());
+        }
+        return cost;
+    }
+    
+    auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
+    auto getBlockSize() const { assert(partition_size > 0); return partition_size; }
+    auto getLatency() const { assert(partition_size > 0); return partition_size-1; }
+private:
+    int partition_size = -1;
+    int n_partitions = 0;
 };
 
     template <typename T, typename Tag>
@@ -429,11 +478,10 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
 
       
 
-      void doApplySetup(SetupParam const & p) {
-        auto sz = p.partition_size;
-        assert(sz > 0);
-        partition_size = sz;
-        assert(is_power_of_two(sz));
+      void setup(SetupParam const & p) {
+        partition_size = p.partition_size;
+        assert(partition_size > 0);
+        assert(is_power_of_two(partition_size));
       }
 
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {

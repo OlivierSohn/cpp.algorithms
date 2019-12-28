@@ -1,3 +1,5 @@
+namespace imajuscule {
+
 template<typename T>
 bool areNear(T a, T b, double eps) {
   if(std::abs(a) < eps && std::abs(b) < eps) {
@@ -35,6 +37,17 @@ static inline std::vector<T> mkDirac(int sz, T amplitude = 1.) {
   return res;
 }
 
+template<typename T>
+inline auto mkTestCoeffs(int const sz){
+  a64::vector<T> v(sz);
+  auto index = 0;
+  for(auto & value: v) {
+    value = (sz - index) / static_cast<T>(sz);
+    ++index;
+  }
+  return std::move(v);
+}
+
 // the coefficients should tend to 0, to mimic real responses
 // (else, with scaling, the end of the dirac's response will be wrong)
 static inline std::vector<double> mkCoefficientsTriangle(int sz) {
@@ -58,4 +71,6 @@ static inline std::vector<double> mkCoefficientsTriangle(int sz) {
         }
     }
     return res;
+}
+
 }

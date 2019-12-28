@@ -16,6 +16,14 @@ struct pointed<std::unique_ptr<T>> {
     }
 };
 
+template<typename T, typename U>
+struct pointed<std::pair<T, U>> {
+    using type = U;
+    static auto const & get(std::pair<T, U> const & t) {
+        return t.second;
+    }
+};
+
 template<typename C>
 double epsilonOfNaiveSummation(C const & cont) {
     using Pointed = pointed<typename C::value_type>;

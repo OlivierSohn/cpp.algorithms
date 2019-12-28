@@ -28,7 +28,79 @@ namespace imajuscule
             return std::min_element(a.begin(), a.end())->count();
         }
 
-    int32_t pollute_cache(std::vector<int32_t> & v);
+
+    /*
+     Pollutes the caches by reading a large amount of data, in a non-sequential manner.
+          
+     After all calls to pollute(), it is important to use dummySum and performa a side effect
+     with it (printto the console for example) else the compiler could see that pollute()
+     has no side effect and optimize it away.
+     */
+    template<typename T>
+    struct CachePolluter {
+        
+        CachePolluter(T & dummySum)
+        : dummySum(dummySum)
+        {
+            // L3 cache size on my machine:
+
+            constexpr int64_t l3_cache_size = 4194304;
+            
+            // https://software.intel.com/en-us/forums/software-tuning-performance-optimization-platform-monitoring/topic/744272:
+            //
+            // " At the gross level, on Xeon E5 v3 systems, reading an array that is 4x larger than the L3 cache size
+            //   will clear nearly 100% of the prior data from the L1, L2, and L3 caches."
+
+            constexpr int64_t magic_factor = 4;
+
+            constexpr int64_t sz = l3_cache_size * magic_factor;
+
+            pollution.resize(sz);
+
+            std::iota(pollution.begin(), pollution.end(),
+                      0);
+
+            std::shuffle(pollution.begin(), pollution.end(),
+                         lagged_fibonacci<SEEDED::No>() // "fast"
+                         );
+        }
+
+        void operator()()
+        {
+            // the order in which we read the elements matters,
+            // and values depend on random numbers so the compiler
+            // can't optimize away.
+            for(auto val : pollution) {
+                if(val & 8) {
+                    dummySum *= 2;
+                }
+                else {
+                    ++dummySum;
+                }
+            }
+        }
+        
+    private:
+        T & dummySum;
+        std::vector<int> pollution;
+    };
+    
+    template<typename Iterator, typename T = typename Iterator::value_type>
+    void loadInCache(Iterator it, Iterator end, T & dummy)
+    {
+        dummy = std::accumulate(it,
+                                end,
+                                dummy,
+                                [](T acc, T val) {
+            if(val & 1) {
+                acc *= val;
+            }
+            else {
+                acc += val;
+            }
+            return acc;
+        });
+    }
 
     // inspired from https://stackoverflow.com/questions/5919996/how-to-detect-reliably-mac-os-x-ios-linux-windows-in-c-preprocessor
     
@@ -110,10 +182,15 @@ namespace imajuscule
         }
         
         CpuDuration operator + (CpuDuration const & o) const {
-            auto d = CpuDuration();
-            timeradd(&user, &o.user, &d.user);
-            timeradd(&kernel, &o.kernel, &d.kernel);
-            return d;
+            auto copy = *this;
+            copy += o;
+            return copy;
+        }
+        
+        CpuDuration & operator += (CpuDuration const & o) {
+            timeradd(&user, &o.user, &user);
+            timeradd(&kernel, &o.kernel, &kernel);
+            return *this;
         }
         
         bool operator < (CpuDuration const & o) const {
@@ -178,19 +255,22 @@ namespace imajuscule
 
     template<typename F>
     CpuDuration measure_thread_cpu_one(F f) {
-        std::optional<CpuDuration> duration;
+        std::optional<CpuDuration> duration1;
         {
             // this is just to load the corresponding code in the instruction cache.
-            Timer t(duration);
+            Timer t(duration1);
         }
+        
+        std::optional<CpuDuration> duration2;
         {
-            Timer t(duration);
+            Timer t(duration2);
             f();
         }
-        if(!duration) {
+        if(!duration1 || !duration2) // we use both so that the compiler doesn't optimize away the first one
+        {
             throw std::runtime_error("failed to measure time interval");
         }
-        return *duration;
+        return *duration2;
     }
 
     template<typename PREP, typename F>
@@ -260,34 +340,7 @@ namespace imajuscule
 
         time_point lastTime;
     };
-/*
-        template<typename Clock, typename F, typename dur = typename Clock::duration>
-        dur measure_one(F f) {
-            dur duration;
-            {
-                Timer<Clock> t(duration);
-                f();
-            }
-            return duration;
-        }
-
-        template<typename Clock, typename PREP, typename F, typename duration = typename Clock::duration>
-        std::vector<duration> measure_n(int n_warmup, int n, PREP preparation, F f) {
-            assert(n > 0);
-                        
-            std::vector<duration> durations(n_warmup + n);
-
-            for(auto & d : durations)
-            {
-                preparation();
-
-                {
-                    Timer<Clock> t(d);
-                    f();
-                }
-            }
-            return {durations.begin() + n_warmup, durations.end()};
-        }*/
+    
     }
 
 }

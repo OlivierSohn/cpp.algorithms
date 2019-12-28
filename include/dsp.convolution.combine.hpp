@@ -60,9 +60,9 @@ namespace imajuscule {
   template<typename T, typename FFTTag = fft::Fastest>
   using OptimizedFIRFilter =
     SplitConvolution <
-  // handle the first coefficients using brute force convolution (memory locality makes it faster than ScaleConvolution):
+  // handle the first coefficients using brute force convolution (memory locality makes it faster than anything else):
       FIRFilter<T>,
-  // handle subsequent coefficients using FFTs, where each successive FFT doubles in size:
+  // handle subsequent coefficients using FFTs:
       ScaleConvolution <
         FFTConvolutionCore<T, FFTTag>
       >

@@ -394,8 +394,11 @@ void testCostsReadWrites2() {
     }
 }
 
+
 void testCostsReadWrites3() {
     using namespace imajuscule;
+    using namespace imajuscule::profiling;
+
     mersenne<SEEDED::Yes>().seed(0);
     
     int constexpr Max = 10000000;
@@ -404,11 +407,12 @@ void testCostsReadWrites3() {
     int constexpr nTPerCacheline = 64/sizeof(T);
     v.resize(Max);
 
-    std::vector<int32_t> pollution;
-    
+    int sideEffect = 0;
+    CachePolluter flushCpuCaches(sideEffect);
+
     std::vector<int> indexes;
     indexes.reserve(Max);
-
+    
     for(int i=1; i<Max; i>100?(i*=10):++i) {
         // different tests sit at least 4 cachelines appart
         int offsetBetweenTests = i + 4*nTPerCacheline;
@@ -424,20 +428,18 @@ void testCostsReadWrites3() {
         }
         std::shuffle(indexes.begin(), indexes.end(), mersenne<SEEDED::Yes>());
         
-        for(int k=0; k<2; ++k) {
-            auto res = imajuscule::profiling::pollute_cache(pollution);
-            std::cout << "                                         " << res << std::endl;
-            {
-                // put indexes in cache
-                auto sum = std::accumulate(indexes.begin(), indexes.end(), 0);
-                std::cout << "                                   " << sum << std::endl;
-            }
-            auto duration = imajuscule::profiling::measure_thread_cpu_one([&v, &indexes, i](){
+        for(int k=0; k<2; ++k)
+        {
+            flushCpuCaches();
+            loadInCache(indexes.begin(), indexes.end(), sideEffect);
+            
+            auto duration = measure_thread_cpu_one([&v, &indexes, &sideEffect, i](){
                 for(auto index : indexes) {
                     for(int j=0; j<i; ++j) {
-                        v[index + j] = j;
+                        v[index + j] += sideEffect+j;
                     }
                 }
+                sideEffect += v[0];
             });
             std::cout << "write " << i << ":" << duration.count() / static_cast<double>(indexes.size()) << " over " << indexes.size() << std::endl;
             /*
@@ -451,6 +453,8 @@ void testCostsReadWrites3() {
              */
         }
     }
+    
+    std::cout << "sideEffect:" << sideEffect << std::endl;
 }
 
 namespace imajuscule::profiling {
@@ -699,8 +703,8 @@ void testAllocationFactors() {
     }
 }
 
-template<typename T>
-void printConvolutionCosts() {
+template<typename T, typename Tag>
+void printConvolutionCosts2() {
     using namespace imajuscule::fft;
 
     auto compute = [](auto f){
@@ -732,19 +736,29 @@ void printConvolutionCosts() {
     };
     
     std::cout << std::endl << "fft forward" << std::endl << std::endl;
-    compute(Algo_<accelerate::Tag, T>::cost_fft_forward);
+    compute(AlgoCosts<Tag, T>::cost_fft_forward);
 
     std::cout << std::endl << "fft inverse" << std::endl << std::endl;
-    compute(Algo_<accelerate::Tag, T>::cost_fft_inverse);
+    compute(AlgoCosts<Tag, T>::cost_fft_inverse);
 
     std::cout << std::endl << "sig add scalar multiply" << std::endl << std::endl;
-    compute(RealSignal_<accelerate::Tag, T>::cost_add_scalar_multiply);
+    compute(RealSignalCosts<Tag, T>::cost_add_scalar_multiply);
 
     std::cout << std::endl << "sig copy" << std::endl << std::endl;
-    compute(RealSignal_<accelerate::Tag, T>::cost_copy);
+    compute(RealSignalCosts<Tag, T>::cost_copy);
 
     std::cout << std::endl << "freq mult assign" << std::endl << std::endl;
-    compute(RealFBins_<accelerate::Tag, T>::cost_mult_assign);
+    compute(RealFBinsCosts<Tag, T>::cost_mult_assign);
+}
+    
+template<typename T>
+void printConvolutionCosts() {
+    for_each(fft::Tags, [](auto t) {
+        using Tag = decltype(t);
+        COUT_TYPE(Tag);
+        std::cout << std::endl;
+        printConvolutionCosts2<T, Tag>();
+    });
 }
 
 // proves that partitionning is more efficient than scaling for small numbers
@@ -760,8 +774,7 @@ void compareConvs() {
             PartitionnedFFTConvolution<T, Tag> singlegrained;
             //FinegrainedPartitionnedFFTConvolution<T, Tag> finegrained;
             ScaleConvolution<FFTConvolutionCore<T, Tag>> scaled;
-            CustomScaleConvolution<PartitionnedFFTConvolution<T, Tag>> scaled2;
-            
+                
             a64::vector<T> coeffs;
             coeffs.resize(sz);
             {
@@ -775,16 +788,14 @@ void compareConvs() {
             {
                 int const partition_size = startSz;
                 //finegrained.setup({partition_size, 1000000000, 0});
-                singlegrained.setup({0, {partition_size}});
+                singlegrained.setup({partition_size});
             }
             //finegrained.setCoefficients(coeffs);
             singlegrained.setCoefficients(coeffs);
 
             scaled.setup({CountDroppedScales(power_of_two_exponent(startSz))});
             scaled.setCoefficients(coeffs);
-            scaled2.setup({CountDroppedScales(power_of_two_exponent(startSz))});
-            scaled2.setCoefficients(coeffs);
-
+            
             /*if(scaled.get_first_fft_length() != finegrained.get_fft_length()) {
                 throw std::logic_error("different fft sizes");
             }*/
@@ -848,11 +859,14 @@ void compareConvs() {
     }
 }
 
+
 int main(int argc, const char * argv[]) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
 
+    testCostsReadWrites3();
+    return 0;
     compareConvs<double, imj::Tag>();
     //compareConvs<double, accelerate::Tag>();
     return 0;
@@ -862,7 +876,6 @@ int main(int argc, const char * argv[]) {
     return 0;
     testScheduling();
     return 0;
-    testCostsReadWrites3();
 
     if(argc != 1) {
         cerr << "0 argument is needed, " << argc-1 << " given" << endl;

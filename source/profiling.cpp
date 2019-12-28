@@ -31,25 +31,5 @@ namespace imajuscule
         return s;
       }
 
-        int32_t pollute_cache(std::vector<int32_t> & v)
-        {
-            v.resize(10000000); // big enough to fill caches (?)
-            
-            std::iota(v.begin(), v.end(), 0);
-            std::shuffle(v.begin(), v.end(),
-                         lagged_fibonacci<SEEDED::No>() // "fast"
-                         );
-            
-            int32_t res=0;
-            for(auto val:v) {
-                if(res & 1) {
-                    res += val;
-                }
-                else {
-                    res -= val;
-                }
-            }
-            return res;
-        };
     }
 }

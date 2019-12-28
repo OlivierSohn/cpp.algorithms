@@ -162,6 +162,19 @@ namespace imajuscule {
                 assert(res);
                 *res = r;
             }
+            
+            static void setFirstReal(type & v, T value) {
+                if(v.empty()) {
+                    throw std::logic_error("setFirstReal on empty");
+                }
+                v[0] = complex{value};
+            }
+            static T getFirstReal(type const & v) {
+                if(v.empty()) {
+                    throw std::logic_error("getFirstReal on empty");
+                }
+                return v[0].real();
+            }
 
         };
 
@@ -303,12 +316,13 @@ namespace imajuscule {
                 T M {};
                 std::for_each(output.begin(), output.end(),
                               [&M](auto v) { M = std::max(M, std::abs(v.real())); } );
+                constexpr auto epsilon = 1000 * std::numeric_limits<T>::epsilon();
                 for(auto const & r : output) {
                     if(M) {
-                        assert(std::abs(r.imag()/M) < 1e-6);
+                        assert(std::abs(r.imag()/M) < epsilon);
                     }
                     else {
-                        assert(std::abs(r.imag()) < 1e-6);
+                        assert(std::abs(r.imag()) < epsilon);
                     }
                 }
 #endif

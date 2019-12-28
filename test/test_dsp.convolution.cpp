@@ -40,16 +40,6 @@ namespace imajuscule {
 #endif
 
     template<typename T>
-    inline auto mkTestCoeffs(int const sz){
-      a64::vector<T> v(sz);
-      auto index = 0;
-      for(auto & value: v) {
-        value = (sz - index) / static_cast<T>(sz);
-        ++index;
-      }
-      return std::move(v);
-    }
-    template<typename T>
     a64::vector<T> makeCoefficients(int coeffs_index) {
       switch(coeffs_index) {
         case 0: return {{ +1. }};
@@ -318,7 +308,7 @@ namespace imajuscule {
       auto f = [](int part_size, auto & coefficients){
         PartitionnedFFTConvolution<T,Tag> conv;
         
-        conv.setup({1.f,{part_size}});
+        conv.setup({part_size});
 
         test(conv, coefficients);
       };
@@ -367,24 +357,99 @@ namespace imajuscule {
       return c;
     }
     
-    template<typename Tag>
+    template<typename T, typename Tag>
     bool testDirac() {
       using namespace fft;
       
       for(int i=0; i<end_index; ++i) {
           LG(INFO,"index %d", i);
-        testDiracFinegrainedPartitionned<float, Tag>(i);
-        testDiracFinegrainedPartitionned<double, Tag>(i);
+        testDiracFinegrainedPartitionned<T, Tag>(i);
         {
-          auto c = FIRFilter<float>{};
+          auto c = FIRFilter<T>{};
           testDirac2(i, c);
         }
+          for(int dropped=0; dropped<5; ++dropped) {
+              auto c = ScaleConvolution<FFTConvolutionCore<T, Tag>>{};
+              c.setup({CountDroppedScales(dropped)});
+              testDirac2(i, c);
+          }
+          // This is the exact same as above, but using CustomScaleConvolution
+          {
+              int const countCoeffs = makeCoefficients<T>(i).size();
+              for(int firstSz=1; firstSz<32; firstSz *= 2) {
+                  auto c = CustomScaleConvolution<FFTConvolutionCore<T, Tag>>{};
+                  using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
+                  std::vector<ScalingParam> params;
+                  int remainingCoeffs = countCoeffs;
+                  int sz = firstSz;
+                  while(remainingCoeffs > 0) {
+                      ScalingParam s;
+                      // cannot do std::min(sz, remainingCoeffs) here else the latency would be wrong
+                      s.countCoeffs = sz;
+                      s.submissionPeriod = sz;
+                      s.setupParam = {};
+                      
+                      params.push_back(s);
+                      
+                      remainingCoeffs -= sz;
+                      sz *= 2;
+                  }
+                  c.setup({params});
+                  testDirac2(i, c);
+              }
+          }
+          // same as above but with some PartitionnedFFTConvolutionCRTP
+          {
+              int const countCoeffs = makeCoefficients<T>(i).size();
+              for(int firstSz=1; firstSz<32; firstSz *= 2) {
+                  auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>{};
+                  using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
+                  std::vector<ScalingParam> params;
+                  int remainingCoeffs = countCoeffs;
+                  int sz = firstSz;
+                  while(remainingCoeffs > 0) {
+                      int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
+                      int submissionPeriod = sz;
+                      ScalingParam s{countCoeffs,
+                                     submissionPeriod,
+                                     {submissionPeriod}};
+                      
+                      params.push_back(s);
+                      
+                      remainingCoeffs -= sz;
+                      sz *= 2;
+                  }
+                  c.setup({params});
+                  testDirac2(i, c);
+              }
+          }
+          // same as above but skipping one scale out of 2
+          {
+              int const countCoeffs = makeCoefficients<T>(i).size();
+              for(int firstSz=1; firstSz<32; firstSz *= 2) {
+                  auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>{};
+                  using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
+                  std::vector<ScalingParam> params;
+                  int remainingCoeffs = countCoeffs;
+                  int sz = firstSz;
+                  while(remainingCoeffs > 0) {
+                      int const countCoeffs = std::min(sz*3, remainingCoeffs); // last coefficient group may be padded with 0s
+                      int const submissionPeriod = sz;
+                      ScalingParam s{countCoeffs,
+                                     submissionPeriod,
+                                     {submissionPeriod}};
+                      
+                      params.push_back(s);
+
+                      remainingCoeffs -= countCoeffs;
+                      sz *= 4;
+                  }
+                  c.setup({params});
+                  testDirac2(i, c);
+              }
+          }
         {
-          auto c = FIRFilter<double>{};
-          testDirac2(i, c);
-        }
-        {
-          auto c = AsyncCPUConvolution<FIRFilter<double>>{};
+          auto c = AsyncCPUConvolution<FIRFilter<T>>{};
             std::vector<int> submisionPeriods{
                 -1, // invalid
                 0, // invalid
@@ -411,70 +476,41 @@ namespace imajuscule {
             }
         }
         {
-          auto c = Delayed<FIRFilter<double>>{};
+          auto c = Delayed<FIRFilter<T>>{};
           c.setup({10,{}});
           testDirac2(i, c);
         }
         /*
+        // TODO test T=double on a machine that has support for doubles on the gpu (cl_khr_fp64)
         {
-          auto c = FIRFilterGPU<float>{};
+          auto c = FIRFilterGPU<T>{};
           testDirac2(i, c);
         }
         {
-          // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
-          auto c = FIRFilterGPU<double>{};
+          auto c = FIRFilterGPUAsync<T>{};
           testDirac2(i, c);
         }
         {
-          auto c = FIRFilterGPUAsync<float>{};
-          testDirac2(i, c);
-        }
-        {
-          // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
-          auto c = FIRFilterGPUAsync<double>{};
-          testDirac2(i, c);
-        }
-        {
-          auto c = FIRFilterGPUAsyncN<float>{};
-          c.setup({10});
-          testDirac2(i, c);
-        }
-        {
-          // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
-          auto c = FIRFilterGPUAsyncN<double>{};
+          auto c = FIRFilterGPUAsyncN<T>{};
           c.setup({10});
           testDirac2(i, c);
         }
          */
+        // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
         {
-          auto c = PartitionnedFIRFilterGPUAsyncN<float>{};
+          auto c = PartitionnedFIRFilterGPUAsyncN<T>{};
           c.setup({10});
           testDirac2(i, c);
         }
         {
-          // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
-          auto c = PartitionnedFIRFilterGPUAsyncN<double>{};
-          c.setup({10});
+          auto c = FFTConvolution<T, Tag>{};
           testDirac2(i, c);
         }
         {
-          auto c = FFTConvolution<float, Tag>{};
+          auto c = mkRealTimeConvolution<T, Tag>();
           testDirac2(i, c);
         }
-        {
-          auto c = FFTConvolution<double, Tag>{};
-          testDirac2(i, c);
-        }
-        {
-          auto c = mkRealTimeConvolution<float, Tag>();
-          testDirac2(i, c);
-        }
-        {
-          auto c = mkRealTimeConvolution<double, Tag>();
-          testDirac2(i, c);
-        }
-        testDiracPartitionned<float, Tag>(i);
-        testDiracPartitionned<double, Tag>(i);
+        testDiracPartitionned<T, Tag>(i);
       }
       return false;
     }
@@ -486,7 +522,8 @@ TEST(Convolution, dirac) {
   using namespace imajuscule::testdspconv;
   
   for_each(fft::Tags, [](auto t) {
-    testDirac<decltype(t)>();
+    testDirac<float, decltype(t)>();
+    testDirac<double, decltype(t)>();
   });
 }
 

@@ -201,4 +201,15 @@ int countDecimalNumbersBeforeTheDot(T val){
         ++count;
     }
 }
+
+// Function to return gcd of a and b
+static inline int gcd(int a, int b)
+{
+    if (a == 0) {
+        return b;
+    }
+    return gcd(b % a, a);
+}
+  
+
 } // NS imajuscule

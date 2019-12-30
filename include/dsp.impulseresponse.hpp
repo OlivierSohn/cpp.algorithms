@@ -4,10 +4,11 @@ namespace imajuscule
 
 template<typename T>
 struct DeinterlacedBuffers {
-    
-    DeinterlacedBuffers(std::vector<T> const & interlaced, int const n_channels) :
+    template<typename Vector>
+    DeinterlacedBuffers(Vector const & interlaced, int const n_channels) :
     deinterlaced(n_channels)
     {
+        static_assert(std::is_same_v<typename Vector::value_type, T>);
         deinterlace(interlaced, n_channels);
     }
     
@@ -30,7 +31,9 @@ struct DeinterlacedBuffers {
 private:
   std::vector<a64::vector<T>> deinterlaced;
   
-  void deinterlace(std::vector<T> const & ir, int const n_channels) {
+  template<typename Vector>
+  void deinterlace(Vector const & ir, int const n_channels) {
+    static_assert(std::is_same_v<typename Vector::value_type, T>);
     if(ir.size() < n_channels) {
         std::stringstream ss;
         ss << "Not enough coefficients : " << ir.size() << " for " << n_channels << " channel(s).";

@@ -21,7 +21,7 @@ static void testByCbSize(int dirac_offset, int cb_change) {
     ASSERT_TRUE(coeffs[0] == 1.);
     
     r.setConvolutionReverbIR(nSources,
-                             DeinterlacedBuffers(coeffs, 1),
+                             DeinterlacedBuffers<double>(coeffs, 1),
                              1024,
                              0,
                              44100.,

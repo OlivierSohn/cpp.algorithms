@@ -155,9 +155,9 @@ struct PartitionAlgo< FIRFilter<T> > {
   template<typename T>
   static void plotMagnitude(fft::FFTVec<T> const & v) {
     std::vector<T> mags;
-    mags.reserve(v.size());
+    mags.resize(v.size());
     std::transform(v.begin(), v.end(),
-                   std::back_inserter(mags),
+                   mags.begin(),
                    [](auto v){return abs(v);});
     StringPlot plot(30,1024);
     plot.draw(mags);
@@ -209,16 +209,15 @@ struct PartitionAlgo< FIRFilter<T> > {
     forward_fft(fft_length, input, res);
     
     auto inv_N = 1. / fft_length;
-    
-    a64::vector<T> v;
-    v.reserve(NumTaps);
-    
+        
     // This is where the FIR taps are located in the FFT’s return.
     auto StartT = fft_length/2 - NumTaps/2;
     auto fft_cut_begin = res.begin() + StartT;
     auto fft_cut_end = fft_cut_begin + NumTaps;
+    a64::vector<T> v;
+    v.resize(NumTaps);
     std::transform(fft_cut_begin, fft_cut_end,
-                   std::back_inserter(v),
+                   v.begin(),
                    [inv_N](auto value) { return value.real()*inv_N; } );
     
     apply_hann_window(v.begin(), v.end());

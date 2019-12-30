@@ -331,14 +331,24 @@ namespace imajuscule {
     
     
     template<typename T, typename FFTTag = fft::Fastest>
-    auto mkRealTimeConvolution() {
+    auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
       using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
+      using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
+      
+      auto scalingParams = scalingsToParams<ScalingParam>(v);
       auto c = C{};
       c.setup(typename C::SetupParam
       {
-        {{},{}},
         {
-          FinegrainedSetupParam{4,1000,0},
+            {},
+            {scalingParams}
+        },
+        {
+          FinegrainedSetupParam{
+              partitionSize, // partition size
+              partitionSize*1000, // multiplication group size
+              0 // phase
+          },
           {
             0,
             {FinegrainedSetupParam{0,1,0},
@@ -358,12 +368,14 @@ namespace imajuscule {
     }
     
     template<typename T, typename Tag>
-    bool testDirac() {
+    void testDirac() {
       using namespace fft;
       
       for(int i=0; i<end_index; ++i) {
           LG(INFO,"index %d", i);
+        int const countCoeffs = makeCoefficients<T>(i).size();
         testDiracFinegrainedPartitionned<T, Tag>(i);
+        if(i<10)
         {
           auto c = FIRFilter<T>{};
           testDirac2(i, c);
@@ -375,7 +387,6 @@ namespace imajuscule {
           }
           // This is the exact same as above, but using CustomScaleConvolution
           {
-              int const countCoeffs = makeCoefficients<T>(i).size();
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
                   auto c = CustomScaleConvolution<FFTConvolutionCore<T, Tag>>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
@@ -400,7 +411,6 @@ namespace imajuscule {
           }
           // same as above but with some PartitionnedFFTConvolutionCRTP
           {
-              int const countCoeffs = makeCoefficients<T>(i).size();
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
                   auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
@@ -425,7 +435,6 @@ namespace imajuscule {
           }
           // same as above but skipping one scale out of 2
           {
-              int const countCoeffs = makeCoefficients<T>(i).size();
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
                   auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
@@ -475,6 +484,7 @@ namespace imajuscule {
                 }
             }
         }
+        if(i<10)
         {
           auto c = Delayed<FIRFilter<T>>{};
           c.setup({10,{}});
@@ -507,12 +517,17 @@ namespace imajuscule {
           testDirac2(i, c);
         }
         {
-          auto c = mkRealTimeConvolution<T, Tag>();
-          testDirac2(i, c);
+            // min partition size of 4 else it is not valid (countGrains() < blockSize())
+            int const szPartition = std::max(4,
+                                             static_cast<int>(floor_power_of_two(countCoeffs/10)));
+            int const latencyLateHandler = 2*szPartition - 1;
+            int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
+            int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
+            auto c = mkRealTimeConvolution<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs), szPartition);
+            testDirac2(i, c);
         }
         testDiracPartitionned<T, Tag>(i);
       }
-      return false;
     }
   }
 }
@@ -543,7 +558,8 @@ TEST(Convolution, freq) {
   using RealSignal = typename fft::RealSignal_<Tag, double>::type;
   using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
   
-  auto c = mkRealTimeConvolution<double>();
+  std::vector<Scaling> scalingParams{}; // leave it empty, we have only 8 coefficients
+  auto c = mkRealTimeConvolution<double>(scalingParams, 4);
   constexpr auto N = 8;
   
   //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};

@@ -72,6 +72,8 @@ struct CustomScaleConvolutionSimulation {
 
             v.back().second.second.setup(param.setupParam);
         }
+
+        x_halfSize = getBiggestScale();
     }
     void reset() {
         v.clear();
@@ -79,26 +81,30 @@ struct CustomScaleConvolutionSimulation {
         reset_states();
     }
     
-    
     void setCoefficientsCount(int64_t szCoeffs) {
         reset_states();
         
         int totalCoeffs = 0;
         for(auto & [param, algo] : v) {
-            param.submissionCountdown = param.submissionPeriod-1;
             auto sizeBlock = param.countCoeffs;
             algo.second.setCoefficientsCount(sizeBlock);
             totalCoeffs += sizeBlock;
-            if(algo.second.getLatency() != param.submissionPeriod - 1) {
-                // This breaks the class logic, and would lead to wrong results.
+            param.submissionCountdown = param.submissionPeriod-1;
+            if(algo.second.getLatency() != param.submissionCountdown) {
                 throw std::logic_error("CustomScaleConvolutionSimulation is applied to a type that doesn't respect the latency constraints.");
             }
             // assuming these costs are constant
             algo.first.majorCost = algo.second.simuMajorStep();
             algo.first.minorCost = algo.second.simuMinorStep();
         }
-        Assert(totalCoeffs < szCoeffs + v.back().first.countCoeffs); // account for possible padding
-        x_halfSize = getBiggestScale();
+        if(szCoeffs > totalCoeffs) {
+            throw std::logic_error("too much coefficients for scales");
+        }
+        if(!v.empty()) {
+            if(szCoeffs < totalCoeffs - v.back().first.countCoeffs + 1) {
+                throw std::logic_error("not enough coefficients for scales");
+            }
+        }
     }
     
     auto getLatency() const {
@@ -129,7 +135,7 @@ struct CustomScaleConvolutionSimulation {
     }
     
     /*
-     Dual method of ScaleConvolution::step()
+     Dual method of CustomScaleConvolution::step()
      */
     double simuStep() {
         if(unlikely(isZero())) {
@@ -150,7 +156,7 @@ struct CustomScaleConvolutionSimulation {
             Assert(param.submissionCountdown >= 0);
             if(unlikely(0 == param.submissionCountdown)) {
                 param.submissionCountdown = param.submissionPeriod;
-                int paddingSize = param.submissionPeriod;
+                int const paddingSize = param.submissionPeriod;
                 // write the padding exactly when we need it to optimize cache use
                 {
                     int const neededEndPadding = progress + paddingSize;
@@ -174,6 +180,31 @@ struct CustomScaleConvolutionSimulation {
         
         return cost;
     }
+    
+    double simuBatch(int nRemainingSteps) {
+        double cost{};
+        
+        while(progress != 0 && nRemainingSteps) {
+            Assert(0); // by design a batch should start at progress == 0
+            cost += simuStep();
+            --nRemainingSteps;
+        }
+        
+        int const period = getBiggestScale();
+        if(period) {
+            int const nFullPeriods = nRemainingSteps / period;
+            nRemainingSteps -= nFullPeriods * period;
+
+            cost += nFullPeriods * simuBiggestPeriod();
+        }
+        
+        while(nRemainingSteps) {
+            Assert(0); // by design a batch should be a full number of periods
+            cost += simuStep();
+            --nRemainingSteps;
+        }
+        return cost;
+    }
 
     int getBiggestScale() const {
         if(v.empty()) {
@@ -191,6 +222,67 @@ private:
     void reset_states() {
         progress = 0;
         endPadding = 0;
+    }
+    
+    double simuBiggestPeriod() const {
+        // we compute the cost for 'biggestSubmissionPeriod' iterations
+        int const biggestSubmissionPeriod = getBiggestScale();
+        
+        double cost = costWriteOne * biggestSubmissionPeriod;
+
+        // padding cost
+        if(v.size() >= 2)
+        {
+            int Gcd = gcd(v[0].first.submissionPeriod,
+                          v[1].first.submissionPeriod);
+            for(auto it = v.begin() + 2,
+                end = v.end();
+                it < end;
+                ++it)
+            {
+                Gcd = gcd(Gcd, it->first.submissionPeriod);
+            }
+            Assert(Gcd > 0);
+            
+            int endPadding = 0;
+            for(int progress = Gcd;
+                progress < biggestSubmissionPeriod;
+                progress += Gcd)
+            {
+                endPadding = std::max(progress, endPadding);
+
+                for(auto & [param, algo] : v) {
+                    Assert(param.submissionPeriod > 0);
+                    if(param.submissionPeriod == biggestSubmissionPeriod) {
+                        // no padding for this one
+                        continue;
+                    }
+                    if(progress * (param.submissionPeriod / progress) == param.submissionPeriod) {
+                        int const paddingSize = param.submissionPeriod;
+                        int const neededEndPadding = progress + paddingSize;
+                        int const countPadding = neededEndPadding - endPadding;
+                        if(countPadding > 0) {
+                            cost += fft::RealSignalCosts<FFTTag, FPT>::cost_zero_n_raw(countPadding);
+                            endPadding = neededEndPadding;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // major / minor costs
+        for(auto & [param, algo] : v) {
+            Assert(param.submissionPeriod > 0);
+            int nMajorSteps = biggestSubmissionPeriod / param.submissionPeriod;
+            Assert(nMajorSteps * param.submissionPeriod == biggestSubmissionPeriod);
+
+            int nMinorSteps = biggestSubmissionPeriod - nMajorSteps;
+            Assert(nMinorSteps >= 0);
+            
+            cost += nMajorSteps * algo.first.majorCost;
+            cost += nMinorSteps * algo.first.minorCost;
+        }
+        return cost;
     }
 };
 
@@ -220,7 +312,7 @@ struct CustomScaleConvolution {
         IndentingOStreambuf indent(os);
         for(auto const & [param, algo] : v)
         {
-            os << param.countCoeffs << "[" << param.submissionCountDown << "/" << param.submissionPeriod << "]" << std::endl;
+            os << param.countCoeffs << " [" << param.submissionCountdown << "/" << param.submissionPeriod << "]" << std::endl;
             IndentingOStreambuf indent2(os);
             algo.logComputeState(os);
         }
@@ -242,6 +334,15 @@ struct CustomScaleConvolution {
 
             v.back().second.setup(param.setupParam);
         }
+
+        x_halfSize = getBiggestScale();
+        x.resize(2*x_halfSize); // including padding for biggest convolution
+        
+        // fill the first half with a non-zero value to verify during tests that padding is done at the right time.
+        std::fill(x.begin(),
+                  x.begin() + x_halfSize,
+                  typename RealSignal::value_type(1.9)
+                  );
     }
     void reset() {
         v.clear();
@@ -259,8 +360,7 @@ struct CustomScaleConvolution {
     }
     
     /*
-     *   Unless the count of coefficients is of the form
-     *     2^n - 1, some padding occurs.
+     *   Some padding can occur.
      */
     // TODO we could require that 'A' tells what amount of underlying storage it will need, by number of coefficients,
     // and then this class could allocate the memory in one big chunk, and split it among 'A's.
@@ -271,8 +371,10 @@ struct CustomScaleConvolution {
         auto it = coeffs_.begin();
         auto end = coeffs_.end();
         for(auto & [param, conv] : v) {
-            param.submissionCountdown = param.submissionPeriod-1;
-            Assert(it <= end);
+            if(it >= end) {
+                // suboptimal CustomScaleConvolution
+                break;
+            }
             auto start = it;
             auto sizeBlock = param.countCoeffs;
             it += sizeBlock;
@@ -286,25 +388,20 @@ struct CustomScaleConvolution {
             else {
                 conv.setCoefficients2({start,it});
             }
-            if(conv.getLatency() != param.submissionPeriod - 1) {
+            param.submissionCountdown = param.submissionPeriod-1;
+            if(conv.getLatency() != param.submissionCountdown) {
                 // This breaks the class logic, and would lead to wrong results.
                 throw std::logic_error("CustomScaleConvolution is applied to a type that doesn't respect the latency constraints.");
             }
         }
-        Assert(it >= end);
-        x_halfSize = getBiggestScale();
-        x.resize(2*x_halfSize); // including padding for biggest convolution
-        
-        // fill the first half with a non-zero value to verify during tests that padding is done at the right time.
-        std::fill(x.begin(),
-                  x.begin() + x_halfSize,
-                  typename RealSignal::value_type(1.9)
-                  );
+        if(it < end) {
+            throw std::runtime_error("not enough scales in CustomScaleConvolution");
+        }
     }
     
     bool isValid() const {
         if(v.empty()) {
-            return true;
+            return false;
         }
         return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.second.isValid(); });
     }
@@ -343,7 +440,7 @@ private:
             Assert(param.submissionCountdown >= 0);
             if(unlikely(0 == param.submissionCountdown)) {
                 param.submissionCountdown = param.submissionPeriod;
-                int paddingSize = param.submissionPeriod;
+                int const paddingSize = param.submissionPeriod;
                 // write the padding exactly when we need it to optimize cache use
                 {
                     int const neededEndPadding = progress + paddingSize;

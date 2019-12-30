@@ -634,11 +634,9 @@ struct FFTEval {
 void testAllocationFactors2() {
     using namespace imajuscule::fft;
     using namespace imajuscule::profiling;
-    for(int64_t sz = 16; sz < 10000000; sz *= 4) {
-        for(int nThreads = 1; nThreads < 20; nThreads *= 2) {
-            int nMicroSecs = 1000000;
-            
-            std::cout << nThreads << " " << sz;
+    for(int nThreads = 1; nThreads < 20; nThreads *= 2) {
+        for(int nMicroSecs = 1000; nMicroSecs < 1000000000; nMicroSecs *= 10) {
+            std::cout << "nThreads " << nThreads << "\t us " << nMicroSecs << "\t";
             {
                 MaxWallTimeIncrementEval::BythreadMaxIncrements maxIncrements;
                 maxIncrements.resize(nThreads);
@@ -647,7 +645,7 @@ void testAllocationFactors2() {
                                                        MaxWallTimeIncrementEval(maxIncrements));
                 
                 std::vector<std::chrono::steady_clock::duration> maxIncrementsValues;
-                maxIncrementsValues.reserve(maxIncrements.size());
+                maxIncrementsValues.resize(maxIncrements.size());
                 std::transform(maxIncrements.begin(),
                                maxIncrements.end(),
                                maxIncrementsValues.begin(),
@@ -658,18 +656,12 @@ void testAllocationFactors2() {
                     return *o.value;
                 });
                 
-                std::cout << " " << std::chrono::duration_cast<std::chrono::microseconds>(*std::max_element(maxIncrementsValues.begin(),
-                                                                                                            maxIncrementsValues.end())).count() / 1000000.;
-                std::cout << " " << *std::min_element(allocs.begin(), allocs.end());
-            }
-            {
-                auto allocs = computeAllocationFactors(nThreads,
-                                                       std::chrono::microseconds(nMicroSecs),
-                                                       FFTEval(sz));
-                std::cout << " " << *std::min_element(allocs.begin(), allocs.end());
+                std::cout << std::chrono::duration_cast<std::chrono::microseconds>(*std::max_element(maxIncrementsValues.begin(),
+                                                                                                     maxIncrementsValues.end())).count() / 1000000.;
+                std::cout << "\t " << *std::min_element(allocs.begin(),
+                                                        allocs.end());
             }
             std::cout << std::endl;
-            
         }
     }
 }
@@ -865,14 +857,14 @@ int main(int argc, const char * argv[]) {
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
 
+    testAllocationFactors2();
+    return 0;
     testCostsReadWrites3();
     return 0;
     compareConvs<double, imj::Tag>();
     //compareConvs<double, accelerate::Tag>();
     return 0;
     printConvolutionCosts<double>();
-    return 0;
-    testAllocationFactors2();
     return 0;
     testScheduling();
     return 0;

@@ -221,7 +221,7 @@ std::vector<double> computeAllocationFactors(int nThreads,
     for(int i=0; i<nThreads; ++i) {
         threads.emplace_back([&durations,
                               i,
-                              &nThreads,
+                              nThreads,
                               &state,
                               f] // need to capture by copy
 () mutable {

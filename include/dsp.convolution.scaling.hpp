@@ -5,7 +5,7 @@ struct Scaling {
     Scaling(int const sz, int const nRepeat) :
     sz(sz), nRepeat(nRepeat) {}
     
-    int const sz;
+    int sz;
     int nRepeat;
     
     bool operator == (Scaling const & o) const {
@@ -21,7 +21,7 @@ struct Scaling {
         }
         return false;
     }
-    
+
     friend std::ostream & operator << (std::ostream & os, const std::pair<int, Scaling>& p) {
         auto const & s = p.second;
         auto firstSz = p.first;
@@ -43,9 +43,8 @@ struct Scaling {
         }
         return os;
     }
-
 };
-                
+
 struct ScalingsIterator {
     ScalingsIterator(int firstSz, int totalNCoeffs, std::optional<int> limitRepetition = {})
     : firstSz(firstSz)
@@ -202,10 +201,9 @@ struct ScalingsIterator {
         return scalingParams;
     }
 
-    template<typename T, typename Tag>
+    template<typename C>
     auto mkSimulation(std::vector<Scaling> const & v,
                       int64_t const nCoeffs) {
-        using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>;
         using CSimulation = typename C::Simulation;
         using ScalingParam = typename CSimulation::SetupParam::ScalingParam;
         
@@ -231,13 +229,13 @@ struct ScalingsIterator {
     
     template<typename Simu>
     double virtualCostPerSample(Simu sim) {
-        double cost{};
         int64_t const end = sim.getBiggestScale();
-        
-        for(int64_t i= 0; i<end; ++i) {
-            cost += sim.simuStep();
+        if(end) {
+            return sim.simuBatch(end)/end;
         }
-        return cost/end;
+        else {
+            return 0.;
+        }
     }
     
     template<typename C>
@@ -373,5 +371,23 @@ struct ScalingsIterator {
             displayScaling(it, firstSz, nCoeffs);
         }
     }
-        
+            
+    template<typename Convolution>
+    auto getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation(int const firstSz,
+                                                                 int const nCoeffs)
+    {
+         std::optional<std::pair<std::vector<Scaling>, double>> best;
+         
+         ScalingsIterator{
+             firstSz,
+             nCoeffs
+         }.forEachScaling([nCoeffs, &best](auto const & v){
+             auto virtualCost = virtualCostPerSample(mkSimulation<Convolution>(v, nCoeffs));
+             if(!best || virtualCost < best->second) {
+                 best = {{v, virtualCost}};
+             }
+         });
+         
+         return best;
+     }
 }

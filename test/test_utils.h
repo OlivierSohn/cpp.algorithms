@@ -50,8 +50,8 @@ inline auto mkTestCoeffs(int const sz){
 
 // the coefficients should tend to 0, to mimic real responses
 // (else, with scaling, the end of the dirac's response will be wrong)
-static inline std::vector<double> mkCoefficientsTriangle(int sz) {
-    std::vector<double> res;
+static inline a64::vector<double> mkCoefficientsTriangle(int sz) {
+    a64::vector<double> res;
     res.reserve(sz);
     constexpr int period = 100;
     for(int i=0; i<sz; ++i) {
@@ -72,5 +72,7 @@ static inline std::vector<double> mkCoefficientsTriangle(int sz) {
     }
     return res;
 }
+
+std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
 
 }

@@ -13,6 +13,8 @@
 
 #include <thread>
 
+#include "test_utils.cpp"
+
 //*
 #include "test_dsp.convolution.scale.cpp"
 #include "test_dsp.reverbsbycbsize.cpp"

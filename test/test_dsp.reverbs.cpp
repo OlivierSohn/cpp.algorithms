@@ -16,7 +16,6 @@ static inline void scaleVec(double coeff, std::vector<double> & v) {
 namespace imajuscule {
 template<ReverbType reverbType, typename ...Args>
 void testReverbDirac(Args ...args) {
-
     Reverbs<1, reverbType> rs;
     using Convolution = typename decltype(rs)::ConvolutionReverb;
 
@@ -45,13 +44,13 @@ void testReverbDirac(Args ...args) {
             ResponseStructure structure;
             if constexpr (Convolution::has_subsampling) {
                 rs.setConvolutionReverbIR(1,
-                                          {{}, 1}, audio_cb_size, 44100.,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100.,
                                           std::cout, structure, ResponseTailSubsampling::HighestAffordableResolution,
                                           args...);
             }
             else {
                 rs.setConvolutionReverbIR(1,
-                                          {{}, 1}, audio_cb_size, 44100.,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100.,
                                           std::cout, structure,
                                           args...);
             }
@@ -238,4 +237,39 @@ TEST(Reverbs, dirac) {
     testReverbDirac<ReverbType::Realtime_Asynchronous>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Offline>();
+}
+
+TEST(Reverbs, reproQueueSizeGarageband) {
+    using namespace imajuscule;
+    
+    Reverbs<2, ReverbType::Realtime_Asynchronous> rs;
+    using Convolution = typename decltype(rs)::ConvolutionReverb;
+    
+    constexpr int audio_cb_size = 128;
+    
+    int sz = 450000;
+    std::vector<double> const input = mkDirac<double>(sz);
+    auto const coeffs = mkCoefficientsTriangle(sz);
+    std::vector<a64::vector<double>> vcoeffs;
+    vcoeffs.push_back(coeffs);
+    vcoeffs.push_back(coeffs);
+    
+    {
+        bool res = false;
+        ResponseStructure structure;
+        try {
+            rs.setConvolutionReverbIR(1,
+                                      {vcoeffs},
+                                      audio_cb_size,
+                                      44100.,
+                                      std::cout,
+                                      structure,
+                                      SimulationPhasing::phasing_with_group_size(2));
+            res = true;
+        }
+        catch(std::exception const &e) {
+            LG(ERR, "%s", e.what());
+        }
+        ASSERT_TRUE(res);
+    }
 }

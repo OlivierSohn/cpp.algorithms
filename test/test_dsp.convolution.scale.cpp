@@ -492,3 +492,27 @@ TEST(ConvolutionScale, iterateScales_limitRepeats) {
         }
     }
 }
+
+TEST(ConvolutionScale, simulateBatch) {
+
+    using namespace imajuscule;
+
+    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<double, fft::Fastest> >>;
+
+    int const firstSz = 4;
+    int const nCoeffs = 4545;
+    ScalingsIterator it{
+        firstSz,
+        nCoeffs
+    };
+    it.forEachScaling([nCoeffs](auto const & v){
+        auto sim = mkSimulation<C>(v, nCoeffs);
+        auto const batchSize = sim.getBiggestScale();
+        double cost{};
+        for(int i=0; i<batchSize; ++i) {
+            cost += sim.simuStep();
+        }
+        double batchCost = sim.simuBatch(batchSize);
+        ASSERT_NEAR(cost, batchCost, 1e-3);
+    });
+}

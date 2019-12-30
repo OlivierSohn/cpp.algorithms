@@ -16,6 +16,8 @@ struct Costs
 template<typename T, typename Tag>
 void findCheapest2()
 {
+    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>;
+    
     double sideEffect{};
     for(int factor = 100; factor <= 10000; factor *=10)
     {
@@ -38,7 +40,7 @@ void findCheapest2()
                     constexpr int cache_flush_period_samples = 128;
                     results.emplace(v,
                                     Costs{
-                        virtualCostPerSample(mkSimulation<T, Tag>(v, coeffs.size())),
+                        virtualCostPerSample(mkSimulation<C>(v, coeffs.size())),
                         realCostPerSample(conv, sideEffect),
                         realCostPerSampleWithCacheFlushes(conv, cache_flush_period_samples, sideEffect)
                     });

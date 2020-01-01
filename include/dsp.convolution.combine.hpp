@@ -57,7 +57,7 @@ namespace imajuscule {
 
    */
 
-  template<typename T, typename FFTTag = fft::Fastest>
+  template<typename T, typename FFTTag>
   using OptimizedFIRFilter =
     SplitConvolution <
   // handle the first coefficients using brute force convolution (memory locality makes it faster than anything else):
@@ -66,7 +66,7 @@ namespace imajuscule {
       CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>
     >;
   
-  template<typename T, typename FFTTag = fft::Fastest, LatencySemantic Lat = LatencySemantic::DiracPeak>
+  template<typename T, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
   using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
     SplitConvolution<
   // handle the first coefficients using a zero-latency filter:
@@ -106,7 +106,7 @@ namespace imajuscule {
 
   >;
 
-      template<typename T, typename FFTTag = fft::Fastest>
+      template<typename T, typename FFTTag>
       using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
         SplitConvolution<
       // handle the first coefficients using a zero-latency filter:
@@ -114,20 +114,22 @@ namespace imajuscule {
       // handle subsequent coefficients using a filter optimized for worst audio callback cost:
           FinegrainedPartitionnedFFTConvolution<T, FFTTag>
       >;
-      template<typename T, typename FFTTag = fft::Fastest>
+      template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
       using ZeroLatencyScaledAsyncConvolution =
       SplitConvolution<
         OptimizedFIRFilter<T, FFTTag>,
         AsyncCPUConvolution <
-            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>
+            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>,
+            OnWorkerTooSlow
         >
       >;
-      template<typename T, typename FFTTag = fft::Fastest>
+      template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
       using ZeroLatencyScaledAsyncConvolutionOptimized =
       SplitConvolution<
         ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>,
         AsyncCPUConvolution <
-            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>
+            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>,
+            OnWorkerTooSlow
         >
       >;
 
@@ -265,9 +267,9 @@ int computeQueueSize(F nextProcessingDuration,
 }
 
 
-        template<typename Algo>
-        struct PartitionAlgo< AsyncCPUConvolution<Algo> > {
-            using Convolution = AsyncCPUConvolution<Algo>;
+        template<typename Algo, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+        struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
+            using Convolution = AsyncCPUConvolution<Algo, OnWorkerTooSlow>;
             using AsyncPart = typename Convolution::AsyncPart;
             using SetupParam = typename Convolution::SetupParam;
             using PS = PartitionningSpec<SetupParam>;
@@ -788,9 +790,9 @@ int computeQueueSize(F nextProcessingDuration,
             }
         };
       
-      template<typename T, typename FFTTag>
-      struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag> > {
-          using Convolution = ZeroLatencyScaledAsyncConvolution<T, FFTTag>;
+      template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+      struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSlow> > {
+          using Convolution = ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSlow>;
           using SetupParam = typename Convolution::SetupParam;
           using PS = PartitionningSpec<SetupParam>;
           using PSpecs = PartitionningSpecs<SetupParam>;
@@ -853,9 +855,9 @@ int computeQueueSize(F nextProcessingDuration,
             return {ps,{}};
         }
       };
-      template<typename T, typename FFTTag>
-      struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag> > {
-          using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag>;
+      template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+      struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow> > {
+          using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow>;
           using SetupParam = typename Convolution::SetupParam;
           using PS = PartitionningSpec<SetupParam>;
           using PSpecs = PartitionningSpecs<SetupParam>;
@@ -1446,12 +1448,13 @@ namespace SameSizeScales {
     
     template<typename T>
     struct OptimalFilter_<T, AudioProcessing::Callback> {
-      using type = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T>;
+        // TODO reevaluate once we know when async is better than sync
+      using type = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, fft::Fastest>;
     };
     
     template<typename T>
     struct OptimalFilter_<T, AudioProcessing::Offline> {
-      using type = OptimizedFIRFilter<T>;
+      using type = OptimizedFIRFilter<T, fft::Fastest>;
     };
   }
   

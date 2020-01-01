@@ -16,7 +16,7 @@ static inline void scaleVec(double coeff, std::vector<double> & v) {
 namespace imajuscule {
 template<ReverbType reverbType, typename ...Args>
 void testReverbDirac(Args ...args) {
-    Reverbs<1, reverbType> rs;
+    Reverbs<1, reverbType, PolicyOnWorkerTooSlow::Wait> rs;
     using Convolution = typename decltype(rs)::ConvolutionReverb;
 
     constexpr int audio_cb_size = 99;
@@ -242,7 +242,7 @@ TEST(Reverbs, dirac) {
 TEST(Reverbs, reproQueueSizeGarageband) {
     using namespace imajuscule;
     
-    Reverbs<2, ReverbType::Realtime_Asynchronous> rs;
+    Reverbs<2, ReverbType::Realtime_Asynchronous, PolicyOnWorkerTooSlow::Wait> rs;
     using Convolution = typename decltype(rs)::ConvolutionReverb;
     
     constexpr int audio_cb_size = 128;

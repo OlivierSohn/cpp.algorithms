@@ -51,15 +51,14 @@ namespace imajuscule
    * - Finally there is the "IFFT" grain where we sum the results of the multiplications
    *    and do its inverse fft.
    *
-   * An optimization algorithm minimizes the worst case cost for a single callback,
-   * based on :
-   *  - The callback buffer size (which we assume will not change in the future)
-   *  - The count of simultaneous convolutions happening in a callback
-   * the optimization algorithm gives the optimal parameters:
+   * An algorithm computes the optimal parameters (to minimize the worst case cost for a single callback):
    *  - The size of the partitions
    *  - The count of multiplications per multiplication grain
    *  - The "phasing" of simultaneous convolutions to best interleave
    *      high-cost grains.
+   * based on :
+   *  - The callback buffer size
+   *  - The count of simultaneous convolutions happening in a callback
   */
 
   enum class GrainType {
@@ -682,7 +681,7 @@ namespace imajuscule
     CplxFreqs work;
   };
 
-  template <typename T, typename FFTTag = fft::Fastest>
+  template <typename T, typename FFTTag>
   using FinegrainedPartitionnedFFTConvolution = FinegrainedFFTConvolutionBase< FinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag> >;
 
   /*
@@ -1006,9 +1005,9 @@ namespace imajuscule
                                                                                 os);
   }
 
-  template<typename T>
-  struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T> > {
-    using NonAtomicConvolution = FinegrainedPartitionnedFFTConvolution<T>;
+  template<typename T, typename FFTTag>
+  struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
+    using NonAtomicConvolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
     using SetupParam = typename NonAtomicConvolution::SetupParam;
     using PS = PartitionningSpec<SetupParam>;
     using PSpecs = PartitionningSpecs<SetupParam>;

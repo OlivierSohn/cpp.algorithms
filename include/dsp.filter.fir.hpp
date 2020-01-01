@@ -86,9 +86,8 @@ namespace imajuscule
       {
           if(unlikely(isZero())) {
               // zero output_buffer
-              using FFTTag = fft::Fastest;
-              fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nSamples);
-            return;
+              fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffer, nSamples);
+              return;
           }
           for(int i=0; i<nSamples; ++i) {
               output_buffer[i] = doStep(input_buffer[i]);

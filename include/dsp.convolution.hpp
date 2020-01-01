@@ -749,9 +749,9 @@ private:
      *
      * optimization : H and A are fixed so we cannot optimize this algorithm
      */
-  template <typename T, typename FFTTag = fft::Fastest>
+  template <typename T, typename FFTTag>
   using FFTConvolutionCore = FFTConvolutionIntermediate < FFTConvolutionCRTP<T, FFTTag> >;
-  template <typename T, typename FFTTag = fft::Fastest>
+  template <typename T, typename FFTTag>
   using FFTConvolution = FFTConvolutionBase< FFTConvolutionCore<T, FFTTag> >;
 
     /*
@@ -775,12 +775,12 @@ private:
      *                of the different algorithms are well-spaced.
      *
      */
-    template <typename T, typename FFTTag = fft::Fastest>
+    template <typename T, typename FFTTag>
     using PartitionnedFFTConvolution = FFTConvolutionBase< FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> > >;
 
-    template<typename T>
-    struct PartitionAlgo< PartitionnedFFTConvolution<T> > {
-        using AtomicConvolution = PartitionnedFFTConvolution<T>;
+    template<typename T, typename FFTTag>
+    struct PartitionAlgo< PartitionnedFFTConvolution<T, FFTTag> > {
+        using AtomicConvolution = PartitionnedFFTConvolution<T, FFTTag>;
         using SetupParam = typename AtomicConvolution::SetupParam;
         using PS = PartitionningSpec<SetupParam>;
         using PSpecs = PartitionningSpecs<SetupParam>;

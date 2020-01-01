@@ -5,7 +5,7 @@ static void testByCbSize(int dirac_offset, int cb_change) {
     constexpr int nAudioOut = 1;
     
     // on choisit un type d ereverb pour lequel il n'y a pas d'optimisatio nporu avoir un test rapide
-    ConvReverbsByBlockSize<Reverbs<nAudioOut, ReverbType::Offline>> r;
+    ConvReverbsByBlockSize<Reverbs<nAudioOut, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>> r;
 
     ASSERT_EQ(r.getWetRatioWithoutStepping(), 1.);
     r.abruptlySetConvolutionReverbWetRatio(0.5);

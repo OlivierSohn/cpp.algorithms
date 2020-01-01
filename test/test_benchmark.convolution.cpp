@@ -19,7 +19,7 @@ auto test2( Inputs const & is, Conv & conv ) {
 }
 
 namespace imajuscule {
-template<typename T, typename Tag = fft::Fastest>
+template<typename T, typename Tag>
 auto mkBruteThenScale(int firstSz, int nCoeffs) {
     using Scale = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>;
     using C = SplitConvolution<FIRFilter<T>,Scale>;

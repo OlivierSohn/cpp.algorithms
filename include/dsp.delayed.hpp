@@ -7,7 +7,8 @@ namespace imajuscule
     using T = typename Algo::FPT;
     using FPT = T;
     static constexpr int nCoefficientsFadeIn = Algo::nCoefficientsFadeIn;
-    
+    static constexpr bool step_can_error = Algo::step_can_error;
+
     struct SetupParam : public Cost {
         using InnerParams = typename Algo::SetupParam;
         SetupParam(int d, InnerParams i)

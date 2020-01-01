@@ -181,7 +181,7 @@ struct CustomScaleConvolutionSimulation {
         return cost;
     }
     
-    double simuBatch(int nRemainingSteps) {
+    double simuBatch(int64_t nRemainingSteps) {
         double cost{};
         
         while(progress != 0 && nRemainingSteps) {
@@ -190,9 +190,9 @@ struct CustomScaleConvolutionSimulation {
             --nRemainingSteps;
         }
         
-        int const period = getBiggestScale();
+        int64_t const period = getBiggestScale();
         if(period) {
-            int const nFullPeriods = nRemainingSteps / period;
+            int64_t const nFullPeriods = nRemainingSteps / period;
             nRemainingSteps -= nFullPeriods * period;
 
             cost += nFullPeriods * simuBiggestPeriod();

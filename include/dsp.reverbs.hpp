@@ -135,26 +135,28 @@ static inline std::string toJustifiedString(ReverbType t) {
    Depending on the number of sources, represents a convolution reverb
    or a spatialization.
    */
-  template<int nAudioOut, ReverbType reverbType>
+  template<int nAudioOut, ReverbType reverbType, PolicyOnWorkerTooSlow OnWorkerTooSlow>
   struct Reverbs {
     static constexpr auto nOut = nAudioOut;
-      static_assert(nAudioOut > 0);
+    static_assert(nAudioOut > 0);
 
+    using Tag = fft::Fastest;
+      
     using ConvolutionReverb =
       std::conditional_t< reverbType==ReverbType::Offline,
-        OptimizedFIRFilter<double>,
+        OptimizedFIRFilter<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
-        ZeroLatencyScaledFineGrainedPartitionnedConvolution<double>,
+        ZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
-        ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double>,
+        ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
-        ZeroLatencyScaledAsyncConvolution<double>,
+        ZeroLatencyScaledAsyncConvolution<double, Tag, OnWorkerTooSlow>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
-        ZeroLatencyScaledAsyncConvolutionOptimized<double>,
+        ZeroLatencyScaledAsyncConvolutionOptimized<double, Tag, OnWorkerTooSlow>,
       void >>>>>;
       
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
@@ -218,8 +220,7 @@ static inline std::string toJustifiedString(ReverbType t) {
               // zero output_buffer
               for(int j=0; j<nAudioOut; ++j) {
                   auto output_buffer = output_buffers[j];
-                  using FFTTag = fft::Fastest;
-                  fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
+                  fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
               }
           }
       }
@@ -263,8 +264,7 @@ static inline std::string toJustifiedString(ReverbType t) {
               // zero output_buffer
               for(int j=0; j<nAudioOut; ++j) {
                   auto output_buffer = output_buffers[j];
-                  using FFTTag = fft::Fastest;
-                  fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
+                  fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
               }
           }
         return success;

@@ -46,11 +46,21 @@ struct Scaling {
 };
 
 struct ScalingsIterator {
-    ScalingsIterator(int firstSz, int totalNCoeffs, std::optional<int> limitRepetition = {})
+    ScalingsIterator(int firstSz,
+                     int totalNCoeffs,
+                     std::optional<int> lastSz = {})
     : firstSz(firstSz)
     , totalNCoeffs(totalNCoeffs)
-    , limitRepetition(limitRepetition)
-    {}
+    , lastSz(lastSz)
+    {
+        if(lastSz) {
+            Assert(firstSz <= *lastSz);
+            if(firstSz) {
+                Assert(firstSz*(*lastSz/firstSz) == *lastSz);
+                Assert(is_power_of_two(*lastSz/firstSz));
+            }
+        }
+    }
     
     template<typename F>
     void forEachScaling(F f) {
@@ -63,7 +73,7 @@ struct ScalingsIterator {
 
     int const firstSz;
     int const totalNCoeffs;
-    std::optional<int> limitRepetition;
+    std::optional<int> lastSz;
 
  private:
     template<typename F>
@@ -71,6 +81,15 @@ struct ScalingsIterator {
                                  int const preNCoeffs,
                                  F f) {
         if(preNCoeffs >= totalNCoeffs) {
+            if(lastSz) {
+                if(pre.empty()) {
+                    return;
+                }
+                Assert(pre.back().sz <= *lastSz);
+                if(pre.back().sz != *lastSz) {
+                    return;
+                }
+            }
             f(pre);
         }
         else {
@@ -103,6 +122,10 @@ struct ScalingsIterator {
             res.emplace_back(firstSz, 1);
         }
         else {
+            int const candidateNextSize = count * firstSz;
+            // count >= 2 and count is a power of 2, hence candidateNextSize is divisible by 2
+            Assert(2*(candidateNextSize/2) == candidateNextSize);
+
             // If there are enough remaining coefficients, add the option to switch to a bigger size.
             //
             // for example if we have:
@@ -126,38 +149,40 @@ struct ScalingsIterator {
             // but MIGHT be MORE efficient than repeating 3 times the size 1:
             //
             //   1 1 1 1 1 1
-            
-            int const candidateNextSize = count * firstSz;
-            // count >= 2 and count is a power of 2, hence candidateNextSize is divisible by 2
-            Assert(2*(candidateNextSize/2) == candidateNextSize);
-            bool const canChangeSize = (remainingCoeffs > candidateNextSize/2);
+
+            bool const changeSizeIsInteresting = (remainingCoeffs > candidateNextSize/2);
+
+            bool canRepeat = true;
+            bool canChangeSize = changeSizeIsInteresting;
+            if(lastSz) {
+                if(candidateNextSize == *lastSz) {
+                    canChangeSize = true;
+                    canRepeat = false;
+                }
+                else if(candidateNextSize > *lastSz) {
+                    canChangeSize = false;
+                }
+            }
+
             if(canChangeSize) {
                 res.emplace_back(candidateNextSize, 1);
             }
-
-            Assert(preNCoeffs >= firstSz);
-            Assert(count >= 2);
-
-            int const maxNAdditionalRepeats = 1 + ((remainingCoeffs-1) / pre.back().sz);
-            Assert(maxNAdditionalRepeats >= 1);
-            
-            Assert(pre.back().nRepeat >= 1);
-            // valid repeats (that allow a change of size afterwards) are 2^n-1: 0, 1, 3, 7, ...
-            Assert(is_power_of_two(pre.back().nRepeat+1));
-
-            int const standardNAdditionalRepeats = pre.back().nRepeat + 1;
-            Assert(standardNAdditionalRepeats >= 2);
-            int const additionalRepeats = std::min(maxNAdditionalRepeats,
-                                                   standardNAdditionalRepeats);
-            Assert(additionalRepeats >= 1);
-            bool const canRepeat =
-            !limitRepetition ||
-            (pre.back().nRepeat + additionalRepeats)     <=     *limitRepetition ||
-            (pre.back().nRepeat + maxNAdditionalRepeats) <= 2 * *limitRepetition ||
-            //(pre.back().nRepeat + maxNAdditionalRepeats) <  3 * *limitRepetition ||
-            !canChangeSize;
-            
             if(canRepeat) {
+                Assert(preNCoeffs >= firstSz);
+                Assert(count >= 2);
+
+                int const maxNAdditionalRepeats = 1 + ((remainingCoeffs-1) / pre.back().sz);
+                Assert(maxNAdditionalRepeats >= 1);
+                
+                Assert(pre.back().nRepeat >= 1);
+                // valid repeats (that allow a change of size afterwards) are 2^n-1: 0, 1, 3, 7, ...
+                Assert(is_power_of_two(pre.back().nRepeat+1));
+
+                int const standardNAdditionalRepeats = pre.back().nRepeat + 1;
+                Assert(standardNAdditionalRepeats >= 2);
+                int const additionalRepeats = std::min(maxNAdditionalRepeats,
+                                                       standardNAdditionalRepeats);
+                Assert(additionalRepeats >= 1);
                 // add the "repeat more of the last size" option:
                 res.emplace_back(pre.back().sz, additionalRepeats);
             }

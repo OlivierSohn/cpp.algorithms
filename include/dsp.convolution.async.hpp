@@ -1,13 +1,17 @@
 
 namespace imajuscule
 {
+enum class PolicyOnWorkerTooSlow {
+    PermanentlySwitchToDry,
+    Wait // for testing purposes
+};
+
   /*
    Asynchronous convolution on a separate thread.
    */
-  template <typename Async>
+  template <typename Async, PolicyOnWorkerTooSlow OnWorkerTooSlow>
   struct AsyncCPUConvolution {
       using FPT = typename Async::FPT;
-      using Tag = typename Async::Tag;
       
       using AsyncPart = Async;
 
@@ -15,7 +19,6 @@ namespace imajuscule
       static constexpr int nCoefficientsFadeIn = Async::nCoefficientsFadeIn;
       static constexpr bool has_subsampling = Async::has_subsampling;
       static constexpr bool step_can_error = true;
-      static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
       
       // We leave room for one more element in worker_2_rt queue so that the worker
       //   can push immediately if its computation is faster than the real-time thread
@@ -259,7 +262,7 @@ namespace imajuscule
           Assert(jobs == 0);
           algo.reset();
           queueSize = 0;
-          error_worker_too_slow = 0;
+          error_worker_too_slow = false;
           N = 0;
           buffer = {};
       }
@@ -300,25 +303,34 @@ namespace imajuscule
       }
     
     FPT step(FPT val) {
+      if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
+          if(unlikely(error_worker_too_slow)) {
+              return val;
+          }
+      }
       buffer[signal+(curIndex++)] = val;
       if(unlikely(curIndex == N))
       {
-          /* If the worker is too slow, we don't wait, we skip some submissions. */
-          
-          if(likely(try_submit_signal(signal))) {
-              std::swap(signal, previous_result);
-              if(likely(try_receive_result(previous_result))) {
+          curIndex = 0;
+          while(unlikely(!try_submit_signal(signal))) {
+              error_worker_too_slow = true;
+              if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
+                  return val;
               }
               else {
-                  ++error_worker_too_slow;
-                  zero_n_raw(&buffer[previous_result], N);
+                  rt_2_worker_cond.notify_one(); // in case this is because of the race condition
               }
           }
-          else {
-              ++error_worker_too_slow;
-              zero_n_raw(&buffer[previous_result], N);
+          std::swap(signal, previous_result);
+          while(unlikely(!try_receive_result(previous_result))) {
+              error_worker_too_slow = true;
+              if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
+                  return val;
+              }
+              else {
+                  rt_2_worker_cond.notify_one(); // in case this is because of the race condition
+              }
           }
-          curIndex = 0;
       }
       return buffer[previous_result + curIndex];
     }
@@ -372,7 +384,7 @@ namespace imajuscule
       }
       
       bool hasStepErrors() const {
-          return error_worker_too_slow > 0;
+          return error_worker_too_slow;
       }
       
       int getQueueSize() const {
@@ -407,7 +419,7 @@ namespace imajuscule
       std::condition_variable rt_2_worker_cond;
       int jobs = 0;
       int queueSize = 0;
-      int error_worker_too_slow = 0;
+      bool error_worker_too_slow = false;
 
       block_index signal, previous_result;
       block_index worker_vec;

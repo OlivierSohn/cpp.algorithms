@@ -330,7 +330,7 @@ namespace imajuscule {
     }
     
     
-    template<typename T, typename FFTTag = fft::Fastest>
+    template<typename T, typename FFTTag>
     auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
       using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
       using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
@@ -458,7 +458,7 @@ namespace imajuscule {
               }
           }
         {
-          auto c = AsyncCPUConvolution<FIRFilter<T>>{};
+          auto c = AsyncCPUConvolution<FIRFilter<T>, PolicyOnWorkerTooSlow::Wait>{};
             std::vector<int> submisionPeriods{
                 -1, // invalid
                 0, // invalid
@@ -559,7 +559,7 @@ TEST(Convolution, freq) {
   using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
   
   std::vector<Scaling> scalingParams{}; // leave it empty, we have only 8 coefficients
-  auto c = mkRealTimeConvolution<double>(scalingParams, 4);
+  auto c = mkRealTimeConvolution<double, Tag>(scalingParams, 4);
   constexpr auto N = 8;
   
   //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};

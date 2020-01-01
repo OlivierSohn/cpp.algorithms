@@ -126,6 +126,7 @@ namespace imajuscule
     static constexpr int nComputePhaseable = 1;
     static constexpr int nCoefficientsFadeIn = 0;
       static constexpr bool has_subsampling = false;
+      static constexpr bool step_can_error = false;
 
     using SetupParam = FinegrainedSetupParam;
 
@@ -139,8 +140,8 @@ namespace imajuscule
               os << "zero" << std::endl;
           }
           else {
-              os << "grain " << grain_counter << "/" << countGrains()
-              << " progress " << this->progress << "/" << getBlockSize() << std::endl;
+              os << "grain {" << grain_counter << "/" << countGrains()
+              << "} progress [" << this->progress << "/" << getBlockSize() << "]" << std::endl;
               doLogComputeState(os);
           }
       }

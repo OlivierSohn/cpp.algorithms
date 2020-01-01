@@ -109,27 +109,29 @@ struct ConvReverbsByBlockSize {
     
 
     template<typename FPT2>
-    void apply(FPT2 ** io_buffers,
+    bool apply(FPT2 ** io_buffers,
                int nInputBuffers,
                FPT2 ** work_buffers,
                int nWorkBuffers,
                int nFramesToCompute)
     {
+        bool has_step_errors = false;
+        
         if(likely(current)) {
-            current->getReverb().assignWetVectorized(io_buffers,
-                                                     nInputBuffers,
-                                                     work_buffers,
-                                                     nWorkBuffers,
-                                                     nFramesToCompute,
-                                                     nFramesToCompute);
-            // by design, deprecated is non empty only if current is non empty
+            has_step_errors = !current->getReverb().assignWetVectorized(io_buffers,
+                                                                       nInputBuffers,
+                                                                       work_buffers,
+                                                                       nWorkBuffers,
+                                                                       nFramesToCompute,
+                                                                       nFramesToCompute);
+           // by design, deprecated is non empty only if current is non empty
             for(auto & d : deprecated) {
                 int const nApply = std::min(d.numFramesToGo, nFramesToCompute);
                 d.numFramesToGo -= nApply;
-                d.getReverb().addWetInputZeroVectorized(work_buffers,
-                                                        nWorkBuffers,
-                                                        nApply,
-                                                        nApply);
+                has_step_errors = !d.getReverb().addWetInputZeroVectorized(work_buffers,
+                                                                           nWorkBuffers,
+                                                                           nApply,
+                                                                           nApply) || has_step_errors;
             }
 
             // clean up deprecated
@@ -160,6 +162,8 @@ struct ConvReverbsByBlockSize {
                 }
             }
         }
+        
+        return has_step_errors;
     }
     
     void flushToSilence() {

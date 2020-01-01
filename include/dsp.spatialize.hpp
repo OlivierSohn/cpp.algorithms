@@ -237,13 +237,15 @@ namespace imajuscule
                 }
             }
             template<typename FPT2>
-            void assignWetVectorized(FPT2 const * const * const input_buffers,
+            bool assignWetVectorized(FPT2 const * const * const input_buffers,
                                      int nInputBuffers,
                                      FPT2 ** output_buffers,
                                      int nOutputBuffers,
                                      int nFramesToCompute,
                                      int vectorLength)
             {
+                bool success = true;
+                
                 Assert(nOutputBuffers == earsConvs.size());
                 for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
                     auto & earConvs = earsConvs[i_out];
@@ -267,8 +269,12 @@ namespace imajuscule
                             }
                         }
                         assign = false;
+                        if constexpr (Convolution::step_can_error) {
+                            success = !c->hasStepErrors() && success;
+                        }
                     }
                 }
+                return success;
             }
             template<typename FPT2>
             void addWetVectorized(FPT2 const * const * const input_buffers,
@@ -296,21 +302,13 @@ namespace imajuscule
                 }
             }
 
-            void addWetInputZero(T * out, int stride) {
-                for(auto & earConvs : earsConvs) {
-                  T wetSignal{};
-                  for(auto & c : earConvs) {
-                      wetSignal += c->step({});
-                  }
-                  *out += wetSignal;
-                  out += stride;
-                }
-            }
             template<typename FPT2>
-            void addWetInputZeroVectorized(FPT2 ** output_buffers,
+            bool addWetInputZeroVectorized(FPT2 ** output_buffers,
                                            int nOutputBuffers,
                                            int nFramesToCompute,
                                            int vectorLength) {
+                bool success = true;
+
                 Assert(nOutputBuffers == earsConvs.size());
                 for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
                     auto & earConvs = earsConvs[i_out];
@@ -319,9 +317,13 @@ namespace imajuscule
                         for(auto & c : earConvs) {
                             c->stepAddInputZeroVectorized(out+i,
                                                           std::min(vectorLength, nFramesToCompute-i));
+                            if constexpr (Convolution::step_can_error) {
+                                success = !c->hasStepErrors() && success;
+                            }
                         }
                     }
                 }
+                return success;
             }
 
             template<typename PS>

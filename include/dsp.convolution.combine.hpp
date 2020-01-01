@@ -534,17 +534,17 @@ int computeQueueSize(F nextProcessingDuration,
                     int const period_frames;
                     int period = 0;
                     int n_cur_frame = 0;
-                    bool hasErrorWorkerTooSlow = false;
+                    bool hasErrors = false;
                     
                     std::vector<range<int>> resultQueueEltsCountRangeByPeriod, signalQueueEltsCountRangeByPeriod;
                 public:
-                    bool recordQueueSize(int resultQueueEltsCount,
-                                         int signalQueueEltsCount,
-                                         int countErrorsWorkerTooSlow,
-                                         int nFrames) {
+                    bool recordQueueSize(int const resultQueueEltsCount,
+                                         int const signalQueueEltsCount,
+                                         bool const hasErrorWorkerTooSlow,
+                                         int const nFrames) {
                         assert(period < nPeriods);
-                        if(countErrorsWorkerTooSlow) {
-                            hasErrorWorkerTooSlow = true;
+                        if(hasErrorWorkerTooSlow) {
+                            hasErrors = true;
                             return false;
                         }
                         n_cur_frame += nFrames;
@@ -572,7 +572,7 @@ int computeQueueSize(F nextProcessingDuration,
                     }
 
                     std::optional<Metrics> getMetrics() const {
-                        if(hasErrorWorkerTooSlow) {
+                        if(hasErrors) {
                           return {};
                         }
                         Metrics m;
@@ -715,7 +715,7 @@ int computeQueueSize(F nextProcessingDuration,
                         
                         if(!m[i].recordQueueSize(conv.getResultQueueSize(),
                                                  conv.getSignalQueueSize(),
-                                                 conv.countErrorsWorkerTooSlow(),
+                                                 conv.hasStepErrors(),
                                                  n_frames)) {
                             // the number of periods has elapsed or the worker is too slow
                             return false;

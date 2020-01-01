@@ -216,6 +216,7 @@ struct ScaleConvolution {
     static_assert(A::nCoefficientsFadeIn == 0); // else we need to handle them
     
     static constexpr bool has_subsampling = A::has_subsampling;
+    static constexpr bool step_can_error = A::step_can_error;
     static_assert(!has_subsampling); // because it wouldn't make much sense
     
     void logComputeState(std::ostream & os) const {

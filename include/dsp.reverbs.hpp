@@ -224,12 +224,13 @@ static inline std::string toJustifiedString(ReverbType t) {
           }
       }
       template<typename FPT2>
-      void assignWetVectorized(FPT2 const * const * const input_buffers,
+      bool assignWetVectorized(FPT2 const * const * const input_buffers,
                                int nInputBuffers,
                                FPT2 ** output_buffers,
                                int nOutputBuffers,
                                int nFramesToCompute,
                                int vectorLength) {
+          bool success = true;
           assert(vectorLength > 0);
           // raw convolutions and spatializer are mutually exclusive.
           if(!conv_reverbs.empty()) {
@@ -241,19 +242,22 @@ static inline std::string toJustifiedString(ReverbType t) {
                   auto input_buffer = input_buffers[j];
                   auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                      conv_reverbs[j]->stepAssignVectorized(input_buffer + i,
-                                                            output_buffer+ i,
-                                                            std::min(vectorLength, nFramesToCompute-i));
+                    conv_reverbs[j]->stepAssignVectorized(input_buffer + i,
+                                                                    output_buffer+ i,
+                                                                    std::min(vectorLength, nFramesToCompute-i));
                   }
+                if constexpr (ConvolutionReverb::step_can_error) {
+                    success = !conv_reverbs[j]->hasStepErrors() && success;
+                }
               }
           }
           else if(!spatializer.empty()) {
-              spatializer.assignWetVectorized(input_buffers,
-                                              nInputBuffers,
-                                              output_buffers,
-                                              nOutputBuffers,
-                                              nFramesToCompute,
-                                              vectorLength);
+            success = spatializer.assignWetVectorized(input_buffers,
+                                                       nInputBuffers,
+                                                       output_buffers,
+                                                       nOutputBuffers,
+                                                       nFramesToCompute,
+                                                       vectorLength);
           }
           else {
               // zero output_buffer
@@ -263,13 +267,15 @@ static inline std::string toJustifiedString(ReverbType t) {
                   fft::RealSignal_<FFTTag, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
               }
           }
+        return success;
       }
       
       template<typename FPT2>
-      void addWetInputZeroVectorized(FPT2 ** output_buffers,
+      bool addWetInputZeroVectorized(FPT2 ** output_buffers,
                                      int nOutputBuffers,
                                      int nFramesToCompute,
                                      int vectorLength) {
+          bool success = true;
           assert(vectorLength > 0);
           // raw convolutions and spatializer are mutually exclusive.
           if(!conv_reverbs.empty()) {
@@ -280,16 +286,20 @@ static inline std::string toJustifiedString(ReverbType t) {
                   auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
                       conv_reverbs[j]->stepAddInputZeroVectorized(output_buffer + i,
-                                                                 std::min(vectorLength, nFramesToCompute-i));
+                                                                            std::min(vectorLength, nFramesToCompute-i));
+                  }
+                  if constexpr (ConvolutionReverb::step_can_error) {
+                    success = !conv_reverbs[j]->hasStepErrors() && success;
                   }
               }
           }
           else if(!spatializer.empty()) {
-              spatializer.addWetInputZeroVectorized(output_buffers,
-                                                    nOutputBuffers,
-                                                    nFramesToCompute,
-                                                    vectorLength);
+              success = spatializer.addWetInputZeroVectorized(output_buffers,
+                                                              nOutputBuffers,
+                                                              nFramesToCompute,
+                                                              vectorLength);
           }
+          return success;
       }
       
     void flushToSilence()

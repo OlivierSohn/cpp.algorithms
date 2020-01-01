@@ -265,7 +265,7 @@ namespace imajuscule::bench::vecto {
                  ++i;
                  }*/
                 {
-                    int nRTWait = conv.getB().countErrorsWorkerTooSlow();
+                    int nRTWait = conv.getB().countStepErrors();
                     if(nRTWait) {
                         std::cout << "count rt waits : " << nRTWait << std::endl;
                         std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << std::endl;

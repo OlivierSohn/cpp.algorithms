@@ -13,6 +13,7 @@ namespace imajuscule
     static constexpr int nComputePhaseable = 0;
     static constexpr int nCoefficientsFadeIn = 0;
     static constexpr bool has_subsampling = false;
+    static constexpr bool step_can_error = false;
 
     struct SetupParam : public Cost {
         

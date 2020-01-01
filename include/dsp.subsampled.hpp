@@ -32,6 +32,7 @@ namespace imajuscule
     static constexpr int nComputePhaseable = 0; // SubSampled phases will be set manually
     static constexpr int nCoefficientsFadeIn = scaleFadeSz::inSmallerUnits;
     static constexpr bool has_subsampling = true;
+    static constexpr bool step_can_error = Algo::step_can_error;
 
     using SetupParam = typename Algo::SetupParam;
  void logComputeState(std::ostream & os) const {

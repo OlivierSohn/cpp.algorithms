@@ -58,7 +58,8 @@ namespace imajuscule
         using Tag = typename Parent::FFTTag;
         static constexpr int nCoefficientsFadeIn = 0;
         static constexpr bool has_subsampling = false;
-        
+        static constexpr bool step_can_error = false;
+
       using SetupParam = typename Parent::SetupParam;
 
         static constexpr auto copy = fft::RealSignal_<Tag, FPT>::copy;

@@ -7,13 +7,16 @@ namespace imajuscule
   template <typename Async>
   struct AsyncCPUConvolution {
       using FPT = typename Async::FPT;
+      using Tag = typename Async::Tag;
       
       using AsyncPart = Async;
 
       static constexpr int nComputePhaseable = Async::nComputePhaseable;
       static constexpr int nCoefficientsFadeIn = Async::nCoefficientsFadeIn;
       static constexpr bool has_subsampling = Async::has_subsampling;
-
+      static constexpr bool step_can_error = true;
+      static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
+      
       // We leave room for one more element in worker_2_rt queue so that the worker
       //   can push immediately if its computation is faster than the real-time thread
       //   (which is very unlikely, though).
@@ -297,19 +300,24 @@ namespace imajuscule
       }
     
     FPT step(FPT val) {
-        buffer[signal+(curIndex++)] = val;
+      buffer[signal+(curIndex++)] = val;
       if(unlikely(curIndex == N))
       {
-          while(unlikely(!try_submit_signal(std::move(signal)))) {
-              ++error_worker_too_slow;
-              rt_2_worker_cond.notify_one(); // in case this is because of the race condition
-          }
-          std::swap(signal, previous_result);
-          while(unlikely(!try_receive_result(previous_result))) {
-              ++error_worker_too_slow;
-              rt_2_worker_cond.notify_one(); // in case this is because of the race condition
-          }
+          /* If the worker is too slow, we don't wait, we skip some submissions. */
           
+          if(likely(try_submit_signal(signal))) {
+              std::swap(signal, previous_result);
+              if(likely(try_receive_result(previous_result))) {
+              }
+              else {
+                  ++error_worker_too_slow;
+                  zero_n_raw(&buffer[previous_result], N);
+              }
+          }
+          else {
+              ++error_worker_too_slow;
+              zero_n_raw(&buffer[previous_result], N);
+          }
           curIndex = 0;
       }
       return buffer[previous_result + curIndex];
@@ -363,8 +371,8 @@ namespace imajuscule
           return rt_2_worker->unsafe_num_elements();
       }
       
-      int countErrorsWorkerTooSlow() const {
-          return error_worker_too_slow;
+      bool hasStepErrors() const {
+          return error_worker_too_slow > 0;
       }
       
       int getQueueSize() const {

@@ -16,7 +16,8 @@ struct SplitConvolution {
     static constexpr int nComputePhaseable = A::nComputePhaseable + B::nComputePhaseable;
     static constexpr int nCoefficientsFadeIn = A::nCoefficientsFadeIn;
     static constexpr bool has_subsampling = LateHandler::has_subsampling; // we 'could' take earlyhandler into account, too.
-    
+    static constexpr bool step_can_error = A::step_can_error || B::step_can_error;
+
     struct SetupParam : public Cost {
         using AParam = typename EarlyHandler::SetupParam;
         using BParam = typename LateHandler::SetupParam;
@@ -130,6 +131,17 @@ struct SplitConvolution {
         return a.isValid() && (b.isValid() || b.isZero());
     }
     
+    template <typename Bool = bool>
+    auto hasStepErrors() const -> std::enable_if_t<step_can_error, Bool> {
+        bool errors = false;
+        if constexpr (A::step_can_error) {
+            errors = a.hasStepErrors();
+        }
+        if constexpr (B::step_can_error) {
+            errors = b.hasStepErrors() || errors;
+        }
+        return errors;
+    }
     FPT step(FPT val) {
         auto res = a.step(val);
         if(!b.isZero()) {

@@ -1,20 +1,7 @@
 
-
-static inline float randf(float high = 1.f, float low = 0.f)
-{
-  return low + ((high-low) * ((float)std::rand() / (float)(RAND_MAX + 1.f)));
-}
-
 namespace imajuscule {
   namespace testdspconv {
     
-    template<typename It>
-    void averageNeighbours(It it, It end) {
-      while(it+1 < end) {
-        *it = *(it+1) = 0.5f * (*it + *(it+1));
-        it += 2;
-      }
-    }
     
     template<typename T>
     struct ConvolutionTraits {

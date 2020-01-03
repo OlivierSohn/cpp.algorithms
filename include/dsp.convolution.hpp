@@ -243,8 +243,8 @@ struct FFTConvolutionCRTPSimulation {
     static constexpr auto cost_fft_forward = fft::AlgoCosts<Tag, FPT>::cost_fft_forward;
 
     void doSetCoefficientsCount(int64_t szCoeffs) {
-        N = szCoeffs;
         fft_length = get_fft_length(szCoeffs);
+        N = fft_length/2;
     }
 
     double cost_compute_convolution() {
@@ -316,10 +316,8 @@ struct FFTConvolutionCRTPSimulation {
         }
 
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
-
-            N = coeffs_.size();
-
-            auto fft_length = get_fft_length(N);
+            auto fft_length = get_fft_length(coeffs_.size());
+            N = fft_length/2;
 
             fft_of_h.resize(fft_length);
             fft_of_x.resize(fft_length);

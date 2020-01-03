@@ -73,6 +73,15 @@ namespace imajuscule {
             static void zero(type & v) {
                 zero_n(v, v.size());
             }
+            
+            static void dotpr(complex<T> const * const a, complex<T> const * const b, complex<T> * res, int n) {
+                complex<T> r{};
+                for(int i=0; i<n; ++i) {
+                    r += a[i] * b[i];
+                }
+                assert(res);
+                *res = r;
+            }
         };
 
         template<typename T>
@@ -152,15 +161,6 @@ namespace imajuscule {
                 auto div = static_cast<T>(v.size()) * Algo_<Tag,T>::scale;
 
                 return {index, Max/(div * div)};
-            }
-            
-            static void dotpr(T const * const a, T const * const b, T * res, int n) {
-                T r{};
-                for(int i=0; i<n; ++i) {
-                    r += a[i] * b[i];
-                }
-                assert(res);
-                *res = r;
             }
             
             static void setFirstReal(type & v, T value) {

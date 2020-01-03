@@ -153,7 +153,7 @@ namespace imajuscule
       
       int const nButterflies = input_size/2;
       
-      if(std::is_same<double,T>::value && !device_supports_double(device_id)) {
+      if(std::is_same_v<double,T> && !device_supports_double(device_id)) {
         throw std::runtime_error("The GPU device has no native support for double (cl_khr_fp64 extension is missing). Please use 'float' instead of 'double'.");
       }
          
@@ -176,14 +176,14 @@ namespace imajuscule
           {"replace_N_GLOBAL_BUTTERFLIES", std::to_string(nButterflies)},
           {"replace_LOG2_N_GLOBAL_BUTTERFLIES", std::to_string(power_of_two_exponent(nButterflies))},
           {"replace_N_LOCAL_BUTTERFLIES", std::to_string(nButterfliesPerThread)},
-          {"FPT", std::is_same<float,T>::value ? "float" : "double"},
+          {"FPT", std::is_same_v<float,T> ? "float" : "double"},
         };
         
         std::string replaced_str = kernel_src;
         for(auto [from,to] : replacements) {
           replaced_str = ReplaceString(replaced_str, from, to);
         }
-        if(!std::is_same<float,T>::value) {
+        if(!std::is_same_v<float,T>) {
           replaced_str = std::string("#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n") + replaced_str;
         }
 
@@ -319,7 +319,7 @@ namespace imajuscule
    */
   template <typename T>
   struct PartitionnedFIRFilterGPUAsyncN {
-    static_assert(std::is_same<T, float>::value || std::is_same<T, double>::value);
+    static_assert(std::is_same_v<float,T> || std::is_same_v<double,T>);
     static constexpr auto kernel_file = "fft_mult_ifft_partitionned.cl";
     using Tag = imj::Tag;
     using FPT = T;
@@ -498,7 +498,7 @@ namespace imajuscule
     }
     
     bool isValid() const {
-      return std::is_same<float,T>::value || device_supports_double(getOpenCLContext().device_id);
+      return std::is_same_v<float,T> || device_supports_double(getOpenCLContext().device_id);
     }
     
     int getLatency() const {
@@ -638,7 +638,7 @@ namespace imajuscule
   // Due to the GPU kernel limitation, only small number of coefficients are allowed.
   /*template <typename T>
   struct FIRFilterGPU {
-    static_assert(std::is_same<T, float>::value || std::is_same<T, double>::value);
+    static_assert(std::is_same_v<float,T> || std::is_same_v<double,T>);
     static constexpr auto kernel_file = "fft_mult_ifft.cl";
     using Tag = imj::Tag;
     using FPT = T;
@@ -734,7 +734,7 @@ namespace imajuscule
     }
     
     bool isValid() const {
-      return std::is_same<float,T>::value || device_supports_double(getOpenCLContext().device_id);
+      return std::is_same_v<float,T> || device_supports_double(getOpenCLContext().device_id);
     }
     
     int getLatency() const { return N-1; }
@@ -823,7 +823,7 @@ namespace imajuscule
   /*
   template <typename T>
   struct FIRFilterGPUAsync {
-    static_assert(std::is_same<T, float>::value || std::is_same<T, double>::value);
+    static_assert(std::is_same_v<float,T> || std::is_same_v<double,T>);
     static constexpr auto kernel_file = "fft_mult_ifft.cl";
     using Tag = imj::Tag;
     using FPT = T;
@@ -923,7 +923,7 @@ namespace imajuscule
     }
     
     bool isValid() const {
-      return std::is_same<float,T>::value || device_supports_double(getOpenCLContext().device_id);
+      return std::is_same_v<float,T> || device_supports_double(getOpenCLContext().device_id);
     }
     
     int getLatency() const {
@@ -1036,7 +1036,7 @@ namespace imajuscule
   /*
   template <typename T>
   struct FIRFilterGPUAsyncN {
-    static_assert(std::is_same<T, float>::value || std::is_same<T, double>::value);
+    static_assert(std::is_same_v<float,T> || std::is_same_v<double,T>);
     static constexpr auto kernel_file = "fft_mult_ifft.cl";
     using Tag = imj::Tag;
     using FPT = T;
@@ -1152,7 +1152,7 @@ namespace imajuscule
     }
     
     bool isValid() const {
-      return std::is_same<float,T>::value || device_supports_double(getOpenCLContext().device_id);
+      return std::is_same_v<float,T> || device_supports_double(getOpenCLContext().device_id);
     }
     
     int getLatency() const {

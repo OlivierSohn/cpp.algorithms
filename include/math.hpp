@@ -118,6 +118,10 @@ namespace imajuscule {
 //        return 32 - count_leading_zeroes(~x & (x-1));
     }
 
+static inline int count_set_bits(uint32_t x) {
+    return __builtin_popcount(x);
+}
+
     template <typename T>
     constexpr T expt_unsigned(T p, unsigned int q) {
         assert(q < 100000); // else probably a sign error.

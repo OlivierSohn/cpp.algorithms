@@ -230,7 +230,12 @@ namespace imajuscule
     int progress = 0;
   };
 
-struct FFTConvolutionCRTPSetupParam {};
+struct FFTConvolutionCRTPSetupParam : public Cost
+{
+    void logSubReport(std::ostream & os) const override {
+        os << "FFTConvolutionCRTPSetupParam" << std::endl;
+    }
+};
 
 template <typename T, typename Tag>
 struct FFTConvolutionCRTPSimulation {

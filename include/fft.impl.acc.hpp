@@ -31,7 +31,18 @@ namespace imajuscule {
             static T get_signal(T r) {
                 return r;
             }
+            
+            static void add_assign(iter res,
+                                   const_iter const_add,
+                                   int N) {
+                // res += add
 
+                accelerate::API<T>::f_vadd(&*res, 1,
+                                           &*const_add, 1,
+                                           &*res, 1,
+                                           N);
+            }
+            
             static void add_scalar_multiply(iter res,
                                             const_iter const_add1,
                                             const_iter const_add2, T const m, int N) {
@@ -141,7 +152,18 @@ namespace imajuscule {
                 }
                 return std::move(res);
             }
+            
+            static void scale(type & v, T const factor) {
+                // v *= scalar
 
+                auto V = v.get_hybrid_split();
+
+                accelerate::API<T>::f_vsmul(V.realp, 1,
+                                            &factor,
+                                            V.realp, 1,
+                                            v.size());
+            }
+            
             static void mult_assign(type & v, type const & const_w) {
                 // v *= w
 
@@ -318,6 +340,7 @@ namespace imajuscule {
             //static constexpr auto ffttype = FFTType::WithTmpBuffer;
             static constexpr auto ffttype = FFTType::Normal;
 
+            using FPT = T;
             using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
             using RealFBins  = typename RealFBins_<accelerate::Tag, T>::type;
             using Context    = typename Context_   <accelerate::Tag, T>::type;

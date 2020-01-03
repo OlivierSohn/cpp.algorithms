@@ -40,7 +40,21 @@ namespace imajuscule {
                 assert(std::abs(c.imag()) < 0.0001f);
                 return c.real();
             }
+            
+            static void add_assign(iter res_,
+                                   const_iter add_,
+                                   int const N) {
+                value_type * __restrict res = res_.base();
+                value_type const * __restrict add = add_.base();
 
+                for(value_type const * __restrict resEnd = res + N;
+                    res != resEnd;
+                    ++res, ++add)
+                {
+                    *res += *add;
+                }
+            }
+            
             static void add_scalar_multiply(iter res_, const_iter add1_, const_iter add2_, T const m, int const N) {
                 // res = m * (add1 + add2)
 
@@ -269,6 +283,8 @@ namespace imajuscule {
 
         template<typename T>
         struct Algo_<imj::Tag, T> {
+            using FPT = T;
+
             using RealInput  = typename RealSignal_ <imj::Tag, T>::type;
             using RealFBins  = typename RealFBins_<imj::Tag, T>::type;
             using Context    = typename Context_   <imj::Tag, T>::type;

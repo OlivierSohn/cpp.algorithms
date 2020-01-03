@@ -159,6 +159,12 @@ namespace imajuscule
             std::for_each(start, end(), f);
             std::for_each(begin(), start, f);
         }
+        template<typename F>
+        void for_each(F f) {
+            auto start = cycleEnd();
+            std::for_each(start, end(), f);
+            std::for_each(begin(), start, f);
+        }
 
         template<typename F>
         void for_each_bkwd(F f) const {

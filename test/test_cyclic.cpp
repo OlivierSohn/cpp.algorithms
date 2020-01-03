@@ -84,3 +84,41 @@ TEST(Cyclic, erase) {
         ASSERT_EQ(2, *c.cycleEnd());
     }
 }
+
+TEST(Cyclic, reverse_iterator)
+{
+    {
+        cyclic<int> c(0);
+        
+        int count = 0;
+        c.for_each_bkwd([&count](auto val){
+            ++count;
+        });
+        ASSERT_EQ(0, count);
+        c.for_each([&count](auto val){
+            ++count;
+        });
+        ASSERT_EQ(0, count);
+    }
+    {
+        cyclic<int> c(1);
+        c.feed(3);
+
+        {
+            int count = 0;
+            c.for_each_bkwd([&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(1, count);
+        }
+        {
+            int count = 0;
+            c.for_each([&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(1, count);
+        }
+    }
+}

@@ -80,7 +80,7 @@ struct AlgoFIRFilter {
         
     void step(State & s,
               XAndFFTS<T, Tag> const & x_and_ffts,
-              Y<T, Tag> & y)
+              Y<T, Tag> & y) const
     {
         if(unlikely(s.isZero())) {
             return;

@@ -155,7 +155,7 @@ struct AlgoCustomScaleConvolution {
 
     void step(State & s,
               XAndFFTS<FPT, Tag> const & x_and_ffts,
-              Y<FPT, Tag> & y)
+              Y<FPT, Tag> & y) const
     {
         Assert(s.v.size() <= v.size());
         

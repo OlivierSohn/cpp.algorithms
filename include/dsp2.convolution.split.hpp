@@ -204,7 +204,7 @@ struct AlgoSplitConvolution {
     
     void step(State & s,
               XAndFFTS<FPT, Tag> const & x_and_ffts,
-              Y<FPT, Tag> & y)
+              Y<FPT, Tag> & y) const
     {
         a.step(s.getA(),
                x_and_ffts,

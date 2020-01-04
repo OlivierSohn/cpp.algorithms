@@ -81,7 +81,7 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     
     void step(State & s,
               XAndFFTS<T, Tag> const & x_and_ffts,
-              Y<T, Tag> & y)
+              Y<T, Tag> & y) const
     {
         auto const N = getBlockSize();
         if(unlikely(!N)) {
@@ -105,7 +105,7 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     
     void forceStep(State & s,
                    XAndFFTS<T, Tag> const & x_and_ffts,
-                   Y<T, Tag> & y)
+                   Y<T, Tag> & y) const
     {
         int const N = getBlockSize();
         
@@ -261,7 +261,7 @@ struct AlgoFFTConvolutionCRTP {
 protected:
     
     auto const & compute_convolution(State & s,
-                                     typename XAndFFTS<T, Tag>::FFTs const & ffts)
+                                     typename XAndFFTS<T, Tag>::FFTs const & ffts) const
     {
         auto const & fft_of_x = ffts.ffts.get_backward(0);
         
@@ -272,7 +272,7 @@ protected:
     
 private:
     int N;
-    CplxFreqs work;
+    mutable CplxFreqs work;
 };
 
 
@@ -417,7 +417,7 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
 
 protected:
     auto const & compute_convolution(State & s,
-                                     typename XAndFFTS<T, Tag>::FFTs const & ffts)
+                                     typename XAndFFTS<T, Tag>::FFTs const & ffts) const
     {
         int index = 0;
         
@@ -447,7 +447,7 @@ protected:
     
 private:
     int partition_size = -1;
-    CplxFreqs work;
+    mutable CplxFreqs work;
 };
 
 

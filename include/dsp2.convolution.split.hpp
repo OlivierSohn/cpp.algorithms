@@ -182,10 +182,15 @@ struct AlgoSplitConvolution {
         return a.getLatency();
     }
     
-    int getStepPeriod() const {
-        int periodA = a.getStepPeriod();
-        int periodB = b.getStepPeriod();
-        return std::max(periodA, periodB);
+    int getWriteYBlockSize() const {
+        int szA = a.getWriteYBlockSize();
+        int szB = b.getWriteYBlockSize();
+        int res = static_cast<int>(ppcm(szA, szB));
+        
+        // only because in practice we have powers of 2.
+        Assert(std::max(szA, szB) == res);
+        
+        return res;
     }
     
     int computeSplit() const {

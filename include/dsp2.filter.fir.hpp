@@ -27,8 +27,9 @@ struct StateFIRFilter {
         }
     
         return {
-            static_cast<int>(reversed_coefficients.size()),
-            1,
+            static_cast<int>(reversed_coefficients.size()), // x block size
+            1, // y block size
+            0, // anticipated y writes
             {}
         };
     }
@@ -71,7 +72,7 @@ struct AlgoFIRFilter {
     void setup(SetupParam const &) const {}
 
     constexpr int getLatency() const { return 0; }
-    constexpr int getStepPeriod() const { return 1; }
+    constexpr int getWriteYBlockSize() const { return 1; }
 
     bool isValid() const {
         return true;
@@ -81,25 +82,22 @@ struct AlgoFIRFilter {
               XAndFFTS<T, Tag> const & x_and_ffts,
               Y<T, Tag> & y)
     {
-        int constexpr nFrames = 1;
         if(unlikely(s.isZero())) {
-            fft::RealSignal_<Tag, T>::zero_n_raw(&y.y[y.progress], nFrames);
             return;
         }
         auto * coeff = s.getReversedCoeffs().data();
         int const sz = static_cast<int>(s.getReversedCoeffs().size());
-        for(int i=nFrames-1; i>=0; --i) {
-            auto [s1, s2] = x_and_ffts.getSegments(i, sz);
-            using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
-            E res;
-            dotpr(&x_and_ffts.x[s1.first], coeff, &res, s1.second);
-            if(unlikely(s2.second)) {
-                E res2;
-                dotpr(&x_and_ffts.x[s2.first], coeff+s1.second, &res2, s2.second);
-                res += res2;
-            }
-            y.y[y.progress+nFrames-i-1] += res;
+        auto [s1, s2] = x_and_ffts.getSegments(0, sz);
+        using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
+        E res;
+        Assert(s1.second);
+        dotpr(&x_and_ffts.x[s1.first], coeff, &res, s1.second);
+        if(unlikely(s2.second)) {
+            E res2;
+            dotpr(&x_and_ffts.x[s2.first], coeff+s1.second, &res2, s2.second);
+            res += res2;
         }
+        y.y[y.uProgress] += res;
     }
 };
 

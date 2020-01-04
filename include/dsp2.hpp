@@ -56,7 +56,7 @@ struct XAndFFTS {
         x.clear();
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
 
-        Assert(x_unpadded_size >= maxHalfFFTSz);        
+        Assert(x_unpadded_size >= maxHalfFFTSz);
     }
     
     void push(T v) {
@@ -153,33 +153,74 @@ private:
 
 template<typename T, typename Tag>
 struct Y {
-    void resize(int sz) {
+    void resize(int const blockSz,
+                int const nAnticipatedWrites) {
+        blockSizeMinusOne = blockSz-1;
+        int const nAnticipationBlocks = nAnticipatedWrites ? (1 + (nAnticipatedWrites-1) / blockSz) : 0;
+        Assert(nAnticipationBlocks >= 0);
+        int const nBlocks = 1 + nAnticipationBlocks;
+
         y.clear();
-        y.resize(sz);
-        progress = 0;
+        ySz = blockSz * nBlocks;
+        y.resize(ySz); // intialized at 0
+
+        uProgress = 0;
+        zeroed_up_to = ySz;
     }
     
     void increment() {
-        ++progress;
-        if(unlikely(progress >= y.size())) {
-            progress = 0;
-            fft::RealSignal_<Tag, T>::zero_n_raw(&y[0], y.size());
+        ++uProgress;
+        Assert(uProgress <= ySz);
+        // if a block boundary was crossed, zero the block starting at 'zeroed_up_to'
+        Assert(is_power_of_two(blockSizeMinusOne+1));
+        if(0 == (uProgress & blockSizeMinusOne)) {
+            if(uProgress == ySz) {
+                uProgress = 0;
+            }
+            Assert(zeroed_up_to <= ySz);
+            unsigned int zeroStart = (zeroed_up_to == ySz) ? 0 : zeroed_up_to;
+            auto blockSize = blockSizeMinusOne + 1;
+            zeroed_up_to = zeroStart + blockSize;
+            Assert(zeroStart < ySz);
+            Assert(zeroed_up_to <= ySz);
+            fft::RealSignal_<Tag, T>::zero_n_raw(&y[zeroStart], blockSize);
         }
+        Assert(uProgress < ySz);
     }
+
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal y;
-    int progress = 0;
+    uint32_t uProgress = 0;
+    uint32_t ySz=0;
+    uint32_t blockSizeMinusOne = 0;
+    int32_t zeroed_up_to = 0;
 };
 
 struct MinSizeRequirement {
     int minXSize;
+        
     int minYSize;
+    // "Anticipated" writes touch the block (of size minYSize) after the current block.
+    int minYAnticipatedWrites;
     
     FftSpecs xFftSizes;
     
     void mergeWith(MinSizeRequirement const & o) {
         minXSize = std::max(minXSize, o.minXSize);
-        minYSize = std::max(minYSize, o.minYSize);
+        
+        {
+            int res = static_cast<int>(ppcm(minYSize,
+                                            o.minYSize));
+            
+            // only because in practice we have powers of 2.
+            Assert(std::max(minYSize,
+                            o.minYSize) == res);
+
+            minYSize = res;
+        }
+        
+        minYAnticipatedWrites = std::max(minYAnticipatedWrites,
+                                         o.minYAnticipatedWrites);
         
         for(auto const & [sz, historySize] : o.xFftSizes) {
             auto [it, emplaced] = xFftSizes.try_emplace(sz, historySize);
@@ -197,7 +238,7 @@ struct DspContext {
     
     void resize(MinSizeRequirement req) {
         x_and_ffts.resize(req.minXSize, req.xFftSizes);
-        y.resize(req.minYSize);
+        y.resize(req.minYSize, req.minYAnticipatedWrites);
     }
 };
 
@@ -219,16 +260,10 @@ struct Convolution {
         ctxt.resize(req);
         
         int const ySz = static_cast<int>(ctxt.y.y.size());
-        int nSteps = ySz - (algo.getStepPeriod()-1);
-        while(nSteps < 0) {
-            nSteps += ySz;
-        }
-        while(nSteps >= ySz) {
-            nSteps -= ySz;
-        }
+        int const nSteps = (ySz >= 1) ? 1 : 0;
 
         // set y progress such that results are written in a single chunk
-        for(int i=0; i< nSteps; ++i) {
+        for(int i=0; i<nSteps; ++i) {
             ctxt.y.increment();
         }
     }
@@ -250,11 +285,17 @@ struct Convolution {
                   ctxt.x_and_ffts,
                   ctxt.y);
         
-        FPT res = fft::RealSignal_<Tag, FPT>::get_signal(ctxt.y.y[ctxt.y.progress]);
+        FPT res = fft::RealSignal_<Tag, FPT>::get_signal(ctxt.y.y[ctxt.y.uProgress]);
         ctxt.y.increment();
         return res;
     }
     
+    auto & getAlgo() {
+        return algo;
+    }
+    auto & getAlgo() const {
+        return algo;
+    }
 private:
     DspContext ctxt;
     State state;

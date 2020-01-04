@@ -96,7 +96,7 @@ struct StateCustomScaleConvolution {
         if(res) {
             return *res;
         }
-        return {0,0,{}};
+        return {0,0,0,{}};
     }
 
     double getEpsilon(Algo const & algo) const {
@@ -193,7 +193,7 @@ struct AlgoCustomScaleConvolution {
         })->first.submissionPeriod - 1;
     }
     
-    int getStepPeriod() const {
+    int getWriteYBlockSize() const {
         return getBiggestScale();
     }
     

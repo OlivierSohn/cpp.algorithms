@@ -226,8 +226,8 @@ namespace imajuscule {
         testGeneric(conv, coefficients, randomInput, output);
       }
     }
-    /*
-    template<typename T, typename F>
+
+  template<typename T, typename F>
     void testPartitionned(int coeffs_index, F f) {
       const auto coefficients = makeCoefficients<T>(coeffs_index);
       
@@ -263,28 +263,34 @@ namespace imajuscule {
             type != TestFinegrained::End;
             increment(type))
         {
-          FinegrainedPartitionnedFFTConvolution<T, Tag> conv;
+          Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>> conv;
+          auto const n_partitions = imajuscule::countPartitions(coefficients.size(), part_size);
           
-          conv.setup({part_size, 1000, 0});
+          conv.setup({
+              part_size,
+              n_partitions,
+              1000,
+              0
+          });
           if(!conv.isValid()) {
             continue;
           }
           conv.setCoefficients(coefficients);
           
           range<int> r {
-            conv.getLowestValidMultiplicationsGroupSize(),
-            conv.getHighestValidMultiplicationsGroupSize()
+            conv.getAlgo().getLowestValidMultiplicationsGroupSize(),
+            conv.getAlgo().getHighestValidMultiplicationsGroupSize()
           };
           
           switch(type) {
             case TestFinegrained::Low:
-              conv.setMultiplicationGroupLength(r.getMin());
+              conv.getAlgo().setMultiplicationGroupLength(r.getMin());
               break;
             case TestFinegrained::High:
-              conv.setMultiplicationGroupLength(r.getMax());
+              conv.getAlgo().setMultiplicationGroupLength(r.getMax());
               break;
             case TestFinegrained::Med:
-              conv.setMultiplicationGroupLength(r.getExpCenter());
+              conv.getAlgo().setMultiplicationGroupLength(r.getExpCenter());
               break;
             default:
               throw std::logic_error("not supported");
@@ -295,20 +301,20 @@ namespace imajuscule {
       
       testPartitionned<T>(coeffs_index, f);
     }
-    
-    template<typename T, typename Tag>
-    void testDiracPartitionned(int coeffs_index) {
+
+  template<typename T, typename Tag>
+  void testDiracPartitionned(int coeffs_index) {
       
       auto f = [](int part_size, auto & coefficients){
-        PartitionnedFFTConvolution<T,Tag> conv;
-        
-        conv.setup({part_size});
-
-        test(conv, coefficients);
+          Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>> conv;
+          
+          conv.setup({part_size});
+          
+          test(conv, coefficients);
       };
       
       testPartitionned<T>(coeffs_index, f);
-    }*/
+  }
     
     
     template<typename Convolution>
@@ -323,44 +329,6 @@ namespace imajuscule {
       test(conv, makeCoefficients<T>(coeffs_index));
     }
     
-    /*
-    template<typename T, typename FFTTag>
-    auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
-      using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
-      using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
-      
-      auto scalingParams = scalingsToParams<ScalingParam>(v);
-      auto c = C{};
-      c.setup(typename C::SetupParam
-      {
-        {
-            {},
-            {scalingParams}
-        },
-        {
-          FinegrainedSetupParam{
-              partitionSize, // partition size
-              partitionSize*1000, // multiplication group size
-              0 // phase
-          },
-          {
-            0,
-            {FinegrainedSetupParam{0,1,0},
-              {
-                0,
-                {FinegrainedSetupParam{0,1,0},
-                  {
-                    0,
-                    FinegrainedSetupParam{0,1,0}
-                  }}
-              }}
-          }
-        }
-      }
-                 );
-      return c;
-    }*/
-    
     template<typename T, typename Tag>
     void testDirac() {
       using namespace fft;
@@ -368,8 +336,9 @@ namespace imajuscule {
       for(int i=0; i<end_index; ++i) {
           LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
-/*        testDiracFinegrainedPartitionned<T, Tag>(i);*/
-          
+        testDiracFinegrainedPartitionned<T, Tag>(i);
+        testDiracPartitionned<T, Tag>(i);
+
         if(i<10)
         {
           auto c = Convolution<AlgoFIRFilter<T, Tag>>{};
@@ -410,7 +379,23 @@ namespace imajuscule {
             c.setup({partition_sz});
             testDirac2(i, c);
           }
-
+          
+          for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
+              partition_sz <= ceil_power_of_two(countCoeffs);
+              partition_sz *= 2)
+          {
+              auto c = Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>>{};
+              auto const n_partitions = imajuscule::countPartitions(countCoeffs, partition_sz);
+              
+              c.setup({
+                  partition_sz,
+                  n_partitions,
+                  std::max(1, n_partitions/4), // size of multiplication group
+                  0
+              });
+              testDirac2(i, c);
+          }
+          
           for(int firstSz=1; firstSz <= 32; firstSz *= 2) {
               auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Tag>>>>{};
               using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
@@ -482,9 +467,55 @@ namespace imajuscule {
                   testDirac2(i, c);
               }
           }
-          // todo finegrained
-          // todo custom scale followed by finegrained with same block size as the last in the scale
-          
+          // custom scale followed by finegrained with same block size as the last in the scale
+          {
+              for(int firstSz=1; firstSz<32; firstSz *= 2) {
+                  auto c = Convolution<AlgoSplitConvolution<
+                  AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>,
+                  AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>
+                  >>{};
+                  using ScalingParam = typename decltype(c)::SetupParam::AParam::ScalingParam;
+                  std::vector<ScalingParam> paramsFull;
+                  int remainingCoeffs = countCoeffs;
+                  int sz = firstSz;
+                  while(remainingCoeffs > 0) {
+                      int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
+                      int submissionPeriod = sz;
+                      ScalingParam s{countCoeffs,
+                                     submissionPeriod,
+                                     {submissionPeriod}};
+                      
+                      paramsFull.push_back(s);
+                      
+                      remainingCoeffs -= sz;
+                      sz *= 2;
+                  }
+                  int const nParams = std::max(1,
+                                               static_cast<int>(paramsFull.size()/2));
+                  Assert(nParams);
+                  std::vector<ScalingParam> params{paramsFull.begin(), paramsFull.begin()+nParams};
+                  std::vector<ScalingParam> discardedParams{paramsFull.begin()+nParams, paramsFull.end()};
+                  int countDiscardedCoeffs = 0;
+                  for(auto const & d : discardedParams) {
+                      countDiscardedCoeffs += d.countCoeffs;
+                  }
+                  int const partition_sz = params.back().submissionPeriod;
+                  auto const n_partitions = imajuscule::countPartitions(countDiscardedCoeffs, partition_sz);
+                  
+                  c.setup({
+                      {
+                          params
+                      },
+                      {
+                          partition_sz,
+                          n_partitions,
+                          std::max(1, n_partitions/4), // size of multiplication group
+                          0
+                      }
+                  });
+                  testDirac2(i, c);
+              }
+          }
           /*
         {
           auto c = AsyncCPUConvolution<FIRFilter<T>, PolicyOnWorkerTooSlow::Wait>{};
@@ -512,52 +543,7 @@ namespace imajuscule {
                     testDirac2(i, c);
                 }
             }
-        }
-        if(i<10)
-        {
-          auto c = Delayed<FIRFilter<T>>{};
-          c.setup({10,{}});
-          testDirac2(i, c);
         }*/
-        /*
-        // TODO test T=double on a machine that has support for doubles on the gpu (cl_khr_fp64)
-        {
-          auto c = FIRFilterGPU<T>{};
-          testDirac2(i, c);
-        }
-        {
-          auto c = FIRFilterGPUAsync<T>{};
-          testDirac2(i, c);
-        }
-        {
-          auto c = FIRFilterGPUAsyncN<T>{};
-          c.setup({10});
-          testDirac2(i, c);
-        }
-         */
-        // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
-          /*
-        {
-          auto c = PartitionnedFIRFilterGPUAsyncN<T>{};
-          c.setup({10});
-          testDirac2(i, c);
-        }
-        {
-          auto c = FFTConvolution<T, Tag>{};
-          testDirac2(i, c);
-        }
-        {
-            // min partition size of 4 else it is not valid (countGrains() < blockSize())
-            int const szPartition = std::max(4,
-                                             static_cast<int>(floor_power_of_two(countCoeffs/10)));
-            int const latencyLateHandler = 2*szPartition - 1;
-            int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
-            int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
-            auto c = mkRealTimeConvolution<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs), szPartition);
-            testDirac2(i, c);
-        }
-        testDiracPartitionned<T, Tag>(i);
-           */
       }
     }
   }

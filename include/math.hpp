@@ -206,7 +206,6 @@ int countDecimalNumbersBeforeTheDot(T val){
     }
 }
 
-// Function to return gcd of a and b
 static inline int gcd(int a, int b)
 {
     if (a == 0) {
@@ -215,5 +214,16 @@ static inline int gcd(int a, int b)
     return gcd(b % a, a);
 }
   
+static inline int64_t ppcm(int ia, int ib)
+{
+    int denom = gcd(ia,ib);
+    if(0 == denom) {
+        return 0;
+    }
+    int64_t a = ia;
+    int64_t b = ib;
+    int64_t prod = a*b;
+    return std::abs(prod) / denom;
+}
 
 } // NS imajuscule

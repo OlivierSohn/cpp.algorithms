@@ -107,14 +107,14 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
                    XAndFFTS<T, Tag> const & x_and_ffts,
                    Y<T, Tag> & y)
     {
-        auto const N = getBlockSize();
+        int const N = getBlockSize();
         
-        Assert(y.progress+(N-1) < y.y.size());
-        add_assign(y.y.begin() + y.progress,
+        Assert(y.uProgress+(N-1) < y.y.size());
+        add_assign(y.y.begin() + y.uProgress,
                    s.result.begin() + N,
                    N);
         
-        auto fft_length = get_fft_length();
+        auto const fft_length = get_fft_length();
 
         auto const & ffts = x_and_ffts.find_ffts(fft_length);
         
@@ -122,7 +122,7 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
         
         ffts.fft.inverse(frequencies, s.result, fft_length);
         
-        add_assign(y.y.begin() + y.progress,
+        add_assign(y.y.begin() + y.uProgress,
                    s.result.begin(),
                    N);
     }
@@ -138,10 +138,10 @@ struct AlgoFFTConvolutionCRTP;
 
 template <typename T, typename Tag>
 struct StateFFTConvolutionCRTP {
-    
+    using Algo = AlgoFFTConvolutionCRTP<T, Tag>;
+
     using FPT = T;
     using FFTTag = Tag;
-    using Algo = AlgoFFTConvolutionCRTP<T, Tag>;
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     static constexpr auto makeRealSignal = fft::RealSignal_<Tag, FPT>::make;
@@ -183,8 +183,9 @@ struct StateFFTConvolutionCRTP {
         
         Assert(fft_length>1);
         return {
-            static_cast<int>(fft_length/2),
-            static_cast<int>(fft_length/2),
+            static_cast<int>(fft_length/2), // x block size
+            static_cast<int>(fft_length/2), // y block size
+            0, // no y anticipated writes
             {
                 {fft_length, 1}
             }
@@ -246,7 +247,7 @@ struct AlgoFFTConvolutionCRTP {
     bool isValid() const { return true; }
 
     auto get_fft_length() const { assert(N > 0); return 2 * N; }
-    const int getStepPeriod() const { return N; }
+    int getWriteYBlockSize() const { return N; }
     auto getBlockSize() const { return N; }
     auto getLatency() const { return N-1; }
     auto getGranularMinPeriod() const { return getBlockSize(); }
@@ -307,7 +308,8 @@ struct StatePartitionnedFFTConvolutionCRTP {
     
     bool isValid() const { return true; }
     
-    MinSizeRequirement doSetCoefficients(Algo const & algo, a64::vector<T> coeffs_) {
+    MinSizeRequirement doSetCoefficients(Algo const & algo,
+                                         a64::vector<T> coeffs_) {
         auto const n_partitions = [&coeffs_, partition_size = algo.getBlockSize()](){
             auto const N = coeffs_.size();
             auto n_partitions = N/partition_size;
@@ -358,8 +360,9 @@ struct StatePartitionnedFFTConvolutionCRTP {
         
         Assert(fft_length > 1);
         return {
-            static_cast<int>(fft_length/2),
-            static_cast<int>(fft_length/2),
+            static_cast<int>(fft_length/2), // x block size
+            static_cast<int>(fft_length/2), // y block size
+            0, // no y anticipated writes
             {
                 {fft_length, n_partitions}
             }
@@ -400,7 +403,7 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
     auto getBlockSize() const { return partition_size; }
     auto getGranularMinPeriod() const { return getBlockSize(); }
     auto getLatency() const { return partition_size-1; }
-    const int getStepPeriod() const { return partition_size; }
+    int getWriteYBlockSize() const { return partition_size; }
     
     bool isValid() const { return true; }
     

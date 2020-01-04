@@ -392,23 +392,25 @@ namespace imajuscule
           assert(distanceToFFTGrain >= 0);
           
           int const n_grains = countGrains();
+          auto cur_grain = getGrainNumber();
+          if(cur_grain >= n_grains) {
+              // spread is not optimal
+              return {distanceToFFTGrain, GrainType::FFT};
+          }
+
           int const granularity = block_size/n_grains;
           int distanceToOtherGrain = granularity - grain_counter;
-          assert(distanceToOtherGrain >= 0);
           
           // in case of equality, FFT wins.
           if(distanceToOtherGrain < distanceToFFTGrain) {
-              auto cur_grain = getGrainNumber();
+              assert(distanceToOtherGrain >= 0);
               assert(cur_grain <= n_grains);
               if( cur_grain < n_grains - 1 ) {
                   return {distanceToOtherGrain, GrainType::MultiplicationGroup};
               }
-              else if(cur_grain == n_grains - 1) {
-                  return {distanceToOtherGrain, GrainType::IFFT};
-              }
               else {
-                  // spread not optimal
-                  return {distanceToOtherGrain, GrainType::Nothing};
+                  Assert(cur_grain == n_grains - 1);
+                  return {distanceToOtherGrain, GrainType::IFFT};
               }
           }
           else {

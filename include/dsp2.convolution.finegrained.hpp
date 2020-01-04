@@ -148,6 +148,7 @@ private:
         int const n_grains = countGrains();
         auto cur_grain = s.grain_number;
         if(cur_grain >= n_grains) {
+            // spread is not optimal
             return {distanceToFFTGrain, GrainType::FFT};
         }
         

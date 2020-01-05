@@ -25,42 +25,6 @@ struct StateSplitConvolution {
     
     static_assert(std::is_same_v<FPT,typename B::FPT>);
     
-    void logComputeState(Algo const & algo, std::ostream & os) const {
-        
-        os << "[";
-        int const split = algo.computeSplit();
-        if(split==undefinedSplit) {
-            os << "undefined";
-        }
-        else {
-            os << "0..";
-            if(split!=noSplit) {
-                os << split-1;
-            }
-        }
-        os << "]" << std::endl;
-        
-        {
-            IndentingOStreambuf indent{os};
-            a.logComputeState(algo.getA(), os);
-        }
-        
-        os << "[";
-        if(split==undefinedSplit) {
-            os << "undefined";
-        } else {
-            if(split!=noSplit) {
-                os << split << "..";
-            }
-        }
-        os << "]" << std::endl;
-        
-        {
-            IndentingOStreambuf indent{os};
-            b.logComputeState(algo.getB(), os);
-        }
-    }
-    
     bool isZero() const {
         return a.isZero() && b.isZero();
     }

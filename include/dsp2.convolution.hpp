@@ -29,15 +29,10 @@ struct StateFFTConvolutionIntermediate : public Parent {
     using Parent::doSetCoefficients;
     using Parent::doFlushToSilence;
 
-    MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_) {
-        auto const fft_length = 2 * algo.getBlockSize();
-        if(fft_length != algo.get_fft_length(coeffs_.size())) {
-            throw std::runtime_error("inconsistent sizes");
-        }
-
+    MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_)
+    {
         result.clear();
-        result.resize(fft_length);
-        
+        result.resize(algo.get_fft_length());
         return doSetCoefficients(algo, std::move(coeffs_));
     }
     

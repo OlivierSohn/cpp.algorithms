@@ -1,10 +1,6 @@
 
 namespace imajuscule {
 
-struct AlgoScaleMetrics {
-    int countCoeffs;
-};
-
 template<typename A>
 struct DescCustomScaleConvolution {
     static constexpr int nCoefficientsFadeIn = 0;
@@ -27,17 +23,6 @@ struct StateCustomScaleConvolution {
     
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
     
-    void logComputeState(Algo const & algo, std::ostream & os) const {
-        os << "Custom scaling" << std::endl;
-        IndentingOStreambuf indent(os);
-        for(auto const & [param, algo] : v)
-        {
-            os << param.countCoeffs << " [" << param.submissionPeriod << "]" << std::endl;
-            IndentingOStreambuf indent2(os);
-            algo.logComputeState(os);
-        }
-    }
-    
     bool isZero() const {
         return v.empty();
     }
@@ -58,29 +43,24 @@ struct StateCustomScaleConvolution {
         auto end = coeffs_.end();
         std::optional<MinSizeRequirement> res;
 
-        int i=-1;
-        for(auto & [param, conv] : algo.v) {
-            ++i;
+        for(int i=0, endI=static_cast<int>(algo.v.size());
+            i != endI;
+            ++i)
+        {
             if(it >= end) {
                 // suboptimal CustomScaleConvolution
                 break;
             }
             v.emplace_back();
             auto start = it;
-            auto sizeBlock = param.countCoeffs;
-            it += sizeBlock;
-            MinSizeRequirement res2;
-            if(it > end) {
-                auto withPadding = a64::vector<FPT>{start,end};
-                // We pad up-to sizeBlock. Benchmarks showed that this is time-wise better
-                // than padding to the next power of 2 + delaying input.
-                withPadding.resize(sizeBlock);
-                res2 = v[i].setCoefficients(conv, std::move(withPadding));
+            auto & conv = algo.v[i];
+            if(i==endI-1) {
+                it = end;
             }
             else {
-                res2 = v[i].setCoefficients(conv, {start,it});
+                it += algo.v[i+1].getLatency() - conv.getLatency();
             }
-            
+            auto res2 = v[i].setCoefficients(conv, {start,it});
             if(!res) {
                 res = res2;
             }
@@ -106,8 +86,7 @@ struct StateCustomScaleConvolution {
         int i = -1;
         for(auto & state : v) {
             ++i;
-            auto & [param, a] = algo.v[i];
-            eps += state.getEpsilon(a);
+            eps += state.getEpsilon(algo.v[i]);
         }
         
         return eps;
@@ -132,8 +111,7 @@ struct AlgoCustomScaleConvolution {
         
         for(auto const & param : p.scalingParams) {
             v.emplace_back();
-            v.back().first.countCoeffs = param.countCoeffs;
-            v.back().second.setup(param.setupParam);
+            v.back().setup(param.setupParam);
         }
     }
     
@@ -141,7 +119,7 @@ struct AlgoCustomScaleConvolution {
         if(v.empty()) {
             return false;
         }
-        return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.second.isValid(); });
+        return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
 
     void step(State & s,
@@ -153,7 +131,7 @@ struct AlgoCustomScaleConvolution {
         int i = -1;
         for(auto & state : s.v) {
             ++i;
-            auto & [param, algo] = v[i];
+            auto & algo = v[i];
 
             // It is more optimal to do this check here than inside algo.doStep
             // because we early-exit at the first non matching parameter.
@@ -180,17 +158,17 @@ struct AlgoCustomScaleConvolution {
         if(v.empty()) {
             return 0;
         }
-        return v.front().second.getLatency();
+        return v.front().getLatency();
     }
     
     int getBiggestScale() const {
         if(v.empty()) {
             return 0;
         }
-        return v.back().second.getBlockSize();
+        return v.back().getBlockSize();
     }
     
 public:
-    std::vector<std::pair<AlgoScaleMetrics,A>> v;
+    std::vector<A> v;
 };
 }

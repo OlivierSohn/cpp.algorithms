@@ -44,20 +44,7 @@ struct StateFinegrainedFFTConvolutionBase : public Parent {
     static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
 
     using Parent::clear;
-    using Parent::doLogComputeState;
     using Parent::doSetCoefficients;
-
-    void logComputeState(Algo const & algo, std::ostream & os) const {
-        os << "Finegrained ";
-        if(isZero()) {
-            os << "zero" << std::endl;
-        }
-        else {
-            os << "grain {" << grain_counter << "/" << algo.countGrains()
-            << "} block size [" << algo.getBlockSize() << "]" << std::endl;
-            doLogComputeState(algo, os);
-        }
-    }
     
     MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_) {        
         reset();
@@ -258,11 +245,6 @@ struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
     static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    
-    void doLogComputeState(Algo const & algo, std::ostream & os) const {
-        os << algo.countPartitions() << " partitions "
-        << algo.getMultiplicationsGroupMaxSize() << " multGroupMaxSize" << std::endl;
-    }
     
     bool empty() const {
         return ffts_of_partitionned_h.empty();

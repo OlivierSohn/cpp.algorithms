@@ -311,7 +311,7 @@ public:
             static_cast<int>(fft_length/2), // y block size
             static_cast<int>(fft_length/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
             {
-                {fft_length, n_partitions}
+                {fft_length, algo.countPartitions()}
             }
         };
     }

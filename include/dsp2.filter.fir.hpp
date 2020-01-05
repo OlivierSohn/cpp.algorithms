@@ -18,7 +18,8 @@ struct StateFIRFilter {
     using FPT = T;
     using Algo = AlgoFIRFilter<T, Tag>;
 
-    MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> v) {
+    MinSizeRequirement setCoefficients(Algo const & algo,
+                                       a64::vector<T> v) {
         std::reverse(v.begin(), v.end());
         reset();
         reversed_coefficients.reserve(v.size());

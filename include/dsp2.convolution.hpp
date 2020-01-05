@@ -289,10 +289,6 @@ struct StatePartitionnedFFTConvolutionCRTP {
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
     
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
-
-    void doLogComputeState(Algo const & algo, std::ostream & os) const {
-        os << countPartitions() << " partitions of size " << algo.getBlockSize() << std::endl;
-    }
     
     auto countPartitions() const { return ffts_of_partitionned_h.size(); }
     bool empty() const { return ffts_of_partitionned_h.empty(); }

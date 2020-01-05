@@ -406,7 +406,6 @@ namespace imajuscule {
                   ScalingParam s{
                       // cannot do std::min(sz, remainingCoeffs) here else the latency would be wrong
                       sz,
-                      sz,
                       {sz}
                   };
                   
@@ -431,7 +430,6 @@ namespace imajuscule {
                       int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
                       int submissionPeriod = sz;
                       ScalingParam s{countCoeffs,
-                                     submissionPeriod,
                                      {submissionPeriod}};
                       
                       params.push_back(s);
@@ -455,7 +453,6 @@ namespace imajuscule {
                       int const countCoeffs = std::min(sz*3, remainingCoeffs); // last coefficient group may be padded with 0s
                       int const submissionPeriod = sz;
                       ScalingParam s{countCoeffs,
-                                     submissionPeriod,
                                      {submissionPeriod}};
                       
                       params.push_back(s);
@@ -482,7 +479,6 @@ namespace imajuscule {
                       int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
                       int submissionPeriod = sz;
                       ScalingParam s{countCoeffs,
-                                     submissionPeriod,
                                      {submissionPeriod}};
                       
                       paramsFull.push_back(s);
@@ -499,7 +495,7 @@ namespace imajuscule {
                   for(auto const & d : discardedParams) {
                       countDiscardedCoeffs += d.countCoeffs;
                   }
-                  int const partition_sz = params.back().submissionPeriod;
+                  int const partition_sz = params.back().setupParam.partition_size;
                   auto const n_partitions = imajuscule::countPartitions(countDiscardedCoeffs, partition_sz);
                   
                   c.setup({

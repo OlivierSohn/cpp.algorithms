@@ -156,8 +156,6 @@ struct StateFFTConvolutionCRTP {
         os << "1 block of size " << algo.getBlockSize() << std::endl;
     }
         
-    bool isValid() const { return true; }
-    
     bool empty() const { return fft_of_h.empty(); }
     
     MinSizeRequirement doSetCoefficients(Algo const & algo, a64::vector<T> coeffs_)
@@ -183,7 +181,7 @@ struct StateFFTConvolutionCRTP {
         
         Assert(fft_length>1);
         return {
-            static_cast<int>(fft_length/2), // x block size
+            0, // x block size
             static_cast<int>(fft_length/2), // y block size
             0, // no y anticipated writes
             {
@@ -247,10 +245,8 @@ struct AlgoFFTConvolutionCRTP {
     bool isValid() const { return true; }
 
     auto get_fft_length() const { assert(N > 0); return 2 * N; }
-    int getWriteYBlockSize() const { return N; }
     auto getBlockSize() const { return N; }
     auto getLatency() const { return N-1; }
-    auto getGranularMinPeriod() const { return getBlockSize(); }
     auto countPartitions() const { return 1; }
     
     static auto get_fft_length(int n) {
@@ -306,8 +302,6 @@ struct StatePartitionnedFFTConvolutionCRTP {
     auto countPartitions() const { return ffts_of_partitionned_h.size(); }
     bool empty() const { return ffts_of_partitionned_h.empty(); }
     
-    bool isValid() const { return true; }
-    
     MinSizeRequirement doSetCoefficients(Algo const & algo,
                                          a64::vector<T> coeffs_) {
         auto const n_partitions = [&coeffs_, partition_size = algo.getBlockSize()](){
@@ -360,7 +354,7 @@ struct StatePartitionnedFFTConvolutionCRTP {
         
         Assert(fft_length > 1);
         return {
-            static_cast<int>(fft_length/2), // x block size
+            0, // x block size
             static_cast<int>(fft_length/2), // y block size
             0, // no y anticipated writes
             {
@@ -401,9 +395,7 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
     auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
     auto get_fft_length(int) const { return get_fft_length(); }
     auto getBlockSize() const { return partition_size; }
-    auto getGranularMinPeriod() const { return getBlockSize(); }
     auto getLatency() const { return partition_size-1; }
-    int getWriteYBlockSize() const { return partition_size; }
     
     bool isValid() const { return true; }
     

@@ -112,7 +112,6 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
     using Parent::get_multiply_add_result;
     using Parent::get_fft_length;
     using Parent::getBlockSize;
-    using Parent::getGranularMinPeriod;
     using Parent::getLatencyForPartitionSize;
     using Parent::isValid;
     using Parent::setMultiplicationGroupLength;
@@ -326,7 +325,7 @@ public:
         
         Assert(fft_length > 1);
         return {
-            static_cast<int>(fft_length/2), // x block size
+            0, // x block size
             static_cast<int>(fft_length/2), // y block size
             static_cast<int>(fft_length/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
             {
@@ -377,13 +376,11 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
 
     auto get_fft_length() const { return 2 * partition_size; }
     
-    int getWriteYBlockSize() const { return partition_size; }
     auto getBlockSize() const { return partition_size; }
     static constexpr int getLatencyForPartitionSize(int partSz) {
         return 2*partSz - 1;
     }
     auto getLatency() const { return getLatencyForPartitionSize(partition_size); }
-    auto getGranularMinPeriod() const { return getBlockSize() / countGrains(); }
     bool isValid() const { return partition_size > 0 && mult_grp_len > 0 && countGrains() <= getBlockSize(); }
      
     int countPartitions() const { return partition_count; }

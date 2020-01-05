@@ -182,17 +182,6 @@ struct AlgoSplitConvolution {
         return a.getLatency();
     }
     
-    int getWriteYBlockSize() const {
-        int szA = a.getWriteYBlockSize();
-        int szB = b.getWriteYBlockSize();
-        int res = static_cast<int>(ppcm(szA, szB));
-        
-        // only because in practice we have powers of 2.
-        Assert(std::max(szA, szB) == res);
-        
-        return res;
-    }
-    
     int computeSplit() const {
         if(!b.isValid()) { // for case where lower resolution tail is not used
             return noSplit;

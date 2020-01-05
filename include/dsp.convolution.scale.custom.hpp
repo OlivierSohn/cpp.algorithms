@@ -5,7 +5,6 @@ template<typename SetupParam>
 struct CustomScaleConvolutionSetupParam : public Cost {
     struct ScalingParam {
         int countCoeffs;
-        int submissionPeriod;
         SetupParam setupParam;
     };
 
@@ -22,8 +21,8 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         return std::min_element(scalingParams.begin(),
                                 scalingParams.end(),
                                 [](auto const & p1, auto const & p2) {
-            return p1.submissionPeriod < p2.submissionPeriod;
-        })->submissionPeriod - 1;
+            return p1.setupParam.getImpliedLatency() < p2.setupParam.getImpliedLatency();
+        })->setupParam.getImpliedLatency();
     }
     
     void logSubReport(std::ostream & os) const override {

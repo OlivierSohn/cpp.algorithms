@@ -3,7 +3,6 @@ namespace imajuscule {
 
 struct AlgoScaleMetrics {
     int countCoeffs;
-    int submissionPeriod;
 };
 
 template<typename A>
@@ -133,16 +132,8 @@ struct AlgoCustomScaleConvolution {
         
         for(auto const & param : p.scalingParams) {
             v.emplace_back();
-            
             v.back().first.countCoeffs = param.countCoeffs;
-            v.back().first.submissionPeriod = param.submissionPeriod;
-
             v.back().second.setup(param.setupParam);
-            
-            if(v.back().second.getLatency() != (param.submissionPeriod-1)) {
-                // This breaks the class logic, and would lead to wrong results.
-                throw std::logic_error("AlgoCustomScaleConvolution is applied to a type that doesn't respect the latency constraints.");
-            }
         }
     }
     
@@ -167,14 +158,17 @@ struct AlgoCustomScaleConvolution {
             // It is more optimal to do this check here than inside algo.doStep
             // because we early-exit at the first non matching parameter.
 
-            auto const N = param.submissionPeriod;
+            auto const N = algo.getBlockSize();
             Assert(N > 0);
             Assert(is_power_of_two(N));
             
             if((x_and_ffts.fftsHalfSizesBitsToCompute & static_cast<uint32_t>(N)) != N) {
+                Assert(0 != (x_and_ffts.progress & static_cast<uint32_t>(N-1)));
                 // early exit
                 return;
             }
+            // TODO no need to have fftsHalfSizesBitsToCompute if we can do this instead:
+            Assert(0 == (x_and_ffts.progress & static_cast<uint32_t>(N-1)));
             
             algo.forceStep(state,
                            x_and_ffts,
@@ -186,24 +180,14 @@ struct AlgoCustomScaleConvolution {
         if(v.empty()) {
             return 0;
         }
-        return std::min_element(v.begin(),
-                                v.end(),
-                                [](auto const & p1, auto const & p2) {
-            return p1.first.submissionPeriod < p2.first.submissionPeriod;
-        })->first.submissionPeriod - 1;
-    }
-    
-    int getWriteYBlockSize() const {
-        return getBiggestScale();
+        return v.front().second.getLatency();
     }
     
     int getBiggestScale() const {
         if(v.empty()) {
             return 0;
         }
-        return std::max_element(v.begin(), v.end(), [](auto const & p1, auto const & p2){
-            return p1.first.submissionPeriod < p2.first.submissionPeriod;
-        })->first.submissionPeriod;
+        return v.back().second.getBlockSize();
     }
     
 public:

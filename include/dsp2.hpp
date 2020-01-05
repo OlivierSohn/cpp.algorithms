@@ -49,14 +49,12 @@ struct XAndFFTS {
                                 history_sz);
         }
         Assert(count_set_bits(fftHalfSizesBits) == x_ffts.size());
-        auto const maxHalfFFTSz = floor_power_of_two(fftHalfSizesBits);
+        int const maxHalfFFTSz = floor_power_of_two(fftHalfSizesBits);
 
-        x_unpadded_size = sz;
+        x_unpadded_size = std::max(maxHalfFFTSz, sz);
 
         x.clear();
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
-
-        Assert(x_unpadded_size >= maxHalfFFTSz);
     }
     
     void push(T v) {
@@ -197,6 +195,9 @@ struct Y {
 };
 
 struct MinSizeRequirement {
+    /*
+     The needed size of the x buffer is deduced both from the max size of the ffts, and from this parameter.
+     */
     int minXSize;
         
     int minYSize;

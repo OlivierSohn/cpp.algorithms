@@ -72,7 +72,6 @@ struct AlgoFIRFilter {
     void setup(SetupParam const &) const {}
 
     constexpr int getLatency() const { return 0; }
-    constexpr int getWriteYBlockSize() const { return 1; }
 
     bool isValid() const {
         return true;

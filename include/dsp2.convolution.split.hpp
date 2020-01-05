@@ -62,15 +62,7 @@ struct StateSplitConvolution {
         auto resB = b.setCoefficients(algo.getB(), withLinearFadeIn(B::Desc::nCoefficientsFadeIn,rangeB.materialize()));
         res.mergeWith(resB);
         assert(!b.isZero());
-        if(split + algo.getA().getLatency() == B::Desc::nCoefficientsFadeIn + algo.getB().getLatency()) {
-            return res;
-        }
-        LG(ERR, "split : %d, a lat: %d, b lat: %d, b init: %d",
-           split,
-           algo.getA().getLatency(),
-           algo.getB().getLatency(),
-           B::Desc::nCoefficientsFadeIn);
-        throw std::logic_error("inconsistent split (latencies are not adapted)");
+        return res;
     }
     
     template <typename Bool = bool>

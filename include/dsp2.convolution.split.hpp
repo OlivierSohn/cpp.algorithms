@@ -120,11 +120,6 @@ struct AlgoSplitConvolution {
     
     static_assert(std::is_same_v<FPT,typename B::FPT>);
     
-    void reset() {
-        a.reset();
-        b.reset();
-    }
-    
     void setup(const SetupParam & p) {
         a.setup(p.aParams);
         b.setup(p.bParams);

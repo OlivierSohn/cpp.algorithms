@@ -6,6 +6,8 @@
 
 #include "unity.build.cpp"
 
+#include "test_utils.h"
+#include "../test/test_utils.cpp"
 
 namespace imajuscule::bench::vecto {
     
@@ -15,6 +17,9 @@ namespace imajuscule::bench::vecto {
     {
     public:
         int overflow(int c) { return c; }
+    };
+    
+    struct audio_dropout : public std::exception {
     };
     
     /*
@@ -71,7 +76,7 @@ namespace imajuscule::bench::vecto {
         }
         DeinterlacedBuffers<double> deinterlaced_buffers(std::move(db));
         
-        Reverbs<nOut, reverbType> rs;
+        Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::PermanentlySwitchToDry /* because AudioHostSimulator uses real time simulation*/> rs;
         ResponseStructure structure;
         {
             rs.setConvolutionReverbIR(n_sources,
@@ -175,7 +180,7 @@ namespace imajuscule::bench::vecto {
                 return nTotalFrames > 0;
             });
         }
-
+        
         auto printTimes = [](auto const & c, std::optional<int> i = {})
         {
             {
@@ -194,6 +199,37 @@ namespace imajuscule::bench::vecto {
             std::cout << std::endl;
         };
 
+              
+          if constexpr (isAsync(reverbType))
+          {
+            rs.foreachConvReverb([&printTimes](auto const & conv)
+                                 {
+                /*
+                 auto & durations = conv.getB().async_durations;
+                 {
+                 auto M = std::max_element(durations.begin(), durations.end());
+                 if(M == durations.end()) {
+                 std::cout << "no async max" << std::endl;
+                 }
+                 else {
+                 std::cout << "async max:"; printTimes(*M, std::distance(durations.begin(), M));
+                 }
+                 }
+                 */
+                
+                /*
+                 int i=0;
+                 for(auto c : durations)
+                 {
+                 printTimes(c, i);
+                 ++i;
+                 }*/
+                if(conv.getB().hasStepErrors()) {
+                    throw audio_dropout();
+                }                
+            });
+        }
+                          
         std::cout << "simu wall:" << CpuDuration::fromDuration(simu_wall_duration) << std::endl;
         csv_file.push(CpuDuration::fromDuration(simu_wall_duration));
         
@@ -237,43 +273,6 @@ namespace imajuscule::bench::vecto {
                 ++i;
             }
   //*/
-            
-        }
-
-        if constexpr (isAsync(reverbType))
-        {
-            rs.foreachConvReverb([&printTimes](auto const & conv)
-                                 {
-                /*
-                 auto & durations = conv.getB().async_durations;
-                 {
-                 auto M = std::max_element(durations.begin(), durations.end());
-                 if(M == durations.end()) {
-                 std::cout << "no async max" << std::endl;
-                 }
-                 else {
-                 std::cout << "async max:"; printTimes(*M, std::distance(durations.begin(), M));
-                 }
-                 }
-                 */
-                
-                /*
-                 int i=0;
-                 for(auto c : durations)
-                 {
-                 printTimes(c, i);
-                 ++i;
-                 }*/
-                {
-                    int nRTWait = conv.getB().countStepErrors();
-                    if(nRTWait) {
-                        std::cout << "count rt waits : " << nRTWait << std::endl;
-                        std::cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << std::endl;
-                        throw std::runtime_error("count rt waits > 0");
-                    }
-                }
-                
-            });
         }
     }
 }
@@ -609,27 +608,6 @@ struct NopEval {
     void eval() {
     }
 };
-struct FFTEval {
-    FFTEval(int64_t sz)
-    : sz(sz)
-    {}
-    
-    void prepare(int thread_index) {
-        a = Algo::Contexts::getInstance().getBySize(sz);
-        f.resize(sz);
-        i.resize(sz);
-    }
-
-    void eval() {
-        a.forward(i.begin(), f, sz);
-    }
-
-    int64_t sz;
-    using Algo = imajuscule::fft::Algo_<accelerate::Tag, double>;
-    Algo::RealFBins f;
-    Algo::RealInput i;
-    Algo a;
-};
 
 void testAllocationFactors2() {
     using namespace imajuscule::fft;
@@ -851,12 +829,109 @@ void compareConvs() {
     }
 }
 
+/*
+ Verifies that the refactoring "mutualization of fft computations" has a positive effect on computation times
+ */
+template<typename T, typename Tag>
+void verifyFftMutualizationEffect() {
+ 
+    using OldConv =
+      SplitConvolution<
+        SplitConvolution <
+            FIRFilter<T>,
+            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>
+          >,
+        FinegrainedPartitionnedFFTConvolution<T, Tag>
+    >;
+    using NewConv =
+    Convolution<
+      AlgoSplitConvolution<
+        AlgoSplitConvolution <
+            AlgoFIRFilter<T, Tag>,
+            AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Tag> >>
+          >,
+        AlgoFinegrainedPartitionnedFFTConvolution<T, Tag>
+    >>;
+
+    using namespace imajuscule::profiling;
+    std::vector<double> ratios;
+    for(int sz = 1; sz<1000000; sz *= 2) {
+        a64::vector<T> coeffs;
+        coeffs.resize(sz);
+        {
+            int i=0;
+            for(auto & c : coeffs) {
+                c = (i&1)? 0. : 1.;
+                ++i;
+            }
+        }
+        
+        int const countCoeffs = sz;
+        
+        int const szPartition = std::max(4,
+                                         static_cast<int>(floor_power_of_two(countCoeffs/10)));
+        int const latencyLateHandler = 2*szPartition - 1;
+        int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
+        int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
+        int const countPartitions = nLateCoeffs ? (1 + (nLateCoeffs-1) / szPartition) : 0;
+
+        int nperiods = 3*std::max(1,100000/sz);
+        int nsamples = nperiods*sz;
+        double sum = 0;
+        auto run = [&sum, nsamples](auto & conv) {
+            for(int i=0; i<nsamples; ++i) {
+                sum += conv.step(0);
+            }
+        };
+
+        CpuDuration oldConvDuration, newConvDuration;
+        {
+            OldConv oldConv = mkRealTimeConvolution<T, Tag>(mkBetterScaling(1, nEarlyCoeffs), szPartition);
+            oldConv.setCoefficients(coeffs);
+
+            run(oldConv);
+            oldConvDuration = measure_thread_cpu_one([&run, &oldConv]{
+                run(oldConv);
+            });
+        }
+        {
+            NewConv newConv = mkRealTimeConvolution2<T, Tag>(mkBetterScaling(1, nEarlyCoeffs), szPartition, countPartitions);;
+            newConv.setCoefficients(coeffs);
+                    
+            run(newConv);
+            newConvDuration = measure_thread_cpu_one([&run, &newConv]{
+                run(newConv);
+            });
+        }
+        
+        double const ratio = newConvDuration.count() / static_cast<float>(oldConvDuration.count());
+        ratios.push_back(ratio);
+        
+        std::cout << sz << "\t"
+        << ratio << "\t"
+        << newConvDuration.count() / 1000000. << "\t"
+        << oldConvDuration.count() / 1000000. << "\t"
+        << ((sum > 1.) ? "" : " ")
+        << std::endl;
+        
+    }
+    std::vector<double> ones;
+    ones.resize(ratios.size(), 1.);
+    StringPlot plot(40, ratios.size(), {0,2});
+    plot.draw(ratios, '+');
+    plot.draw(ones, '=');
+    plot.log();
+}
+
+
 
 int main(int argc, const char * argv[]) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
 
+    verifyFftMutualizationEffect<double, accelerate::Tag>();
+    return 0;
     testAllocationFactors2();
     return 0;
     testCostsReadWrites3();

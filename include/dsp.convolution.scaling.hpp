@@ -225,6 +225,25 @@ struct ScalingsIterator {
         }
         return scalingParams;
     }
+    
+    
+    template<typename ScalingParam>
+    auto scalingsToParams2(std::vector<Scaling> const & v)
+    {
+        std::vector<ScalingParam> scalingParams;
+        scalingParams.reserve(v.size());
+        for(auto const & e:v) {
+            int const countCoeffs = e.sz * e.nRepeat;
+            int const submissionPeriod = e.sz;
+            
+            ScalingParam s{
+                countCoeffs,
+                {submissionPeriod /* partition size */}
+            };
+            scalingParams.push_back(s);
+        }
+        return scalingParams;
+    }
 
     template<typename C>
     auto mkSimulation(std::vector<Scaling> const & v,

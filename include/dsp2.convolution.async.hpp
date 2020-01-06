@@ -404,12 +404,6 @@ struct AlgoAsyncCPUConvolution {
         asyncParams = s.innerParams;
     }
     
-    void reset() {
-        asyncParams = {};
-        queueSize = 0;
-        N = 0;
-    }
-    
     bool isValid() const {
         return N > 0 && queueSize > 0 && asyncParams.isValid();
     }

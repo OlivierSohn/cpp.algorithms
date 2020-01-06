@@ -124,15 +124,6 @@ struct XAndFFTS {
     
     std::vector<FFTs> x_ffts;
     
-    FBins const & find_forward_fft(int sz, int age) const {
-        for(auto const & f : x_ffts) {
-            if(sz == f.fft_length) {
-                return f.ffts.get_backward(age);
-            }
-        }
-        throw std::runtime_error("fft not found");
-    }
-    
     auto const & find_ffts(int sz) const {
         for(auto const & f : x_ffts) {
             if(sz == f.fft_length) {

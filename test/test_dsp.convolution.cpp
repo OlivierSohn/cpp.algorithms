@@ -316,44 +316,6 @@ namespace imajuscule {
       test(conv, makeCoefficients<T>(coeffs_index));
     }
     
-    
-    template<typename T, typename FFTTag>
-    auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
-      using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
-      using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
-      
-      auto scalingParams = scalingsToParams<ScalingParam>(v);
-      auto c = C{};
-      c.setup(typename C::SetupParam
-      {
-        {
-            {},
-            {scalingParams}
-        },
-        {
-          FinegrainedSetupParam{
-              partitionSize, // partition size
-              partitionSize*1000, // multiplication group size
-              0 // phase
-          },
-          {
-            0,
-            {FinegrainedSetupParam{0,1,0},
-              {
-                0,
-                {FinegrainedSetupParam{0,1,0},
-                  {
-                    0,
-                    FinegrainedSetupParam{0,1,0}
-                  }}
-              }}
-          }
-        }
-      }
-                 );
-      return c;
-    }
-    
     template<typename T, typename Tag>
     void testDirac() {
       using namespace fft;
@@ -511,7 +473,7 @@ namespace imajuscule {
             int const latencyLateHandler = 2*szPartition - 1;
             int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
             int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
-            auto c = mkRealTimeConvolution<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs), szPartition);
+            auto c = mkRealTimeConvolutionSubsampled<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs), szPartition);
             testDirac2(i, c);
         }
         testDiracPartitionned<T, Tag>(i);
@@ -547,7 +509,7 @@ TEST(Convolution, freq) {
   using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
   
   std::vector<Scaling> scalingParams{}; // leave it empty, we have only 8 coefficients
-  auto c = mkRealTimeConvolution<double, Tag>(scalingParams, 4);
+  auto c = mkRealTimeConvolutionSubsampled<double, Tag>(scalingParams, 4);
   constexpr auto N = 8;
   
   //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};

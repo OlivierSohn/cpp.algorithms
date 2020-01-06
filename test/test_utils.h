@@ -74,5 +74,102 @@ static inline a64::vector<double> mkCoefficientsTriangle(int sz) {
 }
 
 std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
+std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
 
+template<typename T, typename FFTTag>
+auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partitionSize) {
+  using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
+  using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
+  
+  auto scalingParams = scalingsToParams<ScalingParam>(v);
+  auto c = C{};
+  c.setup(typename C::SetupParam
+  {
+    {
+        {},
+        {scalingParams}
+    },
+    {
+      FinegrainedSetupParam{
+          partitionSize, // partition size
+          partitionSize*1000, // multiplication group size
+          0 // phase
+      },
+      {
+        0,
+        {FinegrainedSetupParam{0,1,0},
+          {
+            0,
+            {FinegrainedSetupParam{0,1,0},
+              {
+                0,
+                FinegrainedSetupParam{0,1,0}
+              }}
+          }}
+      }
+    }
+  }
+             );
+  return c;
+}
+
+
+template<typename T, typename FFTTag>
+auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
+  using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>;
+  using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
+  
+  auto scalingParams = scalingsToParams<ScalingParam>(v);
+  auto c = C{};
+  c.setup(typename C::SetupParam
+  {
+    {
+        {},
+        {scalingParams}
+    },
+      FinegrainedSetupParam{
+          partitionSize, // partition size
+          partitionSize*1000, // multiplication group size
+          0 // phase
+      }
+    
+  }
+             );
+  return c;
+}
+
+
+template<typename T, typename Tag>
+auto mkRealTimeConvolution2(std::vector<Scaling> const & v,
+                            int partitionSize,
+                            int partitionCount) {
+  using C = Convolution<
+    AlgoSplitConvolution<
+      AlgoSplitConvolution <
+          AlgoFIRFilter<T, Tag>,
+          AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Tag> >>
+        >,
+      AlgoFinegrainedPartitionnedFFTConvolution<T, Tag>
+  >>;
+  using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
+  
+  auto scalingParams = scalingsToParams2<ScalingParam>(v);
+  auto c = C{};
+  c.setup(typename C::SetupParam
+  {
+    {
+        {},
+        {scalingParams}
+    },
+      FinegrainedSetupParam2{
+          partitionSize, // partition size
+          partitionCount,
+          partitionSize*1000, // multiplication group size
+          0 // phase
+      }
+    
+  }
+             );
+  return c;
+}
 }

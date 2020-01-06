@@ -23,6 +23,10 @@ struct StateCustomScaleConvolution {
     
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
     
+    void reset() {
+        v.clear();
+    }
+    
     bool isZero() const {
         return v.empty();
     }
@@ -132,10 +136,11 @@ struct AlgoCustomScaleConvolutionSetupParam : public Cost {
 template<typename A>
 struct AlgoCustomScaleConvolution {
     using SetupParam = AlgoCustomScaleConvolutionSetupParam<typename A::SetupParam>;
+    using State = StateCustomScaleConvolution<typename A::State>;
+    using Desc = DescCustomScaleConvolution<typename A::Desc>;
 
     using FPT = typename A::FPT;
     using Tag = typename A::Tag;
-    using State = StateCustomScaleConvolution<typename A::State>;
     
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
     

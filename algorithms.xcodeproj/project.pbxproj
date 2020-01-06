@@ -134,6 +134,8 @@
 		093311FF23BE477E00A52817 /* dsp2.convolution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.hpp; path = include/dsp2.convolution.hpp; sourceTree = "<group>"; };
 		0933120023BF67C400A52817 /* dsp2.convolution.split.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.split.hpp; path = include/dsp2.convolution.split.hpp; sourceTree = "<group>"; };
 		0933120123BFAB5A00A52817 /* dsp2.convolution.scale.custom.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.scale.custom.hpp; path = include/dsp2.convolution.scale.custom.hpp; sourceTree = "<group>"; };
+		0933120223C003B000A52817 /* dsp2.convolution.finegrained.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.finegrained.hpp; path = include/dsp2.convolution.finegrained.hpp; sourceTree = "<group>"; };
+		0933120323C2585B00A52817 /* dsp2.convolution.async.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.async.hpp; path = include/dsp2.convolution.async.hpp; sourceTree = "<group>"; };
 		09338B5920D91E75004F5A8A /* staticvector.singlethread.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.singlethread.hpp; path = include/staticvector.singlethread.hpp; sourceTree = "<group>"; };
 		09338B5A20D9239D004F5A8A /* staticvector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.hpp; path = include/staticvector.hpp; sourceTree = "<group>"; };
 		09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_singlethread.cpp; path = test/test_staticvector_singlethread.cpp; sourceTree = "<group>"; };
@@ -568,6 +570,8 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				0933120323C2585B00A52817 /* dsp2.convolution.async.hpp */,
+				0933120223C003B000A52817 /* dsp2.convolution.finegrained.hpp */,
 				0933120123BFAB5A00A52817 /* dsp2.convolution.scale.custom.hpp */,
 				0933120023BF67C400A52817 /* dsp2.convolution.split.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,

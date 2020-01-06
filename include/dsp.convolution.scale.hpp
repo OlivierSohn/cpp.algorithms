@@ -438,10 +438,6 @@ public:
         }
     }
     
-    int countCoefficients() const {
-        return pow2(nDroppedConvolutions + v.size()) - pow2(nDroppedConvolutions);
-    }
-    
     int getBiggestScale() const {
         if(v.empty()) {
             return 0;

@@ -512,9 +512,8 @@ namespace imajuscule {
                   testDirac2(i, c);
               }
           }
-          /*
         {
-          auto c = AsyncCPUConvolution<FIRFilter<T>, PolicyOnWorkerTooSlow::Wait>{};
+          auto c = Convolution<AlgoAsyncCPUConvolution<AlgoFIRFilter<T, Tag>, PolicyOnWorkerTooSlow::Wait>>{};
             std::vector<int> submisionPeriods{
                 -1, // invalid
                 0, // invalid
@@ -539,7 +538,7 @@ namespace imajuscule {
                     testDirac2(i, c);
                 }
             }
-        }*/
+        }
       }
     }
   }

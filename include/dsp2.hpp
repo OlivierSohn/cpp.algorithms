@@ -195,6 +195,8 @@ struct Y {
 };
 
 struct MinSizeRequirement {
+    MinSizeRequirement() = delete;
+    
     /*
      The needed size of the x buffer is deduced both from the max size of the ffts, and from this parameter.
      */

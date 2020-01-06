@@ -381,11 +381,12 @@ namespace imajuscule {
                   int remainingCoeffs = countCoeffs;
                   int sz = firstSz;
                   while(remainingCoeffs > 0) {
-                      ScalingParam s;
-                      // cannot do std::min(sz, remainingCoeffs) here else the latency would be wrong
-                      s.countCoeffs = sz;
-                      s.submissionPeriod = sz;
-                      s.setupParam = {};
+                      ScalingParam s {
+                          // cannot do std::min(sz, remainingCoeffs) here else the latency would be wrong
+                          sz,
+                          sz,
+                          {}
+                      };
                       
                       params.push_back(s);
                       

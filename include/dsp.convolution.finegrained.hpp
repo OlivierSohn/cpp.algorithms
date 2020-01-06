@@ -131,6 +131,19 @@ namespace imajuscule
 
     using Parent::set_partition_size;
     using Parent::getLatencyForPartitionSize;
+    using Parent::doLogComputeState;
+
+      void logComputeState(std::ostream & os) const {
+          os << "Finegrained ";
+          if(isZero()) {
+              os << "zero" << std::endl;
+          }
+          else {
+              os << "grain {" << grain_counter << "/" << countGrains()
+              << "} progress [" << this->progress << "/" << getBlockSize() << "]" << std::endl;
+              doLogComputeState(os);
+          }
+      }
 
     void setup(SetupParam const & p) {
       set_partition_size(p.partition_size);
@@ -499,6 +512,10 @@ namespace imajuscule
     static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
 
     using Algo = typename fft::Algo_<Tag, FPT>;
+      void doLogComputeState(std::ostream & os) const {
+          os << countPartitions() << " partitions "
+          << getMultiplicationsGroupMaxSize() << " multGroupMaxSize" << std::endl;
+      }
       
     auto get_fft_length() const { return 2 * partition_size; }
     auto get_fft_length(int) const { return get_fft_length(); }

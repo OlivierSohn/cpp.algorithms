@@ -297,10 +297,6 @@ enum class PolicyOnWorkerTooSlow {
       void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
           algo.setComputeProgresses(progresses);
       }
-
-      int countCoefficients() const {
-          return algo.countCoefficients();
-      }
     
     FPT step(FPT val) {
       if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {

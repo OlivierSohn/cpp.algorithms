@@ -4,7 +4,14 @@ namespace imajuscule {
 template<typename SetupParam>
 struct CustomScaleConvolutionSetupParam : public Cost {
     struct ScalingParam {
+        ScalingParam(int countCoeffs, int submissionPeriod, SetupParam setupParam)
+        : countCoeffs(countCoeffs)
+        , submissionPeriod(submissionPeriod)
+        , setupParam(setupParam)
+        {}
+        
         int countCoeffs;
+        int submissionPeriod;
         SetupParam setupParam;
     };
 
@@ -21,8 +28,8 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         return std::min_element(scalingParams.begin(),
                                 scalingParams.end(),
                                 [](auto const & p1, auto const & p2) {
-            return p1.setupParam.getImpliedLatency() < p2.setupParam.getImpliedLatency();
-        })->setupParam.getImpliedLatency();
+            return p1.submissionPeriod < p2.submissionPeriod;
+        })->submissionPeriod - 1;
     }
     
     void logSubReport(std::ostream & os) const override {
@@ -530,10 +537,6 @@ public:
         while(getComputeProgresses()[0] != p) {
             step(0);
         }
-    }
-    
-    int countCoefficients() const {
-        return std::accumulate(v.begin(), v.end(), 0, [](auto const & p) { return p.second.countCoefficients(); });
     }
     
     int getBiggestScale() const {

@@ -95,9 +95,43 @@ struct StateCustomScaleConvolution {
     std::vector<A> v;
 };
 
+template<typename SetupParam>
+struct AlgoCustomScaleConvolutionSetupParam : public Cost {
+    struct ScalingParam {
+        ScalingParam(int countCoeffs, SetupParam setupParam)
+        : countCoeffs(countCoeffs)
+        , setupParam(setupParam)
+        {}
+        
+        int countCoeffs;
+        SetupParam setupParam;
+    };
+
+    AlgoCustomScaleConvolutionSetupParam(std::vector<ScalingParam> const & scalingParams)
+    : scalingParams(scalingParams)
+    {}
+    
+    std::vector<ScalingParam> scalingParams;
+    
+    int getImpliedLatency() const {
+        if(scalingParams.empty()) {
+            return 0;
+        }
+        return std::min_element(scalingParams.begin(),
+                                scalingParams.end(),
+                                [](auto const & p1, auto const & p2) {
+            return p1.setupParam.getImpliedLatency() < p2.setupParam.getImpliedLatency();
+        })->setupParam.getImpliedLatency();
+    }
+    
+    void logSubReport(std::ostream & os) const override {
+        os << "Custom scaling" << std::endl;
+    }
+};
+
 template<typename A>
 struct AlgoCustomScaleConvolution {
-    using SetupParam = CustomScaleConvolutionSetupParam<typename A::SetupParam>;
+    using SetupParam = AlgoCustomScaleConvolutionSetupParam<typename A::SetupParam>;
 
     using FPT = typename A::FPT;
     using Tag = typename A::Tag;

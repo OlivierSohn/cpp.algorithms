@@ -8,15 +8,16 @@ struct DescFIRFilter {
     static constexpr bool step_can_error = false;
 };
 
-template<typename T, typename Tag>
+template<typename T, typename FFTTag>
 struct AlgoFIRFilter;
 
-template<typename T, typename Tag>
+template<typename T, typename FFTTag>
 struct StateFIRFilter {
-    
+    using Algo = AlgoFIRFilter<T, FFTTag>;
     using Desc = DescFIRFilter;
+    
     using FPT = T;
-    using Algo = AlgoFIRFilter<T, Tag>;
+    using Tag = FFTTag;
 
     MinSizeRequirement setCoefficients(Algo const & algo,
                                        a64::vector<T> v) {
@@ -67,6 +68,12 @@ struct AlgoFIRFilter {
     struct SetupParam : public Cost {
         void logSubReport(std::ostream & os) const override {
             os << "Brute" << std::endl;
+        }
+        bool isValid() const {
+            return true;
+        }
+        int getLatency() const {
+            return 0;
         }
     };
     

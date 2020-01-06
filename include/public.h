@@ -209,6 +209,7 @@ extern "C"
 
 #include "dsp2.hpp"
 #include "dsp2.filter.fir.hpp"
+#include "dsp2.convolution.async.hpp"
 #include "dsp2.convolution.hpp"
 #include "dsp2.convolution.finegrained.hpp"
 #include "dsp2.convolution.split.hpp"

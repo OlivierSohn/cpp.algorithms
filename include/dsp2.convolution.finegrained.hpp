@@ -35,7 +35,7 @@ template <typename Parent>
 struct StateFinegrainedFFTConvolutionBase : public Parent {
     using T = typename Parent::FPT;
     using FPT = T;
-    using Tag = typename Parent::FFTTag;
+    using Tag = typename Parent::Tag;
     using Desc = DescFinegrainedFFTConvolutionBase;
     using Algo = AlgoFinegrainedFFTConvolutionBase<typename Parent::Algo>;
     
@@ -86,7 +86,7 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
     
     using T = typename Parent::FPT;
     using FPT = T;
-    using Tag = typename Parent::FFTTag;
+    using Tag = typename Parent::Tag;
     using Desc = DescFinegrainedFFTConvolutionBase;
     
     static constexpr auto add_assign = fft::RealSignal_<Tag, FPT>::add_assign;
@@ -227,15 +227,15 @@ private:
  */
 
 
-template <typename T, typename Tag>
+template <typename T, typename FFTTag>
 struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP;
 
-template <typename T, typename Tag>
+template <typename T, typename FFTTag>
 struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
-    using Algo = AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>;
+    using Algo = AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>;
     
     using FPT = T;
-    using FFTTag = Tag;
+    using Tag = FFTTag;
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
@@ -327,12 +327,12 @@ public:
 };
 
 
-template <typename T, typename Tag>
+template <typename T, typename FFTTag>
 struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
-    using State = StateFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>;
+    using State = StateFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>;
     
     using FPT = T;
-    using FFTTag = Tag;
+    using Tag = FFTTag;
 
     using SetupParam = FinegrainedSetupParam2;
 

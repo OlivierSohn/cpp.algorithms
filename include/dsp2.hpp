@@ -87,10 +87,10 @@ struct XAndFFTS {
                 zero_n_raw(&x[padding], countPadding);
                 padding = xEnd;
             }
-            auto & oldest_fft_of_delayed_x = *f.ffts.cycleEnd();
+            auto & oldest_fft_of_delayed_x = f.oldestFft();
             Assert(f.fft_length == static_cast<int>(oldest_fft_of_delayed_x.size()));
             f.fft.forward(x.begin() + xStart, oldest_fft_of_delayed_x, f.fft_length);
-            f.ffts.advance();
+            f.advance();
         }
     }
     
@@ -103,10 +103,10 @@ struct XAndFFTS {
     uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^n, the nth bit is set
     uint32_t fftsHalfSizesBitsToCompute = 0;
     
-    using FBins = typename fft::RealFBins_<Tag, T>::type;
     struct FFTs {
         using Contexts = fft::Contexts_<Tag, T>;
         using FFTAlgo = typename fft::Algo_<Tag, T>;
+        using FBins = typename fft::RealFBins_<Tag, T>::type;
 
         FFTs(int fft_length, int history_sz)
         : fft(Contexts::getInstance().getBySize(fft_length))
@@ -119,6 +119,23 @@ struct XAndFFTS {
         FFTAlgo fft;
         
         int fft_length;
+        
+        auto & oldestFft() {
+            return *ffts.cycleEnd();
+        }
+        void advance() {
+            ffts.advance();
+        }
+        auto const & get_backward(int age) const {
+            return ffts.get_backward(age);
+        }
+        
+        // This method will need to be replaced by rawindex-based iteration to support the async worker case.
+        template<typename F>
+        void for_some_bkwd(int count, F f) const {
+            ffts.for_some_bkwd(count, f);
+        }
+    private:
         cyclic<FBins> ffts;
     };
     

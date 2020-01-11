@@ -172,6 +172,23 @@ namespace imajuscule
             std::for_each(start, rend(), f);
             std::for_each(rbegin(), start, f);
         }
+        template<typename F>
+        int for_some_bkwd(int n, F f) const {
+            auto start = std::reverse_iterator<const_iterator>(cycleEnd());
+            for(auto i = start, end = rend();
+                i != end && n > 0;
+                ++i, --n)
+            {
+                f(*i);
+            }
+            for(auto i = rbegin();
+                i != start && n > 0;
+                ++i, --n)
+            {
+                f(*i);
+            }
+            return n;
+        }
 
         // width == 0 : only on current
         template<typename F>

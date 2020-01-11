@@ -120,5 +120,63 @@ TEST(Cyclic, reverse_iterator)
             });
             ASSERT_EQ(1, count);
         }
+    }    
+    {
+        cyclic<int> c(2);
+        c.feed(3);
+        c.feed(3);
+
+        {
+            int count = 0;
+            c.for_each_bkwd([&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(2, count);
+        }
+        {
+            int count = 0;
+            c.for_each([&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(2, count);
+        }
+        {
+            int count = 0;
+            int n = c.for_some_bkwd(0, [&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(0, count);
+            ASSERT_EQ(0, n);
+        }
+        {
+            int count = 0;
+            int n = c.for_some_bkwd(1, [&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(1, count);
+            ASSERT_EQ(0, n);
+        }
+        {
+            int count = 0;
+            int n = c.for_some_bkwd(2, [&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(2, count);
+            ASSERT_EQ(0, n);
+        }
+        {
+            int count = 0;
+            int n = c.for_some_bkwd(3, [&count](auto val){
+                ++count;
+                ASSERT_EQ(3, val);
+            });
+            ASSERT_EQ(2, count);
+            ASSERT_EQ(1, n);
+        }
     }
 }

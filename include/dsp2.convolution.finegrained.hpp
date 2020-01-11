@@ -420,7 +420,7 @@ protected:
         {
             assert(it_fft_of_partitionned_h < s.ffts_of_partitionned_h.end());
             
-            auto const & fft_of_delayed_x = ffts.ffts.get_backward(offset);
+            auto const & fft_of_delayed_x = ffts.get_backward(offset);
             
             if(offset == 0) {
                 multiply(work                /*   =   */,

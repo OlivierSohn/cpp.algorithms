@@ -254,7 +254,7 @@ protected:
     auto const & compute_convolution(State & s,
                                      typename XAndFFTS<T, Tag>::FFTs const & ffts) const
     {
-        auto const & fft_of_x = ffts.ffts.get_backward(0);
+        auto const & fft_of_x = ffts.get_backward(0);
         
         multiply(work, fft_of_x, s.fft_of_h);
         
@@ -406,11 +406,8 @@ protected:
         
         struct F {
             void operator()(CplxFreqs const & fft_of_delayed_x) {
-                if(index == ffts_of_partitionned_h.size()) {
-                    return;
-                }
                 auto const & fft_of_partitionned_h = ffts_of_partitionned_h[index];
-                if(index == 0) {
+                if(0 == index) {
                     multiply(work /* = */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
                 }
                 else {
@@ -423,7 +420,7 @@ protected:
             CplxFreqs & work;
         } f{index, s.ffts_of_partitionned_h, work};
         
-        ffts.ffts.for_each_bkwd(f);
+        ffts.for_some_bkwd(s.ffts_of_partitionned_h.size(), f);
         
         return work;
     }

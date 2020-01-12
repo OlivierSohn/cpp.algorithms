@@ -13,31 +13,31 @@ struct DescAsyncCPUConvolution
     static int const getMinFftRingbufferSize(int const queue_size,
                                              int const submission_period,
                                              int const fft_length) {
-        // A ring buffer contains ffts:
-        // - The synchronous thread writes and reads the buffer
+        // Ffts are stored in a ring buffer:
+        // - The  synchronous thread writes and reads the buffer
         // - The asynchronous thread reads the buffer
         //
         // Since there is no locking mechanism (to avoid priority inversions) between synchronous and asynchronous threads,
-        // the ring buffer needs to be big enough to ensure that "in the worst case",
+        // the ring buffer needs to be big enough to ensure that "in the worst case" (see below),
         // the ffts read by the asynchronous worker have not yet been overwritten.
         //
         // The worst case is when:
-        // - async worker has popped buffer 'W' from rt_2_worker
-        // - rt_2_worker queue is full (it contains buffers 'W+1' to 'W+queue_size', included)
-        // - the synchronous thread has already computed ffts corresponding to the buffer 'W+queue_size+1'
+        // - async worker has popped buffer 'W' from rt_2_worker queue,
+        // - rt_2_worker queue is full (it contains buffers 'W+1' to 'W+queue_size', included), and
+        // - the synchronous thread has already computed ffts corresponding to buffer 'W+queue_size+1'
         //
-        // The ring buffer then needs to be big enough to hold each fft fo length fft_length generated for
-        //   'S = (queue_size+2)*submission_period' consecutive samples, i.e:
-        //   minRingSize = 1 + (S-1) / fft_compute_period
-        //  with fft_compute_period = fft_length/2
+        // Hence, the minimum ring buffer size is the maximum number of ffts of length fft_length generated for
+        //  'S = (queue_size+2)*submission_period' consecutive samples:
+        //  minRingSize = 1 + (S-1) / fft_compute_period
+        //  (where fft_compute_period = fft_length/2)
         
         Assert(is_power_of_two(fft_length));
         
         int const fft_compute_period = fft_length/2;
         
-        Assert(fft_compute_period > 0);
-        
         int const S = (queue_size+2) * submission_period;
+        
+        Assert(fft_compute_period > 0);
         
         int const minRingSize = 1 + (S-1) / fft_compute_period;
         

@@ -1,12 +1,50 @@
+namespace imajuscule {
+
 template <typename Async>
 struct DescAsyncCPUConvolution
 {
     static constexpr int nCoefficientsFadeIn = Async::nCoefficientsFadeIn;
     static constexpr bool has_subsampling = Async::has_subsampling;
     static constexpr bool step_can_error = true;
+    
+    /*
+     Will be usefull if, in the future, ffts are shared between synchronous and asynchronous parts.
+     */
+    static int const getMinFftRingbufferSize(int const queue_size,
+                                             int const submission_period,
+                                             int const fft_length) {
+        // A ring buffer contains ffts:
+        // - The synchronous thread writes and reads the buffer
+        // - The asynchronous thread reads the buffer
+        //
+        // Since there is no locking mechanism (to avoid priority inversions) between synchronous and asynchronous threads,
+        // the ring buffer needs to be big enough to ensure that "in the worst case",
+        // the ffts read by the asynchronous worker have not yet been overwritten.
+        //
+        // The worst case is when:
+        // - async worker has popped buffer 'W' from rt_2_worker
+        // - rt_2_worker queue is full (it contains buffers 'W+1' to 'W+queue_size', included)
+        // - the synchronous thread has already computed ffts corresponding to the buffer 'W+queue_size+1'
+        //
+        // The ring buffer then needs to be big enough to hold each fft fo length fft_length generated for
+        //   'S = (queue_size+2)*submission_period' consecutive samples, i.e:
+        //   minRingSize = 1 + (S-1) / fft_compute_period
+        //  with fft_compute_period = fft_length/2
+        
+        Assert(is_power_of_two(fft_length));
+        
+        int const fft_compute_period = fft_length/2;
+        
+        Assert(fft_compute_period > 0);
+        
+        int const S = (queue_size+2) * submission_period;
+        
+        int const minRingSize = 1 + (S-1) / fft_compute_period;
+        
+        return minRingSize;
+    }
 };
 
-namespace imajuscule {
 template <typename Async, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 struct AlgoAsyncCPUConvolution;
 
@@ -88,6 +126,7 @@ struct StateAsyncCPUConvolution {
         // Note that the blocking could also occur ** before **, when writing to rt_2_worker
         // if a sentinel has been written to rt_2_worker just before.
         //
+        // (depending on PolicyOnWorkerTooSlow)
         // the situation will unblock when the worker reads from rt_2_worker:
         // #rt_2_worker queueSize - queue_room_sz
         // #worker_2_rt 0

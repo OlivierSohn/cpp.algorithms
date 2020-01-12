@@ -1031,7 +1031,7 @@ namespace imajuscule
                                                                                    n_audio_frames_per_cb,
                                                                                    n_coeffs_for_partition_sz,
                                                                                    min_lg2_partition_sz,
-                                                                                   spec.cost,
+                                                                                   spec.optimal_setup,
                                                                                    os);
       }
 
@@ -1044,7 +1044,7 @@ namespace imajuscule
                                                                                    n_audio_frames_per_cb,
                                                                                    n_coeffs_for_partition_sz,
                                                                                    min_lg2_partition_sz,
-                                                                                   spec.cost,
+                                                                                   spec.optimal_setup,
                                                                                    os);
       }
 

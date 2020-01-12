@@ -360,14 +360,14 @@ static inline std::string toJustifiedString(ReverbType t) {
                                                                      args...).getWithSpread();
           indent.reset();
           
-          if(!partitionning.cost) {
+          if(!partitionning.optimal_setup) {
               std::stringstream ss;
               ss << "could not optimize (2) :" << std::endl << os.rdbuf();
               throw std::runtime_error(ss.str());
           }
           
           auto buffers = deinterlaced.getBuffers();
-          auto const & param = handleScales(partitionning.cost.value(),
+          auto const & param = handleScales(*partitionning.optimal_setup,
                                             buffers,
                                             structure);
           
@@ -497,7 +497,7 @@ static inline std::string toJustifiedString(ReverbType t) {
           assert(imajuscule::countScales(rev) == n_scales);
           while(!scalesAreValid(n_scales, rev)) {
             rev.reset();
-            prepare(*spec.cost, rev, n_scales, scale_sz);
+            prepare(*spec.optimal_setup, rev, n_scales, scale_sz);
             rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
           }*/
           // to "spread" the computations of each channel's convolution reverbs

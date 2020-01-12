@@ -9,19 +9,19 @@ struct PartitionAlgo;
 template<typename SetupParam>
 struct PartitionningSpec
 {    
-    Optional<SetupParam> cost; // todo rename 'optimal_setup'
-  float getCost() const { return cost ? cost->getCost() : std::numeric_limits<float>::max(); }
+    Optional<SetupParam> optimal_setup;
+    float getCost() const { return optimal_setup ? optimal_setup->getCost() : std::numeric_limits<float>::max(); }
     GradientDescent<SetupParam> gd;
-
+    
     void logReport(int n_channels,
                    double theoretical_max_avg_time_per_frame,
                    std::ostream & os)
     {
         using namespace std;
-        if(cost) {
-            cost->logReport(n_channels,
-                            theoretical_max_avg_time_per_frame,
-                            os);
+        if(optimal_setup) {
+            optimal_setup->logReport(n_channels,
+                                     theoretical_max_avg_time_per_frame,
+                                     os);
         }
         
         constexpr auto debug_gradient_descent = false;
@@ -36,18 +36,18 @@ struct PartitionningSpec
 template<typename SetupParam>
 struct PartitionningSpec2
 {
-    Optional<SetupParam> cost; // todo rename 'optimal_setup'
-    float getCost() const { return cost ? cost->getCost() : std::numeric_limits<float>::max(); }
+    Optional<SetupParam> optimal_setup;
+    float getCost() const { return optimal_setup ? optimal_setup->getCost() : std::numeric_limits<float>::max(); }
   
     void logReport(int n_channels,
                    double theoretical_max_avg_time_per_frame,
                    std::ostream & os)
     {
         using namespace std;
-        if(cost) {
-            cost->logReport(n_channels,
-                            theoretical_max_avg_time_per_frame,
-                            os);
+        if(optimal_setup) {
+            optimal_setup->logReport(n_channels,
+                                     theoretical_max_avg_time_per_frame,
+                                     os);
         }
     }
 };
@@ -60,8 +60,8 @@ struct PartitionningSpecs {
     using PS = PartitionningSpec<SetupParam>;
 
     PS & getWithSpread() {
-      if(with_spread.cost) {
-        if(without_spread.cost) {
+      if(with_spread.optimal_setup) {
+        if(without_spread.optimal_setup) {
           return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
         }
         return with_spread;
@@ -78,20 +78,21 @@ struct PartitionningSpecs2 {
 
     std::optional<float> getCost() const {
         std::optional<float> c;
-        if(with_spread.cost) {
-            c = with_spread.cost->getCost();
+        if(with_spread.optimal_setup) {
+            c = with_spread.optimal_setup->getCost();
         }
-        if(without_spread.cost) {
-            auto c2 = with_spread.cost->getCost();
+        if(without_spread.optimal_setup) {
+            auto c2 = with_spread.optimal_setup->getCost();
             if(!c || *c < c2) {
                 c = c2;
             }
         }
         return c;
     }
+
     PS & getWithSpread() {
-      if(with_spread.cost) {
-        if(without_spread.cost) {
+      if(with_spread.optimal_setup) {
+        if(without_spread.optimal_setup) {
           return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
         }
         return with_spread;

@@ -10,7 +10,6 @@ template<typename SetupParam>
 struct PartitionningSpec
 {    
     Optional<SetupParam> optimal_setup;
-    float getCost() const { return optimal_setup ? optimal_setup->getCost() : std::numeric_limits<float>::max(); }
     GradientDescent<SetupParam> gd;
     
     void logReport(int n_channels,
@@ -23,7 +22,7 @@ struct PartitionningSpec
                                      theoretical_max_avg_time_per_frame,
                                      os);
         }
-        
+
         constexpr auto debug_gradient_descent = false;
         if constexpr (debug_gradient_descent) {
             os << "Gradient descent report :" << endl;
@@ -36,7 +35,6 @@ template<typename SetupParam>
 struct PartitionningSpec2
 {
     Optional<SetupParam> optimal_setup;
-    float getCost() const { return optimal_setup ? optimal_setup->getCost() : std::numeric_limits<float>::max(); }
   
     void logReport(int n_channels,
                    double theoretical_max_avg_time_per_frame,

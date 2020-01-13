@@ -205,7 +205,7 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
                       {},
                       *pSpecsLate.optimal_setup
                   };
-                  ps.optimal_setup->setCost(pSpecsLate.getCost());
+                  ps.optimal_setup->setCost(pSpecsLate.optimal_setup->getCost());
               }
               return ps;
           }
@@ -841,8 +841,8 @@ int computeQueueSize(F nextProcessingDuration,
                         *pSpecsEarly.optimal_setup,
                         *pSpecsLate.optimal_setup
                     };
-                    ps.optimal_setup->setCost(pSpecsEarly.getCost() +
-                                              pSpecsLate.getCost());
+                    ps.optimal_setup->setCost(pSpecsEarly.optimal_setup->getCost() +
+                                              pSpecsLate.optimal_setup->getCost());
                 }
             }
             return ps;
@@ -918,7 +918,8 @@ int computeQueueSize(F nextProcessingDuration,
                     *pSpecsEarly.optimal_setup,
                     *pSpecsLate.optimal_setup
                   };
-                  ps.optimal_setup->setCost(pSpecsEarly.getCost() + pSpecsLate.getCost());
+                  ps.optimal_setup->setCost(pSpecsEarly.optimal_setup->getCost() +
+                                            pSpecsLate.optimal_setup->getCost());
               }
           }
         return ps;
@@ -1268,7 +1269,7 @@ namespace SameSizeScales {
           continue;
         }
         
-        if(!res || (res->optimal_setup && (res->optimal_setup->getCost() > part.getCost()))) {
+        if(!res || (res->optimal_setup && (res->optimal_setup->getCost() > part.optimal_setup->getCost()))) {
           res = {part};
         }
 

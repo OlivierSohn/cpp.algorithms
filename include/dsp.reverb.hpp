@@ -36,19 +36,7 @@ void dephase(int const total_instances,
     
     if constexpr(C::has_subsampling) {
         auto & lateHandler = rev.getB();
-        int n_scales = 0;
-        if(ps.bParams.aParams.partition_size) {
-            n_scales = 1;
-            if(ps.bParams.bParams.innerParams.aParams.partition_size) {
-                n_scales = 2;
-                if(ps.bParams.bParams.innerParams.bParams.innerParams.aParams.partition_size) {
-                    n_scales = 3;
-                    if(ps.bParams.bParams.innerParams.bParams.innerParams.bParams.innerParams.partition_size) {
-                        n_scales = 4;
-                    }
-                }
-            }
-        }
+        int n_scales = count_scales(ps);
         for(int i=1; i<n_scales; ++i) {
             // the top-most will be stepped 'base_phase' times,
             // then each scale after that will be stepped by a quarter grain size.

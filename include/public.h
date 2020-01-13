@@ -214,6 +214,7 @@ extern "C"
 #include "dsp2.convolution.finegrained.hpp"
 #include "dsp2.convolution.split.hpp"
 #include "dsp2.convolution.scale.custom.hpp"
+#include "dsp2.convolution.combine.hpp"
 
 #include "dsp.impulseresponse.hpp"
 #include "dsp.spatialize.hpp"

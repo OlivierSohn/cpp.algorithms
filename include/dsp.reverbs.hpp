@@ -364,25 +364,23 @@ static inline std::string toJustifiedString(ReverbType t) {
               ss << "could not optimize (2) :" << std::endl << os.rdbuf();
               throw std::runtime_error(ss.str());
           }
-          
+          // buffers are copied here:
           auto buffers = deinterlaced.getBuffers();
-          auto const & param = handleScales(*partitionning,
-                                            buffers,
-                                            structure);
+          structure = handleScales(*partitionning,
+                                   buffers);
           
           partitionning->logReport(deinterlaced.countChannels(),
                                    theoretical_max_ns_per_frame,
                                    os);
 
           setCoefficients(n_sources,
-                          param,
+                          *partitionning,
                           buffers);
           
-          os << "Reports:" << std::endl;
+          os << "Reports:" << std::endl;
           IndentingOStreambuf i(os);
           
           logReport(sampleRate, os);
-          
       }
       
     bool hasSpatializer() const { return !spatializer.empty(); }
@@ -402,12 +400,10 @@ static inline std::string toJustifiedString(ReverbType t) {
     int total_response_size = 0;
     int total_response_size_padded = 0;
 
-      template<typename U>
-      SetupParam const & handleScales(U const & spec,
-                           std::vector<a64::vector<double>> & deinterlaced_coeffs,
-                           ResponseStructure & structure) {
+      ResponseStructure handleScales(SetupParam const & spec,
+                                     std::vector<a64::vector<double>> & deinterlaced_coeffs) {
         using namespace std;
-          
+        ResponseStructure structure;
           
           total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
           for(auto const & v:deinterlaced_coeffs) {
@@ -416,22 +412,22 @@ static inline std::string toJustifiedString(ReverbType t) {
               }
           }
 
-          SetupParam const * p = nullptr;
           if constexpr (ConvolutionReverb::has_subsampling) {
-              assert(spec.n_scales >= 1);
-              int lateHandlerFirstScalePartitionSize = spec.val.bParams.aParams.partition_size;
+              int const n_scales = count_scales(spec);
+              assert(n_scales >= 1);
+              int lateHandlerFirstScalePartitionSize = spec.bParams.aParams.partition_size;
               int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
                                                           lateHandlerLatency<ConvolutionReverb>(lateHandlerFirstScalePartitionSize));
               int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
-              int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, spec.n_scales);
+              int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
 
                 structure.scaleSize = scale_sz;
-                structure.countScales = spec.n_scales;
+                structure.countScales = n_scales;
                 structure.nEarlyCofficients = n_coeffs_early_handler;
 
-                if(spec.n_scales > 1) {
+                if(n_scales > 1) {
                     // pad the coefficients so that all scales have the same rythm.
-                    int const target_late_response_sz = SameSizeScales::get_max_response_sz(spec.n_scales, scale_sz);
+                    int const target_late_response_sz = SameSizeScales::get_max_response_sz(n_scales, scale_sz);
                     
                     total_response_size_padded = n_coeffs_early_handler + target_late_response_sz;
                 }
@@ -442,22 +438,15 @@ static inline std::string toJustifiedString(ReverbType t) {
                 for(auto & v : deinterlaced_coeffs) {
                     v.resize(total_response_size_padded);
                 }
-              
-              static_assert(std::is_same_v<U, WithNScales<SetupParam>>);
-              p = &spec.val;
           }
           else {
               structure.scaleSize = 0;
               structure.countScales = 1;
               total_response_size_padded = total_response_size;
               structure.nEarlyCofficients = total_response_size_padded;
-              
-              static_assert(std::is_same_v<U, SetupParam>);
-              p = &spec;
           }
           structure.totalSizePadded = total_response_size_padded;
-          
-          return *p;
+          return structure;
       }
       
     void setCoefficients(int const n_sources,

@@ -1118,6 +1118,25 @@ namespace SameSizeScales {
           }
         };
       }
+              
+      template<typename SetupParam>
+      int count_scales(SetupParam const & p) {
+          int n_scales = 0;
+          if(p.bParams.aParams.isActive()) {
+              n_scales = 1;
+              if(p.bParams.bParams.innerParams.aParams.isActive()) {
+                  n_scales = 2;
+                  if(p.bParams.bParams.innerParams.bParams.innerParams.aParams.isActive()) {
+                      n_scales = 3;
+                      if(p.bParams.bParams.innerParams.bParams.innerParams.bParams.innerParams.isActive()) {
+                          n_scales = 4;
+                      }
+                  }
+              }
+          }
+          return n_scales;
+      }
+              
 
       
   template<typename T, typename FFTTag>
@@ -1206,28 +1225,6 @@ namespace SameSizeScales {
       return ps;
     }
   };
-  
-      template<typename T>
-      struct WithNScales {
-        T val;
-        int n_scales;
-      
-        auto getCost() const { return val.getCost(); }
-      
-      void logReport(int n_channels,
-                     double theoretical_max_avg_time_per_frame,
-                     std::ostream & os) {
-          val.logReport(n_channels, theoretical_max_avg_time_per_frame, os);
-          os << "- using ";
-          // TODO range of subsampling regions: highest quality region: xxx samples / 2-subsampled region : xxx samples / 4-subsampled
-          if(n_scales <= 1) {
-            os << "full tail resolution";
-          }
-          else {
-            os << "reduced tail resolution with " << n_scales - 1 << " subsampling regions";
-          }
-      }
-      };
       
       template<typename T, typename FFTTag>
       struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag> > {
@@ -1237,10 +1234,9 @@ namespace SameSizeScales {
         using EarlyHandler = typename NonAtomicConvolution::EarlyHandler;
         using LateHandler = typename EarlyestDeepest<typename NonAtomicConvolution::LateHandler>::type;
       public:
-        using SetupParam = WithNScales<typename NonAtomicConvolution::SetupParam>;
+        using SetupParam = typename NonAtomicConvolution::SetupParam;
         using PS = std::optional<SetupParam>;
 
-      // il faudrait que a chaque fois ca renvoie PartitionningSpecs<NonAtomicConvolution::SetupParam> pour bien generaliser
         static PS run(int const n_response_channels,
                       int const n_audio_channels,
                       int const n_audio_frames_per_cb,
@@ -1314,14 +1310,11 @@ namespace SameSizeScales {
             PS o;
             auto earlyRes = getEarlyHandlerParams(total_response_size);
             if(earlyRes) {
-              o = {
-                mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
-                                                    FinegrainedSetupParam::makeInactive(),
-                                                    1,
-                                                    0),
-                n_scales
-              };
-              o->val.setCost(earlyRes->getCost());
+              o = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
+                                                      FinegrainedSetupParam::makeInactive(),
+                                                      1,
+                                                      0);
+              o->setCost(earlyRes->getCost());
             }
             return {{o}};
           }
@@ -1368,16 +1361,13 @@ namespace SameSizeScales {
               auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
                                                     LateHandler::getLatencyForPartitionSize(lateRes->partition_size));
               if(earlyRes) {
-                  SetupParam withSpread = {
-                      mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
-                                                          *lateRes,
-                                                          n_scales,
-                                                          mayScaleSz.value()),
-                      n_scales
-                  };
-                  withSpread.val.setCost(earlyRes->getCost() +
-                                         lateRes->getCost());
-                  return {withSpread};
+                  SetupParam ps = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
+                                                                      *lateRes,
+                                                                      n_scales,
+                                                                      *mayScaleSz);
+                  ps.setCost(earlyRes->getCost() +
+                             lateRes->getCost());
+                  return ps;
               }
             }
             else {

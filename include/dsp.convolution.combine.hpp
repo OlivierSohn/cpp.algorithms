@@ -1119,11 +1119,11 @@ namespace SameSizeScales {
         };
       }
               
+      // TODO make more generic
       template<typename SetupParam>
       int count_scales(SetupParam const & p) {
-          int n_scales = 0;
+          int n_scales = 1;
           if(p.bParams.aParams.isActive()) {
-              n_scales = 1;
               if(p.bParams.bParams.innerParams.aParams.isActive()) {
                   n_scales = 2;
                   if(p.bParams.bParams.innerParams.bParams.innerParams.aParams.isActive()) {
@@ -1401,21 +1401,4 @@ namespace SameSizeScales {
   
   template<typename T, AudioProcessing P>
   using ZeroLatencyFilter = typename detail::OptimalFilter_<T,P>::type;
- 
-
-  template<typename Algo>
-  void debugSteps(Algo & c, int nMax=20) {
-    using namespace std;
-
-    cout << "--" << endl;
-
-    auto v = c.debugStep(1);
-    int k = 0;
-    cout << to_string(k) << " : " << to_string(v.first)<< " " << to_string(v.second) << endl;
-    ++k;
-    for(; k<nMax; ++k) {
-      v = c.debugStep(0);
-      cout << to_string(k) << " : " << to_string(v.first)<< " " << to_string(v.second) << endl;
-    }
-  }
 }

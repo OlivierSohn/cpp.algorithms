@@ -144,7 +144,7 @@ static inline std::string toJustifiedString(ReverbType t) {
       
     using ConvolutionReverb =
       std::conditional_t< reverbType==ReverbType::Offline,
-        OptimizedFIRFilter<double, Tag>,
+        AlgoOptimizedFIRFilter<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
         ZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Tag>,

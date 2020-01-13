@@ -77,10 +77,12 @@ std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
 std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
 
 template<typename T, typename FFTTag>
-auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partitionSize) {
+auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partitionSize, int nLateCoeffs) {
   using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
   using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
-  
+    
+  int const n_partitions = countPartitions(nLateCoeffs, partitionSize);
+
   auto scalingParams = scalingsToParams<ScalingParam>(v);
   auto c = C{};
   c.setup(typename C::SetupParam
@@ -92,18 +94,19 @@ auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partiti
     {
       FinegrainedSetupParam{
           partitionSize, // partition size
+          n_partitions,
           partitionSize*1000, // multiplication group size
           0 // phase
       },
       {
         0,
-        {FinegrainedSetupParam{0,1,0},
+        {FinegrainedSetupParam{0,0,1,0},
           {
             0,
-            {FinegrainedSetupParam{0,1,0},
+            {FinegrainedSetupParam{0,0,1,0},
               {
                 0,
-                FinegrainedSetupParam{0,1,0}
+                FinegrainedSetupParam{0,0,1,0}
               }}
           }}
       }
@@ -115,10 +118,12 @@ auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partiti
 
 
 template<typename T, typename FFTTag>
-auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
+auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize, int nLateCoeffs) {
   using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>;
   using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
-  
+
+  int const n_partitions = countPartitions(nLateCoeffs, partitionSize);
+
   auto scalingParams = scalingsToParams<ScalingParam>(v);
   auto c = C{};
   c.setup(typename C::SetupParam
@@ -129,6 +134,7 @@ auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize) {
     },
       FinegrainedSetupParam{
           partitionSize, // partition size
+          n_partitions,
           partitionSize*1000, // multiplication group size
           0 // phase
       }
@@ -161,15 +167,13 @@ auto mkRealTimeConvolution2(std::vector<Scaling> const & v,
         {},
         {scalingParams}
     },
-      FinegrainedSetupParam2{
+      FinegrainedSetupParam {
           partitionSize, // partition size
           partitionCount,
           partitionSize*1000, // multiplication group size
           0 // phase
       }
-    
-  }
-             );
+  });
   return c;
 }
 }

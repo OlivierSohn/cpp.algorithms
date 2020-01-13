@@ -256,6 +256,9 @@ struct DspContext {
 /* Used to simplify tests */
 template<typename Algo, typename Tag = typename Algo::Tag>
 struct Convolution {
+    static constexpr bool step_can_error = Algo::Desc::step_can_error;
+    static constexpr bool has_subsampling = Algo::Desc::has_subsampling;
+    
     using State = typename Algo::State;
     using FPT = typename Algo::FPT;
     using DspContext = DspContext<FPT, Tag>;
@@ -282,8 +285,14 @@ struct Convolution {
     bool isValid() const {
         return algo.isValid();
     }
+    bool isZero() const {
+        return state.isZero();
+    }
     double getEpsilon() const {
         return state.getEpsilon(algo);
+    }
+    void logComputeState(std::ostream & os) const {
+        return state.logComputeState(algo, os);
     }
     int getLatency() const {
         return algo.getLatency();
@@ -299,6 +308,34 @@ struct Convolution {
         FPT res = fft::RealSignal_<Tag, FPT>::get_signal(ctxt.y.y[ctxt.y.uProgress]);
         ctxt.y.increment();
         return res;
+    }
+    
+    
+    template<typename FPT2>
+    void stepAssignVectorized(FPT2 const * const input_buffer,
+                              FPT2 * output_buffer,
+                              int nSamples)
+    {
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] = step(input_buffer[i]);
+        }
+    }
+    template<typename FPT2>
+    void stepAddVectorized(FPT2 const * const input_buffer,
+                           FPT2 * output_buffer,
+                           int nSamples)
+    {
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] += step(input_buffer[i]);
+        }
+    }
+    template<typename FPT2>
+    void stepAddInputZeroVectorized(FPT2 * output_buffer,
+                                    int nSamples)
+    {
+        for(int i=0; i<nSamples; ++i) {
+            output_buffer[i] += step({});
+        }
     }
     
     auto & getAlgo() {

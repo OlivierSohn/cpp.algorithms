@@ -212,6 +212,7 @@
 		0979762320EF5AD800D586A5 /* dsp.compresser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.compresser.hpp; path = include/dsp.compresser.hpp; sourceTree = "<group>"; };
 		0979762420EF652F00D586A5 /* test_dsp.compress.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.compress.cpp; path = test/test_dsp.compress.cpp; sourceTree = "<group>"; };
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
+		097E14E723CBCD2C00E1D06A /* dsp2.convolution.combine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.combine.hpp; path = include/dsp2.convolution.combine.hpp; sourceTree = "<group>"; };
 		097FB600237D764000D884C1 /* dsp.convolution.optimization.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.optimization.hpp; path = include/dsp.convolution.optimization.hpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
@@ -570,10 +571,6 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				0933120323C2585B00A52817 /* dsp2.convolution.async.hpp */,
-				0933120223C003B000A52817 /* dsp2.convolution.finegrained.hpp */,
-				0933120123BFAB5A00A52817 /* dsp2.convolution.scale.custom.hpp */,
-				0933120023BF67C400A52817 /* dsp2.convolution.split.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
@@ -619,7 +616,12 @@
 				09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */,
 				097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */,
 				09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */,
+				0933120323C2585B00A52817 /* dsp2.convolution.async.hpp */,
+				097E14E723CBCD2C00E1D06A /* dsp2.convolution.combine.hpp */,
+				0933120223C003B000A52817 /* dsp2.convolution.finegrained.hpp */,
 				093311FF23BE477E00A52817 /* dsp2.convolution.hpp */,
+				0933120123BFAB5A00A52817 /* dsp2.convolution.scale.custom.hpp */,
+				0933120023BF67C400A52817 /* dsp2.convolution.split.hpp */,
 				093311FC23BE193B00A52817 /* dsp2.filter.fir.hpp */,
 				093311FE23BE370F00A52817 /* dsp2.hpp */,
 				092C185D23A58056003EAA72 /* either.hpp */,

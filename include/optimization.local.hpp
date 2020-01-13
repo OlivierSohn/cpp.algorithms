@@ -58,7 +58,7 @@ namespace imajuscule
             }
             
             if(min_val) {
-                Assert(*min_val == *min_value);
+                Assert(min_val->getCost() == min_value->getCost());
             }
             return min_param;
         }

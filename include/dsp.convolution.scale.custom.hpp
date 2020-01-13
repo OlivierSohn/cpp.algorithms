@@ -4,14 +4,13 @@ namespace imajuscule {
 template<typename SetupParam>
 struct CustomScaleConvolutionSetupParam : public Cost {
     struct ScalingParam {
-        ScalingParam(int countCoeffs, int submissionPeriod, SetupParam setupParam)
+        ScalingParam(int countCoeffs,
+                     SetupParam setupParam)
         : countCoeffs(countCoeffs)
-        , submissionPeriod(submissionPeriod)
         , setupParam(setupParam)
         {}
         
         int countCoeffs;
-        int submissionPeriod;
         SetupParam setupParam;
     };
 
@@ -25,11 +24,7 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         if(scalingParams.empty()) {
             return 0;
         }
-        return std::min_element(scalingParams.begin(),
-                                scalingParams.end(),
-                                [](auto const & p1, auto const & p2) {
-            return p1.submissionPeriod < p2.submissionPeriod;
-        })->submissionPeriod - 1;
+        return scalingParams.begin()->setupParam.getImpliedLatency();
     }
     
     void logSubReport(std::ostream & os) const override {
@@ -73,8 +68,7 @@ struct CustomScaleConvolutionSimulation {
             v.emplace_back();
             
             v.back().first.countCoeffs = param.countCoeffs;
-            v.back().first.submissionPeriod = param.submissionPeriod;
-            v.back().first.submissionCountdown = param.submissionPeriod-1;
+            v.back().first.submissionCountdown = param.setupParam.getImpliedLatency()-1;
 
             v.back().second.second.setup(param.setupParam);
         }
@@ -335,11 +329,10 @@ struct CustomScaleConvolution {
         for(auto const & param : p.scalingParams) {
             v.emplace_back();
             
-            v.back().first.countCoeffs = param.countCoeffs;
-            v.back().first.submissionPeriod = param.submissionPeriod;
-            v.back().first.submissionCountdown = param.submissionPeriod-1;
-
             v.back().second.setup(param.setupParam);
+
+            v.back().first.countCoeffs = param.countCoeffs;
+            v.back().first.submissionCountdown = param.setupParam.getImpliedLatency()-1;
         }
 
         x_halfSize = getBiggestScale();

@@ -43,7 +43,7 @@ struct StateSplitConvolution {
         auto [rangeA,rangeB] = splitAt(split, coeffs_);
 
         if(rangeB.empty()) {
-            auto res = a.setCoefficients(algo.getA(), rangeA.materialize());
+            auto res = a.setCoefficients(algo.a, rangeA.materialize());
             b.reset();
             assert(b.isZero());
             return res;
@@ -58,8 +58,8 @@ struct StateSplitConvolution {
                B::Desc::nCoefficientsFadeIn);
             throw std::logic_error("cannot cross-fade the coefficients");
         }
-        auto res = a.setCoefficients(algo.getA(), withLinearFadeOut(B::Desc::nCoefficientsFadeIn,rangeA.materialize()));
-        auto resB = b.setCoefficients(algo.getB(), withLinearFadeIn(B::Desc::nCoefficientsFadeIn,rangeB.materialize()));
+        auto res = a.setCoefficients(algo.a, withLinearFadeOut(B::Desc::nCoefficientsFadeIn,rangeA.materialize()));
+        auto resB = b.setCoefficients(algo.b, withLinearFadeIn(B::Desc::nCoefficientsFadeIn,rangeB.materialize()));
         res.mergeWith(resB);
         assert(!b.isZero());
         return res;
@@ -78,15 +78,43 @@ struct StateSplitConvolution {
     }
     
     double getEpsilon(Algo const & algo) const {
-        return a.getEpsilon(algo.getA()) + b.getEpsilon(algo.getB()) + std::numeric_limits<FPT>::epsilon();
+        return a.getEpsilon(algo.a) + b.getEpsilon(algo.b) + std::numeric_limits<FPT>::epsilon();
     }
-    
-    auto & getA() { return a; }
-    auto & getB() { return b; }
-    auto const & getA() const { return a; }
-    auto const & getB() const { return b; }
-    
-private:
+    void logComputeState(Algo const & algo, std::ostream & os) const {
+        os << "[";
+        int const split = algo.computeSplit();
+        if(split==undefinedSplit) {
+            os << "undefined";
+        }
+        else {
+            os << "0..";
+            if(split!=noSplit) {
+                os << split-1;
+            }
+        }
+        os << "]" << std::endl;
+        
+        {
+            IndentingOStreambuf indent{os};
+            a.logComputeState(algo.a, os);
+        }
+        
+        os << "[";
+        if(split==undefinedSplit) {
+            os << "undefined";
+        } else {
+            if(split!=noSplit) {
+                os << split << "..";
+            }
+        }
+        os << "]" << std::endl;
+        
+        {
+            IndentingOStreambuf indent{os};
+            b.logComputeState(algo.b, os);
+        }
+    }
+
     A a;
     B b;
 };
@@ -97,27 +125,13 @@ struct AlgoSplitConvolution {
     using EarlyHandler = A;
     using LateHandler = B;
     using State = StateSplitConvolution<typename A::State, typename B::State>;
+    using Desc = DescSplitConvolution<typename A::Desc, typename B::Desc>;
     
     using Tag = typename A::Tag;
     static_assert(std::is_same_v<typename A::Tag, typename B::Tag>);
 
-    struct SetupParam : public Cost {
-        using AParam = typename EarlyHandler::SetupParam;
-        using BParam = typename LateHandler::SetupParam;
-        AParam aParams;
-        BParam bParams;
-        
-        SetupParam(AParam a, BParam b)
-        : aParams(a)
-        , bParams(b)
-        {}
-        
-        void logSubReport(std::ostream & os) const override {
-            aParams.logSubReport(os);
-            bParams.logSubReport(os);
-        }
-    };
-    
+    using SetupParam = SplitSetupParam<typename EarlyHandler::SetupParam, typename LateHandler::SetupParam>;
+
     static_assert(std::is_same_v<FPT,typename B::FPT>);
     
     void setup(const SetupParam & p) {
@@ -146,20 +160,14 @@ struct AlgoSplitConvolution {
               XAndFFTS<FPT, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
-        a.step(s.getA(),
+        a.step(s.a,
                x_and_ffts,
                y);
-        b.step(s.getB(),
+        b.step(s.b,
                x_and_ffts,
                y);
     }
     
-    auto & getA() { return a; }
-    auto & getB() { return b; }
-    auto const & getA() const { return a; }
-    auto const & getB() const { return b; }
-    
-private:
     A a;
     B b;
 };

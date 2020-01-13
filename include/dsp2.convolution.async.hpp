@@ -407,32 +407,33 @@ struct AlgoAsyncCPUConvolution {
     //   (which is very unlikely, though).
     static constexpr int queue_room_sz = 1;
     
+    using AsyncParams = typename Async::SetupParam;
+
     struct SetupParam : public Cost {
-        using InnerParams = typename Async::SetupParam;
         SetupParam(int inputSubmissionPeriod,
                    int queueSize,
-                   InnerParams const & innerParams)
+                   AsyncParams const & asyncParams)
         : inputSubmissionPeriod(inputSubmissionPeriod)
         , queueSize(queueSize)
-        , innerParams(innerParams)
+        , asyncParams(asyncParams)
         {}
         
         int inputSubmissionPeriod;
         int queueSize;
-        InnerParams innerParams;
+        AsyncParams asyncParams;
         
         int getImpliedLatency() const {
             return
             inputSubmissionPeriod*((queueSize-queue_room_sz) + 1)
             - 1
-            + innerParams.getImpliedLatency();
+            + asyncParams.getImpliedLatency();
         }
         
         void logSubReport(std::ostream & os) const override {
             os << "Async, period : " << inputSubmissionPeriod <<  " size : " << queueSize << std::endl;
             {
                 IndentingOStreambuf i(os);
-                innerParams.logSubReport(os);
+                asyncParams.logSubReport(os);
             }
         }
     };
@@ -440,7 +441,7 @@ struct AlgoAsyncCPUConvolution {
     void setup(SetupParam const & s) {
         N = s.inputSubmissionPeriod;
         queueSize = s.queueSize;
-        asyncParams = s.innerParams;
+        asyncParams = s.asyncParams;
     }
     
     bool isValid() const {
@@ -451,24 +452,21 @@ struct AlgoAsyncCPUConvolution {
         return
         N*((queueSize-queue_room_sz) // we have some levels of asynchronicity
            +1) -1 // we need N inputs before we can submit
-        + asyncParams.getLatency();
+        + asyncParams.getImpliedLatency();
     }
     
     void step(State & s,
               XAndFFTS<FPT, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
-        /*
-         si une nouvelle fft est dispo, mettre une demande dans la file vers le worker avec les infos sur la fft.
-         Il faudra que cette fft reste dispo au moins pendant le délai de traitement theorique maximum.
-         */
         if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
             if(unlikely(s.error_worker_too_slow)) {
                 y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress-1];
                 return;
             }
         }
-        s.buffer[s.signal+(s.curIndex++)] = get_signal(x_and_ffts.x[x_and_ffts.progress-1]);
+        s.buffer[s.signal+(s.curIndex)] = get_signal(x_and_ffts.x[x_and_ffts.progress-1]);
+        ++s.curIndex;
         if(unlikely(s.curIndex == N))
         {
             s.curIndex = 0;
@@ -504,7 +502,7 @@ struct AlgoAsyncCPUConvolution {
         return N;
     }
     
-    typename Async::SetupParam asyncParams;
+    AsyncParams asyncParams;
 private:
     int N = 0;
     int queueSize = 0;

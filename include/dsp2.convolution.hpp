@@ -145,12 +145,6 @@ struct StateFFTConvolutionCRTP {
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
     
-    using SetupParam = FFTConvolutionCRTPSetupParam;
-    
-    void doLogComputeState(Algo const & algo, std::ostream & os) const {
-        os << "1 block of size " << algo.getBlockSize() << std::endl;
-    }
-        
     bool empty() const { return fft_of_h.empty(); }
     
     MinSizeRequirement doSetCoefficients(Algo const & algo, a64::vector<T> coeffs_)
@@ -188,7 +182,9 @@ struct StateFFTConvolutionCRTP {
     double getEpsilon(Algo const & algo) const {
         return fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon();
     }
-    
+    void logComputeState(Algo const & algo, std::ostream & os) const {
+        os << "Ffts, 1 block of size " << algo.getBlockSize() << std::endl;
+    }
 protected:
     void doFlushToSilence() {
         // nothing to do : no member contains state related to a past signal, except
@@ -197,20 +193,6 @@ protected:
     
 public:
     CplxFreqs fft_of_h;
-};
-
-
-struct FFTConvolutionCRTPSetupParam2 : public Cost
-{
-    FFTConvolutionCRTPSetupParam2(int blockSize)
-    : blockSize(blockSize)
-    {}
-    
-    void logSubReport(std::ostream & os) const override {
-        os << "FFTConvolutionCRTPSetupParam block size " << blockSize << std::endl;
-    }
-
-    int blockSize;
 };
 
 template <typename T, typename Tag>
@@ -226,7 +208,7 @@ struct AlgoFFTConvolutionCRTP {
     
     using FFTAlgo = typename fft::Algo_<Tag, FPT>;
     
-    using SetupParam = FFTConvolutionCRTPSetupParam2;
+    using SetupParam = FFTConvolutionCRTPSetupParam;
     
     void setup(SetupParam const & p) {
         N = p.blockSize;
@@ -276,7 +258,6 @@ struct AlgoPartitionnedFFTConvolutionCRTP;
 
 template <typename T, typename Tag>
 struct StatePartitionnedFFTConvolutionCRTP {
-    using SetupParam = PartitionnedFFTConvolutionCRTPSetupParam;
     using FPT = T;
     using FFTTag = Tag;
     using Algo = AlgoPartitionnedFFTConvolutionCRTP<T, Tag>;
@@ -357,8 +338,11 @@ struct StatePartitionnedFFTConvolutionCRTP {
     double getEpsilon(Algo const & algo) const {
         return countPartitions() * (fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
     }
+    void logComputeState(Algo const & algo, std::ostream & os) const {
+        os << "FFTs, " << countPartitions() << " partitions of sizes " << algo.getBlockSize() << " each" << std::endl;
+    }
+
 protected:
-    
     void doFlushToSilence() {
     }
     

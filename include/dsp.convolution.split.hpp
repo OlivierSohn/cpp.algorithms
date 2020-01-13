@@ -4,6 +4,25 @@ namespace imajuscule {
 static constexpr int undefinedSplit = -1;
 static constexpr int noSplit = -2;
 
+template<typename A, typename B>
+struct SplitSetupParam : public Cost {
+    using AParam = A;
+    using BParam = B;
+    AParam aParams;
+    BParam bParams;
+    
+    SplitSetupParam(AParam const & a,
+                    BParam const & b)
+    : aParams(a)
+    , bParams(b)
+    {}
+    
+    void logSubReport(std::ostream & os) const override {
+        aParams.logSubReport(os);
+        bParams.logSubReport(os);
+    }
+};
+
 /*
  * Creates a convolution scheme by combining 2 convolution schemes,
  * where A handles ** early ** coefficients, and B handles ** late ** coefficients.
@@ -16,24 +35,9 @@ struct SplitConvolution {
     static constexpr int nComputePhaseable = A::nComputePhaseable + B::nComputePhaseable;
     static constexpr int nCoefficientsFadeIn = A::nCoefficientsFadeIn;
     static constexpr bool has_subsampling = LateHandler::has_subsampling; // we 'could' take earlyhandler into account, too.
-    static constexpr bool step_can_error = A::step_can_error || B::step_can_error;
+    static constexpr bool step_can_error = A::step_can_error || B::step_can_error;
 
-    struct SetupParam : public Cost {
-        using AParam = typename EarlyHandler::SetupParam;
-        using BParam = typename LateHandler::SetupParam;
-        AParam aParams;
-        BParam bParams;
-        
-        SetupParam(AParam a, BParam b)
-        : aParams(a)
-        , bParams(b)
-        {}
-        
-        void logSubReport(std::ostream & os) const override {
-            aParams.logSubReport(os);
-            bParams.logSubReport(os);
-        }
-    };
+    using SetupParam = SplitSetupParam<typename EarlyHandler::SetupParam, typename LateHandler::SetupParam>;
     
     void logComputeState(std::ostream & os) const {
         

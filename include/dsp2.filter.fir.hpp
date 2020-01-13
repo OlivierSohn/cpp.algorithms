@@ -48,7 +48,9 @@ struct StateFIRFilter {
     double getEpsilon(Algo const & algo) const {
         return 2 * std::numeric_limits<T>::epsilon() * reversed_coefficients.size();
     }
-    
+    void logComputeState(Algo const & algo, std::ostream & os) const {
+        os << "Brute [_/" << reversed_coefficients.size() << "]" << std::endl;
+    }
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal const & getReversedCoeffs() const { return reversed_coefficients; }
 private:
@@ -64,19 +66,9 @@ struct AlgoFIRFilter {
     using Tag = FFTTag;
     
     static constexpr auto dotpr = fft::RealSignal_<Tag, FPT>::dotpr;
-
-    struct SetupParam : public Cost {
-        void logSubReport(std::ostream & os) const override {
-            os << "Brute" << std::endl;
-        }
-        bool isValid() const {
-            return true;
-        }
-        int getLatency() const {
-            return 0;
-        }
-    };
     
+    using SetupParam = FIRSetupParam;
+
     void setup(SetupParam const &) const {}
 
     constexpr int getLatency() const { return 0; }

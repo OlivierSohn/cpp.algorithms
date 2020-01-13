@@ -785,7 +785,7 @@ private:
     struct PartitionAlgo< PartitionnedFFTConvolution<T, FFTTag> > {
         using AtomicConvolution = PartitionnedFFTConvolution<T, FFTTag>;
         using SetupParam = typename AtomicConvolution::SetupParam;
-        using PS = PartitionningSpec<SetupParam>;
+        using PS = std::optional<SetupParam>;
 
         static PS run(int n_channels,
                       int n_audio_cb_frames,

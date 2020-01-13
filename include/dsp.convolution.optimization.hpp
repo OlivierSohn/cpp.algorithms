@@ -6,49 +6,6 @@ namespace imajuscule
 template<typename T>
 struct PartitionAlgo;
 
-template<typename SetupParam>
-struct PartitionningSpec
-{    
-    Optional<SetupParam> optimal_setup;
-    GradientDescent<SetupParam> gd;
-    
-    void logReport(int n_channels,
-                   double theoretical_max_avg_time_per_frame,
-                   std::ostream & os)
-    {
-        using namespace std;
-        if(optimal_setup) {
-            optimal_setup->logReport(n_channels,
-                                     theoretical_max_avg_time_per_frame,
-                                     os);
-        }
-
-        constexpr auto debug_gradient_descent = false;
-        if constexpr (debug_gradient_descent) {
-            os << "Gradient descent report :" << endl;
-            gd.debug(true, os);
-        }
-    }
-};
-
-template<typename SetupParam>
-struct PartitionningSpec2
-{
-    Optional<SetupParam> optimal_setup;
-  
-    void logReport(int n_channels,
-                   double theoretical_max_avg_time_per_frame,
-                   std::ostream & os)
-    {
-        using namespace std;
-        if(optimal_setup) {
-            optimal_setup->logReport(n_channels,
-                                     theoretical_max_avg_time_per_frame,
-                                     os);
-        }
-    }
-};
-
 struct Cost {
     virtual ~Cost() = default;
 

@@ -94,7 +94,11 @@ namespace imajuscule
     GrainsCosts grains_costs;
       
       void logSubReport(std::ostream & os) const override {
-          os << "Finegrained, fft size: " << partition_size << std::endl;
+          os << "Finegrained, partition size: " << partition_size << ", multiplication group size: " << multiplication_group_size << std::endl;
+      }
+      
+      bool isActive() const {
+          return partition_size > 0;
       }
 
 
@@ -1007,7 +1011,7 @@ namespace imajuscule
   struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
     using NonAtomicConvolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
     using SetupParam = typename NonAtomicConvolution::SetupParam;
-    using PS = PartitionningSpec<SetupParam>;
+    using PS = std::optional<SetupParam>;
 
     static PS run(int n_channels,
                   int n_scales,
@@ -1017,15 +1021,21 @@ namespace imajuscule
                   std::ostream & os) {
       assert(n_channels > 0);
       PS res;
-      get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(res.gd,
+      GradientDescent<SetupParam> gd;
+      get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
                                                                                  n_channels,
                                                                                  n_scales,
                                                                                  n_audio_frames_per_cb,
                                                                                  n_coeffs_for_partition_sz,
                                                                                  min_lg2_partition_sz,
-                                                                                 res.optimal_setup,
+                                                                                 res,
                                                                                  os);
-      return std::move(res);
+      constexpr auto debug_gradient_descent = false;
+      if constexpr (debug_gradient_descent) {
+          os << "Gradient descent report :" << std::endl;
+          gd.debug(true, os); // this takes time because it makes the search exhaustive
+      }
+      return res;
     }
   };
 

@@ -138,7 +138,7 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
     using Convolution = CustomScaleConvolution<A>;
     using SetupParam = typename Convolution::SetupParam;
     using ScalingParam = typename SetupParam::ScalingParam;
-    using PS = PartitionningSpec<SetupParam>;
+    using PS = std::optional<SetupParam>;
 
     static PS run(int const n_channels,
                   int const n_audio_channels,
@@ -156,8 +156,8 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
         if(best) {
             auto scalingParams = scalingsToParams<ScalingParam>(best->first);
             
-            ps.optimal_setup = SetupParam{scalingParams};
-            ps.optimal_setup->setCost(best->second);
+            ps = SetupParam{scalingParams};
+            ps->setCost(best->second);
         }
         return ps;
     }
@@ -169,7 +169,7 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
           using LateHandler = typename Convolution::LateHandler;
           using EarlyHandler = typename Convolution::EarlyHandler;
           using SetupParam = typename Convolution::SetupParam;
-          using PS = PartitionningSpec<SetupParam>;
+          using PS = std::optional<SetupParam>;
           
           static PS run(int n_channels,
                         int n_audio_channels,
@@ -200,12 +200,12 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
               indent.reset();
               
               PS ps;
-              if(pSpecsLate.optimal_setup) {
-                  ps.optimal_setup = {
+              if(pSpecsLate) {
+                  ps = {
                       {},
-                      *pSpecsLate.optimal_setup
+                      *pSpecsLate
                   };
-                  ps.optimal_setup->setCost(pSpecsLate.optimal_setup->getCost());
+                  ps->setCost(pSpecsLate->getCost());
               }
               return ps;
           }
@@ -270,7 +270,7 @@ int computeQueueSize(F nextProcessingDuration,
             using Convolution = AsyncCPUConvolution<Algo, OnWorkerTooSlow>;
             using AsyncPart = typename Convolution::AsyncPart;
             using SetupParam = typename Convolution::SetupParam;
-            using PS = PartitionningSpec<SetupParam>;
+            using PS = std::optional<SetupParam>;
 
             // to account for a system that is under heavier load
             static constexpr int safeFactor = 4;
@@ -347,14 +347,14 @@ int computeQueueSize(F nextProcessingDuration,
                   }());
 
                 PS ps;
-                ps.optimal_setup = SetupParam{
+                ps = SetupParam{
                     submission_period,
                     queueSize,
                     {
                         scalingParams
                     }
                 };
-                ps.optimal_setup->setCost(optimalScaling ? optimalScaling->second : 0.);
+                ps->setCost(optimalScaling ? optimalScaling->second : 0.);
                 return ps;
             }
         private:
@@ -788,7 +788,7 @@ int computeQueueSize(F nextProcessingDuration,
       struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSlow> > {
           using Convolution = ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSlow>;
           using SetupParam = typename Convolution::SetupParam;
-          using PS = PartitionningSpec<SetupParam>;
+          using PS = std::optional<SetupParam>;
 
           using LateHandler = typename Convolution::LateHandler;
           using EarlyHandler = typename Convolution::EarlyHandler;
@@ -827,8 +827,8 @@ int computeQueueSize(F nextProcessingDuration,
                                                               phasing,
                                                               nAsyncScalesDropped);
             PS ps;
-            if(pSpecsLate.optimal_setup) {
-                auto nEarlyHandlerCoeffs = pSpecsLate.optimal_setup->getImpliedLatency();
+            if(pSpecsLate) {
+                auto nEarlyHandlerCoeffs = pSpecsLate->getImpliedLatency();
                 auto pSpecsEarly = PartitionAlgo<EarlyHandler>::run(n_channels,
                                                                   n_audio_channels,
                                                                   n_audio_frames_per_cb,
@@ -836,13 +836,13 @@ int computeQueueSize(F nextProcessingDuration,
                                                                   frame_rate,
                                                                   max_avg_time_per_sample,
                                                                   os);
-                if(pSpecsEarly.optimal_setup) {
-                    ps.optimal_setup = {
-                        *pSpecsEarly.optimal_setup,
-                        *pSpecsLate.optimal_setup
+                if(pSpecsEarly) {
+                    ps = {
+                        *pSpecsEarly,
+                        *pSpecsLate
                     };
-                    ps.optimal_setup->setCost(pSpecsEarly.optimal_setup->getCost() +
-                                              pSpecsLate.optimal_setup->getCost());
+                    ps->setCost(pSpecsEarly->getCost() +
+                                pSpecsLate->getCost());
                 }
             }
             return ps;
@@ -852,7 +852,7 @@ int computeQueueSize(F nextProcessingDuration,
       struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow> > {
           using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow>;
           using SetupParam = typename Convolution::SetupParam;
-          using PS = PartitionningSpec<SetupParam>;
+          using PS = std::optional<SetupParam>;
 
           using EarlyHandler = typename Convolution::EarlyHandler;
           using LateHandler = typename Convolution::LateHandler;
@@ -898,8 +898,8 @@ int computeQueueSize(F nextProcessingDuration,
           indent.reset();
           
           PS ps;
-          if(pSpecsLate.optimal_setup) {
-              int nEarlyCoeffs = deduceEarlyHandlerCoeffs(*(pSpecsLate.optimal_setup));
+          if(pSpecsLate) {
+              int nEarlyCoeffs = deduceEarlyHandlerCoeffs(*(pSpecsLate));
               os << "Deduced early handler coeffs:" << nEarlyCoeffs << std::endl;
               os << "Early handler optimization:" << std::endl;
               
@@ -913,13 +913,13 @@ int computeQueueSize(F nextProcessingDuration,
                                                                   os);
               indent.reset();
               
-              if(pSpecsEarly.optimal_setup) {
-                  ps.optimal_setup = {
-                    *pSpecsEarly.optimal_setup,
-                    *pSpecsLate.optimal_setup
+              if(pSpecsEarly) {
+                  ps = {
+                    *pSpecsEarly,
+                    *pSpecsLate
                   };
-                  ps.optimal_setup->setCost(pSpecsEarly.optimal_setup->getCost() +
-                                            pSpecsLate.optimal_setup->getCost());
+                  ps->setCost(pSpecsEarly->getCost() +
+                              pSpecsLate->getCost());
               }
           }
         return ps;
@@ -1129,7 +1129,7 @@ namespace SameSizeScales {
     using EarlyHandler = typename NonAtomicConvolution::EarlyHandler;
   public:
       using SetupParam = typename NonAtomicConvolution::SetupParam;
-    using PS = PartitionningSpec<SetupParam>;
+    using PS = std::optional<SetupParam>;
 
     static PS run(int n_channels,
                   int n_audio_channels,
@@ -1152,13 +1152,13 @@ namespace SameSizeScales {
         // in that case there is no late handling at all.
         PS ps;
         auto earlyRes = getEarlyHandlerParams(total_response_size);
-        if(earlyRes.optimal_setup)
+        if(earlyRes)
         {
-          ps.optimal_setup = {
-            *earlyRes.optimal_setup,
+          ps = {
+            *earlyRes,
             FinegrainedSetupParam::makeInactive()
           };
-          ps.optimal_setup->setCost(earlyRes.optimal_setup->getCost());
+          ps->setCost(earlyRes->getCost());
         }
         return ps;
       }
@@ -1191,16 +1191,16 @@ namespace SameSizeScales {
                                                      getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>(),
                                                      os);
       PS ps;
-      if(lateRes.optimal_setup) {
+      if(lateRes) {
           auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
-                                                LateHandler::getLatencyForPartitionSize(lateRes.optimal_setup->partition_size));
-          if(earlyRes.optimal_setup) {
-              ps.optimal_setup = SetupParam {
-                  *earlyRes.optimal_setup,
-                  *lateRes.optimal_setup
+                                                LateHandler::getLatencyForPartitionSize(lateRes->partition_size));
+          if(earlyRes) {
+              ps = SetupParam {
+                  *earlyRes,
+                  *lateRes
               };
-              ps.optimal_setup->setCost(earlyRes.optimal_setup->getCost() +
-                                        lateRes.optimal_setup->getCost());
+              ps->setCost(earlyRes->getCost() +
+                          lateRes->getCost());
           }
       }
       return ps;
@@ -1237,8 +1237,8 @@ namespace SameSizeScales {
         using EarlyHandler = typename NonAtomicConvolution::EarlyHandler;
         using LateHandler = typename EarlyestDeepest<typename NonAtomicConvolution::LateHandler>::type;
       public:
-        using SetupParam = typename NonAtomicConvolution::SetupParam;//LateHandler::SetupParam;
-        using PS = PartitionningSpec2<WithNScales<SetupParam>>;
+        using SetupParam = WithNScales<typename NonAtomicConvolution::SetupParam>;
+        using PS = std::optional<SetupParam>;
 
       // il faudrait que a chaque fois ca renvoie PartitionningSpecs<NonAtomicConvolution::SetupParam> pour bien generaliser
         static PS run(int const n_response_channels,
@@ -1250,7 +1250,7 @@ namespace SameSizeScales {
                       std::ostream & os,
                       ResponseTailSubsampling rts) {
       
-      Optional<PS> res;
+      PS res;
       
       range<int> const scales = getScaleCountRanges<NonAtomicConvolution>(rts);
 
@@ -1264,23 +1264,23 @@ namespace SameSizeScales {
                                   frame_rate,
                                   max_avg_time_per_sample,
                                   os);
-        if(!part.optimal_setup) {
+        if(!part) {
           os << "Discard n_scales " << n_scales << std::endl;
           continue;
         }
         
-        if(!res || (res->optimal_setup && (res->optimal_setup->getCost() > part.optimal_setup->getCost()))) {
-          res = {part};
+        if(!res || (res->getCost() > part->getCost())) {
+          res = part;
         }
 
-        if(!res || !res->optimal_setup) {
+        if(!res) {
             continue;
         }
-        if(res->optimal_setup->getCost() < max_avg_time_per_sample) {
+        if(res->getCost() < max_avg_time_per_sample) {
           os << "Optimization criteria met with " << n_scales << " scaling levels." << std::endl;
           return *res;
         }
-        os << "cost " << res->optimal_setup->getCost() << " >= " << max_avg_time_per_sample << std::endl;
+        os << "cost " << res->getCost() << " >= " << max_avg_time_per_sample << std::endl;
       }
       throw std::runtime_error("Optimization criteria not met, there are not enough scaling levels.");
 
@@ -1311,17 +1311,17 @@ namespace SameSizeScales {
               LG(WARN, "not enough coefficients to use %d scales", n_scales);
               return {};
             }
-            std::optional<WithNScales<SetupParam>> o;
+            PS o;
             auto earlyRes = getEarlyHandlerParams(total_response_size);
-            if(earlyRes.optimal_setup) {
+            if(earlyRes) {
               o = {
-                mkSubsamplingSetupParams<T, FFTTag>(*earlyRes.optimal_setup,
+                mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
                                                     FinegrainedSetupParam::makeInactive(),
                                                     1,
                                                     0),
                 n_scales
               };
-              o->val.setCost(earlyRes.optimal_setup->getCost());
+              o->val.setCost(earlyRes->getCost());
             }
             return {{o}};
           }
@@ -1362,21 +1362,21 @@ namespace SameSizeScales {
                                                          scale_size_for_partition_size,
                                                          getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>(),
                                                          os);
-          if(lateRes.optimal_setup) {
-            std::optional<int> const mayScaleSz = scale_size_for_partition_size(lateRes.optimal_setup->partition_size);
+          if(lateRes) {
+            std::optional<int> const mayScaleSz = scale_size_for_partition_size(lateRes->partition_size);
             if(mayScaleSz) {
               auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
-                                                    LateHandler::getLatencyForPartitionSize(lateRes.optimal_setup->partition_size));
-              if(earlyRes.optimal_setup) {
-                  WithNScales<SetupParam> withSpread = {
-                      mkSubsamplingSetupParams<T, FFTTag>(*earlyRes.optimal_setup,
-                                                          *lateRes.optimal_setup,
+                                                    LateHandler::getLatencyForPartitionSize(lateRes->partition_size));
+              if(earlyRes) {
+                  SetupParam withSpread = {
+                      mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
+                                                          *lateRes,
                                                           n_scales,
                                                           mayScaleSz.value()),
                       n_scales
                   };
-                  withSpread.val.setCost(earlyRes.optimal_setup->getCost() +
-                                         lateRes.optimal_setup->getCost());
+                  withSpread.val.setCost(earlyRes->getCost() +
+                                         lateRes->getCost());
                   return {withSpread};
               }
             }

@@ -130,7 +130,7 @@ template<typename T>
 struct PartitionAlgo< FIRFilter<T> > {
     using Convolution = FIRFilter<T>;
     using SetupParam = typename Convolution::SetupParam;
-    using PS = PartitionningSpec<SetupParam>;
+    using PS = std::optional<SetupParam>;
     
     static PS run(int n_channels,
                   int n_audio_channels,

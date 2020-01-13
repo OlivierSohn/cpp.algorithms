@@ -82,19 +82,25 @@ namespace imajuscule
   struct FinegrainedSetupParam : public Cost {
     explicit FinegrainedSetupParam() {}
 
-    FinegrainedSetupParam(int partitionSz, int multiplication_group_size, int phase) : Cost(phase),
-    multiplication_group_size(multiplication_group_size),
-    partition_size(partitionSz)
+    FinegrainedSetupParam(int partitionSz,
+                          int partition_count,
+                          int multiplication_group_size,
+                          int phase)
+      : Cost(phase)
+      , multiplication_group_size(multiplication_group_size)
+      , partition_size(partitionSz)
+      , partition_count(partition_count)
     {}
 
     void setGrainsCosts(GrainsCosts gcosts) { grains_costs = gcosts; }
 
     int multiplication_group_size = 0;
     int partition_size = 0;
+    int partition_count = 0;
     GrainsCosts grains_costs;
       
       void logSubReport(std::ostream & os) const override {
-          os << "Finegrained, partition size: " << partition_size << ", multiplication group size: " << multiplication_group_size << std::endl;
+          os << "Finegrained, " << partition_count << " partitions of size " << partition_size << ", mult group size: " << multiplication_group_size << std::endl;
       }
       
       bool isActive() const {
@@ -103,17 +109,10 @@ namespace imajuscule
 
 
     static FinegrainedSetupParam makeInactive() {
-      FinegrainedSetupParam res{0,0,0};
+      FinegrainedSetupParam res{0,0,0,0};
       res.setCost(0.f);
       return res;
     }
-      
-      bool operator ==(FinegrainedSetupParam const & o) const {
-          return o.multiplication_group_size == multiplication_group_size &&
-          o.partition_size == partition_size &&
-          o.grains_costs == grains_costs &&
-          getCost() == o.getCost();
-      }
   };
 
 
@@ -753,7 +752,13 @@ namespace imajuscule
 
           // the value for multiplication group size is not very important (it will be overriden later on)
           // but needs to lead to a valid convolution. We use the highest valid number:
-          pfftcv.setup({partition_size, countPartitions(coeffs.size(), partition_size), 0});
+          int const n_partitions = countPartitions(coeffs.size(), partition_size);
+          pfftcv.setup({
+              partition_size,
+              n_partitions,
+              n_partitions,
+              0
+          });
           pfftcv.setCoefficients(std::move(coeffs));
         }
 

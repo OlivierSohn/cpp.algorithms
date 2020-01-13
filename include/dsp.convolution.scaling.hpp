@@ -213,13 +213,9 @@ struct ScalingsIterator {
         std::vector<ScalingParam> scalingParams;
         scalingParams.reserve(v.size());
         for(auto const & e:v) {
-            int const countCoeffs = e.sz * e.nRepeat;
-            int const submissionPeriod = e.sz;
-            
             ScalingParam s{
-                countCoeffs,
-                submissionPeriod,
-                {submissionPeriod /* partition size */}
+                e.sz * e.nRepeat /* count coeffs */,
+                {e.sz /* partition size */}
             };
             scalingParams.push_back(s);
         }

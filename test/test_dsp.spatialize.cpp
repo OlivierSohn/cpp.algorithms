@@ -171,8 +171,9 @@ namespace imajuscule {
       {
         typename std::remove_const<typename std::remove_reference<decltype(coefficients)>::type>::type zero_coeffs, opposite_coeffs;
         zero_coeffs.resize(coefficients.size());
-        
-        FinegrainedSetupParam setup {part_size,1,0};
+        int const n_partitions = countPartitions(coefficients.size(), part_size);
+
+        FinegrainedSetupParam setup {part_size,n_partitions,1,0};
         
         {
           constexpr auto nOutMono = 1;

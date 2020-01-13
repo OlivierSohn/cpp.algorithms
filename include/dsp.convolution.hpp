@@ -232,9 +232,19 @@ namespace imajuscule
 
 struct FFTConvolutionCRTPSetupParam : public Cost
 {
+    FFTConvolutionCRTPSetupParam(int blockSize)
+    : blockSize(blockSize)
+    {}
+    
     void logSubReport(std::ostream & os) const override {
-        os << "FFTConvolutionCRTPSetupParam" << std::endl;
+        os << "FFTConvolutionCRTPSetupParam block size " << blockSize << std::endl;
     }
+    
+    int getImpliedLatency() const {
+        return blockSize-1;
+    }
+
+    int blockSize;
 };
 
 template <typename T, typename Tag>
@@ -394,6 +404,9 @@ struct PartitionnedFFTConvolutionCRTPSetupParam {
     :partition_size(partition_size)
     {}
     
+    int getImpliedLatency() const {
+        return partition_size-1;
+    }
     int partition_size;
 };
 

@@ -257,8 +257,9 @@ namespace imajuscule {
             increment(type))
         {
           FinegrainedPartitionnedFFTConvolution<T, Tag> conv;
-          
-          conv.setup({part_size, 1000, 0});
+          int const n_partitions = countPartitions(coefficients.size(), part_size);
+
+          conv.setup({part_size, n_partitions, 1000, 0});
           if(!conv.isValid()) {
             continue;
           }
@@ -346,8 +347,7 @@ namespace imajuscule {
                       ScalingParam s {
                           // cannot do std::min(sz, remainingCoeffs) here else the latency would be wrong
                           sz,
-                          sz,
-                          {}
+                          {sz}
                       };
                       
                       params.push_back(s);
@@ -371,7 +371,6 @@ namespace imajuscule {
                       int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
                       int submissionPeriod = sz;
                       ScalingParam s{countCoeffs,
-                                     submissionPeriod,
                                      {submissionPeriod}};
                       
                       params.push_back(s);
@@ -395,7 +394,6 @@ namespace imajuscule {
                       int const countCoeffs = std::min(sz*3, remainingCoeffs); // last coefficient group may be padded with 0s
                       int const submissionPeriod = sz;
                       ScalingParam s{countCoeffs,
-                                     submissionPeriod,
                                      {submissionPeriod}};
                       
                       params.push_back(s);
@@ -473,7 +471,9 @@ namespace imajuscule {
             int const latencyLateHandler = 2*szPartition - 1;
             int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
             int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
-            auto c = mkRealTimeConvolutionSubsampled<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs), szPartition);
+            auto c = mkRealTimeConvolutionSubsampled<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs),
+                                                             szPartition,
+                                                             nLateCoeffs);
             testDirac2(i, c);
         }
         testDiracPartitionned<T, Tag>(i);
@@ -509,9 +509,8 @@ TEST(Convolution, freq) {
   using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
   
   std::vector<Scaling> scalingParams{}; // leave it empty, we have only 8 coefficients
-  auto c = mkRealTimeConvolutionSubsampled<double, Tag>(scalingParams, 4);
   constexpr auto N = 8;
-  
+  auto c = mkRealTimeConvolutionSubsampled<double, Tag>(scalingParams, 4, N);
   //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};
   //a64::vector<double> coefficients{1., 0.5, 0., -0.5, -1., -0.5, 0., 0.5};
   //a64::vector<double> coefficients{1., 0.75, 0.25, 0., -0.25, -0.5, -0.75, -1.0};

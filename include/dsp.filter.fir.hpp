@@ -2,6 +2,18 @@
 
 namespace imajuscule
 {
+struct FIRSetupParam : public Cost {
+    void logSubReport(std::ostream & os) const override {
+        os << "Brute" << std::endl;
+    }
+    constexpr bool isValid() const {
+        return true;
+    }
+    constexpr int getImpliedLatency() const {
+        return 0;
+    }
+};
+
   /*
    Brute force filtering (no fft is used).
    
@@ -15,12 +27,8 @@ namespace imajuscule
     static constexpr bool has_subsampling = false;
     static constexpr bool step_can_error = false;
 
-    struct SetupParam : public Cost {
-        
-        void logSubReport(std::ostream & os) const override {
-            os << "Brute" << std::endl;
-        }
-    };
+    using SetupParam = FIRSetupParam;
+
     void logComputeState(std::ostream & os) const {
         os << "Brute [" << past.getIndex() << "/" << reversed_coefficients.size() << "]" << std::endl;
     }

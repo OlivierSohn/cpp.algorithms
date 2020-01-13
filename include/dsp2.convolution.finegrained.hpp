@@ -1,27 +1,6 @@
 
 namespace imajuscule {
 
-
-struct FinegrainedSetupParam2 : public Cost {
-    FinegrainedSetupParam2(int partitionSz,
-                           int partition_count,
-                           int multiplication_group_size,
-                           int phase)
-    : Cost(phase)
-    , multiplication_group_size(multiplication_group_size)
-    , partition_size(partitionSz)
-    , partition_count(partition_count)
-    {}
-    
-    int multiplication_group_size = 0;
-    int partition_size = 0;
-    int partition_count = 0;
-    
-    void logSubReport(std::ostream & os) const override {
-        os << "Finegrained, " << partition_count << " partitions of size " << partition_size << ", mult group: " << multiplication_group_size << std::endl;
-    }
-};
-
 struct DescFinegrainedFFTConvolutionBase {
     static constexpr int nCoefficientsFadeIn = 0;
     static constexpr bool has_subsampling = false;
@@ -334,7 +313,7 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
     using FPT = T;
     using Tag = FFTTag;
 
-    using SetupParam = FinegrainedSetupParam2;
+    using SetupParam = FinegrainedSetupParam;
 
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;

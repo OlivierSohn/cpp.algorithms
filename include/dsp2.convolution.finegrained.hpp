@@ -413,23 +413,18 @@ protected:
         auto const offset_base = M * (s.grain_number - 1);
         assert(offset_base >= 0);
         assert(offset_base < s.ffts_of_partitionned_h.size());
-        auto it_fft_of_partitionned_h = s.ffts_of_partitionned_h.begin() + offset_base;
-        for(auto offset = offset_base, offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
-            offset != offset_end;
-            ++offset, ++it_fft_of_partitionned_h)
+
+        int offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
+        int offset = offset_base;
+        if(offset == 0) {
+            multiply(work                  /* = */,
+                     ffts.get_backward(0), /* x */ s.ffts_of_partitionned_h[0]);
+            offset = 1;
+        }
+        for(; offset != offset_end; ++offset)
         {
-            assert(it_fft_of_partitionned_h < s.ffts_of_partitionned_h.end());
-            
-            auto const & fft_of_delayed_x = ffts.get_backward(offset);
-            
-            if(offset == 0) {
-                multiply(work                /*   =   */,
-                         fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
-            }
-            else {
-                multiply_add(work                /*   +=   */,
-                             fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
-            }
+            multiply_add(work                       /* += */,
+                         ffts.get_backward(offset), /* x  */ s.ffts_of_partitionned_h[offset]);
         }
     }
     

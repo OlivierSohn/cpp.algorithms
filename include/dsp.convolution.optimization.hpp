@@ -32,7 +32,6 @@ struct PartitionningSpec
     }
 };
 
-
 template<typename SetupParam>
 struct PartitionningSpec2
 {
@@ -50,57 +49,6 @@ struct PartitionningSpec2
                                      os);
         }
     }
-};
-
-
-
-
-template<typename SetupParam>
-struct PartitionningSpecs {
-    using PS = PartitionningSpec<SetupParam>;
-
-    PS & getWithSpread() {
-      if(with_spread.optimal_setup) {
-        if(without_spread.optimal_setup) {
-          return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
-        }
-        return with_spread;
-      }
-      return without_spread;
-    }
-
-    PS with_spread, without_spread;
-};
-
-template<typename SetupParam>
-struct PartitionningSpecs2 {
-    using PS = PartitionningSpec2<SetupParam>;
-
-    std::optional<float> getCost() const {
-        std::optional<float> c;
-        if(with_spread.optimal_setup) {
-            c = with_spread.optimal_setup->getCost();
-        }
-        if(without_spread.optimal_setup) {
-            auto c2 = with_spread.optimal_setup->getCost();
-            if(!c || *c < c2) {
-                c = c2;
-            }
-        }
-        return c;
-    }
-
-    PS & getWithSpread() {
-      if(with_spread.optimal_setup) {
-        if(without_spread.optimal_setup) {
-          return with_spread.getCost() < without_spread.getCost() ? with_spread : without_spread;
-        }
-        return with_spread;
-      }
-      return without_spread;
-    }
-
-    PS with_spread, without_spread;
 };
 
 struct Cost {

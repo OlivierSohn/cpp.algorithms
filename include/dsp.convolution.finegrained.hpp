@@ -706,13 +706,12 @@ namespace imajuscule
                                                                int n_frames,
                                                                std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
                                                              int min_lg2_partitionsz, // must yield a valid result
-                                                               bool constraint,
                                                                Optional<SetupParam> & min_val,
                                                              std::ostream & os) {
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
 
-    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, constraint, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
+    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
       using namespace profiling;
       using namespace std;
       using namespace std::chrono;
@@ -815,12 +814,10 @@ namespace imajuscule
         int n_scales;
         int nAudioCbFrames;
         int n_channels;
-        bool constraint;
 
         void evaluate(float multiplication_grain_time, int n_multiplicative_grains, int grain_period,
-                      PhasedCost & result) const {
-          result.setPhase(0);
-
+                      PhasedCost & result) const
+        {
           // factor 2 because the unit is half grain in 'grains_costs'.
           auto max_n_halfgrains_per_cb = 2 * nAudioCbFrames / grain_period;
           if(max_n_halfgrains_per_cb * grain_period != 2 * nAudioCbFrames) {
@@ -867,10 +864,11 @@ namespace imajuscule
           // TODO [early coefficients cost] we should have a sample-unit cyclic, and put one grain cost
           // every period
 
+          result.setPhase(0);
+
           float cost = computeMaxSlidingSum(grains_costs,
                                             max_n_halfgrains_per_cb);
-          if(constraint) {
-            assert(n_channels >= 2);
+          if(n_channels >= 2) {
             int n_samples_between_grains = n_scales <= 1 ? grain_period : (grain_period/2);
 
             auto n_min_empty_cb_between_consecutive_grains = -1 + n_samples_between_grains / nAudioCbFrames;
@@ -904,7 +902,7 @@ namespace imajuscule
               // convert phase units from "half of grain period" to "frames"
               result.setPhase(result.getPhase().value() * 2 * grain_period);
             }
-            // cost is now the cost of each channel
+            // cost is now the sum of costs of each channel
             // but cost should be per sample, not per frame, so
             // we divide by the number of channels
             cost /= static_cast<float>(n_channels);
@@ -919,7 +917,7 @@ namespace imajuscule
 
           result.setCost(cost);
         }
-      } cost_evaluator{times, n_scales, n_frames, n_channels, constraint};
+      } cost_evaluator{times, n_scales, n_frames, n_channels};
 
       RangedGradientDescent<PhasedCost> rgd([ &cost_evaluator, &test ](int multiplication_group_size, auto & cost) {
         // compute multiplication time for the group
@@ -987,7 +985,6 @@ namespace imajuscule
   void get_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gd,
                                                            int n_channels,
                                                            int n_scales,
-                                                           bool with_spread,
                                                            int n_audiocb_frames,
                                                            std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
                                                             int min_lg2_partition_sz,
@@ -1002,7 +999,6 @@ namespace imajuscule
                                                                                 n_audiocb_frames,
                                                                                 n_coeffs_for_partition_sz,
                                                                                 min_lg2_partition_sz,
-                                                                                with_spread,
                                                                                 value,
                                                                                 os);
   }
@@ -1012,42 +1008,23 @@ namespace imajuscule
     using NonAtomicConvolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
     using SetupParam = typename NonAtomicConvolution::SetupParam;
     using PS = PartitionningSpec<SetupParam>;
-    using PSpecs = PartitionningSpecs<SetupParam>;
 
-    static PSpecs run(int n_channels,
-                      int n_scales,
-                      int n_audio_frames_per_cb,
-                      std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
-                      int min_lg2_partition_sz,
-                      std::ostream & os) {
+    static PS run(int n_channels,
+                  int n_scales,
+                  int n_audio_frames_per_cb,
+                  std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                  int min_lg2_partition_sz,
+                  std::ostream & os) {
       assert(n_channels > 0);
-      PSpecs res;
-      {
-        auto & spec = res.without_spread;
-        get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(spec.gd,
-                                                                                   n_channels,
-                                                                                   n_scales,
-                                                                                   false,
-                                                                                   n_audio_frames_per_cb,
-                                                                                   n_coeffs_for_partition_sz,
-                                                                                   min_lg2_partition_sz,
-                                                                                   spec.optimal_setup,
-                                                                                   os);
-      }
-
-      if(n_channels > 1) {
-        auto & spec = res.with_spread;
-        get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(spec.gd,
-                                                                                   n_channels,
-                                                                                   n_scales,
-                                                                                   true,
-                                                                                   n_audio_frames_per_cb,
-                                                                                   n_coeffs_for_partition_sz,
-                                                                                   min_lg2_partition_sz,
-                                                                                   spec.optimal_setup,
-                                                                                   os);
-      }
-
+      PS res;
+      get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(res.gd,
+                                                                                 n_channels,
+                                                                                 n_scales,
+                                                                                 n_audio_frames_per_cb,
+                                                                                 n_coeffs_for_partition_sz,
+                                                                                 min_lg2_partition_sz,
+                                                                                 res.optimal_setup,
+                                                                                 os);
       return std::move(res);
     }
   };

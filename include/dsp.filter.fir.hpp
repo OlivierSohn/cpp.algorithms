@@ -131,15 +131,14 @@ struct PartitionAlgo< FIRFilter<T> > {
     using Convolution = FIRFilter<T>;
     using SetupParam = typename Convolution::SetupParam;
     using PS = PartitionningSpec<SetupParam>;
-    using PSpecs = PartitionningSpecs<SetupParam>;
     
-    static PSpecs run(int n_channels,
-                      int n_audio_channels,
-                      int n_audio_frames_per_cb,
-                      int total_response_size,
-                      int n_scales,
-                      double frame_rate,
-                      std::ostream & os) {
+    static PS run(int n_channels,
+                  int n_audio_channels,
+                  int n_audio_frames_per_cb,
+                  int total_response_size,
+                  int n_scales,
+                  double frame_rate,
+                  std::ostream & os) {
         // there is no variable to optimize with FIRFilter:
         PS minimalPs;
         minimalPs.cost = SetupParam();

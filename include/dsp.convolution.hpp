@@ -786,11 +786,12 @@ private:
         using AtomicConvolution = PartitionnedFFTConvolution<T, FFTTag>;
         using SetupParam = typename AtomicConvolution::SetupParam;
         using PS = PartitionningSpec<SetupParam>;
-        using PSpecs = PartitionningSpecs<SetupParam>;
 
-        static PSpecs run(int n_channels, int n_audio_cb_frames, int size_impulse_response) {
+        static PS run(int n_channels,
+                      int n_audio_cb_frames,
+                      int size_impulse_response) {
             assert(n_channels > 0);
-            PSpecs res;
+            PS res;
             {
                 auto & spec = res.without_spread;
                 spec.size = get_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(spec.gd,

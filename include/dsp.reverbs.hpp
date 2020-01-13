@@ -163,7 +163,6 @@ static inline std::string toJustifiedString(ReverbType t) {
 
     using FPT = typename ConvolutionReverb::FPT;
     using SetupParam = typename ConvolutionReverb::SetupParam;
-    using PS = typename PartitionAlgo<ConvolutionReverb>::PS;
 
     int countScales() {
         if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0]->isZero()) {
@@ -357,7 +356,7 @@ static inline std::string toJustifiedString(ReverbType t) {
                                                                      sampleRate,
                                                                      max_avg_time_per_sample,
                                                                      os,
-                                                                     args...).getWithSpread();
+                                                                     args...);
           indent.reset();
           
           if(!partitionning.optimal_setup) {

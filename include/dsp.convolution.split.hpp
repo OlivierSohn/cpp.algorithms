@@ -190,10 +190,6 @@ struct SplitConvolution {
         }
     }
     
-    auto debugStep(FPT val) {
-        return std::make_pair(a.step(val), b.step(val));
-    }
-    
     double getEpsilon() const {
         return a.getEpsilon() + b.getEpsilon() + std::numeric_limits<FPT>::epsilon();
     }

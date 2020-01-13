@@ -76,7 +76,7 @@ struct Cost {
 private:
     // worst computation time over one callback, averaged per sample.
   float cost = std::numeric_limits<float>::max();
-    // phase (of the late handler), in frames (in case 2 or more convolutions run at the same time, we can dephase them)
+    // phase in frames (in case 2 or more convolutions run at the same time, we can dephase them)
     std::optional<int> phase;
 };
 

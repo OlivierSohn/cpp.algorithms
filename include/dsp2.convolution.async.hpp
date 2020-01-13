@@ -175,14 +175,14 @@ struct StateAsyncCPUConvolution {
                 // and will wake up at the next notification (one audio callback later)
                 //
                 // To ensure that this will not generate an audio dropout,
-                // we augment the size of the queue by the number of frames in an audio callback.
+                // we have augmented the size of the queue by the number of frames in an audio callback.
                 
                 while(true)
                 {
                     std::unique_lock l(dummyMut);
                     rt_2_worker_cond.wait(l);
                     
-                    // This could be :
+                    // It could be :
                     // - a real wake-up :
                     //     - the producer has pushed to the queue
                     // - a race-condition wake-up :
@@ -191,17 +191,15 @@ struct StateAsyncCPUConvolution {
                     //       the queue may not have changed yet.
                     // - a spurious wake-up :
                     //     - the producer has not pushed to the queue
-                    //
-                    // To account for race-condition wake-up, we retry to read from the queue for some time, and then
-                    // to account for spurious wake-ups, we return to condition-variable wait.
                     
                     if(likely(try_pop())) {
-                        // This was a real wake-up
+                        // It was a real wake-up
                         return work;
                     }
+                    // To account for race-condition wake-up, we retry to read from the queue for some time, and then
                     for(int busy_wait=10; busy_wait; --busy_wait) {
                         if(try_pop()) {
-                            // this was a race-condition wake-up
+                            // It was a race-condition wake-up
                             return work;
                         };
                     }
@@ -210,12 +208,14 @@ struct StateAsyncCPUConvolution {
                         dt *= 10) {
                         std::this_thread::sleep_for(dt);
                         if(try_pop()) {
-                            // this was a race-condition wake-up (the information took way longer to arrive)
+                            // It was a race-condition wake-up (the information took a long time to arrive)
                             return work;
                         }
                     }
-                    // this was a spurious wake-up,
-                    // or a race-condition wake-up and it takes more than 200 microseconds for cpu stuff to synchronize?
+                    // It was either a spurious wake-up,
+                    // or a race-condition wake-up and it took more than 200 microseconds for the cpu to synchronize
+
+                    // to account for spurious wake-ups, we return to condition-variable wait.
                 }
             };
             

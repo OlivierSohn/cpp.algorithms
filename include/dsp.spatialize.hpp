@@ -327,7 +327,7 @@ namespace imajuscule
             }
 
             template<typename PS>
-            void dephaseComputations(PS spec) {
+            void dephaseComputations(PS const & spec) {
                 int n = 0;
                 int const total = countConvolutions();
                 forEachEar([spec, total, &n](auto & earConvs) {

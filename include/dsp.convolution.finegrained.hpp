@@ -702,8 +702,8 @@ namespace imajuscule
    deducing 'number of multiplications per grain' by finding the parameter that leads to grain computations time just below max(fft, ifft),
    with the constraint that one computation at most occurs per 'equivalent' audio callback.
    */
-  template<typename NonAtomicConvolution, typename SetupParam = typename NonAtomicConvolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
-  void find_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gradient_descent,
+  template<typename Convolution, typename SetupParam = typename Convolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
+  void find_optimal_partition_size(GradientDescent & gradient_descent,
                                                                int n_iterations,
                                                                int n_channels,
                                                                int n_scales,
@@ -742,7 +742,7 @@ namespace imajuscule
       int const length_impulse = *maybe_impulse_sz;
 
       struct Test {
-        using T = typename NonAtomicConvolution::FPT;
+        using T = typename Convolution::FPT;
         Test(int partition_size, int length_impulse) {
           a64::vector<T> coeffs;
           coeffs.reserve(length_impulse);
@@ -776,7 +776,7 @@ namespace imajuscule
           pfftcv.step(1.f);
         }
       private:
-        NonAtomicConvolution pfftcv;
+        Convolution pfftcv;
       };
 
       // prepare tests
@@ -787,7 +787,7 @@ namespace imajuscule
           return ParamState::OutOfRange;
         }
 
-      constexpr auto n_non_multiplicative_grains = NonAtomicConvolution::countNonMultiplicativeGrains();
+      constexpr auto n_non_multiplicative_grains = Convolution::countNonMultiplicativeGrains();
       static_assert(2 == n_non_multiplicative_grains);
       static constexpr auto index_fft = 0;
       static constexpr auto index_ifft = 1;
@@ -985,32 +985,32 @@ namespace imajuscule
     }
   }
 
-  template<typename NonAtomicConvolution, typename SetupParam = typename NonAtomicConvolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
-  void get_optimal_partition_size_for_nonatomic_convolution(GradientDescent & gd,
-                                                           int n_channels,
-                                                           int n_scales,
-                                                           int n_audiocb_frames,
-                                                           std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
-                                                            int min_lg2_partition_sz,
-                                                           Optional<SetupParam> & value,
-                                                            std::ostream & os)
+  template<typename Convolution, typename SetupParam = typename Convolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
+  void get_optimal_partition_size(GradientDescent & gd,
+                                  int n_channels,
+                                  int n_scales,
+                                  int n_audiocb_frames,
+                                  std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                                  int min_lg2_partition_sz,
+                                  Optional<SetupParam> & value,
+                                  std::ostream & os)
   {
     constexpr auto n_iterations = 1;
-    find_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
-                                                                                n_iterations,
-                                                                                n_channels,
-                                                                                n_scales,
-                                                                                n_audiocb_frames,
-                                                                                n_coeffs_for_partition_sz,
-                                                                                min_lg2_partition_sz,
-                                                                                value,
-                                                                                os);
+    find_optimal_partition_size<Convolution>(gd,
+                                             n_iterations,
+                                             n_channels,
+                                             n_scales,
+                                             n_audiocb_frames,
+                                             n_coeffs_for_partition_sz,
+                                             min_lg2_partition_sz,
+                                             value,
+                                             os);
   }
 
   template<typename T, typename FFTTag>
   struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
-    using NonAtomicConvolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
-    using SetupParam = typename NonAtomicConvolution::SetupParam;
+    using Convolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
+    using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
 
     static PS run(int n_channels,
@@ -1022,14 +1022,14 @@ namespace imajuscule
       assert(n_channels > 0);
       PS res;
       GradientDescent<SetupParam> gd;
-      get_optimal_partition_size_for_nonatomic_convolution<NonAtomicConvolution>(gd,
-                                                                                 n_channels,
-                                                                                 n_scales,
-                                                                                 n_audio_frames_per_cb,
-                                                                                 n_coeffs_for_partition_sz,
-                                                                                 min_lg2_partition_sz,
-                                                                                 res,
-                                                                                 os);
+      get_optimal_partition_size<Convolution>(gd,
+                                              n_channels,
+                                              n_scales,
+                                              n_audio_frames_per_cb,
+                                              n_coeffs_for_partition_sz,
+                                              min_lg2_partition_sz,
+                                              res,
+                                              os);
       constexpr auto debug_gradient_descent = false;
       if constexpr (debug_gradient_descent) {
           os << "Gradient descent report :" << std::endl;

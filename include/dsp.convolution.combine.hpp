@@ -1141,13 +1141,13 @@ namespace SameSizeScales {
       
   template<typename T, typename FFTTag>
   struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> > {
-    using NonAtomicConvolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>;
+    using Convolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>;
     
   private:
-    using LateHandler = typename NonAtomicConvolution::LateHandler;
-    using EarlyHandler = typename NonAtomicConvolution::EarlyHandler;
+    using LateHandler = typename Convolution::LateHandler;
+    using EarlyHandler = typename Convolution::EarlyHandler;
   public:
-      using SetupParam = typename NonAtomicConvolution::SetupParam;
+      using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
 
     static PS run(int n_channels,
@@ -1192,7 +1192,7 @@ namespace SameSizeScales {
         // it favors long partitions because we don't take into account
         // the cost of the early coefficient handler, but for long responses, where optimization matters,
         // the induced bias is negligible.
-        int n_coeffs_early_handler = lateHandlerLatency<NonAtomicConvolution>(partition_size);
+        int n_coeffs_early_handler = lateHandlerLatency<Convolution>(partition_size);
         assert(n_coeffs_early_handler >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter);
 
         auto late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
@@ -1207,7 +1207,7 @@ namespace SameSizeScales {
                                                      1,
                                                      n_audio_frames_per_cb,
                                                      late_handler_response_size_for_partition_size,
-                                                     getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>(),
+                                                     getLateHandlerMinLg2PartitionSz<Convolution>(),
                                                      os);
       PS ps;
       if(lateRes) {
@@ -1228,13 +1228,13 @@ namespace SameSizeScales {
       
       template<typename T, typename FFTTag>
       struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag> > {
-        using NonAtomicConvolution = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag>;
+        using Convolution = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag>;
         
       private:
-        using EarlyHandler = typename NonAtomicConvolution::EarlyHandler;
-        using LateHandler = typename EarlyestDeepest<typename NonAtomicConvolution::LateHandler>::type;
+        using EarlyHandler = typename Convolution::EarlyHandler;
+        using LateHandler = typename EarlyestDeepest<typename Convolution::LateHandler>::type;
       public:
-        using SetupParam = typename NonAtomicConvolution::SetupParam;
+        using SetupParam = typename Convolution::SetupParam;
         using PS = std::optional<SetupParam>;
 
         static PS run(int const n_response_channels,
@@ -1248,7 +1248,7 @@ namespace SameSizeScales {
       
       PS res;
       
-      range<int> const scales = getScaleCountRanges<NonAtomicConvolution>(rts);
+      range<int> const scales = getScaleCountRanges<Convolution>(rts);
 
       for(int n_scales = scales.getMin(); n_scales <= scales.getMax(); ++n_scales) {
 
@@ -1329,7 +1329,7 @@ namespace SameSizeScales {
             // it favors long partitions because we don't take into account
             // the cost of the early coefficient handler, but for long responses, where optimization matters,
             // the induced bias is negligible.
-            int n_coeffs_early_handler = lateHandlerLatency<NonAtomicConvolution>(partition_size);
+            int n_coeffs_early_handler = lateHandlerLatency<Convolution>(partition_size);
             assert(n_coeffs_early_handler >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter);
 
             auto late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
@@ -1353,7 +1353,7 @@ namespace SameSizeScales {
                                                          n_scales,
                                                          n_audio_frames_per_cb,
                                                          scale_size_for_partition_size,
-                                                         getLateHandlerMinLg2PartitionSz<NonAtomicConvolution>(),
+                                                         getLateHandlerMinLg2PartitionSz<Convolution>(),
                                                          os);
           if(lateRes) {
             std::optional<int> const mayScaleSz = scale_size_for_partition_size(lateRes->partition_size);

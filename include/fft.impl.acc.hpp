@@ -103,6 +103,9 @@ namespace imajuscule {
             void resize(size_t sz) {
                 buffer.resize(sz);
             }
+            void clear() {
+                buffer.clear();
+            }
 
             auto size() const { return buffer.size(); }
           auto empty() const { return buffer.empty(); }

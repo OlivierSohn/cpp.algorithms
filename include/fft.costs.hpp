@@ -279,6 +279,9 @@ namespace imajuscule::fft {
             return t;
         }
         static auto nocache_cost_fft_inverse(int64_t sz) {
+            if(sz == 0) {
+                return 0.;
+            }
             RealFBins f;
             RealInput input;
             f.resize(sz);
@@ -316,6 +319,9 @@ namespace imajuscule::fft {
             return t;
         }
         static auto nocache_cost_fft_forward(int64_t sz) {
+            if(sz == 0) {
+                return 0.;
+            }
             RealFBins f;
             RealInput input;
             f.resize(sz);

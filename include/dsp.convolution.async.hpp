@@ -6,6 +6,46 @@ enum class PolicyOnWorkerTooSlow {
     Wait // for testing purposes
 };
 
+struct AsyncCPUConvolutionConstants {
+    // We leave room for one more element in worker_2_rt queue so that the worker
+    //   can push immediately if its computation is faster than the real-time thread
+    //   (which is very unlikely, though).
+    static constexpr int queue_room_sz = 1;
+};
+
+template<typename InnerParams>
+struct AsyncSetupParam : public Cost {
+    static constexpr int queue_room_sz = AsyncCPUConvolutionConstants::queue_room_sz;
+
+    AsyncSetupParam(int inputSubmissionPeriod,
+               int queueSize,
+               InnerParams const & asyncParams)
+    : inputSubmissionPeriod(inputSubmissionPeriod)
+    , queueSize(queueSize)
+    , asyncParams(asyncParams)
+    {}
+    
+    int inputSubmissionPeriod;
+    int queueSize;
+    InnerParams asyncParams;
+    
+    int getImpliedLatency() const {
+        return
+        inputSubmissionPeriod*((queueSize-queue_room_sz) + 1)
+        - 1
+        + asyncParams.getImpliedLatency();
+    }
+    
+    void logSubReport(std::ostream & os) const override {
+        os << "Async, period : " << inputSubmissionPeriod <<  " size : " << queueSize << std::endl;
+        {
+            IndentingOStreambuf i(os);
+            asyncParams.logSubReport(os);
+        }
+    }
+};
+
+
   /*
    Asynchronous convolution on a separate thread.
    */
@@ -19,11 +59,7 @@ enum class PolicyOnWorkerTooSlow {
       static constexpr int nCoefficientsFadeIn = Async::nCoefficientsFadeIn;
       static constexpr bool has_subsampling = Async::has_subsampling;
       static constexpr bool step_can_error = true;
-      
-      // We leave room for one more element in worker_2_rt queue so that the worker
-      //   can push immediately if its computation is faster than the real-time thread
-      //   (which is very unlikely, though).
-      static constexpr int queue_room_sz = 1;
+      static constexpr int queue_room_sz = AsyncCPUConvolutionConstants::queue_room_sz;
 
       AsyncCPUConvolution() = default;
       
@@ -35,35 +71,7 @@ enum class PolicyOnWorkerTooSlow {
           terminateAsyncJobs();
       }
 
-    struct SetupParam : public Cost {
-        using InnerParams = typename Async::SetupParam;
-        SetupParam(int inputSubmissionPeriod,
-                   int queueSize,
-                   InnerParams const & innerParams)
-        : inputSubmissionPeriod(inputSubmissionPeriod)
-        , queueSize(queueSize)
-        , innerParams(innerParams)
-        {}
-        
-        int inputSubmissionPeriod;
-        int queueSize;
-        InnerParams innerParams;
-        
-        int getImpliedLatency() const {
-            return
-            inputSubmissionPeriod*((queueSize-queue_room_sz) + 1)
-            - 1
-            + innerParams.getImpliedLatency();
-        }
-        
-        void logSubReport(std::ostream & os) const override {
-            os << "Async, period : " << inputSubmissionPeriod <<  " size : " << queueSize << std::endl;
-            {
-                IndentingOStreambuf i(os);
-                innerParams.logSubReport(os);
-            }
-        }
-    };
+    using SetupParam = AsyncSetupParam<typename Async::SetupParam>;
 
     void logComputeState(std::ostream & os) const {
         os << "Async [" << curIndex << "/" << N << "], queueSize : " << queueSize << std::endl;
@@ -78,7 +86,7 @@ enum class PolicyOnWorkerTooSlow {
         N = s.inputSubmissionPeriod;
         queueSize = s.queueSize;
         
-        algo.setup(s.innerParams);
+        algo.setup(s.asyncParams);
     }
     
     void setCoefficients(a64::vector<FPT> coeffs) {

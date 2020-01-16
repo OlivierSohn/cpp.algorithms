@@ -20,9 +20,11 @@ struct StateFIRFilter {
     using Tag = FFTTag;
 
     MinSizeRequirement setCoefficients(Algo const & algo,
-                                       a64::vector<T> v) {
-        std::reverse(v.begin(), v.end());
+                                       a64::vector<T> v)
+    {
         reset();
+
+        std::reverse(v.begin(), v.end());
         reversed_coefficients.reserve(v.size());
         for(auto const & vv : v) {
             reversed_coefficients.push_back(typename decltype(reversed_coefficients)::value_type(vv));
@@ -40,9 +42,8 @@ struct StateFIRFilter {
     bool isZero() const { return reversed_coefficients.empty(); }
     
     void reset() {
+        // if needed, to avoid singularities, we could put a single zero coefficient here
         reversed_coefficients.clear();
-    }
-    void flushToSilence() {
     }
     
     double getEpsilon(Algo const & algo) const {
@@ -72,7 +73,10 @@ struct AlgoFIRFilter {
     void setup(SetupParam const &) const {}
 
     constexpr int getLatency() const { return 0; }
-
+    
+    bool handlesCoefficients() const {
+        return true;
+    }
     bool isValid() const {
         return true;
     }
@@ -81,24 +85,35 @@ struct AlgoFIRFilter {
               XAndFFTS<T, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const
     {
-        if(unlikely(s.isZero())) {
-            return;
-        }
         auto * coeff = s.getReversedCoeffs().data();
+
         int const sz = static_cast<int>(s.getReversedCoeffs().size());
+
         auto [s1, s2] = x_and_ffts.getSegments(0, sz);
+
         using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
-        E res;
-        Assert(s1.second);
+        E res; // no need to zero-initialize, dotpr will write it.
+
+        // s1.second may be 0
         dotpr(&x_and_ffts.x[s1.first], coeff, &res, s1.second);
+
         if(unlikely(s2.second)) {
             E res2;
             dotpr(&x_and_ffts.x[s2.first], coeff+s1.second, &res2, s2.second);
             res += res2;
         }
+
         y.y[y.uProgress] += res;
+    }
+
+    void flushToSilence(State & s) const {
     }
 };
 
+template<typename T, typename FFTTag>
+struct corresponding_legacy_dsp<AlgoFIRFilter<T, FFTTag>> {
+    // FFTTag is ignored, legacy FIRFilter uses the fastest one available
+    using type = FIRFilter<T>;
+};
 
 }

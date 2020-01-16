@@ -2,6 +2,29 @@
 
 namespace imajuscule {
 
+/*
+ 
+ Contracts:
+ 
+ ** algo **
+ 
+ - setup()
+ 
+ Must be called before state.setCoefficients().
+ 
+ ** state **
+ 
+ - setCoefficients()
+ 
+ puts the convolution in a state such that algo.step() has an effect
+
+ - reset()
+ 
+ puts the convolution in a state such that algo.step() has no effect
+
+
+ */
+
 using FftSpecs = std::map<uint32_t, int>; // sz -> historySize
 
 template<typename T, typename Tag>
@@ -41,7 +64,9 @@ struct XAndFFTS {
         fftHalfSizesBits = 0;
         fftsHalfSizesBitsToCompute = 0;
         for(auto const & [fftSz, history_sz] : fftSpecs) {
-            Assert(history_sz > 0);
+            if(history_sz == 0 || fftSz == 0) {
+                continue;
+            }
             Assert(is_power_of_two(fftSz));
             fftHalfSizesBits |= (fftSz/2);
 
@@ -51,10 +76,13 @@ struct XAndFFTS {
         Assert(count_set_bits(fftHalfSizesBits) == x_ffts.size());
         int const maxHalfFFTSz = floor_power_of_two(fftHalfSizesBits);
 
-        x_unpadded_size = std::max(maxHalfFFTSz, sz);
+        x_unpadded_size = std::max(maxHalfFFTSz,
+                                   static_cast<int>(ceil_power_of_two(std::max(1,
+                                                                               sz))));
 
         x.clear();
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
+        padding = x.size();
     }
     
     void push(T v) {
@@ -94,6 +122,21 @@ struct XAndFFTS {
         }
     }
     
+    int flushToSilence() {
+        for(auto & fft:x_ffts) {
+            fft.flushToSilence();
+        }
+        if(!x.empty()) {
+            zero_n_raw(&x[0], x.size());
+        }
+        int const progressBackup = progress;
+        progress = 0;
+        padding = x.size();
+        fftsHalfSizesBitsToCompute = 0;
+        Assert(progressBackup <= x_unpadded_size);
+        return progressBackup ? (x_unpadded_size-progressBackup) : 0;
+    }
+    
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     
     RealSignal x;
@@ -107,6 +150,7 @@ struct XAndFFTS {
         using Contexts = fft::Contexts_<Tag, T>;
         using FFTAlgo = typename fft::Algo_<Tag, T>;
         using FBins = typename fft::RealFBins_<Tag, T>::type;
+        static constexpr auto zero = fft::RealFBins_<Tag, T>::zero;
 
         FFTs(int fft_length, int history_sz)
         : fft(Contexts::getInstance().getBySize(fft_length))
@@ -135,6 +179,12 @@ struct XAndFFTS {
         void for_some_bkwd(int count, F f) const {
             ffts.for_some_bkwd(count, f);
         }
+        
+        void flushToSilence() {
+            for(auto & fft : ffts) {
+                zero(fft);
+            }
+        }
     private:
         cyclic<FBins> ffts;
     };
@@ -159,8 +209,11 @@ private:
 
 template<typename T, typename Tag>
 struct Y {
-    void resize(int const blockSz,
+    static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
+    
+    void resize(int const blockSz_,
                 int const nAnticipatedWrites) {
+        int const blockSz = std::max(1, blockSz_);
         blockSizeMinusOne = blockSz-1;
         int const nAnticipationBlocks = nAnticipatedWrites ? (1 + (nAnticipatedWrites-1) / blockSz) : 0;
         Assert(nAnticipationBlocks >= 0);
@@ -189,9 +242,19 @@ struct Y {
             zeroed_up_to = zeroStart + blockSize;
             Assert(zeroStart < ySz);
             Assert(zeroed_up_to <= ySz);
-            fft::RealSignal_<Tag, T>::zero_n_raw(&y[zeroStart], blockSize);
+            zero_n_raw(&y[zeroStart], blockSize);
         }
         Assert(uProgress < ySz);
+    }
+    
+    void flushToSilence(int const nStepsForward) {
+        zero_n_raw(&y[0], ySz);
+        
+        Assert(nStepsForward >= 0);
+        
+        for(int i=0; i<nStepsForward; ++i) {
+            increment();
+        }
     }
 
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
@@ -251,16 +314,24 @@ struct DspContext {
         x_and_ffts.resize(req.minXSize, req.xFftSizes);
         y.resize(req.minYSize, req.minYAnticipatedWrites);
     }
+    
+    void flushToSilence() {
+        int const n_steps = x_and_ffts.flushToSilence();
+        y.flushToSilence(n_steps);
+    }
 };
 
 /* Used to simplify tests */
-template<typename Algo, typename Tag = typename Algo::Tag>
+template<typename A>
 struct Convolution {
+    using Algo = A;
+
     static constexpr bool step_can_error = Algo::Desc::step_can_error;
     static constexpr bool has_subsampling = Algo::Desc::has_subsampling;
     
     using State = typename Algo::State;
     using FPT = typename Algo::FPT;
+    using Tag = typename Algo::Tag;
     using DspContext = DspContext<FPT, Tag>;
     using SetupParam = typename Algo::SetupParam;
 
@@ -268,7 +339,6 @@ struct Convolution {
         algo.setup(p);
     }
     void setCoefficients(a64::vector<FPT> v) {
-        Assert(v.size());
         MinSizeRequirement req = state.setCoefficients(algo, std::move(v));
         
         ctxt.resize(req);
@@ -282,6 +352,9 @@ struct Convolution {
         }
     }
     
+    bool handlesCoefficients() const {
+        return algo.handlesCoefficients();
+    }
     bool isValid() const {
         return algo.isValid();
     }
@@ -292,10 +365,15 @@ struct Convolution {
         return state.getEpsilon(algo);
     }
     void logComputeState(std::ostream & os) const {
-        return state.logComputeState(algo, os);
+        state.logComputeState(algo, os);
     }
     int getLatency() const {
         return algo.getLatency();
+    }
+    
+    template <typename Bool = bool>
+    auto hasStepErrors() const -> std::enable_if_t<step_can_error, Bool> {
+        return state.hasStepErrors();
     }
     
     FPT step(FPT val) {
@@ -338,6 +416,11 @@ struct Convolution {
         }
     }
     
+    void flushToSilence() {
+        algo.flushToSilence(state);
+        ctxt.flushToSilence();
+    }
+    
     auto & getAlgo() {
         return algo;
     }
@@ -349,5 +432,12 @@ private:
     State state;
     Algo algo;
 };
+
+template<typename Algo>
+struct corresponding_legacy_dsp<Convolution<Algo>> {
+    using type = corresponding_legacy_dsp_t<Algo>;
+};
+
+
 
 }

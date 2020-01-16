@@ -94,7 +94,7 @@ void testReverbDirac(Args ...args) {
             ++rts_i) {
             bool retried = false;
        retry:
-            LG(INFO, "%d, %d,", sz, rts_i);
+            LG(INFO, "sz %d, rts %d,", sz, rts_i);
             auto const rts = static_cast<ResponseTailSubsampling>(rts_i);
 
             auto const scaleRange = getScaleCountRanges<Convolution>(rts);
@@ -232,11 +232,11 @@ void testReverbDirac(Args ...args) {
 
 TEST(Reverbs, dirac) {
     using namespace imajuscule;
-    testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled>();
     testReverbDirac<ReverbType::Realtime_Synchronous>();
+    testReverbDirac<ReverbType::Offline>();
     testReverbDirac<ReverbType::Realtime_Asynchronous>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy>(SimulationPhasing::no_phasing());
-    testReverbDirac<ReverbType::Offline>();
+    testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled>();
 }
 
 TEST(Reverbs, reproQueueSizeGarageband) {

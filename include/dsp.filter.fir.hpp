@@ -9,6 +9,9 @@ struct FIRSetupParam : public Cost {
     constexpr bool isValid() const {
         return true;
     }
+    constexpr bool handlesCoefficients() const {
+        return true;
+    }
     constexpr int getImpliedLatency() const {
         return 0;
     }
@@ -148,13 +151,10 @@ struct PartitionAlgo< FIRFilter<T> > {
                   double frame_rate,
                   std::ostream & os) {
         // there is no variable to optimize with FIRFilter:
-        PS minimalPs;
-        minimalPs.cost = SetupParam();
-        minimalPs.cost->setCost(0.);
-        return {
-            minimalPs,
-            minimalPs
-        };
+        PS ps;
+        ps.cost = SetupParam();
+        ps.cost->setCost(0.);
+        return ps;
     }
 };
 

@@ -111,7 +111,7 @@ namespace imajuscule
         // we don't half the input because the coefficients were halved in setCoefficients
         auto sumInputs = prevInput + input;
         auto output = algo.step(sumInputs);
-        auto res = 0.5f * (output + prevOutput);
+        auto res = 0.5f * (output + prevOutput); // TODO there is probably much better we can do here, like sinc interpolation, at the expense of bigger latency.
         prevOutput = output;
         return res;
       }

@@ -301,7 +301,9 @@ struct FFTConvolutionCRTPSimulation {
 
         using SetupParam = FFTConvolutionCRTPSetupParam;
       
-      void setup(SetupParam const &) {}
+      void setup(SetupParam const & p) {
+          N = p.blockSize;
+      }
         
         void doLogComputeState(std::ostream & os) const {
             os << "1 block of size " << N << std::endl;
@@ -332,7 +334,7 @@ struct FFTConvolutionCRTPSimulation {
 
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
             auto fft_length = get_fft_length(coeffs_.size());
-            N = fft_length/2;
+            Assert(N == fft_length/2);
 
             fft_of_h.resize(fft_length);
             fft_of_x.resize(fft_length);
@@ -408,6 +410,14 @@ struct PartitionnedFFTConvolutionCRTPSetupParam {
         return partition_size-1;
     }
     int partition_size;
+    
+    bool isValid() const {
+        return partition_size > 0;
+    }
+    
+    void logSubReport(std::ostream & os) const {
+        os << "partition_sz : " << partition_size << std::endl;
+    }
 };
 
 template <typename T, typename Tag>
@@ -602,140 +612,6 @@ private:
     };
 
     /*
-     * Performs a 1-D gradient descent using lg(partition_size) as variable parameter.
-     * Fixed parameters are: impulse response length, number of channels, spread constraint,
-     */
-    template<typename AtomicConvolution>
-    int get_lg2_optimal_partition_size_for_atomic_convolution(GradientDescent<typename AtomicConvolution::SetupParam> & gradient_descent,
-                                                              int n_iterations,
-                                                              int n_channels,
-                                                              int n_frames,
-                                                              int length_impulse,
-                                                              bool constraint,
-                                                              float & min_val,
-                                                              int n_tests) {
-        gradient_descent.setFunction( [n_frames, length_impulse, constraint, n_tests, n_channels] (int lg2_partition_size, float & val){
-            using namespace profiling;
-            using namespace std;
-            using namespace std::chrono;
-
-            if(lg2_partition_size < 0) {
-                return ParamState::OutOfRange;
-            }
-            if(lg2_partition_size > 20) {
-                throw logic_error("Gradient descent is not working?");
-            }
-            auto const partition_size = pow2(lg2_partition_size);
-
-            if(constraint) {
-                if(n_channels * n_frames >= partition_size) {
-                    // partitions are too small so we can't chose the phases so that at most one computation occurs per callback
-                    return ParamState::OutOfRange;
-                }
-            }
-
-            struct Test {
-
-                Test(size_t partition_size, int length_impulse) {
-                    setPartitionSize(pfftcv, partition_size);
-                    pfftcv.setCoefficients(a64::vector<float>(length_impulse));
-                    for(int i=0; i<partition_size-1; ++i) {
-                        if(pfftcv.willComputeNextStep()) {
-                            throw logic_error("Wrong timing! Should stop earlier!");
-                        }
-                        pfftcv.step(0.f); // these do next to nothing...
-                    }
-                    if(!pfftcv.willComputeNextStep()) {
-                        throw logic_error("Wrong timing! Should stop later!");
-                    }
-                }
-
-                void run() {
-                    assert(pfftcv.willComputeNextStep());
-                    pfftcv.step(0.f); // ... this one does the ffts
-                }
-            private:
-                AtomicConvolution pfftcv;
-            };
-
-            // prepare tests
-
-            vector<Test> tests;
-            tests.reserve(n_tests);
-            for(int i=0; i<n_tests;++i) {
-                tests.emplace_back(partition_size, length_impulse);
-            }
-
-            val = measure_thread_cpu_one([&tests](){
-                for(auto & t : tests) {
-                    t.run();
-                }
-            });
-
-            val /= n_tests;
-            // val == 'one computation'
-
-            auto n_max_computes_per_callback = n_frames / partition_size;
-            if(n_frames != n_max_computes_per_callback * partition_size) {
-                // in the worst case, we have one more
-                ++ n_max_computes_per_callback;
-            }
-            if(constraint) {
-                if(n_max_computes_per_callback != 1) {
-                    throw logic_error("the constraint ensures that the number of"
-                                      " computes per callback is 1/n_channels on average");
-                }
-                // n_frames is small enough and partition_size is big enough so that
-                // there is enough "room" to spread the computes of different channels over different callback calls,
-                // provided we "phase" the different partitionned convolutions correctly.
-                // Hence we take this advantage into account here:
-                val /= n_channels;
-            }
-
-            val *= n_max_computes_per_callback;
-            // val == 'worst computation time over one callback'
-
-            val /= n_frames;
-            // val == 'worst computation time over one callback, averaged per frame'
-
-            return ParamState::Ok;
-        });
-
-        auto start_lg2_partition = 5;
-        if(constraint) {
-            // to ensure that the constraint is met in first try
-            start_lg2_partition = 1 + power_of_two_exponent(n_channels * n_frames);
-        }
-
-        return gradient_descent.findMinimum(n_iterations,
-                                            start_lg2_partition,
-                                            min_val);
-    }
-
-    template<typename AtomicConvolution>
-    int get_optimal_partition_size_for_atomic_convolution(GradientDescent<typename AtomicConvolution::SetupParam> & gd,
-                                                          int n_channels,
-                                                          bool with_spread,
-                                                          int n_audiocb_frames,
-                                                          int length_impulse,
-                                                          float & value )
-    {
-        /* timings have random noise, so iterating helps having a better precision */
-        constexpr auto n_iterations = 30;
-        constexpr auto n_tests = 1;
-        int lg2_part_size = get_lg2_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(gd,
-                                                                                                     n_iterations,
-                                                                                                     n_channels,
-                                                                                                     n_audiocb_frames,
-                                                                                                     length_impulse,
-                                                                                                     with_spread,
-                                                                                                     value,
-                                                                                                     n_tests);
-
-        return static_cast<int>(pow2(lg2_part_size));
-    }
-
-    /*
 
      Notations for complexity:
 
@@ -793,40 +669,4 @@ private:
      */
     template <typename T, typename FFTTag>
     using PartitionnedFFTConvolution = FFTConvolutionBase< FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> > >;
-
-    template<typename T, typename FFTTag>
-    struct PartitionAlgo< PartitionnedFFTConvolution<T, FFTTag> > {
-        using AtomicConvolution = PartitionnedFFTConvolution<T, FFTTag>;
-        using SetupParam = typename AtomicConvolution::SetupParam;
-        using PS = std::optional<SetupParam>;
-
-        static PS run(int n_channels,
-                      int n_audio_cb_frames,
-                      int size_impulse_response) {
-            assert(n_channels > 0);
-            PS res;
-            {
-                auto & spec = res.without_spread;
-                spec.size = get_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(spec.gd,
-                                                                                                 n_channels,
-                                                                                                 false,
-                                                                                                 n_audio_cb_frames,
-                                                                                                 size_impulse_response,
-                                                                                                 spec.avg_time_per_sample );
-            }
-
-            if(n_channels > 1) {
-                auto & spec = res.with_spread;
-                spec.size = get_optimal_partition_size_for_atomic_convolution<AtomicConvolution>(spec.gd,
-                                                                                                 n_channels,
-                                                                                                 true,
-                                                                                                 n_audio_cb_frames,
-                                                                                                 size_impulse_response,
-                                                                                                 spec.avg_time_per_sample );
-            }
-
-            return std::move(res);
-        }
-    };
-
 }

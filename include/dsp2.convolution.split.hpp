@@ -32,10 +32,6 @@ struct StateSplitConvolution {
         a.reset();
         b.reset();
     }
-    void flushToSilence() {
-        a.flushToSilence();
-        b.flushToSilence();
-    }
     
     MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<FPT> coeffs_) {
         int const split = algo.computeSplit();
@@ -45,7 +41,6 @@ struct StateSplitConvolution {
         if(rangeB.empty()) {
             auto res = a.setCoefficients(algo.a, rangeA.materialize());
             b.reset();
-            assert(b.isZero());
             return res;
         }
 
@@ -61,17 +56,16 @@ struct StateSplitConvolution {
         auto res = a.setCoefficients(algo.a, withLinearFadeOut(B::Desc::nCoefficientsFadeIn,rangeA.materialize()));
         auto resB = b.setCoefficients(algo.b, withLinearFadeIn(B::Desc::nCoefficientsFadeIn,rangeB.materialize()));
         res.mergeWith(resB);
-        assert(!b.isZero());
         return res;
     }
     
     template <typename Bool = bool>
     auto hasStepErrors() const -> std::enable_if_t<Desc::step_can_error, Bool> {
         bool errors = false;
-        if constexpr (A::step_can_error) {
+        if constexpr (A::Desc::step_can_error) {
             errors = a.hasStepErrors();
         }
-        if constexpr (B::step_can_error) {
+        if constexpr (B::Desc::step_can_error) {
             errors = b.hasStepErrors() || errors;
         }
         return errors;
@@ -130,7 +124,7 @@ struct AlgoSplitConvolution {
     using Tag = typename A::Tag;
     static_assert(std::is_same_v<typename A::Tag, typename B::Tag>);
 
-    using SetupParam = SplitSetupParam<typename EarlyHandler::SetupParam, typename LateHandler::SetupParam>;
+    using SetupParam = SplitSetupParam<typename A::SetupParam, typename B::SetupParam>;
 
     static_assert(std::is_same_v<FPT,typename B::FPT>);
     
@@ -140,15 +134,19 @@ struct AlgoSplitConvolution {
     }
     
     bool isValid() const {
-        return a.isValid() && (b.isValid() /*|| b.isZero()*/); // il faudra peut-etre retravailler ca plus tard, pour finegrained
+        return a.isValid() && b.isValid();
     }
-    
+    bool handlesCoefficients() const {
+        // or just a.handlesCoefficients() ?
+        return a.handlesCoefficients() || b.handlesCoefficients();
+    }
+
     auto getLatency() const {
         return a.getLatency();
     }
     
     int computeSplit() const {
-        if(!b.isValid()) { // for case where lower resolution tail is not used
+        if(!b.handlesCoefficients()) {
             return noSplit;
         }
         else {
@@ -168,8 +166,21 @@ struct AlgoSplitConvolution {
                y);
     }
     
+    void flushToSilence(State & s) const {
+        a.flushToSilence(s.a);
+        b.flushToSilence(s.b);
+    }
+
     A a;
     B b;
+};
+
+template<typename A, typename B>
+struct corresponding_legacy_dsp<AlgoSplitConvolution<A, B>> {
+    using type = SplitConvolution<
+    corresponding_legacy_dsp_t<A>,
+    corresponding_legacy_dsp_t<B>
+    >;
 };
 
 }

@@ -492,6 +492,9 @@ namespace imajuscule
   };
 
   constexpr int countPartitions(int nCoeffs, int partition_size) {
+      if(nCoeffs == 0) {
+          return 0;
+      }
     auto n_partitions = nCoeffs/partition_size;
     if(n_partitions * partition_size != nCoeffs) {
       assert(n_partitions * partition_size < nCoeffs);
@@ -703,14 +706,14 @@ namespace imajuscule
    */
   template<typename Convolution, typename SetupParam = typename Convolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
   void find_optimal_partition_size(GradientDescent & gradient_descent,
-                                                               int n_iterations,
-                                                               int n_channels,
-                                                               int n_scales,
-                                                               int n_frames,
-                                                               std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
-                                                             int min_lg2_partitionsz, // must yield a valid result
-                                                               Optional<SetupParam> & min_val,
-                                                             std::ostream & os) {
+                                   int n_iterations,
+                                   int n_channels,
+                                   int n_scales,
+                                   int n_frames,
+                                   std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                                   int min_lg2_partitionsz, // must yield a valid result
+                                   Optional<SetupParam> & min_val,
+                                   std::ostream & os) {
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
 
@@ -966,6 +969,7 @@ namespace imajuscule
       val.setGrainsCosts(phased_cost.grains_costs);
       val.setPhase(phased_cost.getPhase().value_or(0));
       val.partition_size = partition_size;
+      val.partition_count = countPartitions(length_impulse, partition_size);
 
       constexpr auto debug = false;
       if(debug) {
@@ -990,28 +994,6 @@ namespace imajuscule
     }
   }
 
-  template<typename Convolution, typename SetupParam = typename Convolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
-  void get_optimal_partition_size(GradientDescent & gd,
-                                  int n_channels,
-                                  int n_scales,
-                                  int n_audiocb_frames,
-                                  std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
-                                  int min_lg2_partition_sz,
-                                  Optional<SetupParam> & value,
-                                  std::ostream & os)
-  {
-    constexpr auto n_iterations = 1;
-    find_optimal_partition_size<Convolution>(gd,
-                                             n_iterations,
-                                             n_channels,
-                                             n_scales,
-                                             n_audiocb_frames,
-                                             n_coeffs_for_partition_sz,
-                                             min_lg2_partition_sz,
-                                             value,
-                                             os);
-  }
-
   template<typename T, typename FFTTag>
   struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
     using Convolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
@@ -1027,7 +1009,9 @@ namespace imajuscule
       assert(n_channels > 0);
       PS res;
       GradientDescent<SetupParam> gd;
-      get_optimal_partition_size<Convolution>(gd,
+      constexpr auto n_iterations = 1;
+      find_optimal_partition_size<Convolution>(gd,
+                                              n_iterations,
                                               n_channels,
                                               n_scales,
                                               n_audio_frames_per_cb,

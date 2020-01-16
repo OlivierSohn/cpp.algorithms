@@ -12,6 +12,24 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         
         int countCoeffs;
         SetupParam setupParam;
+        
+        bool isValid() const {
+            if(countCoeffs < 0) {
+                return false;
+            }
+            return setupParam.isValid();
+        }
+        bool handlesCoefficients() const {
+            return countCoeffs > 0;
+        }
+        
+        void logSubReport(std::ostream & os) const {
+            os << countCoeffs << " coeffs with:" << std::endl;
+
+            IndentingOStreambuf indent(os);
+
+            setupParam.logSubReport(os);
+        }
     };
 
     CustomScaleConvolutionSetupParam(std::vector<ScalingParam> const & scalingParams)
@@ -29,12 +47,37 @@ struct CustomScaleConvolutionSetupParam : public Cost {
     
     void logSubReport(std::ostream & os) const override {
         os << "Custom scaling" << std::endl;
+
+        IndentingOStreambuf indent(os);
+
+        for(auto const & s : scalingParams) {
+            s.logSubReport(os);
+        }
+    }
+    
+    bool isValid() const {
+        if(scalingParams.empty()) {
+            return true;
+        }
+        return std::all_of(scalingParams.begin(),
+                           scalingParams.end(),
+                           [](auto const & p) -> bool { return p.isValid(); });
+    }
+    bool handlesCoefficients() const {
+        if(scalingParams.empty()) {
+            return false;
+        }
+        return scalingParams.begin()->handlesCoefficients();
     }
 };
 
-struct ScaleMetrics {
+struct SimuScaleMetrics {
     int countCoeffs;
     int submissionPeriod;
+    int submissionCountdown;
+};
+struct ScaleMetrics {
+    int countCoeffs;
     int submissionCountdown;
 };
 struct CachedCosts {
@@ -68,7 +111,8 @@ struct CustomScaleConvolutionSimulation {
             v.emplace_back();
             
             v.back().first.countCoeffs = param.countCoeffs;
-            v.back().first.submissionCountdown = param.setupParam.getImpliedLatency()-1;
+            v.back().first.submissionPeriod = param.setupParam.getImpliedLatency()+1;
+            v.back().first.submissionCountdown = v.back().first.submissionPeriod-1;
 
             v.back().second.second.setup(param.setupParam);
         }
@@ -216,7 +260,7 @@ struct CustomScaleConvolutionSimulation {
     }
 private:
     double costWriteOne;
-    std::vector<std::pair<ScaleMetrics,std::pair<CachedCosts, A>>> v;
+    std::vector<std::pair<SimuScaleMetrics,std::pair<CachedCosts, A>>> v;
     int x_halfSize = 0, progress = 0, endPadding = 0;
     
     void reset_states() {
@@ -313,7 +357,7 @@ struct CustomScaleConvolution {
         IndentingOStreambuf indent(os);
         for(auto const & [param, algo] : v)
         {
-            os << param.countCoeffs << " [" << param.submissionCountdown << "/" << param.submissionPeriod << "]" << std::endl;
+            os << param.countCoeffs << " [" << param.submissionCountdown << "/" << algo.getLatency()+1 << "]" << std::endl;
             IndentingOStreambuf indent2(os);
             algo.logComputeState(os);
         }
@@ -388,7 +432,7 @@ struct CustomScaleConvolution {
             else {
                 conv.setCoefficients2({start,it});
             }
-            param.submissionCountdown = param.submissionPeriod-1;
+            param.submissionCountdown = conv.getLatency();
             if(conv.getLatency() != param.submissionCountdown) {
                 // This breaks the class logic, and would lead to wrong results.
                 throw std::logic_error("CustomScaleConvolution is applied to a type that doesn't respect the latency constraints.");
@@ -436,11 +480,10 @@ private:
         FPT r{};
         
         for(auto & [param, algo] : v) {
-            Assert(param.submissionPeriod > 0);
             Assert(param.submissionCountdown >= 0);
             if(unlikely(0 == param.submissionCountdown)) {
-                param.submissionCountdown = param.submissionPeriod;
-                int const paddingSize = param.submissionPeriod;
+                param.submissionCountdown = algo.getLatency()+1;
+                int const paddingSize = param.submissionCountdown;
                 // write the padding exactly when we need it to optimize cache use
                 {
                     int const neededEndPadding = progress + paddingSize;
@@ -509,11 +552,7 @@ public:
         if(v.empty()) {
             return 0;
         }
-        return std::min_element(v.begin(),
-                                v.end(),
-                                [](auto const & p1, auto const & p2) {
-            return p1.first.submissionPeriod < p2.first.submissionPeriod;
-        })->first.submissionPeriod - 1;
+        return v.begin()->second.getLatency();
     }
 
     std::array<int, nComputePhaseable> getComputePeriodicities() const {
@@ -536,9 +575,7 @@ public:
         if(v.empty()) {
             return 0;
         }
-        return std::max_element(v.begin(), v.end(), [](auto const & p1, auto const & p2){
-            return p1.first.submissionPeriod < p2.first.submissionPeriod;
-        })->first.submissionPeriod;
+        return v.rbegin()->second.getLatency()+1;
     }
     
 private:

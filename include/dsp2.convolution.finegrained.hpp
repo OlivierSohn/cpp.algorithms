@@ -24,6 +24,19 @@ struct StateFinegrainedFFTConvolutionBase : public Parent {
 
     using Parent::clear;
     using Parent::doSetCoefficients;
+    using Parent::doLogComputeState;
+    
+    void logComputeState(Algo const & algo, std::ostream & os) const {
+        os << "Finegrained ";
+        if(isZero()) {
+            os << "zero" << std::endl;
+        }
+        else {
+            os << "grain {" << grain_counter << "/" << algo.countGrains()
+            << "} progress [_/" << algo.getBlockSize() << "]" << std::endl;
+            doLogComputeState(algo, os);
+        }
+    }
     
     MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_) {        
         reset();
@@ -86,6 +99,9 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
     void step(State & s,
               XAndFFTS<T, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const {
+        if(s.isZero()) {
+            return;
+        }
         if(unlikely(countPartitions() == 0)) {
             return;
         }
@@ -101,7 +117,11 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
             ++s.grain_counter;
         }
     }
-    
+
+    void flushToSilence(State & s) const {
+        s.flushToSilence();
+    }
+
 private:
     
     std::pair<int, std::optional<GrainType>> nextGrain(State const & s,
@@ -202,6 +222,12 @@ private:
 };
 
 
+template<typename Parent>
+struct corresponding_legacy_dsp<AlgoFinegrainedFFTConvolutionBase<Parent>> {
+    using type = FinegrainedFFTConvolutionBase<corresponding_legacy_dsp_t<Parent>>;
+};
+
+
 /*
  */
 
@@ -235,56 +261,62 @@ struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
     double getEpsilon(Algo const & algo) const {
         return algo.countPartitions() * (fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
     }
-    
+    void doLogComputeState(Algo const & algo, std::ostream & os) const {
+        os << algo.countPartitions() << " partitions "
+        << algo.getMultiplicationsGroupMaxSize() << " multGroupMaxSize" << std::endl;
+    }
+
 public:
     MinSizeRequirement doSetCoefficients(Algo const & algo,
-                                         a64::vector<T> coeffs_) {
-        auto const N = algo.getBlockSize();
-        assert(N > 0);
-        
-        auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), N);
-        if(n_partitions != algo.countPartitions()) {
-            throw std::logic_error("wrong number of partitions");
-        }
-        // if one partition is partial, it will be padded with zeroes.
-        coeffs_.resize(n_partitions * N);
-        
-        ffts_of_partitionned_h.resize(n_partitions);
-        
+                                         a64::vector<T> coeffs_)
+    {
         auto const fft_length = algo.get_fft_length();
-        
-        for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-            fft_of_partitionned_h.resize(fft_length);
-        }
-        
-        // compute fft of padded impulse response
-        
-        auto it_coeffs = coeffs_.begin();
-        {
-            using FFTAlgo = typename fft::Algo_<Tag, FPT>;
-            using Contexts = fft::Contexts_<Tag, FPT>;
-            FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
+        if(fft_length) {
+            auto const N = algo.getBlockSize();
+            assert(N > 0);
             
-            auto const factor = scaleFactor<FFTAlgo>(static_cast<FPT>(fft_length));
-            RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
-            for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                auto end_coeffs = it_coeffs + N;
-                assert(end_coeffs <= coeffs_.end());
-                auto slice_it = coeffs_slice.begin();
-                for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
-                    using RealT = typename RealSignal::value_type;
-                    *slice_it = RealT(*it_coeffs);
-                }
-                
-                // coeffs_slice is padded with 0, because it is bigger than partition_size
-                // and initialized with zeros.
-                fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
-                scale(fft_of_partitionned_h, factor);
+            auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), N);
+            if(n_partitions != algo.countPartitions()) {
+                throw std::logic_error("wrong number of partitions");
             }
+            // if one partition is partial, it will be padded with zeroes.
+            coeffs_.resize(n_partitions * N);
+            
+            ffts_of_partitionned_h.resize(n_partitions);
+            
+            for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+                fft_of_partitionned_h.resize(fft_length);
+            }
+            
+            // compute fft of padded impulse response
+            
+            auto it_coeffs = coeffs_.begin();
+            {
+                using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+                using Contexts = fft::Contexts_<Tag, FPT>;
+                FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
+                
+                auto const factor = scaleFactor<FFTAlgo>(static_cast<FPT>(fft_length));
+                RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
+                for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+                    auto end_coeffs = it_coeffs + N;
+                    assert(end_coeffs <= coeffs_.end());
+                    auto slice_it = coeffs_slice.begin();
+                    for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
+                        using RealT = typename RealSignal::value_type;
+                        *slice_it = RealT(*it_coeffs);
+                    }
+                    
+                    // coeffs_slice is padded with 0, because it is bigger than partition_size
+                    // and initialized with zeros.
+                    fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
+                    scale(fft_of_partitionned_h, factor);
+                }
+            }
+            Assert(it_coeffs == coeffs_.end());
+            
+            Assert(fft_length > 1);
         }
-        Assert(it_coeffs == coeffs_.end());
-        
-        Assert(fft_length > 1);
         return {
             0, // x block size
             static_cast<int>(fft_length/2), // y block size
@@ -342,8 +374,16 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
         return 2*partSz - 1;
     }
     auto getLatency() const { return getLatencyForPartitionSize(partition_size); }
-    bool isValid() const { return partition_size > 0 && mult_grp_len > 0 && countGrains() <= getBlockSize(); }
-     
+    bool isValid() const {
+        if(mult_grp_len == 0) {
+            return partition_count == 0;
+        }
+        return countGrains() <= getBlockSize();
+    }
+    bool handlesCoefficients() const {
+        return partition_count > 0;
+    }
+
     int countPartitions() const { return partition_count; }
     
     double getEpsilon() const {
@@ -360,7 +400,9 @@ public:
     auto getMultiplicationsGroupMaxSize() const { return mult_grp_len; }
     auto countMultiplicativeGrains() const { return 1 + (countPartitions()-1)/getMultiplicationsGroupMaxSize(); }
     static constexpr auto countNonMultiplicativeGrains() { return 2; }
-    auto countGrains() const { return countNonMultiplicativeGrains() + countMultiplicativeGrains(); }
+    auto countGrains() const {
+        return countNonMultiplicativeGrains() + countMultiplicativeGrains();
+    }
     int getGranularity() const { return granularity; }
     
     int getLowestValidMultiplicationsGroupSize() const {
@@ -375,7 +417,9 @@ public:
             // invalid configuration
             return getHighestValidMultiplicationsGroupSize();
         }
-        assert(diff >=0 );
+        if(countPartitions() == 0) {
+            return 0;
+        }
         for(int i=1;; ++i) {
             if( (countPartitions() - 1)/i <= diff) {
                 return i;
@@ -421,7 +465,10 @@ private:
     
     void updateGranularity()
     {
-        if(int n_grains = countGrains()) {
+        if(0==mult_grp_len) {
+            granularity = 0;
+        }
+        else if(int n_grains = countGrains()) {
             granularity = getBlockSize()/n_grains;
         }
         else {
@@ -429,6 +476,12 @@ private:
         }
     }
 };
+
+template <typename T, typename FFTTag>
+struct corresponding_legacy_dsp<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>> {
+    using type = FinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>;
+};
+
 
 template <typename T, typename FFTTag>
 using AlgoFinegrainedPartitionnedFFTConvolution = AlgoFinegrainedFFTConvolutionBase< AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag> >;

@@ -2,13 +2,13 @@ namespace imajuscule {
 
 template<typename T>
 bool areNear(T a, T b, double eps) {
-  if(std::abs(a) < eps && std::abs(b) < eps) {
+  if(std::abs(a) <= eps && std::abs(b) <= eps) {
     return true;
   }
-  if(std::abs(a-b) < eps) {
+  if(std::abs(a-b) <= eps) {
     return true;
   }
-  return std::abs(a-b)/std::abs(std::max(a,b)) < eps;
+  return std::abs(a-b)/std::abs(std::max(a,b)) <= eps;
 }
 
 template<typename T>
@@ -38,7 +38,7 @@ static inline std::vector<T> mkDirac(int sz, T amplitude = 1.) {
 }
 
 template<typename T>
-inline auto mkTestCoeffs(int const sz){
+auto mkTestCoeffs(int const sz){
   a64::vector<T> v(sz);
   auto index = 0;
   for(auto & value: v) {

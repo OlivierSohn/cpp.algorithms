@@ -43,7 +43,7 @@ namespace imajuscule {
         case 11: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05 }};
         case 12: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025 }};
         case 13: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025,.01 }};
-        case 14: return mkTestCoeffs<T>(2000);
+        case 14: return mkTestCoeffs<T>(200);
           // this should exceed the GPU capacity to do the fft in one kernel only,
           // and force partitionning:
         case 15: return mkTestCoeffs<T>(20000);
@@ -330,12 +330,6 @@ namespace imajuscule {
           auto c = FIRFilter<T>{};
           testDirac2(i, c);
         }
-          for(int dropped=0; dropped<5; ++dropped) {
-              auto c = ScaleConvolution<FFTConvolutionCore<T, Tag>>{};
-              c.setup({CountDroppedScales(dropped)});
-              testDirac2(i, c);
-          }
-          // This is the exact same as above, but using CustomScaleConvolution
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
                   auto c = CustomScaleConvolution<FFTConvolutionCore<T, Tag>>{};
@@ -462,6 +456,7 @@ namespace imajuscule {
         }
         {
           auto c = FFTConvolution<T, Tag>{};
+          c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
           testDirac2(i, c);
         }
         {

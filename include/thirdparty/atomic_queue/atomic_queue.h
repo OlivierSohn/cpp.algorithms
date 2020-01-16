@@ -145,7 +145,7 @@ protected:
         return *this;
     }
 
-    void swap(AtomicQueueCommon& b) noexcept {
+    void do_swap(AtomicQueueCommon& b) noexcept {
         unsigned h = head_.load(X);
         unsigned t = tail_.load(X);
         head_.store(b.head_.load(X), X);
@@ -449,7 +449,7 @@ public:
     // The special member functions are not thread-safe.
 
     AtomicQueueB(unsigned size)
-        : size_(std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)))
+        : size_(size ? std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)) : 0)
         , elements_(AllocatorElements::allocate(size_)) {
         assert(std::atomic<T>{NIL}.is_lock_free()); // This queue is for atomic elements only. AtomicQueueB2 is for non-atomic ones.
         for(auto p = elements_, q = elements_ + size_; p < q; ++p)
@@ -532,7 +532,7 @@ public:
     // The special member functions are not thread-safe.
 
     AtomicQueueB2(unsigned size)
-        : size_(std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)))
+        : size_(size ? std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)) : 0)
         , states_(AllocatorStates::allocate(size_))
         , elements_(AllocatorElements::allocate(size_)) {
         for(auto p = states_, q = states_ + size_; p < q; ++p)
@@ -572,7 +572,7 @@ public:
 
     void swap(AtomicQueueB2& b) noexcept {
         using std::swap;
-        swap(static_cast<Base&>(*this), static_cast<Base&>(b));
+        this->do_swap(static_cast<Base&>(b));
         swap(static_cast<AllocatorElements&>(*this), static_cast<AllocatorElements&>(b));
         swap(static_cast<AllocatorStates&>(*this), static_cast<AllocatorStates&>(b));
         swap(size_, b.size_);

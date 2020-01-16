@@ -30,6 +30,7 @@ namespace imajuscule {
     template<typename T>
     a64::vector<T> makeCoefficients(int coeffs_index) {
       switch(coeffs_index) {
+        case -1: return {};
         case 0: return {{ +1. }};
         case 1: return {{ -1. }};
         case 2: return {{ .9, }};
@@ -44,7 +45,7 @@ namespace imajuscule {
         case 11: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05 }};
         case 12: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025 }};
         case 13: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025,.01 }};
-        case 14: return mkTestCoeffs<T>(2000);
+        case 14: return mkTestCoeffs<T>(200);
           // this should exceed the GPU capacity to do the fft in one kernel only,
           // and force partitionning:
         case 15: return mkTestCoeffs<T>(20000);
@@ -57,89 +58,80 @@ namespace imajuscule {
                      Coeffs const & coefficients,
                      Input const & input,
                      Output const & expectedOutput,
-                     int vectorLength)
+                     int const vectorLength)
   {
       using T = typename Convolution::FPT;
       using namespace fft;
 
       if(!conv.isValid())
       {
-        /*
-         std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
-         std::cout << std::endl <<
-         "coefficient size : " << coefficients.size() << std::endl <<
-         "partition size : " << conv.getBlockSize() << std::endl <<
-         "partition count : " << conv.countPartitions() << std::endl;
-         */
         return;
       }
       
       using Tr = ConvolutionTraits<Convolution>;
       if(!Tr::supportsOddCountOfCoefficients
          && 1 == coefficients.size() % 2) {
-        return;
+          return;
       }
       conv.setCoefficients(coefficients);
-
-      if(!conv.isValid())
-      {
-        // can happen for partitionned convolution on the cpu, when the count of coefficients is too low
-        return;
-      }
       
-      std::vector<T> output;
-      output.reserve(expectedOutput.size());
-
-      auto const eps = conv.getEpsilon();
-      int idxStep=0;
-      auto step = [&idxStep, &input]() {
-        return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
-      };
-      
-      for(; idxStep<conv.getLatency(); ++idxStep) {
-        auto res = conv.step(step());
-        if(std::abs(res) > 1000*eps) {
-          LG(INFO,"");
-        }
-        ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
+      for(int i=0; i<2; ++i) {
+          std::vector<T> output;
+          output.reserve(expectedOutput.size());
+          
+          auto const eps = conv.getEpsilon();
+          int idxStep=0;
+          auto step = [&idxStep, &input]() {
+              return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
+          };
+          
+          for(; idxStep<conv.getLatency(); ++idxStep) {
+              auto res = conv.step(step());
+              if(std::abs(res) > 1000*eps) {
+                  LG(INFO,"");
+              }
+              ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
+          }
+          std::vector<T> inputVec;
+          inputVec.reserve(expectedOutput.size());
+          for(;inputVec.size() != expectedOutput.size();++idxStep) {
+              inputVec.push_back(step());
+          }
+          if(vectorLength) {
+              Assert(0);
+              /*
+               // initialize with zeros
+               output.resize(inputVec.size(), {});
+               
+               // then add
+               int const nFrames = inputVec.size();
+               for(int i=0; i<nFrames; i += vectorLength) {
+               conv.stepAddVectorized(inputVec.data()+i,
+               output.data()+i,
+               std::min(vectorLength, nFrames-i));
+               }*/
+          }
+          else {
+              for(T i : inputVec) {
+                  output.push_back(conv.step(i));
+              }
+          }
+          
+          using Tr = ConvolutionTraits<Convolution>;
+          for(auto j=0; j<output.size(); ++j) {
+              if(Tr::evenIndexesAreApproximated && (0 == j%2)) {
+                  continue;
+              }
+              if(!areNear(expectedOutput[j], output[j], 1000*eps)) { // uses relative error
+                  std::cout << std::endl << "... "; COUT_TYPE(Convolution);
+                  std::cout << std::endl << "coefficient size : " << coefficients.size() << std::endl;
+                  ASSERT_NEAR(expectedOutput[j], output[j], 1000*eps); // doesn't use relative error, only absolute.
+              }
+          }
+          
+          conv.flushToSilence();
       }
-        std::vector<T> inputVec;
-        inputVec.reserve(expectedOutput.size());
-        for(;inputVec.size() != expectedOutput.size();++idxStep) {
-            inputVec.push_back(step());
-        }
-        if(vectorLength) {
-            Assert(0);
-            /*
-            // initialize with zeros
-            output.resize(inputVec.size(), {});
-            
-            // then add
-            int const nFrames = inputVec.size();
-            for(int i=0; i<nFrames; i += vectorLength) {
-                conv.stepAddVectorized(inputVec.data()+i,
-                                      output.data()+i,
-                                      std::min(vectorLength, nFrames-i));
-            }*/
-        }
-        else {
-            for(T i : inputVec) {
-              output.push_back(conv.step(i));
-            }
-        }
-      
-      using Tr = ConvolutionTraits<Convolution>;
-      for(auto j=0; j<output.size(); ++j) {
-        if(Tr::evenIndexesAreApproximated && (0 == j%2)) {
-          continue;
-        }
-        if(!areNear(expectedOutput[j], output[j], 1000*eps)) { // uses relative error
-          std::cout << std::endl << "... "; COUT_TYPE(Convolution);
-          std::cout << std::endl << "coefficient size : " << coefficients.size() << std::endl;
-          ASSERT_NEAR(expectedOutput[j], output[j], 1000*eps); // doesn't use relative error, only absolute.
-        }
-      }
-    }
+  }
         
   template<typename Convolution, typename Coeffs, typename Input, typename Output>
   void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput) {
@@ -178,8 +170,11 @@ namespace imajuscule {
 
       // test using a dirac
       {
-        auto diracInput = mkDirac<T>(coefficients.size());
         auto output = coefficients;
+          if(output.empty()) {
+              output.push_back({});
+          }
+        auto diracInput = mkDirac<T>(output.size());
         Tr::adaptCoefficients(output);
         testGeneric(conv, coefficients, diracInput, output);
       }
@@ -333,7 +328,7 @@ namespace imajuscule {
     void testDirac() {
       using namespace fft;
       
-      for(int i=0; i<end_index; ++i) {
+      for(int i=-1; i<end_index; ++i) {
           LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
         testDiracFinegrainedPartitionned<T, Tag>(i);
@@ -486,16 +481,18 @@ namespace imajuscule {
                       remainingCoeffs -= sz;
                       sz *= 2;
                   }
-                  int const nParams = std::max(1,
-                                               static_cast<int>(paramsFull.size()/2));
-                  Assert(nParams);
+                  int const nParams = paramsFull.empty() ?
+                  0:
+                  std::max(1,
+                           static_cast<int>(paramsFull.size()/2));
+                  
                   std::vector<ScalingParam> params{paramsFull.begin(), paramsFull.begin()+nParams};
                   std::vector<ScalingParam> discardedParams{paramsFull.begin()+nParams, paramsFull.end()};
                   int countDiscardedCoeffs = 0;
                   for(auto const & d : discardedParams) {
                       countDiscardedCoeffs += d.countCoeffs;
                   }
-                  int const partition_sz = params.back().setupParam.partition_size;
+                  int const partition_sz = params.empty() ? 0 : params.back().setupParam.partition_size;
                   auto const n_partitions = imajuscule::countPartitions(countDiscardedCoeffs, partition_sz);
                   
                   c.setup({

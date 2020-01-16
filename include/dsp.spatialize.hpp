@@ -332,7 +332,8 @@ namespace imajuscule
                 int const total = countConvolutions();
                 forEachEar([spec, total, &n](auto & earConvs) {
                     for(auto & c : earConvs) {
-                      dephase(total, n, spec, *c);
+                        // TODO reenable later
+                      //dephase(total, n, spec, *c);
                       ++n;
                     }
                 });

@@ -301,8 +301,6 @@ int computeQueueSize(F nextProcessingDuration,
                     maybeQueueSz = 0;
                 }
                 else {
-                    // todo il faudrait peut-etre revoir cela a la hausse
-                    // (quitte a augmenter la latence du late) pour reduire la somme total de calculs.
                     int firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
               
                     // Because of the queueing mechanism,
@@ -925,9 +923,9 @@ int computeQueueSize(F nextProcessingDuration,
         return ps;
       }
       private:
-      static int deduceEarlyHandlerCoeffs(LateSetupParam p) {
-        return p.getImpliedLatency();
-      }
+          static int deduceEarlyHandlerCoeffs(LateSetupParam p) {
+              return p.getImpliedLatency();
+          }
       };
 
 namespace SameSizeScales {

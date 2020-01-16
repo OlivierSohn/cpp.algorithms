@@ -28,6 +28,7 @@ struct StateFFTConvolutionIntermediate : public Parent {
 
     using Parent::doSetCoefficients;
     using Parent::doFlushToSilence;
+    using Parent::doReset;
 
     MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_)
     {
@@ -38,6 +39,7 @@ struct StateFFTConvolutionIntermediate : public Parent {
     
     void reset() {
         result.clear();
+        doReset();
     }
     
     void flushToSilence() {
@@ -78,6 +80,10 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
               XAndFFTS<T, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const
     {
+        if(s.isZero()) {
+            return;
+        }
+
         auto const N = getBlockSize();
         if(unlikely(!N)) {
             return;
@@ -121,6 +127,15 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
                    s.result.begin(),
                    N);
     }
+    
+    void flushToSilence(State & s) const {
+        s.flushToSilence();
+    }
+};
+
+template<typename Parent>
+struct corresponding_legacy_dsp<AlgoFFTConvolutionIntermediate<Parent>> {
+    using type = FFTConvolutionIntermediate<corresponding_legacy_dsp_t<Parent>>;
 };
 
 
@@ -144,31 +159,30 @@ struct StateFFTConvolutionCRTP {
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    
-    bool empty() const { return fft_of_h.empty(); }
-    
+        
     MinSizeRequirement doSetCoefficients(Algo const & algo, a64::vector<T> coeffs_)
     {
         auto fft_length = algo.get_fft_length();
-        
-        fft_of_h.resize(fft_length);
-        
-        // pad impulse response with 0
-        
-        coeffs_.resize(fft_length, {});
-        
-        // compute fft of padded impulse response
-        auto coeffs = makeRealSignal(std::move(coeffs_));
-        
-        using FFTAlgo = typename fft::Algo_<Tag, FPT>;
-        using Contexts = fft::Contexts_<Tag, FPT>;
-        FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
-        fft.forward(coeffs.begin(), fft_of_h, fft_length);
-        
-        auto factor = scaleFactor<FFTAlgo>(static_cast<FPT>(algo.get_fft_length()));
-        scale(fft_of_h, factor);
-        
-        Assert(fft_length>1);
+        if(fft_length) {
+            fft_of_h.resize(fft_length);
+            
+            // pad impulse response with 0
+            
+            coeffs_.resize(fft_length, {});
+            
+            // compute fft of padded impulse response
+            auto coeffs = makeRealSignal(std::move(coeffs_));
+            
+            using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+            using Contexts = fft::Contexts_<Tag, FPT>;
+            FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
+            fft.forward(coeffs.begin(), fft_of_h, fft_length);
+            
+            auto factor = scaleFactor<FFTAlgo>(static_cast<FPT>(algo.get_fft_length()));
+            scale(fft_of_h, factor);
+            
+            Assert(fft_length>1);
+        }
         return {
             0, // x block size
             static_cast<int>(fft_length/2), // y block size
@@ -177,6 +191,10 @@ struct StateFFTConvolutionCRTP {
                 {fft_length, 1}
             }
         };
+    }
+    
+    void doReset() {
+        fft_of_h.clear();
     }
     
     double getEpsilon(Algo const & algo) const {
@@ -212,7 +230,7 @@ struct AlgoFFTConvolutionCRTP {
     
     void setup(SetupParam const & p) {
         N = p.blockSize;
-        if(!is_power_of_two(N)) {
+        if(N>0 && !is_power_of_two(N)) {
             throw std::runtime_error("non power of 2");
         }
         auto fft_length = 2*N;
@@ -220,8 +238,9 @@ struct AlgoFFTConvolutionCRTP {
     }
 
     bool isValid() const { return true; }
+    bool handlesCoefficients() const { return N > 0; }
 
-    auto get_fft_length() const { assert(N > 0); return 2 * N; }
+    auto get_fft_length() const { return 2 * N; }
     auto getBlockSize() const { return N; }
     auto getLatency() const { return N-1; }
     auto countPartitions() const { return 1; }
@@ -248,6 +267,11 @@ private:
     mutable CplxFreqs work;
 };
 
+template <typename T, typename Tag>
+struct corresponding_legacy_dsp<AlgoFFTConvolutionCRTP<T, Tag>> {
+    using type = FFTConvolutionCRTP<T, Tag>;
+};
+
 
 /*
  */
@@ -272,10 +296,10 @@ struct StatePartitionnedFFTConvolutionCRTP {
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
     auto countPartitions() const { return ffts_of_partitionned_h.size(); }
-    bool empty() const { return ffts_of_partitionned_h.empty(); }
     
     MinSizeRequirement doSetCoefficients(Algo const & algo,
-                                         a64::vector<T> coeffs_) {
+                                         a64::vector<T> coeffs_)
+    {
         auto const n_partitions = [&coeffs_, partition_size = algo.getBlockSize()](){
             auto const N = coeffs_.size();
             auto n_partitions = N/partition_size;
@@ -288,43 +312,44 @@ struct StatePartitionnedFFTConvolutionCRTP {
             }
             return n_partitions;
         }();
-        
-        ffts_of_partitionned_h.resize(n_partitions);
-        
-        auto const fft_length = algo.get_fft_length();
-        
-        for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-            fft_of_partitionned_h.resize(fft_length);
-        }
-        
-        // compute fft of padded impulse response
-        
-        auto it_coeffs = coeffs_.begin();
-        {
-            using FFTAlgo = typename fft::Algo_<Tag, FPT>;
-            using Contexts = fft::Contexts_<Tag, FPT>;
-            FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
 
-            auto const factor = scaleFactor<FFTAlgo>(static_cast<FPT>(fft_length));
-            RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
+        ffts_of_partitionned_h.resize(n_partitions);
+
+        auto const fft_length = algo.get_fft_length();
+        if(fft_length) {
             for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                auto end_coeffs = it_coeffs + algo.getBlockSize();
-                assert(end_coeffs <= coeffs_.end());
-                auto slice_it = coeffs_slice.begin();
-                for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
-                    using RealT = typename RealSignal::value_type;
-                    *slice_it = RealT(*it_coeffs);
-                }
-                
-                // coeffs_slice is padded with 0, because it is bigger than partition_size
-                // and initialized with zeros.
-                fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
-                scale(fft_of_partitionned_h, factor);
+                fft_of_partitionned_h.resize(fft_length);
             }
+            
+            // compute fft of padded impulse response
+            
+            auto it_coeffs = coeffs_.begin();
+            {
+                using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+                using Contexts = fft::Contexts_<Tag, FPT>;
+                FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
+                
+                auto const factor = scaleFactor<FFTAlgo>(static_cast<FPT>(fft_length));
+                RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
+                for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+                    auto end_coeffs = it_coeffs + algo.getBlockSize();
+                    assert(end_coeffs <= coeffs_.end());
+                    auto slice_it = coeffs_slice.begin();
+                    for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
+                        using RealT = typename RealSignal::value_type;
+                        *slice_it = RealT(*it_coeffs);
+                    }
+                    
+                    // coeffs_slice is padded with 0, because it is bigger than partition_size
+                    // and initialized with zeros.
+                    fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
+                    scale(fft_of_partitionned_h, factor);
+                }
+            }
+            Assert(it_coeffs == coeffs_.end());
+            
+            Assert(fft_length > 1);
         }
-        Assert(it_coeffs == coeffs_.end());
-        
-        Assert(fft_length > 1);
         return {
             0, // x block size
             static_cast<int>(fft_length/2), // y block size
@@ -333,6 +358,10 @@ struct StatePartitionnedFFTConvolutionCRTP {
                 {fft_length, n_partitions}
             }
         };
+    }
+    
+    void doReset() {
+        ffts_of_partitionned_h.clear();
     }
     
     double getEpsilon(Algo const & algo) const {
@@ -373,7 +402,8 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
     auto getLatency() const { return partition_size-1; }
     
     bool isValid() const { return true; }
-    
+    bool handlesCoefficients() const { return partition_size > 0; }
+
     void setup(SetupParam const & p) {
         partition_size = p.partition_size;
         assert(partition_size > 0);
@@ -414,5 +444,9 @@ private:
     mutable CplxFreqs work;
 };
 
+template <typename T, typename Tag>
+struct corresponding_legacy_dsp<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>> {
+    using type = PartitionnedFFTConvolutionCRTP<T, Tag>;
+};
 
 }

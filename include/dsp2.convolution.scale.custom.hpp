@@ -31,9 +31,11 @@ struct StateCustomScaleConvolution {
         return v.empty();
     }
     
-    void flushToSilence() {
-        for(auto & [param,c] : v) {
-            c.flushToSilence();
+    void flushToSilence(Algo const & a) {
+        auto itAlgo = a.v.begin();
+        for(auto&c : v) {
+            itAlgo->flushToSilence(c);
+            ++itAlgo;
         }
     }
     
@@ -52,7 +54,7 @@ struct StateCustomScaleConvolution {
             ++i)
         {
             if(it >= end) {
-                // suboptimal CustomScaleConvolution
+                // suboptimal
                 break;
             }
             v.emplace_back();
@@ -98,10 +100,11 @@ struct StateCustomScaleConvolution {
 
     void logComputeState(Algo const & algo, std::ostream & os) const {
         os << "Custom scaling" << std::endl;
+        
         IndentingOStreambuf indent(os);
-        for(int i=0; i<v.size(); ++i)
+        
+        for(int i=0, end=v.size(); i<end; ++i)
         {
-            IndentingOStreambuf indent2(os);
             v[i].logComputeState(algo.v[i], os);
         }
     }
@@ -130,9 +133,16 @@ struct AlgoCustomScaleConvolution {
         }
     }
     
-    bool isValid() const {
+    bool handlesCoefficients() const {
         if(v.empty()) {
             return false;
+        }
+        return std::any_of(v.begin(), v.end(), [](auto & e) -> bool { return e.handlesCoefficients(); });
+    }
+    
+    bool isValid() const {
+        if(v.empty()) {
+            return true;
         }
         return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
@@ -169,6 +179,10 @@ struct AlgoCustomScaleConvolution {
         }
     }
     
+    void flushToSilence(State & s) const {
+        s.flushToSilence(*this);
+    }
+
     auto getLatency() const {
         if(v.empty()) {
             return 0;
@@ -186,4 +200,11 @@ struct AlgoCustomScaleConvolution {
 public:
     std::vector<A> v;
 };
+
+
+template<typename A>
+struct corresponding_legacy_dsp<AlgoCustomScaleConvolution<A>> {
+    using type = CustomScaleConvolution<corresponding_legacy_dsp_t<A>>;
+};
+
 }

@@ -147,16 +147,16 @@ static inline std::string toJustifiedString(ReverbType t) {
         AlgoOptimizedFIRFilter<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
-        ZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Tag>,
+        AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
         ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
-        ZeroLatencyScaledAsyncConvolution<double, Tag, OnWorkerTooSlow>,
+        AlgoZeroLatencyScaledAsyncConvolution<double, Tag, OnWorkerTooSlow>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
-        ZeroLatencyScaledAsyncConvolutionOptimized<double, Tag, OnWorkerTooSlow>,
+        AlgoZeroLatencyScaledAsyncConvolutionOptimized<double, Tag, OnWorkerTooSlow>,
       void >>>>>;
       
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
@@ -349,14 +349,15 @@ static inline std::string toJustifiedString(ReverbType t) {
           
           
           auto indent = std::make_unique<IndentingOStreambuf>(os);
-          auto partitionning = PartitionAlgo<ConvolutionReverb>::run(n_response_channels,
-                                                                     nAudioOut,
-                                                                     n_audiocb_frames,
-                                                                     deinterlaced.countFrames(),
-                                                                     sampleRate,
-                                                                     max_avg_time_per_sample,
-                                                                     os,
-                                                                     args...);
+          using LegacyReverb = corresponding_legacy_dsp_t<ConvolutionReverb>;
+          auto partitionning = PartitionAlgo<LegacyReverb>::run(n_response_channels,
+                                                                nAudioOut,
+                                                                n_audiocb_frames,
+                                                                deinterlaced.countFrames(),
+                                                                sampleRate,
+                                                                max_avg_time_per_sample,
+                                                                os,
+                                                                args...);
           indent.reset();
           
           if(!partitionning) {
@@ -490,7 +491,8 @@ static inline std::string toJustifiedString(ReverbType t) {
           }*/
           // to "spread" the computations of each channel's convolution reverbs
           // on different audio callback calls, we separate them as much as possible using a phase:
-          dephase(nAudioOut, n, spec, rev);
+    // TODO reenable later
+          //dephase(nAudioOut, n, spec, rev);
           ++n;
         }
       }

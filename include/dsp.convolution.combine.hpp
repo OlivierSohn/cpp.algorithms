@@ -159,7 +159,6 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
         getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<Convolution>(firstSz,
                                                                              nLateCoeffs,
                                                                              lastSz);
-        
         PS ps;
         if(best) {
             auto scalingParams = scalingsToParams<ScalingParam>(best->first);
@@ -265,6 +264,7 @@ template<typename Algo, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
     using Convolution = AsyncCPUConvolution<Algo, OnWorkerTooSlow>;
     using AsyncPart = typename Convolution::AsyncPart;
+    using AsyncSetupParam = typename AsyncPart::SetupParam;
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
     
@@ -288,17 +288,19 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
             throw std::runtime_error("0 n_audio_frames_per_cb");
         }
         int const submission_period = n_audio_frames_per_cb;
-        int const nMinDroppedCoeffs = n_audio_frames_per_cb;
+        int const nMinDroppedCoeffs = submission_period; // because final latency will be at least submission_period
         int const nAsyncCoeffs = zero_latency_response_size-nMinDroppedCoeffs;
         std::optional<int> maybeQueueSz;
         std::optional<std::pair<std::vector<Scaling>, double>> optimalScaling;
-        
+                
+        AsyncSetupParam scalingParams({});
+
         if(nAsyncCoeffs <= 0) {
             maybeQueueSz = 0;
         }
         else {
             int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
-            std::optional<int> const NoLastSz;
+            std::optional<int> const noLastSz;
             
             // Because of the queueing mechanism,
             // the real number of late coeffs will be _less_ than what this is optimal for.
@@ -307,19 +309,28 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
             //
             // This future adaptation will be minor (we may remove work but _not_ change the structure
             // because we would have to run the simulation again, as the peak computation times could be worse.
-            optimalScaling = getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<AsyncPart>(firstSz,
-                                                                                                nAsyncCoeffs,
-                                                                                                NoLastSz);
-            if(!optimalScaling) {
+            auto scalingParams2 = PartitionAlgo<AsyncPart>::run(n_channels,
+                                                                n_audio_channels,
+                                                                n_audio_frames_per_cb,
+                                                                // so that the actual number of ceofficients handled is nAsyncCoeffs:
+                                                                nAsyncCoeffs + firstSz-1,
+                                                                frame_rate,
+                                                                max_avg_time_per_sample,
+                                                                os,
+                                                                firstSz,
+                                                                noLastSz);
+            if(!scalingParams2) {
                 throw std::runtime_error("no best");
             }
+            
+            scalingParams = *scalingParams2;
             
             maybeQueueSz = computeQueueMetricsWithVirtualSimulation(n_channels,
                                                                     n_audio_channels,
                                                                     n_audio_frames_per_cb,
                                                                     nAsyncCoeffs,
                                                                     frame_rate,
-                                                                    optimalScaling->first,
+                                                                    scalingParams,
                                                                     submission_period,
                                                                     phasing,
                                                                     os);
@@ -332,24 +343,12 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
         int const queueSize = *maybeQueueSz;
         os << "queueSize=" << queueSize << std::endl;
         
-        using ScalingParam = typename AsyncPart::SetupParam::ScalingParam;
-        auto scalingParams = scalingsToParams<ScalingParam>([&optimalScaling]() -> std::vector<Scaling> {
-            if(optimalScaling) {
-                return optimalScaling->first;
-            }
-            else {
-                return {};
-            }
-        }());
-        
         SetupParam ps(
             submission_period,
             queueSize,
-            {
-                scalingParams
-            }
+            scalingParams
         );
-        ps.setCost(optimalScaling ? optimalScaling->second : 0.);
+        ps.setCost(scalingParams.getCost());
         
         // now that we know what latency we have, we can adjust:
 
@@ -368,7 +367,7 @@ private:
                                              int const n_audio_frames_per_cb,
                                              int const nLateCoeffs,
                                              double const frame_rate,
-                                             std::vector<Scaling> const & scaling,
+                                             AsyncSetupParam const & asyncParam,
                                              int const submission_period_frames,
                                              SimulationPhasing const & phasing,
                                              std::ostream & os)
@@ -381,12 +380,8 @@ private:
             simu_convs.push_back(std::make_unique<Sim>());
         }
         
-        PS minimalPs;
-        using ScalingParam = typename Sim::SetupParam::ScalingParam;
-        auto scalingParams = scalingsToParams<ScalingParam>(scaling);
-        
         for(auto & c : simu_convs) {
-            c->setup({scalingParams});
+            c->setup(asyncParam);
             c->setCoefficientsCount(nLateCoeffs);
         }
         if(phasing.mode == SimulationPhasingMode::On)
@@ -394,13 +389,10 @@ private:
             int n=0;
             int const total_sz = phasing.groupSize ? *phasing.groupSize : simu_convs.size();
             Assert(total_sz);
-            typename Sim::SetupParam sp(
-                                        scalingParams // not used
-                                        );
             for(auto & c : simu_convs) {
                 dephase(total_sz,
                         n % total_sz,
-                        sp,
+                        asyncParam, // not used
                         *c);
                 ++n;
             }

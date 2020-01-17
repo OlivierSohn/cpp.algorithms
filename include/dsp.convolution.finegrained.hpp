@@ -103,10 +103,14 @@ namespace imajuscule
           os << "Finegrained, " << partition_count << " partitions of size " << partition_size << ", mult group size: " << multiplication_group_size << std::endl;
       }
       
-      bool isActive() const {
+      bool handlesCoefficients() const {
           return partition_size > 0;
       }
 
+      Latency getImpliedLatency() const {
+          Assert(handlesCoefficients());
+          return Latency(2*partition_size - 1);
+      }
 
     static FinegrainedSetupParam makeInactive() {
       FinegrainedSetupParam res{0,0,0,0};
@@ -149,7 +153,7 @@ namespace imajuscule
       }
 
     void setup(SetupParam const & p) {
-      set_partition_size(p.partition_size);
+      set_partition_size(p.partition_size, p.partition_count);
       setMultiplicationGroupLength(p.multiplication_group_size);
     }
       std::array<int, nComputePhaseable> getComputePeriodicities() const {
@@ -196,21 +200,19 @@ namespace imajuscule
     using Parent::get_multiply_add_result;
 
     void setCoefficients(a64::vector<T> coeffs_) {
-      if(coeffs_.size() < 2) {
-        coeffs_.resize(2); // avoid ill-formed cases
-      }
+        reset();
+        
       auto const N = coeffs_.size();
       auto const fft_length = get_fft_length(N);
+        if(!fft_length) {
+            return;
+        }
       fft.setContext(Contexts::getInstance().getBySize(fft_length));
-
-      assert(fft_length > 0);
 
       result.resize(fft_length);
       x.resize(fft_length);
-      {
-        y.resize(fft_length);
-      }
-
+      y.resize(fft_length);
+    
       doSetCoefficients(fft, std::move(coeffs_));
       reset_states();
     }
@@ -490,18 +492,14 @@ namespace imajuscule
     Algo fft;
     RealSignal x, y, result;
   };
-
-  constexpr int countPartitions(int nCoeffs, int partition_size) {
-      if(nCoeffs == 0) {
-          return 0;
+      
+      constexpr int countPartitions(int nCoeffs, int partition_size) {
+          if(nCoeffs <= 0) {
+              return 0;
+          }
+          Assert(partition_size);
+          return 1 + (nCoeffs-1)/partition_size;
       }
-    auto n_partitions = nCoeffs/partition_size;
-    if(n_partitions * partition_size != nCoeffs) {
-      assert(n_partitions * partition_size < nCoeffs);
-      ++n_partitions;
-    }
-    return n_partitions;
-  }
 
 
   template <typename T, typename Tag>
@@ -534,14 +532,20 @@ namespace imajuscule
     }
 
     auto getBlockSize() const { return partition_size; }
-    static constexpr int getLatencyForPartitionSize(int partSz) {
-      return 2*partSz - 1;
+    static constexpr Latency getLatencyForPartitionSize(int partSz) {
+      return Latency(2*partSz - 1);
     }
-    auto getLatency() const { return getLatencyForPartitionSize(partition_size); }
+      bool handlesCoefficients() const {
+          return countPartitions() * getBlockSize() > 0;
+      }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return getLatencyForPartitionSize(partition_size);
+    }
     auto getGranularMinPeriod() const { return getBlockSize() / countGrains(); }
     bool isValid() const { return partition_size > 0 && mult_grp_len > 0 && countGrains() <= getBlockSize(); }
 
-    int countPartitions() const { return ffts_of_partitionned_h.size(); }
+    int countPartitions() const { return partition_count; }
 
     double getEpsilon() const {
       return countPartitions() * (fft::getFFTEpsilon<FPT>(get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
@@ -557,9 +561,10 @@ namespace imajuscule
     }
 
     // 0 means that it will not be used.
-    void set_partition_size(int sz) {
+    void set_partition_size(int sz, int count) {
       partition_size = sz;
       assert(sz == 0 || is_power_of_two(sz));
+      partition_count = count;
     }
 
   public:
@@ -594,6 +599,9 @@ namespace imajuscule
       assert(partition_size > 0);
 
       auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), partition_size);
+        if(n_partitions != countPartitions()) {
+            throw std::logic_error("inconsistent partition sizes");
+        }
       // if one partition is partial, it will be padded with zeroes.
       coeffs_.resize(n_partitions * partition_size);
 
@@ -682,6 +690,7 @@ namespace imajuscule
   private:
     int mult_grp_len = 0;
     int partition_size = -1;
+    int partition_count = 0;
     int grain_number = 0;
     cyclic<CplxFreqs> ffts_of_delayed_x;
     std::vector<CplxFreqs> ffts_of_partitionned_h;
@@ -710,14 +719,14 @@ namespace imajuscule
                                    int n_channels,
                                    int n_scales,
                                    int n_frames,
-                                   std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                                   std::function<Optional<int>(Latency const)> n_coeffs_for_latency,
                                    int min_lg2_partitionsz, // must yield a valid result
                                    Optional<SetupParam> & min_val,
                                    std::ostream & os) {
     //std::cout << "main thread: " << std::endl;
     //thread::logSchedParams();
 
-    gradient_descent.setFunction( [n_frames, n_coeffs_for_partition_sz, n_scales, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
+    gradient_descent.setFunction( [n_frames, n_coeffs_for_latency, n_scales, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
       using namespace profiling;
       using namespace std;
       using namespace std::chrono;
@@ -737,7 +746,7 @@ namespace imajuscule
       int const partition_size = pow2(lg2_partition_size);
       //            cout << "partition size : " << partition_size << endl;
 
-      auto maybe_impulse_sz = n_coeffs_for_partition_sz(partition_size);
+      auto maybe_impulse_sz = n_coeffs_for_latency(Convolution::getLatencyForPartitionSize(partition_size));
       if(!maybe_impulse_sz) {
         return ParamState::OutOfRange;
       }
@@ -1003,7 +1012,7 @@ namespace imajuscule
     static PS run(int n_channels,
                   int n_scales,
                   int n_audio_frames_per_cb,
-                  std::function<Optional<int>(int)> n_coeffs_for_partition_sz,
+                  std::function<Optional<int>(Latency const)> n_coeffs_for_partition_sz,
                   int min_lg2_partition_sz,
                   std::ostream & os) {
       assert(n_channels > 0);

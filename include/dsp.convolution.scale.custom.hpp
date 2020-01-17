@@ -38,10 +38,36 @@ struct CustomScaleConvolutionSetupParam : public Cost {
     
     std::vector<ScalingParam> scalingParams;
     
-    int getImpliedLatency() const {
-        if(scalingParams.empty()) {
-            return 0;
+
+    void adjustWork(int const nTargetCoeffs) {
+        int nHandledCoeffs = 0;
+        int sz = 0;
+        for(auto & s : scalingParams) {
+            if(nHandledCoeffs >= nTargetCoeffs) {
+                break;
+            }
+            int const nRemainingCoeffs = nTargetCoeffs - nHandledCoeffs;
+            Assert(s.countCoeffs <= s.setupParam.countMaxHandledCoeffs());
+            if(nRemainingCoeffs < s.setupParam.countMaxHandledCoeffs()) {
+                s.setupParam.adjustWork(nRemainingCoeffs);
+            }
+            nHandledCoeffs += s.setupParam.countMaxHandledCoeffs();
+            ++sz;
         }
+        
+        Assert(nHandledCoeffs >= nTargetCoeffs); // else, we need to expand the last scale
+
+        // alternative to std::vector::resize (because ScalingParam has no default constructor)
+        while(scalingParams.size() > sz) {
+            scalingParams.pop_back();
+        }
+        if(!handlesCoefficients()) {
+            setCost(0.);
+        }
+    }
+    
+    Latency getImpliedLatency() const {
+        Assert(handlesCoefficients());
         return scalingParams.begin()->setupParam.getImpliedLatency();
     }
     
@@ -70,6 +96,7 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         return scalingParams.begin()->handlesCoefficients();
     }
 };
+
 
 struct SimuScaleMetrics {
     int countCoeffs;
@@ -111,8 +138,8 @@ struct CustomScaleConvolutionSimulation {
             v.emplace_back();
             
             v.back().first.countCoeffs = param.countCoeffs;
-            v.back().first.submissionPeriod = param.setupParam.getImpliedLatency()+1;
-            v.back().first.submissionCountdown = v.back().first.submissionPeriod-1;
+            v.back().first.submissionPeriod = param.setupParam.getImpliedLatency().toInteger() + 1;
+            v.back().first.submissionCountdown = v.back().first.submissionPeriod - 1;
 
             v.back().second.second.setup(param.setupParam);
         }
@@ -134,7 +161,7 @@ struct CustomScaleConvolutionSimulation {
             algo.second.setCoefficientsCount(sizeBlock);
             totalCoeffs += sizeBlock;
             param.submissionCountdown = param.submissionPeriod-1;
-            if(algo.second.getLatency() != param.submissionCountdown) {
+            if(algo.second.getLatency().toInteger() != param.submissionCountdown) {
                 throw std::logic_error("CustomScaleConvolutionSimulation is applied to a type that doesn't respect the latency constraints.");
             }
             // assuming these costs are constant
@@ -149,17 +176,6 @@ struct CustomScaleConvolutionSimulation {
                 throw std::logic_error("not enough coefficients for scales");
             }
         }
-    }
-    
-    auto getLatency() const {
-        if(v.empty()) {
-            return 0;
-        }
-        return std::min_element(v.begin(),
-                                v.end(),
-                                [](auto const & p1, auto const & p2) {
-            return p1.first.submissionPeriod < p2.first.submissionPeriod;
-        })->first.submissionPeriod - 1;
     }
 
     std::array<int, nComputePhaseable> getComputePeriodicities() const {
@@ -357,7 +373,7 @@ struct CustomScaleConvolution {
         IndentingOStreambuf indent(os);
         for(auto const & [param, algo] : v)
         {
-            os << param.countCoeffs << " [" << param.submissionCountdown << "/" << algo.getLatency()+1 << "]" << std::endl;
+            os << param.countCoeffs << " [" << param.submissionCountdown << "/" << algo.getLatency().toInteger() + 1 << "]" << std::endl;
             IndentingOStreambuf indent2(os);
             algo.logComputeState(os);
         }
@@ -376,7 +392,7 @@ struct CustomScaleConvolution {
             v.back().second.setup(param.setupParam);
 
             v.back().first.countCoeffs = param.countCoeffs;
-            v.back().first.submissionCountdown = param.setupParam.getImpliedLatency()-1;
+            v.back().first.submissionCountdown = param.setupParam.getImpliedLatency().toInteger() - 1;
         }
 
         x_halfSize = getBiggestScale();
@@ -432,8 +448,8 @@ struct CustomScaleConvolution {
             else {
                 conv.setCoefficients2({start,it});
             }
-            param.submissionCountdown = conv.getLatency();
-            if(conv.getLatency() != param.submissionCountdown) {
+            param.submissionCountdown = conv.getLatency().toInteger();
+            if(conv.getLatency().toInteger() != param.submissionCountdown) {
                 // This breaks the class logic, and would lead to wrong results.
                 throw std::logic_error("CustomScaleConvolution is applied to a type that doesn't respect the latency constraints.");
             }
@@ -482,7 +498,7 @@ private:
         for(auto & [param, algo] : v) {
             Assert(param.submissionCountdown >= 0);
             if(unlikely(0 == param.submissionCountdown)) {
-                param.submissionCountdown = algo.getLatency()+1;
+                param.submissionCountdown = algo.getLatency().toInteger() + 1;
                 int const paddingSize = param.submissionCountdown;
                 // write the padding exactly when we need it to optimize cache use
                 {
@@ -548,10 +564,15 @@ public:
         return epsilonOfNaiveSummation(v);
     }
     
-    auto getLatency() const {
+    bool handlesCoefficients() const {
         if(v.empty()) {
-            return 0;
+            return false;
         }
+        return v.begin()->second.handlesCoefficients();
+    }
+    
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
         return v.begin()->second.getLatency();
     }
 
@@ -575,7 +596,7 @@ public:
         if(v.empty()) {
             return 0;
         }
-        return v.rbegin()->second.getLatency()+1;
+        return v.rbegin()->second.getLatency().toInteger() + 1;
     }
     
 private:

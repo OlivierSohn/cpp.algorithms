@@ -159,7 +159,7 @@ auto mkRealTimeConvolution2(std::vector<Scaling> const & v,
   >>;
   using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
   
-  auto scalingParams = scalingsToParams2<ScalingParam>(v);
+  auto scalingParams = scalingsToParams<ScalingParam>(v);
   auto c = C{};
   c.setup(typename C::SetupParam
   {

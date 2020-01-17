@@ -64,7 +64,7 @@ struct StateCustomScaleConvolution {
                 it = end;
             }
             else {
-                it += algo.v[i+1].getLatency() - conv.getLatency();
+                it += (algo.v[i+1].getLatency() - conv.getLatency()).toInteger();
             }
             auto res2 = v[i].setCoefficients(conv, {start,it});
             if(!res) {
@@ -183,10 +183,8 @@ struct AlgoCustomScaleConvolution {
         s.flushToSilence(*this);
     }
 
-    auto getLatency() const {
-        if(v.empty()) {
-            return 0;
-        }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
         return v.front().getLatency();
     }
     

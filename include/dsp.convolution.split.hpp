@@ -93,11 +93,11 @@ struct SplitConvolution {
         a.setup(p.aParams);
         b.setup(p.bParams);
         
-        if(!b.isValid()) { // for case where lower resolution tail is not used
+        if(!b.handlesCoefficients()) {
             split = noSplit;
         }
         else {
-            split = B::nCoefficientsFadeIn + b.getLatency() - a.getLatency();
+            split = B::nCoefficientsFadeIn + b.getLatency().toInteger() - a.getLatency().toInteger();
         }
     }
     
@@ -124,10 +124,12 @@ struct SplitConvolution {
             b.setCoefficients(withLinearFadeIn( B::nCoefficientsFadeIn,rangeB.materialize()));
         }
         assert(!b.isZero());
-        if(split + a.getLatency() == B::nCoefficientsFadeIn + b.getLatency()) {
+        int const latA = a.getLatency().toInteger();
+        int const latB = b.getLatency().toInteger();
+        if(split + latA == B::nCoefficientsFadeIn + latB) {
             return;
         }
-        LG(ERR, "split : %d, a lat: %d, b lat: %d, b init: %d", split, a.getLatency(), b.getLatency(), B::nCoefficientsFadeIn);
+        LG(ERR, "split : %d, a lat: %d, b lat: %d, b init: %d", split, latA, latB, B::nCoefficientsFadeIn);
         throw std::logic_error("inconsistent split (latencies are not adapted)");
     }
     
@@ -198,7 +200,12 @@ struct SplitConvolution {
         return a.getEpsilon() + b.getEpsilon() + std::numeric_limits<FPT>::epsilon();
     }
     
-    auto getLatency() const {
+    bool handlesCoefficients() const {
+        return a.handlesCoefficients();
+    }
+    
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
         return a.getLatency();
     }
     

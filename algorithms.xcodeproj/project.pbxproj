@@ -214,6 +214,7 @@
 		097D145D1EA51F0000AA5ECF /* test_dsp.convolution.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.convolution.cpp; path = test/test_dsp.convolution.cpp; sourceTree = "<group>"; };
 		097E14E723CBCD2C00E1D06A /* dsp2.convolution.combine.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.convolution.combine.hpp; path = include/dsp2.convolution.combine.hpp; sourceTree = "<group>"; };
 		097E14E823CDB26700E1D06A /* dsp2.correspondances.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp2.correspondances.hpp; path = include/dsp2.correspondances.hpp; sourceTree = "<group>"; };
+		097E14E923D2270500E1D06A /* dsp.types.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.types.hpp; path = include/dsp.types.hpp; sourceTree = "<group>"; };
 		097FB600237D764000D884C1 /* dsp.convolution.optimization.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.optimization.hpp; path = include/dsp.convolution.optimization.hpp; sourceTree = "<group>"; };
 		097FDDB51EB71F7F00D9731A /* dsp.spatialize.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.spatialize.hpp; path = include/dsp.spatialize.hpp; sourceTree = "<group>"; };
 		097FDDB61EB725FB00D9731A /* test_dsp.spatialize.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.spatialize.cpp; path = test/test_dsp.spatialize.cpp; sourceTree = "<group>"; };
@@ -572,6 +573,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				097E14E923D2270500E1D06A /* dsp.types.hpp */,
 				097E14E823CDB26700E1D06A /* dsp2.correspondances.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,

@@ -92,7 +92,7 @@ namespace imajuscule {
         return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
       };
       
-      for(; idxStep<conv.getLatency(); ++idxStep) {
+      for(; idxStep<conv.getLatency().toInteger(); ++idxStep) {
         auto res = conv.step(step());
         if(std::abs(res) > 1000*eps) {
           LG(INFO,"");
@@ -198,7 +198,7 @@ namespace imajuscule {
           {
             FIRFilter<T> filter;
             filter.setCoefficients(coefficients);
-            EXPECT_EQ(0, filter.getLatency());
+            EXPECT_EQ(0, filter.getLatency().toInteger());
             for(int i=0; i<randomInput.size(); ++i) {
               output.push_back(filter.step(randomInput[i]));
             }
@@ -296,7 +296,11 @@ namespace imajuscule {
       auto f = [](int part_size, auto & coefficients){
         PartitionnedFFTConvolution<T,Tag> conv;
         
-        conv.setup({part_size});
+        conv.setup({
+            part_size,
+            countPartitions(coefficients.size(),
+                            part_size)
+        });
 
         test(conv, coefficients);
       };
@@ -363,9 +367,13 @@ namespace imajuscule {
                   int sz = firstSz;
                   while(remainingCoeffs > 0) {
                       int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
-                      int submissionPeriod = sz;
-                      ScalingParam s{countCoeffs,
-                                     {submissionPeriod}};
+                      ScalingParam s {
+                          countCoeffs,
+                          {
+                              sz,
+                              countPartitions(countCoeffs, sz)
+                          }
+                      };
                       
                       params.push_back(s);
                       
@@ -386,10 +394,14 @@ namespace imajuscule {
                   int sz = firstSz;
                   while(remainingCoeffs > 0) {
                       int const countCoeffs = std::min(sz*3, remainingCoeffs); // last coefficient group may be padded with 0s
-                      int const submissionPeriod = sz;
-                      ScalingParam s{countCoeffs,
-                                     {submissionPeriod}};
-                      
+                      ScalingParam s {
+                          countCoeffs,
+                          {
+                              sz,
+                              countPartitions(countCoeffs, sz)
+                          }
+                      };
+
                       params.push_back(s);
 
                       remainingCoeffs -= countCoeffs;
@@ -503,9 +515,18 @@ TEST(Convolution, freq) {
   using RealSignal = typename fft::RealSignal_<Tag, double>::type;
   using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
   
-  std::vector<Scaling> scalingParams{}; // leave it empty, we have only 8 coefficients
   constexpr auto N = 8;
-  auto c = mkRealTimeConvolutionSubsampled<double, Tag>(scalingParams, 4, N);
+    constexpr int szPartition = 4;
+    
+    int const countCoeffs = N;
+    int const latencyLateHandler = 2*szPartition - 1;
+    int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
+    int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
+
+    
+  auto c = mkRealTimeConvolutionSubsampled<double, Tag>(mkNaiveScaling(1, nEarlyCoeffs),
+                                                        szPartition,
+                                                        nLateCoeffs);
   //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};
   //a64::vector<double> coefficients{1., 0.5, 0., -0.5, -1., -0.5, 0., 0.5};
   //a64::vector<double> coefficients{1., 0.75, 0.25, 0., -0.25, -0.5, -0.75, -1.0};

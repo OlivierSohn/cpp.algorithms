@@ -252,7 +252,6 @@ protected:
     }
 
 public:
-
     template<class T>
     bool try_push(T&& element) noexcept {
         auto head = head_.load(X);

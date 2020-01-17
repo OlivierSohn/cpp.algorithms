@@ -242,7 +242,10 @@ struct AlgoFFTConvolutionCRTP {
 
     auto get_fft_length() const { return 2 * N; }
     auto getBlockSize() const { return N; }
-    auto getLatency() const { return N-1; }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(N-1);
+    }
     auto countPartitions() const { return 1; }
     
     static auto get_fft_length(int n) {
@@ -295,23 +298,18 @@ struct StatePartitionnedFFTConvolutionCRTP {
     
     static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
     
-    auto countPartitions() const { return ffts_of_partitionned_h.size(); }
-    
     MinSizeRequirement doSetCoefficients(Algo const & algo,
                                          a64::vector<T> coeffs_)
     {
-        auto const n_partitions = [&coeffs_, partition_size = algo.getBlockSize()](){
-            auto const N = coeffs_.size();
-            auto n_partitions = N/partition_size;
-            if(n_partitions * partition_size != N) {
-                // one partition is partial...
-                assert(n_partitions * partition_size < N);
-                ++n_partitions;
-                // ... pad it with zeros
-                coeffs_.resize(n_partitions * partition_size, {});
-            }
-            return n_partitions;
-        }();
+        int const partition_size = algo.getBlockSize();
+        auto const n_partitions = countPartitions(coeffs_.size(),
+                                                  partition_size);
+        if(n_partitions != algo.countPartitions()) {
+            throw std::logic_error("inconsistent count of partitions");
+        }
+        // if one partition is partial, pad it with zeros
+        coeffs_.resize(n_partitions * partition_size,
+                       {});
 
         ffts_of_partitionned_h.resize(n_partitions);
 
@@ -365,10 +363,10 @@ struct StatePartitionnedFFTConvolutionCRTP {
     }
     
     double getEpsilon(Algo const & algo) const {
-        return countPartitions() * (fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
+        return algo.countPartitions() * (fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
     }
     void logComputeState(Algo const & algo, std::ostream & os) const {
-        os << "FFTs, " << countPartitions() << " partitions of sizes " << algo.getBlockSize() << " each" << std::endl;
+        os << "FFTs, " << algo.countPartitions() << " partitions of sizes " << algo.getBlockSize() << " each" << std::endl;
     }
 
 protected:
@@ -399,19 +397,26 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
     auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
     auto get_fft_length(int) const { return get_fft_length(); }
     auto getBlockSize() const { return partition_size; }
-    auto getLatency() const { return partition_size-1; }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(partition_size-1);
+    }
     
     bool isValid() const { return true; }
     bool handlesCoefficients() const { return partition_size > 0; }
 
     void setup(SetupParam const & p) {
         partition_size = p.partition_size;
+        partition_count = p.partition_count;
+        
         assert(partition_size > 0);
         assert(is_power_of_two(partition_size));
-        
+
         work.resize(get_fft_length());
     }
-
+    
+    auto countPartitions() const { return partition_count; }
+    
 protected:
     auto const & compute_convolution(State & s,
                                      typename XAndFFTS<T, Tag>::FFTs const & ffts) const
@@ -441,6 +446,7 @@ protected:
     
 private:
     int partition_size = -1;
+    int partition_count = 0;
     mutable CplxFreqs work;
 };
 

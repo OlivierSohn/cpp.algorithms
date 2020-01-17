@@ -370,10 +370,13 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
     auto get_fft_length() const { return 2 * partition_size; }
     
     auto getBlockSize() const { return partition_size; }
-    static constexpr int getLatencyForPartitionSize(int partSz) {
-        return 2*partSz - 1;
+    static constexpr Latency getLatencyForPartitionSize(int partSz) {
+        return Latency(2*partSz - 1);
     }
-    auto getLatency() const { return getLatencyForPartitionSize(partition_size); }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return getLatencyForPartitionSize(partition_size);
+    }
     bool isValid() const {
         if(mult_grp_len == 0) {
             return partition_count == 0;

@@ -53,12 +53,17 @@ namespace imajuscule
       return algo.isZero();
     }
     
-    auto getLatency() const {
-      int const res = 2 * algo.getLatency();
-      if constexpr (Lat == LatencySemantic::DiracPeak) {
-        return 1 + res;
+      bool handlesCoefficients() const {
+          return algo.handlesCoefficients();
       }
-      return res;
+      
+    Latency getLatency() const {
+      Assert(handlesCoefficients());
+      int const res = 2 * algo.getLatency().toInteger();
+      if constexpr (Lat == LatencySemantic::DiracPeak) {
+        return Latency(1 + res);
+      }
+      return Latency(res);
     }
       
     std::array<int, nComputePhaseable> getComputePeriodicities() const {

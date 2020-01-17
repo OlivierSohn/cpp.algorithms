@@ -137,11 +137,11 @@ struct AlgoSplitConvolution {
         return a.isValid() && b.isValid();
     }
     bool handlesCoefficients() const {
-        // or just a.handlesCoefficients() ?
-        return a.handlesCoefficients() || b.handlesCoefficients();
+        return a.handlesCoefficients();
     }
 
-    auto getLatency() const {
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
         return a.getLatency();
     }
     
@@ -150,7 +150,7 @@ struct AlgoSplitConvolution {
             return noSplit;
         }
         else {
-            return B::Desc::nCoefficientsFadeIn + b.getLatency() - a.getLatency();
+            return B::Desc::nCoefficientsFadeIn + (b.getLatency() - a.getLatency()).toInteger();
         }
     }
     

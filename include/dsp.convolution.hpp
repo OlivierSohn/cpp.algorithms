@@ -240,8 +240,13 @@ struct FFTConvolutionCRTPSetupParam : public Cost
         os << "FFTConvolutionCRTPSetupParam block size " << blockSize << std::endl;
     }
     
-    int getImpliedLatency() const {
-        return blockSize-1;
+    bool handlesCoefficients() const {
+        return blockSize > 0;
+    }
+    
+    Latency getImpliedLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(blockSize-1);
     }
 
     int blockSize;
@@ -279,7 +284,13 @@ struct FFTConvolutionCRTPSimulation {
     
     auto getBlockSize() const { return N; }
 
-    int getLatency() const { return N-1; }
+    bool handlesCoefficients() const {
+        return N > 0;
+    }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(N-1);
+    }
 
     int N, fft_length = 0;
 };
@@ -315,7 +326,13 @@ struct FFTConvolutionCRTPSimulation {
     public:
 
         auto getBlockSize() const { return N; }
-        auto getLatency() const { return N-1; }
+        bool handlesCoefficients() const {
+            return getBlockSize() > 0;
+        }
+        Latency getLatency() const {
+            Assert(handlesCoefficients());
+            return Latency(N-1);
+        }
         auto getGranularMinPeriod() const { return getBlockSize(); }
         bool isValid() const { return true; }
 
@@ -401,15 +418,34 @@ struct FFTConvolutionCRTPSimulation {
      * Notes : Convolution in "time" space is the same as multiplication in "frequency" space.
      */
 
-struct PartitionnedFFTConvolutionCRTPSetupParam {
-    PartitionnedFFTConvolutionCRTPSetupParam(int partition_size)
-    :partition_size(partition_size)
+struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
+    PartitionnedFFTConvolutionCRTPSetupParam(int partition_size,
+                                             int partition_count)
+    : partition_size(partition_size)
+    , partition_count(partition_count)
     {}
     
-    int getImpliedLatency() const {
-        return partition_size-1;
+    void adjustWork(int const nTargetCoeffs) {
+        partition_count = countPartitions(nTargetCoeffs,
+                                          partition_size);
+        if(!handlesCoefficients()) {
+            setCost(0.);
+        }
     }
+    
+    bool handlesCoefficients() const {
+        return countMaxHandledCoeffs() > 0;
+    }
+    int countMaxHandledCoeffs() const {
+        return partition_count * partition_size;
+    }
+    Latency getImpliedLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(partition_size-1);
+    }
+    
     int partition_size;
+    int partition_count;
     
     bool isValid() const {
         return partition_size > 0;
@@ -437,18 +473,8 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
     }
 
     void doSetCoefficientsCount(int64_t count) {
-        n_partitions = [&count, partition_size = this->partition_size](){
-            auto const N = count;
-            auto n_partitions = N/partition_size;
-            if(n_partitions * partition_size != N) {
-                // one partition is partial...
-                assert(n_partitions * partition_size < N);
-                ++n_partitions;
-                // ... pad it with zeros
-                count = n_partitions * partition_size;
-            }
-            return n_partitions;
-        }();
+        n_partitions = countPartitions(count,
+                                       partition_size);
     }
     
     double cost_compute_convolution() const
@@ -463,7 +489,14 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
     
     auto get_fft_length() const { assert(partition_size > 0); return 2 * partition_size; }
     auto getBlockSize() const { assert(partition_size > 0); return partition_size; }
-    auto getLatency() const { assert(partition_size > 0); return partition_size-1; }
+    
+    bool handlesCoefficients() const {
+        return n_partitions * partition_size > 0;
+    }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(partition_size-1);
+    }
 private:
     int partition_size = -1;
     int n_partitions = 0;
@@ -497,34 +530,34 @@ private:
 
         auto getBlockSize() const { return partition_size; }
         auto getGranularMinPeriod() const { return getBlockSize(); }
-        auto getLatency() const { return partition_size-1; }
+        bool handlesCoefficients() const {
+            return getBlockSize() * countPartitions() > 0;
+        }
+        Latency getLatency() const {
+            Assert(handlesCoefficients());
+            return Latency(partition_size-1);
+        }
 
         bool isValid() const { return true; }
 
-        auto countPartitions() const { return ffts_of_partitionned_h.size(); }
-
-      
+        int countPartitions() const { return partition_count; }
 
       void setup(SetupParam const & p) {
         partition_size = p.partition_size;
+        partition_count = p.partition_count;
         assert(partition_size > 0);
         assert(is_power_of_two(partition_size));
       }
 
         void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
-
-            auto const n_partitions = [&coeffs_, partition_size = this->partition_size](){
-                auto const N = coeffs_.size();
-                auto n_partitions = N/partition_size;
-                if(n_partitions * partition_size != N) {
-                    // one partition is partial...
-                    assert(n_partitions * partition_size < N);
-                    ++n_partitions;
-                    // ... pad it with zeros
-                    coeffs_.resize(n_partitions * partition_size, {});
-                }
-                return n_partitions;
-            }();
+            auto const n_partitions = imajuscule::countPartitions(coeffs_.size(),
+                                                                  partition_size);
+            if(n_partitions != countPartitions()) {
+                throw std::logic_error("inconsistent number of partitions");
+            }
+            // if one partition is partial, pad it with zeros
+            coeffs_.resize(n_partitions * partition_size,
+                           {});
 
             ffts_of_delayed_x.resize(n_partitions);
             ffts_of_partitionned_h.resize(n_partitions);
@@ -605,6 +638,7 @@ private:
 
     private:
         int partition_size = -1;
+        int partition_count = 0;
         cyclic<CplxFreqs> ffts_of_delayed_x;
         std::vector<CplxFreqs> ffts_of_partitionned_h;
 

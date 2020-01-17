@@ -41,7 +41,7 @@ namespace imajuscule {
         return;
       }
       
-      int lat = spatialize.getLatency();
+      int lat = spatialize.getLatency().toInteger();
       
       std::vector<std::array<T, nEars>> results;
       

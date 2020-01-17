@@ -44,14 +44,21 @@ void testReverbDirac(Args ...args) {
             ResponseStructure structure;
             if constexpr (Convolution::has_subsampling) {
                 rs.setConvolutionReverbIR(1,
-                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100.,
-                                          std::cout, structure, ResponseTailSubsampling::HighestAffordableResolution,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
+                                          ResponseTailSubsampling::HighestAffordableResolution,
+                                          args...);
+            }
+            else if constexpr (reverbType == ReverbType::Offline) {
+                std::optional<int> noLastSz;
+                rs.setConvolutionReverbIR(1,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
+                                          noLastSz,
                                           args...);
             }
             else {
                 rs.setConvolutionReverbIR(1,
-                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100.,
-                                          std::cout, structure,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
+                                          
                                           args...);
             }
             ASSERT_TRUE(false);
@@ -105,13 +112,22 @@ void testReverbDirac(Args ...args) {
                 try {
                     if constexpr (Convolution::has_subsampling) {
                         rs.setConvolutionReverbIR(1,
-                                                  {coeffs, 1}, audio_cb_size, 44100.,
-                                                  std::cout, structure, rts, args...);
+                                                  {coeffs, 1}, audio_cb_size, 44100., std::cout, structure,
+                                                  rts,
+                                                  args...);
+                    }
+                    else if constexpr (reverbType == ReverbType::Offline) {
+                        std::optional<int> noLastSz;
+                        rs.setConvolutionReverbIR(1,
+                                                  {coeffs, 1}, audio_cb_size, 44100., std::cout, structure,
+                                                  noLastSz,
+                                                  args...);
                     }
                     else {
                         rs.setConvolutionReverbIR(1,
-                                                  {coeffs, 1}, audio_cb_size, 44100.,
-                                                  std::cout, structure, args...);
+                                                  {coeffs, 1}, audio_cb_size, 44100., std::cout, structure,
+                                                  
+                                                  args...);
                     }
                     res = true;
                 }
@@ -125,7 +141,7 @@ void testReverbDirac(Args ...args) {
                     }
                     LG(INFO, "%s", e.what());
                 }
-                if(scaleRange.getMin() > 1 && coeffs.size() <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+                if(scaleRange.getMin() > 1 && coeffs.size() <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
                     ASSERT_FALSE(res);
                     continue;
                 }

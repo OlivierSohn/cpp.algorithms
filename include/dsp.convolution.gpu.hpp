@@ -501,10 +501,16 @@ namespace imajuscule
       return std::is_same_v<float,T> || device_supports_double(getOpenCLContext().device_id);
     }
     
-    int getLatency() const {
-      return
-      N-1 + // we need N inputs before we can start the GPU kernel
-      (gpu_works.size()-1)*N; // we have some levels of asynchronicity
+      bool handlesCoefficients() const {
+          return !gpu_works.empty();
+      }
+      
+    Latency getLatency() const {
+      Assert(handlesCoefficients());
+      return Latency(
+        N-1 + // we need N inputs before we can start the GPU kernel
+        (gpu_works.size()-1)*N // we have some levels of asynchronicity
+      );
     }
     
     T step(T val) {

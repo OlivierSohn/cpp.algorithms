@@ -418,8 +418,9 @@ static inline std::string toJustifiedString(ReverbType t) {
               assert(n_scales >= 1);
               int lateHandlerFirstScalePartitionSize = spec.bParams.aParams.partition_size;
               int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
-                                                          lateHandlerLatency<ConvolutionReverb>(lateHandlerFirstScalePartitionSize));
-              int const late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
+                                                          earliestDeepestLatency<typename ConvolutionReverb::LateHandler>(lateHandlerFirstScalePartitionSize)).toInteger();
+              int const late_response_sz = std::max(0
+                                                    ,total_response_size - n_coeffs_early_handler);
               int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
 
                 structure.scaleSize = scale_sz;

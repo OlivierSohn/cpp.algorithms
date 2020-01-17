@@ -12,8 +12,10 @@ struct FIRSetupParam : public Cost {
     constexpr bool handlesCoefficients() const {
         return true;
     }
-    constexpr int getImpliedLatency() const {
-        return 0;
+    constexpr Latency getImpliedLatency() const {
+        // commented out because not constexpr
+        //Assert(handlesCoefficients());
+        return Latency(0);
     }
 };
 
@@ -55,11 +57,17 @@ struct FIRSetupParam : public Cost {
         reversed_coefficients = std::move(v);
     }
     
-    bool isValid() const {
+    bool handlesCoefficients() const {
+        return true;
+    }
+    constexpr bool isValid() const {
       return true;
     }
     
-    constexpr int getLatency() const { return 0; }
+    constexpr Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return Latency(0);
+    }
     
     auto size()  const { return reversed_coefficients.size(); }
     bool isZero() const { return reversed_coefficients.empty(); }

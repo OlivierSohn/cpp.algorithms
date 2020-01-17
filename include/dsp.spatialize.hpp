@@ -138,8 +138,16 @@ namespace imajuscule
               }
           }
 
-            int getLatency() const {
-                return (earsConvs.empty() || earsConvs[0].empty()) ? 0 : earsConvs[0][0]->getLatency();
+            bool handlesCoefficients() const {
+                if(earsConvs.empty() || earsConvs[0].empty()) {
+                    return false;
+                }
+                return earsConvs[0][0]->handlesCoefficients();
+            }
+            
+            Latency getLatency() const {
+                Assert(handlesCoefficients());
+                return (earsConvs.empty() || earsConvs[0].empty()) ? Latency(0) : earsConvs[0][0]->getLatency();
             }
 
             template<typename SetupP>
@@ -171,7 +179,7 @@ namespace imajuscule
             }
 
             void step(T * inout, T const dry, T const wet) {
-              Assert(dry == 0 || getLatency() == 0); // else dry and wet signals are out of sync
+              Assert(dry == 0 || getLatency().toInteger() == 0); // else dry and wet signals are out of sync
               
               std::array<T, nEars> in;
               for(int i=0; i<nEars; ++i) {

@@ -367,7 +367,8 @@ struct Convolution {
     void logComputeState(std::ostream & os) const {
         state.logComputeState(algo, os);
     }
-    int getLatency() const {
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
         return algo.getLatency();
     }
     

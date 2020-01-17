@@ -72,9 +72,13 @@ struct AlgoFIRFilter {
 
     void setup(SetupParam const &) const {}
 
-    constexpr int getLatency() const { return 0; }
+    constexpr Latency getLatency() const {
+        // commented out because not constexpr
+        //Assert(handlesCoefficients());
+        return Latency(0);
+    }
     
-    bool handlesCoefficients() const {
+    constexpr bool handlesCoefficients() const {
         return true;
     }
     bool isValid() const {

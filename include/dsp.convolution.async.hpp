@@ -29,11 +29,24 @@ struct AsyncSetupParam : public Cost {
     int queueSize;
     InnerParams asyncParams;
     
-    int getImpliedLatency() const {
-        return
-        inputSubmissionPeriod*((queueSize-queue_room_sz) + 1)
-        - 1
-        + asyncParams.getImpliedLatency();
+    bool handlesCoefficients() const {
+        return queueSize > 0 && inputSubmissionPeriod > 0 && asyncParams.handlesCoefficients();
+    }
+
+    Latency getImpliedLatency() const {
+        Assert(handlesCoefficients());
+        return asyncParams.getImpliedLatency() +
+        Latency( inputSubmissionPeriod*((queueSize-queue_room_sz) + 1) - 1);
+    }
+    
+    void adjustWork(int targetNCoeffs) {
+        asyncParams.adjustWork(targetNCoeffs);
+        if(!asyncParams.handlesCoefficients()) {
+            queueSize = 0; // not sure if that is needed
+        }
+        if(!handlesCoefficients()) {
+            setCost(0.);
+        }
     }
     
     void logSubReport(std::ostream & os) const override {
@@ -284,15 +297,27 @@ struct AsyncSetupParam : public Cost {
         return algo.isZero();
     }
       
-    bool isValid() const {
-        return N > 0 && queueSize > 0 && algo.isValid();
-    }
+      bool isValid() const {
+          if(!algo.isValid()) {
+              return false;
+          }
+          if(algo.handlesCoefficients()) {
+              return N > 0 && queueSize > 0;
+          }
+          return queueSize == 0;
+      }
+
+      bool handlesCoefficients() const {
+          return N > 0 && queueSize > 0 && algo.handlesCoefficients();
+      }
       
-      int getLatency() const {
+      Latency getLatency() const {
+          Assert(handlesCoefficients());
           return
-          N*((queueSize-queue_room_sz) // we have some levels of asynchronicity
+          Latency(
+                  N*((queueSize-queue_room_sz) // we have some levels of asynchronicity
              +1) -1 // we need N inputs before we can submit
-          + algo.getLatency();
+          ) + algo.getLatency();
       }
       
       std::array<int, nComputePhaseable> getComputePeriodicities() const {

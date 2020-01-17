@@ -85,12 +85,14 @@ namespace imajuscule {
               return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
           };
           
-          for(; idxStep<conv.getLatency(); ++idxStep) {
-              auto res = conv.step(step());
-              if(std::abs(res) > 1000*eps) {
-                  LG(INFO,"");
+          if(conv.handlesCoefficients()) {
+              for(; idxStep<conv.getLatency().toInteger(); ++idxStep) {
+                  auto res = conv.step(step());
+                  if(std::abs(res) > 1000*eps) {
+                      LG(INFO,"");
+                  }
+                  ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
               }
-              ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
           }
           std::vector<T> inputVec;
           inputVec.reserve(expectedOutput.size());
@@ -200,7 +202,9 @@ namespace imajuscule {
           {
             FIRFilter<T> filter;
             filter.setCoefficients(coefficients);
-            EXPECT_EQ(0, filter.getLatency());
+            if(filter.handlesCoefficients()) {
+              EXPECT_EQ(0, filter.getLatency().toInteger());
+            }
             for(int i=0; i<randomInput.size(); ++i) {
               output.push_back(filter.step(randomInput[i]));
             }
@@ -303,7 +307,11 @@ namespace imajuscule {
       auto f = [](int part_size, auto & coefficients){
           Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>> conv;
           
-          conv.setup({part_size});
+          conv.setup({
+              part_size,
+              countPartitions(coefficients.size(),
+                              part_size)
+          });
           
           test(conv, coefficients);
       };
@@ -371,7 +379,10 @@ namespace imajuscule {
               partition_sz *= 2)
           {
             auto c = Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>{};
-            c.setup({partition_sz});
+            c.setup({
+                partition_sz,
+                countPartitions(countCoeffs, partition_sz)
+            });
             testDirac2(i, c);
           }
           
@@ -423,9 +434,13 @@ namespace imajuscule {
                   int sz = firstSz;
                   while(remainingCoeffs > 0) {
                       int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
-                      int submissionPeriod = sz;
-                      ScalingParam s{countCoeffs,
-                                     {submissionPeriod}};
+                      ScalingParam s {
+                          countCoeffs,
+                          {
+                              sz,
+                              countPartitions(countCoeffs,sz)
+                          }
+                      };
                       
                       params.push_back(s);
                       
@@ -446,9 +461,13 @@ namespace imajuscule {
                   int sz = firstSz;
                   while(remainingCoeffs > 0) {
                       int const countCoeffs = std::min(sz*3, remainingCoeffs); // last coefficient group may be padded with 0s
-                      int const submissionPeriod = sz;
-                      ScalingParam s{countCoeffs,
-                                     {submissionPeriod}};
+                      ScalingParam s {
+                          countCoeffs,
+                          {
+                              sz,
+                              countPartitions(countCoeffs,sz)
+                          }
+                      };
                       
                       params.push_back(s);
 
@@ -472,10 +491,14 @@ namespace imajuscule {
                   int sz = firstSz;
                   while(remainingCoeffs > 0) {
                       int countCoeffs = std::min(sz, remainingCoeffs); // last coefficient group may be padded with 0s
-                      int submissionPeriod = sz;
-                      ScalingParam s{countCoeffs,
-                                     {submissionPeriod}};
-                      
+                      ScalingParam s {
+                          countCoeffs,
+                          {
+                              sz,
+                              countPartitions(countCoeffs,sz)
+                          }
+                      };
+
                       paramsFull.push_back(s);
                       
                       remainingCoeffs -= sz;

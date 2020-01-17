@@ -498,12 +498,15 @@ struct AlgoAsyncCPUConvolution {
         return queueSize == 0;
     }
 
-    int getLatency() const {
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
         Assert(asyncParams);
         return
-        N*((queueSize-queue_room_sz) // we have some levels of asynchronicity
-           +1) -1 // we need N inputs before we can submit
-        + asyncParams->getImpliedLatency();
+        asyncParams->getImpliedLatency() +
+        Latency(
+                N*((queueSize-queue_room_sz) // we have some levels of asynchronicity
+                   +1) -1 // we need N inputs before we can submit
+        );
     }
     
     void step(State & s,

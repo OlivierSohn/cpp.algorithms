@@ -4,7 +4,7 @@ namespace imajuscule {
 static void testByCbSize(int dirac_offset, int cb_change) {
     constexpr int nAudioOut = 1;
     
-    // on choisit un type d ereverb pour lequel il n'y a pas d'optimisatio nporu avoir un test rapide
+    // on choisit un type de reverb pour lequel l'optimisation est rapide
     ConvReverbsByBlockSize<Reverbs<nAudioOut, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>> r;
 
     ASSERT_EQ(r.getWetRatioWithoutStepping(), 1.);
@@ -20,12 +20,14 @@ static void testByCbSize(int dirac_offset, int cb_change) {
     
     ASSERT_TRUE(coeffs[0] == 1.);
     
+    std::optional<int> noLastSz;
     r.setConvolutionReverbIR(nSources,
                              DeinterlacedBuffers<double>(coeffs, 1),
                              1024,
                              0,
                              44100.,
-                             m
+                             m,
+                             noLastSz
                              );
     ASSERT_EQ(0, m.count(2048));
     ASSERT_EQ(1, m.count(1024));

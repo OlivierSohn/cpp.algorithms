@@ -60,8 +60,12 @@ namespace imajuscule
       ring.reset();
     }
     
-    auto getLatency() const {
-      return ring.size() + algo.getLatency();
+      bool handlesCoefficients() const {
+          return algo.handlesCoefficients();
+      }
+    Latency getLatency() const {
+      Assert(handlesCoefficients());
+      return Latency(ring.size()) + algo.getLatency();
     }
     
     void setCoefficients(a64::vector<T> coeffs) {

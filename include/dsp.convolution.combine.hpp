@@ -143,14 +143,22 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
     static PS run(int const n_channels,
                   int const n_audio_channels,
                   int const n_audio_frames_per_cb,
-                  int const total_response_size,
+                  int const zero_latency_response_size,
                   double const frame_rate,
                   double const max_avg_time_per_sample,
                   std::ostream & os,
-                  int const firstSz)
+                  int const firstSz,
+                  std::optional<int> const lastSz)
     {
+        int const nEarlyCoeffs = std::min(zero_latency_response_size,
+                                          firstSz-1);
+        int const nLateCoeffs = std::max(0,
+                                         zero_latency_response_size - nEarlyCoeffs);
+
         std::optional<std::pair<std::vector<Scaling>, double>> best =
-        getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<Convolution>(firstSz, total_response_size);
+        getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<Convolution>(firstSz,
+                                                                             nLateCoeffs,
+                                                                             lastSz);
         
         PS ps;
         if(best) {
@@ -174,28 +182,25 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
     static PS run(int n_channels,
                   int n_audio_channels,
                   int n_audio_frames_per_cb,
-                  int total_response_size,
+                  int zero_latency_response_size,
                   double frame_rate,
                   double max_avg_time_per_sample,
-                  std::ostream & os)
+                  std::ostream & os,
+                  std::optional<int> const lastSz)
     {
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
-        
-        int const nEarlyCoeffs = std::min(total_response_size,
-                                          static_cast<int>(pow2(nAsyncScalesDropped.toInteger())-1));
-        int const nLateCoeffs = std::max(0,
-                                         total_response_size - nEarlyCoeffs);
         int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
-        
+                
         auto indent = std::make_unique<IndentingOStreambuf>(os);
         auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
                                                           n_audio_channels,
                                                           n_audio_frames_per_cb,
-                                                          nLateCoeffs,
+                                                          zero_latency_response_size,
                                                           frame_rate,
                                                           max_avg_time_per_sample,
                                                           os,
-                                                          firstSz
+                                                          firstSz,
+                                                          lastSz
                                                           );
         indent.reset();
         
@@ -266,12 +271,12 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
     // to account for a system that is under heavier load
     static constexpr int safeFactor = 4;
     
-    static PS run(int n_channels,
-                  int n_audio_channels,
-                  int n_audio_frames_per_cb,
-                  int total_response_size,
-                  double frame_rate,
-                  double max_avg_time_per_sample,
+    static PS run(int const n_channels,
+                  int const n_audio_channels,
+                  int const n_audio_frames_per_cb,
+                  int const zero_latency_response_size,
+                  double const frame_rate,
+                  double const max_avg_time_per_sample,
                   std::ostream & os,
                   SimulationPhasing const & phasing,
                   CountDroppedScales const & nAsyncScalesDropped)
@@ -284,24 +289,27 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
         }
         int const submission_period = n_audio_frames_per_cb;
         int const nMinDroppedCoeffs = n_audio_frames_per_cb;
-        int const nLateCoeffs = total_response_size-nMinDroppedCoeffs;
+        int const nAsyncCoeffs = zero_latency_response_size-nMinDroppedCoeffs;
         std::optional<int> maybeQueueSz;
         std::optional<std::pair<std::vector<Scaling>, double>> optimalScaling;
-        if(nLateCoeffs <= 0) {
-            // the size of the queue doesn't really matter since there is no late coefficient.
+        
+        if(nAsyncCoeffs <= 0) {
             maybeQueueSz = 0;
         }
         else {
-            int firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
+            int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
+            std::optional<int> const NoLastSz;
             
             // Because of the queueing mechanism,
             // the real number of late coeffs will be _less_ than what this is optimal for.
             // Hence, as soon as we know the size of the queue, we will be able to deduce the exact
             // number of late coefficients and adapt the scaling scheme accordingly.
             //
-            // This future adaptation must be minor : removing work is ok but changing the structure is not ok
+            // This future adaptation will be minor (we may remove work but _not_ change the structure
             // because we would have to run the simulation again, as the peak computation times could be worse.
-            optimalScaling = getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<AsyncPart>(firstSz, nLateCoeffs);
+            optimalScaling = getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<AsyncPart>(firstSz,
+                                                                                                nAsyncCoeffs,
+                                                                                                NoLastSz);
             if(!optimalScaling) {
                 throw std::runtime_error("no best");
             }
@@ -309,19 +317,18 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
             maybeQueueSz = computeQueueMetricsWithVirtualSimulation(n_channels,
                                                                     n_audio_channels,
                                                                     n_audio_frames_per_cb,
-                                                                    nLateCoeffs,
+                                                                    nAsyncCoeffs,
                                                                     frame_rate,
                                                                     optimalScaling->first,
                                                                     submission_period,
                                                                     phasing,
                                                                     os);
+            if(!maybeQueueSz) {
+                os << "Synchronous thread is too slow" << std::endl;
+                return {};
+            }
         }
         
-        if(!maybeQueueSz) {
-            os << "Synchronous thread is too slow" << std::endl;
-            return {};
-        }
-        // queueSize == 0 means 0 late coefficient
         int const queueSize = *maybeQueueSz;
         os << "queueSize=" << queueSize << std::endl;
         
@@ -335,15 +342,22 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
             }
         }());
         
-        PS ps;
-        ps = SetupParam{
+        SetupParam ps(
             submission_period,
             queueSize,
             {
                 scalingParams
             }
-        };
-        ps->setCost(optimalScaling ? optimalScaling->second : 0.);
+        );
+        ps.setCost(optimalScaling ? optimalScaling->second : 0.);
+        
+        // now that we know what latency we have, we can adjust:
+
+        if(ps.handlesCoefficients()) {
+            int const adjustedNAsyncCoeffs = zero_latency_response_size - ps.getImpliedLatency().toInteger();
+            Assert(adjustedNAsyncCoeffs <= nAsyncCoeffs);
+            ps.adjustWork(adjustedNAsyncCoeffs);
+        }
         return ps;
     }
 private:
@@ -785,7 +799,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
     static PS run(int n_channels,
                   int n_audio_channels,
                   int n_audio_frames_per_cb,
-                  int total_response_size,
+                  int zero_latency_response_size,
                   double frame_rate,
                   double max_avg_time_per_sample,
                   std::ostream & os,
@@ -809,7 +823,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
         auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
                                                           n_audio_channels,
                                                           n_audio_frames_per_cb,
-                                                          total_response_size,
+                                                          zero_latency_response_size,
                                                           frame_rate,
                                                           max_avg_time_per_sample,
                                                           os,
@@ -817,14 +831,16 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
                                                           nAsyncScalesDropped);
         PS ps;
         if(pSpecsLate) {
-            auto nEarlyHandlerCoeffs = pSpecsLate->getImpliedLatency();
+            int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
+            std::optional<int> noLastSz;
             auto pSpecsEarly = PartitionAlgo<EarlyHandler>::run(n_channels,
                                                                 n_audio_channels,
                                                                 n_audio_frames_per_cb,
-                                                                nEarlyHandlerCoeffs,
+                                                                nEarlyCoeffs,
                                                                 frame_rate,
                                                                 max_avg_time_per_sample,
-                                                                os);
+                                                                os,
+                                                                noLastSz);
             if(pSpecsEarly) {
                 ps = {
                     *pSpecsEarly,
@@ -851,7 +867,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
     static PS run(int n_channels,
                   int n_audio_channels,
                   int n_audio_frames_per_cb,
-                  int total_response_size,
+                  int zero_latency_response_size,
                   double frame_rate,
                   double max_avg_time_per_sample,
                   std::ostream & os,
@@ -878,7 +894,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
         auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
                                                           n_audio_channels,
                                                           n_audio_frames_per_cb,
-                                                          total_response_size,
+                                                          zero_latency_response_size,
                                                           frame_rate,
                                                           max_avg_time_per_sample,
                                                           os,
@@ -888,7 +904,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
         
         PS ps;
         if(pSpecsLate) {
-            int nEarlyCoeffs = deduceEarlyHandlerCoeffs(*(pSpecsLate));
+            int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
             os << "Deduced early handler coeffs:" << nEarlyCoeffs << std::endl;
             os << "Early handler optimization:" << std::endl;
             
@@ -912,10 +928,6 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
             }
         }
         return ps;
-    }
-private:
-    static int deduceEarlyHandlerCoeffs(LateSetupParam p) {
-        return p.getImpliedLatency();
     }
 };
 
@@ -950,15 +962,13 @@ static inline int get_max_response_sz(int n_scales, int sz_one_scale) {
     scaleFadeSz::inSmallerUnits * (static_cast<int>(pow2(n_scales-1)) - 1);
 }
 
-int constexpr getDelays(int scale_sz, int partition_sz) {
+int constexpr getDelays(int scale_sz, Latency latency) {
     // split = nFadeIn + latB - latA
     // scale_sz = nFadeIn + (1 + 2*(delay + latA)) - latA
     // scale_sz - 1 - nFadeIn = 2*delay + latA
     // delay = 0.5 * (scale_sz - 1 - nFadeIn - latA)
-    // delay = 0.5 * (scale_sz - 1 - nFadeIn - (2*partition_sz-1))
-    // delay = (0.5 * (scale_sz - nFadeIn)) - partition_sz
     assert(0 == (scale_sz-scaleFadeSz::inSmallerUnits) % 2);
-    return ((scale_sz-scaleFadeSz::inSmallerUnits) / 2) - partition_sz;
+    return (scale_sz - 1 - scaleFadeSz::inSmallerUnits - latency.toInteger()) / 2;
 }
 };
 
@@ -973,27 +983,20 @@ template<typename A, typename B>
 struct EarlyestDeepest< SplitConvolution<A,B> > {
     using type = typename EarlyestDeepest<A>::type;
 };
-template<typename A>
-struct EarlyestDeepest< Delayed<A> > {
-    using type = typename EarlyestDeepest<A>::type;
-};
-template<LatencySemantic Lat, typename A>
-struct EarlyestDeepest< SubSampled<Lat, A> > {
-    using type = typename EarlyestDeepest<A>::type;
-};
 
 
-constexpr int minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter = ScaleConvolution_::latencyForDroppedConvolutions(ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft);
+constexpr Latency minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter {
+    ScaleConvolution_::latencyForDroppedConvolutions(ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
+};
 
 template<typename C>
-int constexpr lateHandlerLatency(int partition_sz) {
-    using LateHandler = typename EarlyestDeepest<typename C::LateHandler>::type;
-    return LateHandler::getLatencyForPartitionSize(partition_sz);
+Latency constexpr earliestDeepestLatency(int partition_sz) {
+    using ED = typename EarlyestDeepest<C>::type;
+    return ED::getLatencyForPartitionSize(partition_sz);
 }
 
-template<typename C>
+template<typename LateHandler>
 int constexpr getLateHandlerMinLg2PartitionSz() {
-    using LateHandler = typename EarlyestDeepest<typename C::LateHandler>::type;
     
     int partition_sz = 1;
     for(;;partition_sz *= 2) {
@@ -1067,7 +1070,8 @@ auto mkSubsamplingSetupParams(SPEarly const & early_params,
     using SetupParam = typename ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag>::SetupParam;
     int delay = 0;
     if(n_scales > 1) {
-        delay = SameSizeScales::getDelays(scale_sz, late_params.partition_size);
+        delay = SameSizeScales::getDelays(scale_sz,
+                                          late_params.getImpliedLatency());
         Assert(delay > 0);
     }
     
@@ -1112,12 +1116,12 @@ auto mkSubsamplingSetupParams(SPEarly const & early_params,
 template<typename SetupParam>
 int count_scales(SetupParam const & p) {
     int n_scales = 1;
-    if(p.bParams.aParams.isActive()) {
-        if(p.bParams.bParams.innerParams.aParams.isActive()) {
+    if(p.bParams.aParams.handlesCoefficients()) {
+        if(p.bParams.bParams.innerParams.aParams.handlesCoefficients()) {
             n_scales = 2;
-            if(p.bParams.bParams.innerParams.bParams.innerParams.aParams.isActive()) {
+            if(p.bParams.bParams.innerParams.bParams.innerParams.aParams.handlesCoefficients()) {
                 n_scales = 3;
-                if(p.bParams.bParams.innerParams.bParams.innerParams.bParams.innerParams.isActive()) {
+                if(p.bParams.bParams.innerParams.bParams.innerParams.bParams.innerParams.handlesCoefficients()) {
                     n_scales = 4;
                 }
             }
@@ -1142,24 +1146,28 @@ public:
     static PS run(int n_channels,
                   int n_audio_channels,
                   int n_audio_frames_per_cb,
-                  int total_response_size,
+                  int zero_latency_response_size,
                   double frame_rate,
                   double max_avg_time_per_sample,
                   std::ostream & os) {
-        auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs) {
+        auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
+                                         std::optional<int> lastSz) {
             return PartitionAlgo<EarlyHandler>::run(n_channels,
                                                     n_audio_channels,
                                                     n_audio_frames_per_cb,
                                                     countEarlyHandlerCoeffs,
                                                     frame_rate,
                                                     max_avg_time_per_sample,
-                                                    os);
+                                                    os,
+                                                    lastSz);
             
         };
-        if(total_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        if(zero_latency_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
             // in that case there is no late handling at all.
             PS ps;
-            auto earlyRes = getEarlyHandlerParams(total_response_size);
+            std::optional<int> noLastSz;
+            auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
+                                                  noLastSz);
             if(earlyRes)
             {
                 ps = {
@@ -1170,9 +1178,9 @@ public:
             }
             return ps;
         }
-        auto late_handler_response_size_for_partition_size =
-        [total_response_size](int partition_size) -> Optional<int> {
-            if(LateHandler::getLatencyForPartitionSize(partition_size) < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        auto late_handler_response_size_for_latency =
+        [zero_latency_response_size](Latency const latency) -> Optional<int> {
+            if(latency < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
                 // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
                 // this case doesn't happen on the first try.
                 return {};
@@ -1181,10 +1189,8 @@ public:
             // it favors long partitions because we don't take into account
             // the cost of the early coefficient handler, but for long responses, where optimization matters,
             // the induced bias is negligible.
-            int n_coeffs_early_handler = lateHandlerLatency<Convolution>(partition_size);
-            assert(n_coeffs_early_handler >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter);
             
-            auto late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
+            int const late_response_sz = zero_latency_response_size - latency.toInteger();
             
             if(late_response_sz <= 0) {
                 // should we return {0} ?
@@ -1195,13 +1201,14 @@ public:
         auto lateRes = PartitionAlgo<LateHandler>::run(n_channels,
                                                        1,
                                                        n_audio_frames_per_cb,
-                                                       late_handler_response_size_for_partition_size,
-                                                       getLateHandlerMinLg2PartitionSz<Convolution>(),
+                                                       late_handler_response_size_for_latency,
+                                                       getLateHandlerMinLg2PartitionSz<LateHandler>(),
                                                        os);
         PS ps;
         if(lateRes) {
             auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
-                                                  LateHandler::getLatencyForPartitionSize(lateRes->partition_size));
+                                                  LateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
+                                                  {lateRes->partition_size});
             if(earlyRes) {
                 ps = SetupParam {
                     *earlyRes,
@@ -1221,7 +1228,7 @@ struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolut
     
 private:
     using EarlyHandler = typename Convolution::EarlyHandler;
-    using LateHandler = typename EarlyestDeepest<typename Convolution::LateHandler>::type;
+    using EarliestDeepesLateHandler = typename EarlyestDeepest<typename Convolution::LateHandler>::type;
 public:
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
@@ -1229,7 +1236,7 @@ public:
     static PS run(int const n_response_channels,
                   int const n_audio_channels,
                   int const n_audio_frames_per_cb,
-                  int const n_response_frames,
+                  int const zero_latency_response_size,
                   double const frame_rate,
                   double const max_avg_time_per_sample,
                   std::ostream & os,
@@ -1244,7 +1251,7 @@ public:
             auto part = runForScale(n_response_channels,
                                     n_audio_channels,
                                     n_audio_frames_per_cb,
-                                    n_response_frames,
+                                    zero_latency_response_size,
                                     n_scales,
                                     frame_rate,
                                     max_avg_time_per_sample,
@@ -1274,30 +1281,34 @@ private:
     static PS runForScale(int n_channels,
                           int const n_audio_channels,
                           int const n_audio_frames_per_cb,
-                          int const total_response_size,
+                          int const zero_latency_response_size,
                           int const n_scales,
                           double const frame_rate,
                           double const max_avg_time_per_sample,
                           std::ostream & os)
     {
-        auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs) {
+        auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
+                                         std::optional<int> lastSz) {
             return PartitionAlgo<EarlyHandler>::run(n_channels,
                                                     n_audio_channels,
                                                     n_audio_frames_per_cb,
                                                     countEarlyHandlerCoeffs,
                                                     frame_rate,
                                                     max_avg_time_per_sample,
-                                                    os);
+                                                    os,
+                                                    lastSz);
             
         };
-        if(total_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        if(zero_latency_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
             // in that case there is no late handling at all.
             if(n_scales > 1) {
                 LG(WARN, "not enough coefficients to use %d scales", n_scales);
                 return {};
             }
             PS o;
-            auto earlyRes = getEarlyHandlerParams(total_response_size);
+            std::optional<int> noLastSz;
+            auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
+                                                  noLastSz);
             if(earlyRes) {
                 o = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
                                                         FinegrainedSetupParam::makeInactive(),
@@ -1307,9 +1318,9 @@ private:
             }
             return {{o}};
         }
-        auto scale_size_for_partition_size =
-        [total_response_size, n_scales](int partition_size) -> Optional<int> {
-            if(LateHandler::getLatencyForPartitionSize(partition_size) < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        auto scale_size_for_latency =
+        [zero_latency_response_size, n_scales](Latency const latency) -> Optional<int> {
+            if( latency < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
                 // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
                 // this case doesn't happen on the first try.
                 return {};
@@ -1318,10 +1329,9 @@ private:
             // it favors long partitions because we don't take into account
             // the cost of the early coefficient handler, but for long responses, where optimization matters,
             // the induced bias is negligible.
-            int n_coeffs_early_handler = lateHandlerLatency<Convolution>(partition_size);
-            assert(n_coeffs_early_handler >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter);
             
-            auto late_response_sz = std::max(0,total_response_size - n_coeffs_early_handler);
+            auto late_response_sz = std::max(0,
+                                             zero_latency_response_size - latency.toInteger());
             
             auto scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
             if(scale_sz <= 0) {
@@ -1332,23 +1342,24 @@ private:
                 // verify that we can have more than one scale (i.e the delay needed to scale is strictly positive)
                 // in theory we could relax the constraint (0 delays are ok but the implementation
                 // doesn't support that).
-                if(SameSizeScales::getDelays(scale_sz, partition_size) <= 0) {
+                if(SameSizeScales::getDelays(scale_sz, latency) <= 0) {
                     return {};
                 }
             }
             return {scale_sz};
         };
-        auto lateRes = PartitionAlgo<LateHandler>::run(n_channels,
-                                                       n_scales,
-                                                       n_audio_frames_per_cb,
-                                                       scale_size_for_partition_size,
-                                                       getLateHandlerMinLg2PartitionSz<Convolution>(),
-                                                       os);
+        auto lateRes = PartitionAlgo<EarliestDeepesLateHandler>::run(n_channels,
+                                                                     n_scales,
+                                                                     n_audio_frames_per_cb,
+                                                                     scale_size_for_latency,
+                                                                     getLateHandlerMinLg2PartitionSz<EarliestDeepesLateHandler>(),
+                                                                     os);
         if(lateRes) {
-            std::optional<int> const mayScaleSz = scale_size_for_partition_size(lateRes->partition_size);
+            std::optional<int> const mayScaleSz = scale_size_for_latency(lateRes->getImpliedLatency());
             if(mayScaleSz) {
-                auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
-                                                      LateHandler::getLatencyForPartitionSize(lateRes->partition_size));
+                auto earlyRes = getEarlyHandlerParams(EarliestDeepesLateHandler::nCoefficientsFadeIn +
+                                                      EarliestDeepesLateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
+                                                      {lateRes->partition_size});
                 if(earlyRes) {
                     SetupParam ps = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
                                                                         *lateRes,

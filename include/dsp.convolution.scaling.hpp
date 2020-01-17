@@ -215,26 +215,10 @@ struct ScalingsIterator {
         for(auto const & e:v) {
             ScalingParam s{
                 e.sz * e.nRepeat /* count coeffs */,
-                {e.sz /* partition size */}
-            };
-            scalingParams.push_back(s);
-        }
-        return scalingParams;
-    }
-    
-    
-    template<typename ScalingParam>
-    auto scalingsToParams2(std::vector<Scaling> const & v)
-    {
-        std::vector<ScalingParam> scalingParams;
-        scalingParams.reserve(v.size());
-        for(auto const & e:v) {
-            int const countCoeffs = e.sz * e.nRepeat;
-            int const submissionPeriod = e.sz;
-            
-            ScalingParam s{
-                countCoeffs,
-                {submissionPeriod /* partition size */}
+                {
+                    e.sz /* partition size */,
+                    e.nRepeat
+                }
             };
             scalingParams.push_back(s);
         }
@@ -414,20 +398,27 @@ struct ScalingsIterator {
             
     template<typename Convolution>
     auto getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation(int const firstSz,
-                                                                 int const nCoeffs)
+                                                                 int const nCoeffs,
+                                                                 std::optional<int> const lastSz)
+            -> std::optional<std::pair<std::vector<Scaling>, double>>
     {
-         std::optional<std::pair<std::vector<Scaling>, double>> best;
          
+         if(lastSz && *lastSz < firstSz) {
+            // means no coefficient is handled
+            return {{{}, 0.}};
+         }
+         std::optional<std::pair<std::vector<Scaling>, double>> best;
          ScalingsIterator{
-             firstSz,
-             nCoeffs
+            firstSz,
+            nCoeffs,
+            lastSz
          }.forEachScaling([nCoeffs, &best](auto const & v){
              auto virtualCost = virtualCostPerSample(mkSimulation<Convolution>(v, nCoeffs));
              if(!best || virtualCost < best->second) {
                  best = {{v, virtualCost}};
              }
          });
-         
+            Assert(best); // assert mis par curiosité pour voir dans quel cas on ne trouve pas de solution
          return best;
      }
 }

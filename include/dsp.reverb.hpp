@@ -2,6 +2,9 @@
 namespace imajuscule
 {
 
+/*
+ 
+ */
 template<typename C, typename PS>
 void dephase(int const total_instances,
              int const index_instance,

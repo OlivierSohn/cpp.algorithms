@@ -1,140 +1,117 @@
 
 namespace imajuscule {
 
-  /*
-   
-   On filters, and how to chose them (here, filter and convolution means the same thing).
+/*
+ 
+ On filters, and how to chose them (here, filter and convolution means the same thing).
+ 
+ Summary
+ -------
+ 
+ ********************************************************************************
+ *
+ * For ** live ** audio processing, use 'ZeroLatencyScaledFineGrainedPartitionnedConvolution':
+ *   it has the smallest worst cost per audio callback.
+ *
+ * For ** offline ** audio processing, use 'OptimizedFIRFilter':
+ *   it has the smallest average cost per sample.
+ *
+ * Both of them are 0-latency and are designed to scale both for very high and very low count of coefficients.
+ ********************************************************************************
+ 
+ Details
+ -------
+ 
+ There are 3 metrics that can be optimized:
+ 
+ - average cost :
+ How much CPU will I need, on average, to compute a single sample?
+ This metric should be minimized when doing offline audio processing, so as to ensure that
+ the task is executed as fast as possible.
+ 
+ - "worst audiocallback" cost :
+ How much CPU will I need, at worst, during a single audio callback, to compute the corresponding samples?
+ Note that the size of the audio callback is important here.
+ This metric should be optimized when doing live audio processing,
+ to ensure that the audio callback meets its deadline.
+ 
+ - latency :
+ does my filter / convolution induce any latency?
+ This metric should be optimized when doing live audio processing
+ with an instrumentist playing a virtual instrument, because
+ it's very hard / unpleasant to play an instrument that has noticeable latency.
+ 
+ Here is the mapping from filter type to the kind of metric that is optimized by that filter:
+ 
+ |----------------------------------------------------|----------------------------|-----------|
+ |                                                    |     Optimal time cost      |           |
+ |                                                    |----------------------------|           |
+ |                                                    | on average | in worst case |           |
+ | Filter type                                        | per sample | per callback  | 0-latency |
+ |----------------------------------------------------|------------|---------------|-----------|
+ | FIRFilter                                          |     .      |       .       |    X      |
+ | OptimizedFIRFilter                                 |     X      |       .       |    X      |
+ | FinegrainedPartitionnedFFTConvolution              |     .      |       X       |    .      |
+ | ZeroLatencyScaledFineGrainedPartitionnedConvolution|     .      |       X       |    X      |
+ |----------------------------------------------------|------------|---------------|-----------|
+ 
+ */
 
-   Summary
-   -------
+template<typename T, typename FFTTag>
+using OptimizedFIRFilter =
+SplitConvolution <
+/**/FIRFilter<T>,
+/**/CustomScaleConvolution<
+/*  */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>>;
 
-   ********************************************************************************
-   *
-   * For ** live ** audio processing, use 'ZeroLatencyScaledFineGrainedPartitionnedConvolution':
-   *   it has the smallest worst cost per audio callback.
-   *
-   * For ** offline ** audio processing, use 'OptimizedFIRFilter':
-   *   it has the smallest average cost per sample.
-   *
-   * Both of them are 0-latency and are designed to scale both for very high and very low count of coefficients.
-   ********************************************************************************
+template<typename T, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
+using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
+SplitConvolution<
+/**/OptimizedFIRFilter<T, FFTTag>,
 
-   Details
-   -------
+/**/SplitConvolution<
+/*  */FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // full resolution
+/*  */SubSampled< Lat,
+/*    */Delayed<
 
-   There are 3 metrics that can be optimized:
+/**/SplitConvolution<
+/*  */FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // half resolution
+/*  */SubSampled<Lat,
+/*    */Delayed<
 
-   - average cost :
-   How much CPU will I need, on average, to compute a single sample?
-   This metric should be minimized when doing offline audio processing, so as to ensure that
-   the task is executed as fast as possible.
-   
-   - "worst audiocallback" cost :
-   How much CPU will I need, at worst, during a single audio callback, to compute the corresponding samples?
-   Note that the size of the audio callback is important here.
-   This metric should be optimized when doing live audio processing,
-   to ensure that the audio callback meets its deadline.
+/**/SplitConvolution<
+/*  */FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // quarter resolution
+/*  */SubSampled<Lat,
+/*    */Delayed<
 
-   - latency :
-   does my filter / convolution induce any latency?
-   This metric should be optimized when doing live audio processing
-   with an instrumentist playing a virtual instrument, because
-   it's very hard / unpleasant to play an instrument that has noticeable latency.
+/**/FinegrainedPartitionnedFFTConvolution<T, FFTTag> // heighth resolution
+>>>>>>>>>>;
 
-   Here is the mapping from filter type to the kind of metric that is optimized by that filter:
+template<typename T, typename FFTTag>
+using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
+SplitConvolution<
+/**/OptimizedFIRFilter<T, FFTTag>,
+/**/FinegrainedPartitionnedFFTConvolution<T, FFTTag>>;
 
-   |----------------------------------------------------|----------------------------|-----------|
-   |                                                    |     Optimal time cost      |           |
-   |                                                    |----------------------------|           |
-   |                                                    | on average | in worst case |           |
-   | Filter type                                        | per sample | per callback  | 0-latency |
-   |----------------------------------------------------|------------|---------------|-----------|
-   | FIRFilter                                          |     .      |       .       |    X      |
-   | OptimizedFIRFilter                                 |     X      |       .       |    X      |
-   | FinegrainedPartitionnedFFTConvolution              |     .      |       X       |    .      |
-   | ZeroLatencyScaledFineGrainedPartitionnedConvolution|     .      |       X       |    X      |
-   |----------------------------------------------------|------------|---------------|-----------|
+template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+using ZeroLatencyScaledAsyncConvolution =
+SplitConvolution<
+/**/OptimizedFIRFilter<T, FFTTag>,
+/**/AsyncCPUConvolution <
+/*  */CustomScaleConvolution<
+/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>, OnWorkerTooSlow>>;
 
-   */
+template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+using ZeroLatencyScaledAsyncConvolutionOptimized =
+SplitConvolution<
+/**/ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>,
+/**/AsyncCPUConvolution <
+/*  */CustomScaleConvolution<
+/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>, OnWorkerTooSlow>>;
 
-  template<typename T, typename FFTTag>
-  using OptimizedFIRFilter =
-    SplitConvolution <
-  // handle the first coefficients using brute force convolution (memory locality makes it faster than anything else):
-      FIRFilter<T>,
-  // handle subsequent coefficients using FFTs:
-      CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>
-    >;
-  
-  template<typename T, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
-  using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
-    SplitConvolution<
-  // handle the first coefficients using a zero-latency filter:
-      OptimizedFIRFilter<T, FFTTag>,
-  // handle subsequent coefficients using a filter optimized for worst audio callback cost:
-  SplitConvolution<
-    FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // full resolution
-    SubSampled<
-      Lat,
-      Delayed<
-
-  SplitConvolution<
-    FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // half resolution
-    SubSampled<
-      Lat,
-      Delayed<
-
-  SplitConvolution<
-    FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // quarter resolution
-    SubSampled<
-      Lat,
-      Delayed<
-
-  FinegrainedPartitionnedFFTConvolution<T, FFTTag> // heighth resolution
-  
-      >
-    >
-  >
-  
-      >
-    >
-  >
-
-      >
-    >
-  >
-
-  >;
-
-      template<typename T, typename FFTTag>
-      using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
-        SplitConvolution<
-      // handle the first coefficients using a zero-latency filter:
-          OptimizedFIRFilter<T, FFTTag>,
-      // handle subsequent coefficients using a filter optimized for worst audio callback cost:
-          FinegrainedPartitionnedFFTConvolution<T, FFTTag>
-      >;
-      template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-      using ZeroLatencyScaledAsyncConvolution =
-      SplitConvolution<
-        OptimizedFIRFilter<T, FFTTag>,
-        AsyncCPUConvolution <
-            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>,
-            OnWorkerTooSlow
-        >
-      >;
-      template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-      using ZeroLatencyScaledAsyncConvolutionOptimized =
-      SplitConvolution<
-        ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>,
-        AsyncCPUConvolution <
-            CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>,
-            OnWorkerTooSlow
-        >
-      >;
 
 /*
-latency characteristics for each PartitionAlgo:
+Latency characteristics for each PartitionAlgo:
 
 (non-split leaves)
 
@@ -170,6 +147,9 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
                   int const firstSz,
                   std::optional<int> const lastSz)
     {
+        os << "Optimization of CustomScaleConvolution:" << std::endl;
+        IndentingOStreambuf i(os);
+
         int const nEarlyCoeffs = std::min(zero_latency_response_size,
                                           firstSz-1);
         int const nLateCoeffs = std::max(0,
@@ -207,10 +187,12 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
                   std::ostream & os,
                   std::optional<int> const lastSz)
     {
+        os << "Optimization of OptimizedFIRFilter:" << std::endl;
+        IndentingOStreambuf i(os);
+
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
                 
-        auto indent = std::make_unique<IndentingOStreambuf>(os);
         auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
                                                           n_audio_channels,
                                                           n_audio_frames_per_cb,
@@ -221,8 +203,6 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
                                                           firstSz,
                                                           lastSz
                                                           );
-        indent.reset();
-        
         PS ps;
         if(pSpecsLate) {
             ps = {
@@ -301,6 +281,9 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
                   SimulationPhasing const & phasing,
                   CountDroppedScales const & nAsyncScalesDropped)
     {
+        os << "Optimization of AsyncCPUConvolution:" << std::endl;
+        IndentingOStreambuf i(os);
+
         if(n_channels <= 0) {
             throw std::runtime_error("0 channel");
         }
@@ -392,6 +375,15 @@ private:
                                              SimulationPhasing const & phasing,
                                              std::ostream & os)
     {
+        // at the moment, every AsyncCPUConvolution has its own worker thread, so we simulate
+        // 'n_channels' threads runing at the same time, to see what percentage of the time they
+        // are actually running on the cpu, and what their max 'sleep' time is.
+        
+        auto const nThreads = n_channels;
+        
+        os << "Virtual simulation with " << nThreads << " threads:" << std::endl;
+        IndentingOStreambuf i(os);
+
         using Sim = typename AsyncPart::Simulation;
         
         std::vector<std::unique_ptr<Sim>> simu_convs;
@@ -417,15 +409,7 @@ private:
                 ++n;
             }
         }
-        
-        // at the moment, every AsyncCPUConvolution has its own worker thread, so we simulate
-        // 'n_channels' threads runing at the same time, to see what percentage of the time they
-        // are actually running on the cpu, and what their max 'sleep' time is.
-        
-        auto const nThreads = n_channels;
-        os << "With " << nThreads << " threads:" << std::endl;
-        auto indent = std::make_unique<IndentingOStreambuf>(os);
-        
+                
         MaxWallTimeIncrementEval::BythreadMaxIncrements maxIncrements;
         maxIncrements.resize(nThreads);
         
@@ -817,6 +801,9 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
                   std::ostream & os,
                   SimulationPhasing const & phasing)
     {
+        os << "Optimization of ZeroLatencyScaledAsyncConvolution:" << std::endl;
+        IndentingOStreambuf i(os);
+
         // There is a balance to find between the risk of audio dropouts due to:
         //   - A : the earlyhandler having too many coefficients to handle
         //   - B : the latehandler having too many (small) scales to handle
@@ -865,6 +852,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
         return ps;
     }
 };
+
 template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow> > {
     using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow>;
@@ -885,8 +873,9 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
                   std::ostream & os,
                   SimulationPhasing const & phasing)
     {
-        os << "Late handler optimization:" << std::endl;
-        
+        os << "Optimization of ZeroLatencyScaledAsyncConvolutionOptimized:" << std::endl;
+        IndentingOStreambuf i(os);
+
         // There is a balance to find between the risk of audio dropouts due to:
         //   - A : the earlyhandler having too many coefficients to handle
         //   - B : the latehandler having too many (small) scales to handle
@@ -902,7 +891,6 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
         // So this design choice may be changed in the future.
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         
-        auto indent = std::make_unique<IndentingOStreambuf>(os);
         auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
                                                           n_audio_channels,
                                                           n_audio_frames_per_cb,
@@ -912,15 +900,11 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
                                                           os,
                                                           phasing,
                                                           nAsyncScalesDropped);
-        indent.reset();
-        
         PS ps;
         if(pSpecsLate) {
             int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
             os << "Deduced early handler coeffs:" << nEarlyCoeffs << std::endl;
-            os << "Early handler optimization:" << std::endl;
             
-            auto indent = std::make_unique<IndentingOStreambuf>(os);
             auto pSpecsEarly = PartitionAlgo<EarlyHandler>::run(n_channels,
                                                                 n_audio_channels,
                                                                 n_audio_frames_per_cb,
@@ -928,7 +912,6 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
                                                                 frame_rate,
                                                                 max_avg_time_per_sample,
                                                                 os);
-            indent.reset();
             
             if(pSpecsEarly) {
                 ps = {
@@ -1090,8 +1073,6 @@ int count_scales(SetupParam const & p) {
     return n_scales;
 }
 
-
-
 template<typename T, typename FFTTag>
 struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> > {
     using Convolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>;
@@ -1109,7 +1090,11 @@ public:
                   int zero_latency_response_size,
                   double frame_rate,
                   double max_avg_time_per_sample,
-                  std::ostream & os) {
+                  std::ostream & os)
+    {
+        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedConvolution:" << std::endl;
+        IndentingOStreambuf i(os);
+
         auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
                                          std::optional<int> lastSz) {
             return PartitionAlgo<EarlyHandler>::run(n_channels,
@@ -1179,8 +1164,11 @@ public:
                   double const frame_rate,
                   double const max_avg_time_per_sample,
                   std::ostream & os,
-                  ResponseTailSubsampling rts) {
-        
+                  ResponseTailSubsampling rts)
+    {
+        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution:" << std::endl;
+        IndentingOStreambuf i(os);
+
         PS res;
         
         range<int> const scales = getScaleCountRanges<Convolution>(rts);
@@ -1263,7 +1251,7 @@ private:
                                                                      zero_latency_response_size,
                                                                      os);
         if(lateRes) {
-            // ceiled to have a round number of partitions
+            // scaleSz might be a little bigger than the scale used during optimization, to have a round number of partitions:
             int const scaleSz = lateRes->partition_size * lateRes->partition_count;
             auto earlyRes = getEarlyHandlerParams(EarliestDeepesLateHandler::nCoefficientsFadeIn +
                                                   EarliestDeepesLateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
@@ -1305,6 +1293,7 @@ template<typename T>
 struct OptimalFilter_<T, AudioProcessing::Offline> {
     using type = OptimizedFIRFilter<T, fft::Fastest>;
 };
+
 }
 
 template<typename T, AudioProcessing P>
@@ -1320,4 +1309,5 @@ static inline std::ostream & operator << (std::ostream & o, SimulationPhasing co
     }
     return o;
 }
+
 }

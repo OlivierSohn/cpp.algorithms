@@ -80,8 +80,10 @@ struct SubSampledSetupParam : public Cost {
     using SetupParam = SubSampledSetupParam<Lat, typename Algo::SetupParam>;
  void logComputeState(std::ostream & os) const {
      os << "2x subsampled" << std::endl;
-     IndentingOStreambuf i(os);
-     algo.logComputeState(os);
+     {
+         IndentingOStreambuf i(os);
+         algo.logComputeState(os);
+     }
  }
 
     auto getEpsilon() const {

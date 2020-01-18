@@ -162,6 +162,9 @@ struct PartitionAlgo< FIRFilter<T> > {
                   int n_scales,
                   double frame_rate,
                   std::ostream & os) {
+        os << "Optimization of FIRFilter:" << std::endl;
+        IndentingOStreambuf i(os);
+
         // there is no variable to optimize with FIRFilter:
         PS ps;
         ps.cost = SetupParam();

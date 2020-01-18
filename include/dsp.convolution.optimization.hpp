@@ -64,8 +64,8 @@ struct Cost {
             os << "Optimized computation phase : " << *phase << endl;
         }
 
+        os << "Composition:" << std::endl;
         {
-            os << "Composition:" << std::endl;
             IndentingOStreambuf i(os);
             logSubReport(os);
         }

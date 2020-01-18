@@ -50,8 +50,10 @@ namespace imajuscule
     };
       void logComputeState(std::ostream & os) const {
           os << "Delayed by " << ring.size() << std::endl;
-          IndentingOStreambuf i(os);
-          algo.logComputeState(os);
+          {
+              IndentingOStreambuf i(os);
+              algo.logComputeState(os);
+          }
       }
 
     void setup(SetupParam const & p) {

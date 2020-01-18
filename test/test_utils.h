@@ -78,42 +78,52 @@ std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
 
 template<typename T, typename FFTTag>
 auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partitionSize, int nLateCoeffs) {
-  using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
-  using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
+    using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
+    using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
     
-  int const n_partitions = countPartitions(nLateCoeffs, partitionSize);
-
-  auto scalingParams = scalingsToParams<ScalingParam>(v);
-  auto c = C{};
-  c.setup(typename C::SetupParam
-  {
+    int const n_partitions = countPartitions(nLateCoeffs, partitionSize);
+    
+    auto scalingParams = scalingsToParams<ScalingParam>(v);
+    auto c = C{};
+    c.setup(typename C::SetupParam
     {
-        {},
-        {scalingParams}
-    },
-    {
-      FinegrainedSetupParam{
-          partitionSize, // partition size
-          n_partitions,
-          partitionSize*1000, // multiplication group size
-          0 // phase
-      },
-      {
-        0,
-        {FinegrainedSetupParam{0,0,1,0},
-          {
-            0,
-            {FinegrainedSetupParam{0,0,1,0},
-              {
-                0,
-                FinegrainedSetupParam{0,0,1,0}
-              }}
-          }}
-      }
+        {
+            {},
+            {scalingParams}
+        },
+        {
+            FinegrainedSetupParam {
+                partitionSize, // partition size
+                n_partitions,
+                partitionSize*1000, // multiplication group size
+                0 // phase
+            },
+            {
+                {
+                    0,
+                    {
+                        FinegrainedSetupParam{0,0,1,0},
+                        {
+                            {
+                                0,
+                                {
+                                    FinegrainedSetupParam{0,0,1,0},
+                                    {
+                                        {
+                                            0,
+                                            FinegrainedSetupParam{0,0,1,0}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-  }
-             );
-  return c;
+            );
+    return c;
 }
 
 

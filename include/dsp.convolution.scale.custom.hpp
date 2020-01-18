@@ -3,6 +3,10 @@ namespace imajuscule {
 
 template<typename SetupParam>
 struct CustomScaleConvolutionSetupParam : public Cost {
+    
+    static constexpr int nCoefficientsFadeIn = 0;
+    static_assert(SetupParam::nCoefficientsFadeIn == 0); // else we need to handle them
+
     struct ScalingParam {
         ScalingParam(int countCoeffs,
                      SetupParam setupParam)

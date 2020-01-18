@@ -6,23 +6,45 @@ namespace imajuscule
   struct Delayed {
     using T = typename Algo::FPT;
     using FPT = T;
+
     static constexpr int nCoefficientsFadeIn = Algo::nCoefficientsFadeIn;
     static constexpr bool step_can_error = Algo::step_can_error;
 
     struct SetupParam : public Cost {
+        static constexpr int nCoefficientsFadeIn = Algo::nCoefficientsFadeIn;
+
         using InnerParams = typename Algo::SetupParam;
         SetupParam(int d, InnerParams i)
         : delay(d)
-        , innerParams(i)
+        , delayed(i)
         {}
         
         int delay;
-        InnerParams innerParams;
+        InnerParams delayed;
+        
         void logSubReport(std::ostream & os) const override {
             os << "Delayed by " << delay << std::endl;
             {
                 IndentingOStreambuf i(os);
-                innerParams.logSubReport(os);
+                delayed.logSubReport(os);
+            }
+        }
+        
+        bool handlesCoefficients() const {
+            return delayed.handlesCoefficients();
+        }
+        
+        Latency getImpliedLatency() const {
+          Assert(handlesCoefficients());
+          return Latency(delay) + delayed.getImpliedLatency();
+        }
+
+        void adjustWork(int targetNCoeffs) {
+            if(delayed.handlesCoefficients()) {
+                delayed.adjustWork(targetNCoeffs);
+            }
+            if(!handlesCoefficients()) {
+                setCost(0.);
             }
         }
     };
@@ -36,7 +58,7 @@ namespace imajuscule
       ring.reset();
       ring.resize(p.delay);
         
-      algo.setup(p.innerParams);
+      algo.setup(p.delayed);
     }
     
     auto getEpsilon() const {

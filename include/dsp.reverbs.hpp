@@ -416,7 +416,7 @@ static inline std::string toJustifiedString(ReverbType t) {
           if constexpr (ConvolutionReverb::has_subsampling) {
               int const n_scales = count_scales(spec);
               assert(n_scales >= 1);
-              int lateHandlerFirstScalePartitionSize = spec.bParams.aParams.partition_size;
+              int lateHandlerFirstScalePartitionSize = spec.b.a.partition_size;
               int const n_coeffs_early_handler = std::max(minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter,
                                                           earliestDeepestLatency<typename ConvolutionReverb::LateHandler>(lateHandlerFirstScalePartitionSize)).toInteger();
               int const late_response_sz = std::max(0

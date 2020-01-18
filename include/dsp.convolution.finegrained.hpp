@@ -1,85 +1,87 @@
 
-namespace imajuscule
-{
-  /*
-   * In dsp.convolution.hpp we see this algorithm:
-   *
-   * The impulse response h is split in parts of equal length h1, h2, ... hn
-   *
-   *                     FFT(h1)
-   *                        v
-   *       +-----+    +-----------+  +-----+  +------+
-   * x +-->| FFT |-|->| cplx mult |->| Add |->| IFFT |--> y
-   *       +-----+ v  +-----------+  +-----+  +------+
-   *          +--------+               ^
-   *          |Delay(N)| FFT(h2)       |
-   *          +--------+    v          |
-   *               |  +-----------+    |
-   *               |->| cplx mult |----|
-   *               |  +-----------+    |
-   *               .         .         .
-   *               .         .         .
-   *               .                   .
-   *               v                   |
-   *          +--------+               |
-   *          |Delay(N)| FFT(hn)       |
-   *          +----+---+    v          |
-   *               |  +-----------+    |
-   *               -->| cplx mult |----|
-   *                  +-----------+
-   *
-   * 'PartitionnedFFTConvolutionCRTP' carries this monolithic computation
-   * when needed, with no buffering, with a latency of the size of a partition.
-   *
-   * When partition sizes are an order of magnitude bigger than the audio callback buffer
-   * (it is a very common case, since large partition
-   * sizes is what makes this algorithm efficient on average),
-   * many successive callback calls have very little work to do, and suddenly
-   * a single callback call has to perform this huge monolithic computation.
-   *
-   * This is problematic because this audio callback can miss its deadline,
-   * and then we'll hear a loud audio crack.
-   *
-   * To fix this, at the cost of a longer latency (twice the size of a partition size),
-   * here we split the computation in several "grains" that can be computed at different times:
-   *
-   * - First there is the "FFT" grain which computes the fft of a chunk of the input signal
-   *     (and does a little more than that, see the code)
-   * - Then there are "multiplication" grains, where we multiply some delayed FFT of the input signal
-   *    by some of the the FFT of the impulse response.
-   *    The (max) number of vector multiplications per grain is the "multiplication group size".
-   * - Finally there is the "IFFT" grain where we sum the results of the multiplications
-   *    and do its inverse fft.
-   *
-   * An algorithm computes the optimal parameters (to minimize the worst case cost for a single callback):
-   *  - The size of the partitions
-   *  - The count of multiplications per multiplication grain
-   *  - The "phasing" of simultaneous convolutions to best interleave
-   *      high-cost grains.
-   * based on :
-   *  - The callback buffer size
-   *  - The count of simultaneous convolutions happening in a callback
-  */
+namespace imajuscule {
 
-  enum class GrainType {
+/*
+ * In dsp.convolution.hpp we see this algorithm:
+ *
+ * The impulse response h is split in parts of equal length h1, h2, ... hn
+ *
+ *                     FFT(h1)
+ *                        v
+ *       +-----+    +-----------+  +-----+  +------+
+ * x +-->| FFT |-|->| cplx mult |->| Add |->| IFFT |--> y
+ *       +-----+ v  +-----------+  +-----+  +------+
+ *          +--------+               ^
+ *          |Delay(N)| FFT(h2)       |
+ *          +--------+    v          |
+ *               |  +-----------+    |
+ *               |->| cplx mult |----|
+ *               |  +-----------+    |
+ *               .         .         .
+ *               .         .         .
+ *               .                   .
+ *               v                   |
+ *          +--------+               |
+ *          |Delay(N)| FFT(hn)       |
+ *          +----+---+    v          |
+ *               |  +-----------+    |
+ *               -->| cplx mult |----|
+ *                  +-----------+
+ *
+ * 'PartitionnedFFTConvolutionCRTP' carries this monolithic computation
+ * when needed, with no buffering, with a latency of the size of a partition.
+ *
+ * When partition sizes are an order of magnitude bigger than the audio callback buffer
+ * (it is a very common case, since large partition
+ * sizes is what makes this algorithm efficient on average),
+ * many successive callback calls have very little work to do, and suddenly
+ * a single callback call has to perform this huge monolithic computation.
+ *
+ * This is problematic because this audio callback can miss its deadline,
+ * and then we'll hear a loud audio crack.
+ *
+ * To fix this, at the cost of a longer latency (twice the size of a partition size),
+ * here we split the computation in several "grains" that can be computed at different times:
+ *
+ * - First there is the "FFT" grain which computes the fft of a chunk of the input signal
+ *     (and does a little more than that, see the code)
+ * - Then there are "multiplication" grains, where we multiply some delayed FFT of the input signal
+ *    by some of the the FFT of the impulse response.
+ *    The (max) number of vector multiplications per grain is the "multiplication group size".
+ * - Finally there is the "IFFT" grain where we sum the results of the multiplications
+ *    and do its inverse fft.
+ *
+ * An algorithm computes the optimal parameters (to minimize the worst case cost for a single callback):
+ *  - The size of the partitions
+ *  - The count of multiplications per multiplication grain
+ *  - The "phasing" of simultaneous convolutions to best interleave
+ *      high-cost grains.
+ * based on :
+ *  - The callback buffer size
+ *  - The count of simultaneous convolutions happening in a callback
+ */
+
+enum class GrainType {
     FFT,
     IFFT,
     MultiplicationGroup,
     Nothing
-  };
+};
 
-  struct GrainsCosts {
+struct GrainsCosts {
     float fft, ifft, mult;
-      
-      bool operator == (GrainsCosts const & o) const {
-          return fft == o.fft &&
-          ifft == o.ifft &&
-          mult == o.mult;
-      }
-  };
-
+    
+    bool operator == (GrainsCosts const & o) const {
+        return fft == o.fft &&
+        ifft == o.ifft &&
+        mult == o.mult;
+    }
+};
+    
 
   struct FinegrainedSetupParam : public Cost {
+    static constexpr int nCoefficientsFadeIn = 0;
+
     explicit FinegrainedSetupParam() {}
 
     FinegrainedSetupParam(int partitionSz,
@@ -106,7 +108,19 @@ namespace imajuscule
       bool handlesCoefficients() const {
           return partition_size > 0;
       }
-
+      
+      void adjustWork(int targetNCoeffs) {
+          LG(INFO,"from %d", partition_count);
+          partition_count = countPartitions(targetNCoeffs, partition_size);
+          LG(INFO,"to   %d", partition_count);
+          if(!handlesCoefficients()) {
+              setCost(0.);
+          }
+          else {
+              // we could reduce the cost...
+          }
+      }
+      
       Latency getImpliedLatency() const {
           Assert(handlesCoefficients());
           return Latency(2*partition_size - 1);
@@ -493,12 +507,20 @@ namespace imajuscule
     RealSignal x, y, result;
   };
       
-      constexpr int countPartitions(int nCoeffs, int partition_size) {
-          if(nCoeffs <= 0) {
-              return 0;
+      constexpr Latency minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter {
+          ScaleConvolution_::latencyForDroppedConvolutions(ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
+      };
+
+      template<typename C>
+      int constexpr getMinLg2PartitionSz() {
+          int partition_sz = 1;
+          for(;;partition_sz *= 2) {
+              if(C::getLatencyForPartitionSize(partition_sz) >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+                  break;
+              }
           }
-          Assert(partition_size);
-          return 1 + (nCoeffs-1)/partition_size;
+          
+          return power_of_two_exponent(partition_sz);
       }
 
 
@@ -703,7 +725,7 @@ namespace imajuscule
 
   /*
    input parameters :
-   - n_frames_audio_cb, n_channels, with_spread (those 3 can be reduced to 'equivalent_n_frames_cb')
+   - sz_audio_cb, n_channels
    - impulse response length
 
    output parameters:
@@ -715,18 +737,44 @@ namespace imajuscule
    */
   template<typename Convolution, typename SetupParam = typename Convolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
   void find_optimal_partition_size(GradientDescent & gradient_descent,
-                                   int n_iterations,
-                                   int n_channels,
-                                   int n_scales,
-                                   int n_frames,
-                                   std::function<Optional<int>(Latency const)> n_coeffs_for_latency,
-                                   int min_lg2_partitionsz, // must yield a valid result
+                                   int const n_iterations,
+                                   int const n_channels,
+                                   int const n_scales,
+                                   int const sz_audio_cb,
+                                   int const zero_latency_response_size,
                                    Optional<SetupParam> & min_val,
-                                   std::ostream & os) {
-    //std::cout << "main thread: " << std::endl;
-    //thread::logSchedParams();
-
-    gradient_descent.setFunction( [n_frames, n_coeffs_for_latency, n_scales, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
+                                   std::ostream & os)
+      {
+      auto n_coeffs_for_latency = [zero_latency_response_size, n_scales](Latency const latency) -> std::optional<int> {
+          if( latency < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+              // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
+              // this case doesn't happen on the first try.
+              return {};
+          }
+          // we substract the count of coefficients handled by the early coefficients handler.
+          // it favors long partitions because we don't take into account
+          // the cost of the early coefficient handler, but for long responses, where optimization matters,
+          // the induced bias is negligible.
+          
+          auto late_response_sz = std::max(0,
+                                           zero_latency_response_size - latency.toInteger());
+          
+          auto scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
+          if(scale_sz <= 0) {
+              return {};
+          }
+          if(n_scales > 1) {
+              // verify that we can have more than one scale (i.e the delay needed to scale is strictly positive)
+              // in theory we could relax the constraint (0 delays are ok but the implementation
+              // doesn't support that).
+              if(SameSizeScales::getDelays(scale_sz, latency) <= 0) {
+                  return {};
+              }
+          }
+          return {scale_sz};
+      };
+      
+    gradient_descent.setFunction( [sz_audio_cb, n_coeffs_for_latency, n_scales, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
       using namespace profiling;
       using namespace std;
       using namespace std::chrono;
@@ -938,7 +986,7 @@ namespace imajuscule
 
           result.setCost(cost);
         }
-      } cost_evaluator{times, n_scales, n_frames, n_channels};
+      } cost_evaluator{times, n_scales, sz_audio_cb, n_channels};
 
       RangedGradientDescent<PhasedCost> rgd([ &cost_evaluator, &test ](int multiplication_group_size, auto & cost) {
         // compute multiplication time for the group
@@ -994,6 +1042,9 @@ namespace imajuscule
       return ParamState::Ok;
     });
 
+    // must yield a valid result:
+    int const min_lg2_partitionsz = getMinLg2PartitionSz<Convolution>();
+
     auto res = gradient_descent.findLocalMinimum(n_iterations,
                                                  min_lg2_partitionsz,
                                                  min_val);
@@ -1002,18 +1053,17 @@ namespace imajuscule
       assert(min_val->partition_size == pow2(*res));
     }
   }
-
+      
   template<typename T, typename FFTTag>
   struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
     using Convolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
 
-    static PS run(int n_channels,
-                  int n_scales,
-                  int n_audio_frames_per_cb,
-                  std::function<Optional<int>(Latency const)> n_coeffs_for_partition_sz,
-                  int min_lg2_partition_sz,
+    static PS run(int const n_channels,
+                  int const n_scales,
+                  int const n_audio_frames_per_cb,
+                  int const zero_latency_response_size,
                   std::ostream & os) {
       assert(n_channels > 0);
       PS res;
@@ -1024,8 +1074,7 @@ namespace imajuscule
                                               n_channels,
                                               n_scales,
                                               n_audio_frames_per_cb,
-                                              n_coeffs_for_partition_sz,
-                                              min_lg2_partition_sz,
+                                              zero_latency_response_size,
                                               res,
                                               os);
       constexpr auto debug_gradient_descent = false;

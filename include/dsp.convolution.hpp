@@ -232,6 +232,8 @@ namespace imajuscule
 
 struct FFTConvolutionCRTPSetupParam : public Cost
 {
+    static constexpr int nCoefficientsFadeIn = 0;
+
     FFTConvolutionCRTPSetupParam(int blockSize)
     : blockSize(blockSize)
     {}
@@ -419,6 +421,8 @@ struct FFTConvolutionCRTPSimulation {
      */
 
 struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
+    static constexpr int nCoefficientsFadeIn = 0;
+
     PartitionnedFFTConvolutionCRTPSetupParam(int partition_size,
                                              int partition_count)
     : partition_size(partition_size)

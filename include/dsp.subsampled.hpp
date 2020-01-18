@@ -1,28 +1,71 @@
 
-namespace imajuscule
-{
-  enum class LatencySemantic {
+namespace imajuscule {
+
+enum class LatencySemantic {
     // the delay between an input dirac and the first non-zero output:
     FirstNonZero,
     // the delay between an input dirac and the peak output:
     DiracPeak
-  };
-  
-  /*
-   * To have a smooth transition between different sampling frequencies,
-   * we cross-fade the impulse response coefficients.
-   */
-  struct scaleFadeSz {
+};
+
+/*
+ * To have a smooth transition between different sampling frequencies,
+ * we cross-fade the impulse response coefficients.
+ */
+struct scaleFadeSz {
     // expressed in number of periods at the higher frequency
     static int constexpr inSmallerUnits = 500;
     static_assert(inSmallerUnits % 2 == 0);
     // expressed in number of periods at the lower frequency
     static int constexpr inBiggerUnits = inSmallerUnits/2;
-  };
-  constexpr int nMaxScales = 4;
+};
+constexpr int nMaxScales = 4;
 
-  // we want to avoid approximations:
-  constexpr bool subSamplingAllowsEvenNumberOfCoefficients = false;
+template<LatencySemantic Lat, typename InnerParam>
+struct SubSampledSetupParam : public Cost {
+    static constexpr int nCoefficientsFadeIn = scaleFadeSz::inSmallerUnits;
+
+    SubSampledSetupParam(InnerParam const & i)
+    : subsampled(i)
+    {}
+    
+    bool handlesCoefficients() const {
+        return subsampled.handlesCoefficients();
+    }
+    Latency getImpliedLatency() const {
+        Assert(handlesCoefficients());
+        int const res = 2 * subsampled.getImpliedLatency().toInteger();
+        if constexpr (Lat == LatencySemantic::DiracPeak) {
+            return Latency(1 + res);
+        }
+        return Latency(res);
+    }
+    
+    void adjustWork(int targetNCoeffs) {
+        if(targetNCoeffs % 2) {
+            ++targetNCoeffs;
+        }
+        
+        subsampled.adjustWork(targetNCoeffs/2);
+        if(!handlesCoefficients()) {
+            setCost(0.);
+        }
+        else {
+            setCost(subsampled.getCost()/2.);
+        }
+    }
+    
+    void logSubReport(std::ostream & os) const override
+    {
+        os << "2x subsampled" << std::endl;
+        {
+            IndentingOStreambuf i(os);
+            subsampled.logSubReport(os);
+        }
+    }
+
+    InnerParam subsampled;
+};
 
   /* The impulse response is downsampled by a factor of 2. */
   template <LatencySemantic Lat, typename Algo>
@@ -34,7 +77,7 @@ namespace imajuscule
     static constexpr bool has_subsampling = true;
     static constexpr bool step_can_error = Algo::step_can_error;
 
-    using SetupParam = typename Algo::SetupParam;
+    using SetupParam = SubSampledSetupParam<Lat, typename Algo::SetupParam>;
  void logComputeState(std::ostream & os) const {
      os << "2x subsampled" << std::endl;
      IndentingOStreambuf i(os);
@@ -81,21 +124,15 @@ namespace imajuscule
     }
       
       void setup(SetupParam const & p) {
-          algo.setup(p);
+          algo.setup(p.subsampled);
       }
 
-    void setCoefficients(a64::vector<T> const & coeffs) {
+    void setCoefficients(a64::vector<T> /* by copy */ coeffs) {
       resetStates();
 
-      if constexpr (subSamplingAllowsEvenNumberOfCoefficients) {
         if(coeffs.size()%2) {
-          // duplicate last coefficient.
-          coeffs.push_back(coeffs.back());
+            coeffs.push_back(T{});
         }
-      }
-      else {
-        assert(coeffs.size() % 2 == 0);
-      }
         a64::vector<T> resampled;
         using audio::resampleSincBuffer;
         resampleSincBuffer(coeffs, 1, 2.0, resampled);

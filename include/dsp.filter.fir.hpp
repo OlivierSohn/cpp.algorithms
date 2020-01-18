@@ -12,6 +12,10 @@ struct FIRSetupParam : public Cost {
     constexpr bool handlesCoefficients() const {
         return true;
     }
+    
+    void adjustWork(int targetNCoeffs) {
+    }
+    
     constexpr Latency getImpliedLatency() const {
         // commented out because not constexpr
         //Assert(handlesCoefficients());

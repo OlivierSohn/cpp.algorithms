@@ -129,8 +129,8 @@ struct AlgoSplitConvolution {
     static_assert(std::is_same_v<FPT,typename B::FPT>);
     
     void setup(const SetupParam & p) {
-        a.setup(p.aParams);
-        b.setup(p.bParams);
+        a.setup(p.a);
+        b.setup(p.b);
     }
     
     bool isValid() const {

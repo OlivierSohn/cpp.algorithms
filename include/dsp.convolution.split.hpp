@@ -6,20 +6,48 @@ static constexpr int noSplit = -2;
 
 template<typename A, typename B>
 struct SplitSetupParam : public Cost {
+    static constexpr int nCoefficientsFadeIn = A::nCoefficientsFadeIn;
+
     using AParam = A;
     using BParam = B;
-    AParam aParams;
-    BParam bParams;
+    AParam a;
+    BParam b;
     
     SplitSetupParam(AParam const & a,
                     BParam const & b)
-    : aParams(a)
-    , bParams(b)
+    : a(a)
+    , b(b)
     {}
     
     void logSubReport(std::ostream & os) const override {
-        aParams.logSubReport(os);
-        bParams.logSubReport(os);
+        a.logSubReport(os);
+        b.logSubReport(os);
+    }
+    
+    bool handlesCoefficients() const {
+        return a.handlesCoefficients();
+    }
+    
+    Latency getImpliedLatency() const {
+        Assert(handlesCoefficients());
+        return a.getImpliedLatency();
+    }
+
+    void adjustWork(int targetNCoeffs) {
+        if(!b.handlesCoefficients()) {
+            a.adjustWork(targetNCoeffs);
+        }
+        else {
+            int const split = B::nCoefficientsFadeIn + (b.getImpliedLatency() - a.getImpliedLatency()).toInteger();
+            Assert(split >= 0);
+            int const nEarly = std::min(split, targetNCoeffs);
+            a.adjustWork(nEarly);
+            b.adjustWork(std::max(0,
+                                  targetNCoeffs - nEarly + B::nCoefficientsFadeIn));
+        }
+        if(!handlesCoefficients()) {
+            setCost(0.);
+        }
     }
 };
 
@@ -90,8 +118,8 @@ struct SplitConvolution {
     }
     
     void setup(const SetupParam & p) {
-        a.setup(p.aParams);
-        b.setup(p.bParams);
+        a.setup(p.a);
+        b.setup(p.b);
         
         if(!b.handlesCoefficients()) {
             split = noSplit;
@@ -242,7 +270,7 @@ static std::ostream& operator << (std::ostream& os,
                                   const typename SplitConvolution<A,B>::SetupParam& p)
 {
     using namespace std;
-    os << "aParams:" << endl << p.aParams << endl << "bParams:" << endl << p.bParams << endl;
+    os << "a:" << endl << p.a << endl << "b:" << endl << p.b << endl;
     return os;
 }
     

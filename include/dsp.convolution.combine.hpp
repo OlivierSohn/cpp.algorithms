@@ -133,6 +133,26 @@ namespace imajuscule {
         >
       >;
 
+/*
+latency characteristics for each PartitionAlgo:
+
+(non-split leaves)
+
+FIRFilter                             : fixed, 0
+FinegrainedPartitionnedFFTConvolution : deduced from optimized partition size
+
+(non-split internals)
+
+CustomScaleConvolution : fixed, deduced from firstSz
+AsyncCPUConvolution    : deduced from optimized queueSize
+
+(split)
+
+OptimizedFIRFilter  : latence fixe 0
+ZeroLatency***      : latence fixe 0
+*/
+
+
 template<typename A>
 struct PartitionAlgo<CustomScaleConvolution<A>> {
     using Convolution = CustomScaleConvolution<A>;
@@ -923,47 +943,6 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
     }
 };
 
-namespace SameSizeScales {
-    /*
-     Assuming that scales have resolutions of 1,2,4,8...
-     for every scale, the number of blocks = { N(k), k in 1 .. S }
-     Assuming that between scale i and (i+1) there are nOverlap*2^(i-1) blocks in common
-     N = sum (n in 0 .. (S-1)) 2^n N(n+1) - scaleFadeSz::inSmallerUnits * sum (n in 1.. (S-1)) 2^(n-1)
-     and since we want the number of blocks to be equal
-     (hence the namespace name 'SameSizeScales'), we will solve this:
-     N = NF * sum (n in 0 .. (S-1)) 2^n - scaleFadeSz::inSmallerUnits * sum (n in 0.. (S-2)) 2^n
-     N = NF * (2^S - 1) - scaleFadeSz::inSmallerUnits * (2^(S-1)-1)
-     NF = (N + scaleFadeSz::inSmallerUnits * (2^(S-1)-1)) / (2^S - 1)
-     */
-static inline int get_scale_sz(int response_sz, int n_scales) {
-    assert(response_sz>=0);
-    int numerator = response_sz + static_cast<int>(scaleFadeSz::inSmallerUnits * (static_cast<int>(pow2(n_scales-1)) - 1));
-    int denominator = static_cast<int>(pow2(n_scales)) - 1;
-    int res = ceil(numerator / static_cast<double>(denominator));
-    if(subSamplingAllowsEvenNumberOfCoefficients || n_scales <= 1) {
-        return res;
-    }
-    if(res%2) {
-        return res + 1;
-    }
-    return res;
-}
-static inline int get_max_response_sz(int n_scales, int sz_one_scale) {
-    return
-    sz_one_scale * (pow2(n_scales) - 1) -
-    scaleFadeSz::inSmallerUnits * (static_cast<int>(pow2(n_scales-1)) - 1);
-}
-
-int constexpr getDelays(int scale_sz, Latency latency) {
-    // split = nFadeIn + latB - latA
-    // scale_sz = nFadeIn + (1 + 2*(delay + latA)) - latA
-    // scale_sz - 1 - nFadeIn = 2*delay + latA
-    // delay = 0.5 * (scale_sz - 1 - nFadeIn - latA)
-    assert(0 == (scale_sz-scaleFadeSz::inSmallerUnits) % 2);
-    return (scale_sz - 1 - scaleFadeSz::inSmallerUnits - latency.toInteger()) / 2;
-}
-};
-
   
 
 template<typename T>
@@ -977,27 +956,10 @@ struct EarlyestDeepest< SplitConvolution<A,B> > {
 };
 
 
-constexpr Latency minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter {
-    ScaleConvolution_::latencyForDroppedConvolutions(ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
-};
-
 template<typename C>
 Latency constexpr earliestDeepestLatency(int partition_sz) {
     using ED = typename EarlyestDeepest<C>::type;
     return ED::getLatencyForPartitionSize(partition_sz);
-}
-
-template<typename LateHandler>
-int constexpr getLateHandlerMinLg2PartitionSz() {
-    
-    int partition_sz = 1;
-    for(;;partition_sz *= 2) {
-        if(LateHandler::getLatencyForPartitionSize(partition_sz) >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
-            break;
-        }
-    }
-    
-    return power_of_two_exponent(partition_sz);
 }
 
 
@@ -1085,16 +1047,22 @@ auto mkSubsamplingSetupParams(SPEarly const & early_params,
         {
             ps[0],
             {
-                (n_scales >= 2)?delay:0,
                 {
-                    ps[1],
+                    (n_scales >= 2)?delay:0,
                     {
-                        (n_scales >= 3)?delay:0,
+                        ps[1],
                         {
-                            ps[2],
                             {
-                                (n_scales >= 4)?delay:0,
-                                ps[3]
+                                (n_scales >= 3)?delay:0,
+                                {
+                                    ps[2],
+                                    {
+                                        {
+                                            (n_scales >= 4)?delay:0,
+                                            ps[3]
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1108,12 +1076,12 @@ auto mkSubsamplingSetupParams(SPEarly const & early_params,
 template<typename SetupParam>
 int count_scales(SetupParam const & p) {
     int n_scales = 1;
-    if(p.bParams.aParams.handlesCoefficients()) {
-        if(p.bParams.bParams.innerParams.aParams.handlesCoefficients()) {
+    if(p.b.a.handlesCoefficients()) {
+        if(p.b.b.subsampled.delayed.a.handlesCoefficients()) {
             n_scales = 2;
-            if(p.bParams.bParams.innerParams.bParams.innerParams.aParams.handlesCoefficients()) {
+            if(p.b.b.subsampled.delayed.b.subsampled.delayed.a.handlesCoefficients()) {
                 n_scales = 3;
-                if(p.bParams.bParams.innerParams.bParams.innerParams.bParams.innerParams.handlesCoefficients()) {
+                if(p.b.b.subsampled.delayed.b.subsampled.delayed.b.subsampled.delayed.handlesCoefficients()) {
                     n_scales = 4;
                 }
             }
@@ -1170,31 +1138,10 @@ public:
             }
             return ps;
         }
-        auto late_handler_response_size_for_latency =
-        [zero_latency_response_size](Latency const latency) -> Optional<int> {
-            if(latency < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
-                // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
-                // this case doesn't happen on the first try.
-                return {};
-            }
-            // we substract the count of coefficients handled by the early coefficients handler.
-            // it favors long partitions because we don't take into account
-            // the cost of the early coefficient handler, but for long responses, where optimization matters,
-            // the induced bias is negligible.
-            
-            int const late_response_sz = zero_latency_response_size - latency.toInteger();
-            
-            if(late_response_sz <= 0) {
-                // should we return {0} ?
-                return {};
-            }
-            return {late_response_sz};
-        };
         auto lateRes = PartitionAlgo<LateHandler>::run(n_channels,
                                                        1,
                                                        n_audio_frames_per_cb,
-                                                       late_handler_response_size_for_latency,
-                                                       getLateHandlerMinLg2PartitionSz<LateHandler>(),
+                                                       zero_latency_response_size,
                                                        os);
         PS ps;
         if(lateRes) {
@@ -1310,60 +1257,29 @@ private:
             }
             return {{o}};
         }
-        auto scale_size_for_latency =
-        [zero_latency_response_size, n_scales](Latency const latency) -> Optional<int> {
-            if( latency < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
-                // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
-                // this case doesn't happen on the first try.
-                return {};
-            }
-            // we substract the count of coefficients handled by the early coefficients handler.
-            // it favors long partitions because we don't take into account
-            // the cost of the early coefficient handler, but for long responses, where optimization matters,
-            // the induced bias is negligible.
-            
-            auto late_response_sz = std::max(0,
-                                             zero_latency_response_size - latency.toInteger());
-            
-            auto scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
-            if(scale_sz <= 0) {
-                return {};
-            }
-            // TODO return also the size of early coefficients, and take the early cost into account.
-            if(n_scales > 1) {
-                // verify that we can have more than one scale (i.e the delay needed to scale is strictly positive)
-                // in theory we could relax the constraint (0 delays are ok but the implementation
-                // doesn't support that).
-                if(SameSizeScales::getDelays(scale_sz, latency) <= 0) {
-                    return {};
-                }
-            }
-            return {scale_sz};
-        };
         auto lateRes = PartitionAlgo<EarliestDeepesLateHandler>::run(n_channels,
                                                                      n_scales,
                                                                      n_audio_frames_per_cb,
-                                                                     scale_size_for_latency,
-                                                                     getLateHandlerMinLg2PartitionSz<EarliestDeepesLateHandler>(),
+                                                                     zero_latency_response_size,
                                                                      os);
         if(lateRes) {
-            std::optional<int> const mayScaleSz = scale_size_for_latency(lateRes->getImpliedLatency());
-            if(mayScaleSz) {
-                auto earlyRes = getEarlyHandlerParams(EarliestDeepesLateHandler::nCoefficientsFadeIn +
-                                                      EarliestDeepesLateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
-                                                      {lateRes->partition_size});
-                if(earlyRes) {
-                    SetupParam ps = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
-                                                                        *lateRes,
-                                                                        n_scales,
-                                                                        *mayScaleSz);
-                    ps.setCost(earlyRes->getCost() +
-                               lateRes->getCost());
-                    return ps;
+            // ceiled to have a round number of partitions
+            int const scaleSz = lateRes->partition_size * lateRes->partition_count;
+            auto earlyRes = getEarlyHandlerParams(EarliestDeepesLateHandler::nCoefficientsFadeIn +
+                                                  EarliestDeepesLateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
+                                                  {lateRes->partition_size});
+            if(earlyRes) {
+                SetupParam ps = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
+                                                                    *lateRes,
+                                                                    n_scales,
+                                                                    scaleSz);
+                ps.setCost(earlyRes->getCost() +
+                           lateRes->getCost());
+                // we need to adjust because if we have several scales, the last one my contain too many partitions.
+                if(ps.handlesCoefficients()) {
+                    ps.adjustWork(zero_latency_response_size);
                 }
-            }
-            else {
-                throw std::logic_error("no scale size");
+                return ps;
             }
         }
         return {};

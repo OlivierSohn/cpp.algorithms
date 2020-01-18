@@ -88,9 +88,10 @@ struct AsyncSetupParam : public Cost {
 
     void logComputeState(std::ostream & os) const {
         os << "Async [" << curIndex << "/" << N << "], queueSize : " << queueSize << std::endl;
-
-        IndentingOStreambuf i(os);
-        algo.logComputeState(os);
+        {
+            IndentingOStreambuf i(os);
+            algo.logComputeState(os);
+        }
     }
       
     void setup(SetupParam const & s) {

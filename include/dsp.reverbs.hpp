@@ -344,11 +344,7 @@ static inline std::string toJustifiedString(ReverbType t) {
           
           double const theoretical_max_ns_per_frame(1e9/sampleRate);
           double const max_avg_time_per_sample(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_response_channels));
-          
-          os << "Partitioning:" << std::endl;
-          
-          
-          auto indent = std::make_unique<IndentingOStreambuf>(os);
+
           using LegacyReverb = corresponding_legacy_dsp_t<ConvolutionReverb>;
           auto partitionning = PartitionAlgo<LegacyReverb>::run(n_response_channels,
                                                                 nAudioOut,
@@ -358,8 +354,6 @@ static inline std::string toJustifiedString(ReverbType t) {
                                                                 max_avg_time_per_sample,
                                                                 os,
                                                                 args...);
-          indent.reset();
-          
           if(!partitionning) {
               std::stringstream ss;
               ss << "could not optimize (2) :" << std::endl << os.rdbuf();
@@ -377,10 +371,6 @@ static inline std::string toJustifiedString(ReverbType t) {
           setCoefficients(n_sources,
                           *partitionning,
                           buffers);
-          
-          os << "Reports:" << std::endl;
-          IndentingOStreambuf i(os);
-          
           logReport(sampleRate, os);
       }
       
@@ -523,7 +513,11 @@ static inline std::string toJustifiedString(ReverbType t) {
         
     }
 
-    void logReport(double sampleRate, std::ostream & os) {
+    void logReport(double sampleRate, std::ostream & os)
+    {
+      os << "Reports:" << std::endl;
+      IndentingOStreambuf in(os);
+
       using namespace std;
         
         int i=0;

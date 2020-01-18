@@ -30,9 +30,10 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         void logSubReport(std::ostream & os) const {
             os << countCoeffs << " coeffs with:" << std::endl;
 
-            IndentingOStreambuf indent(os);
-
-            setupParam.logSubReport(os);
+            {
+                IndentingOStreambuf indent(os);
+                setupParam.logSubReport(os);
+            }
         }
     };
 
@@ -79,7 +80,6 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         os << "Custom scaling" << std::endl;
 
         IndentingOStreambuf indent(os);
-
         for(auto const & s : scalingParams) {
             s.logSubReport(os);
         }

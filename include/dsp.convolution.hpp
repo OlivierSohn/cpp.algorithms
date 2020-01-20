@@ -251,6 +251,11 @@ struct FFTConvolutionCRTPSetupParam : public Cost
         return Latency(blockSize-1);
     }
 
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+    }
+
     int blockSize;
 };
 
@@ -455,6 +460,11 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
         return partition_size > 0;
     }
     
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+    }
+
     void logSubReport(std::ostream & os) const {
         os << "partition_sz : " << partition_size << std::endl;
     }
@@ -608,7 +618,9 @@ private:
             for(auto & fft_of_delayed_x : ffts_of_delayed_x) {
                 zero(fft_of_delayed_x);
             }
-            ffts_of_delayed_x.setByIndex(0);
+            if(!ffts_of_delayed_x.empty()) {
+                ffts_of_delayed_x.setByIndex(0);
+            }
         }
 
         auto const & compute_convolution(Algo const & fft, typename RealSignal::const_iterator & xBegin)

@@ -248,7 +248,11 @@ namespace imajuscule {
     template<typename Tag>
     void testDirac() {
       using namespace fft;
-      for(int i=0; i<end_index; ++i) {
+      int end = end_index;
+      if constexpr (!std::is_same_v<Tag, fft::Fastest>) {
+          --end;
+      }
+      for(int i=0; i<end; ++i) {
         testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Tag>>(i);
         testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Tag>>(i);
       }

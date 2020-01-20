@@ -33,6 +33,13 @@ struct SplitSetupParam : public Cost {
         return a.getImpliedLatency();
     }
 
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+        a.forEachUsingSameContext(f);
+        b.forEachUsingSameContext(f);
+    }
+    
     void adjustWork(int targetNCoeffs) {
         if(!b.handlesCoefficients()) {
             a.adjustWork(targetNCoeffs);

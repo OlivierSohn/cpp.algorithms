@@ -127,7 +127,7 @@ namespace imajuscule {
         void diagnose(std::function<double(std::optional<EditDistanceAction> const, EditDistanceAction const)> const & weights) {
             std::cout << std::endl;
             if(res.empty()) {
-                std::cout << "empty" << std::endl;
+                std::cout << "empty" << std::endl;
             }
             for(auto & e:res) {
                 std::cout << toString(e.action) << "\t" << e.index_1 << "\t" << e.index_2 << std::endl;
@@ -426,7 +426,7 @@ namespace imajuscule {
             auto end() const { return m.end(); }
             
             void diagnose() const {
-                std::cout << "memo size = " << m.size() <<
+                std::cout << "memo size = " << m.size() <<
                 " lookups success = " << n_successLookups <<
                 " error = " << n_errorLookups << std::endl;
             }
@@ -505,7 +505,7 @@ namespace imajuscule {
 
         bool almostEq(double d1, double d2, double eps = 1e-8) {
             if(d1 == 0. || d2 == 0.) {
-                return std::abs(d1) < eps && std::abs(d2) < eps;
+                return std::abs(d1) < eps && std::abs(d2) < eps;
             }
             return (std::abs(d1-d2) / std::max(std::abs(d1), std::abs(d2))) < eps;
         }

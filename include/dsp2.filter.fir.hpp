@@ -37,7 +37,11 @@ struct StateFIRFilter {
             {}
         };
     }
-    
+        
+    template<typename F>
+    void onContextFronteer(F f) {
+    }
+
     auto size()  const { return reversed_coefficients.size(); }
     bool isZero() const { return reversed_coefficients.empty(); }
     
@@ -84,7 +88,11 @@ struct AlgoFIRFilter {
     bool isValid() const {
         return true;
     }
-        
+
+    void dephaseSteps(State &s,
+                      int n_steps) const {
+    }
+
     void step(State & s,
               XAndFFTS<T, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const

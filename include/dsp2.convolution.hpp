@@ -28,6 +28,7 @@ struct StateFFTConvolutionIntermediate : public Parent {
 
     using Parent::doSetCoefficients;
     using Parent::doFlushToSilence;
+    using Parent::doOnContextFronteer;
     using Parent::doReset;
 
     MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_)
@@ -35,6 +36,11 @@ struct StateFFTConvolutionIntermediate : public Parent {
         result.clear();
         result.resize(algo.get_fft_length());
         return doSetCoefficients(algo, std::move(coeffs_));
+    }
+    
+    template<typename F>
+    void onContextFronteer(F f) {
+        doOnContextFronteer(f);
     }
     
     void reset() {
@@ -47,12 +53,13 @@ struct StateFFTConvolutionIntermediate : public Parent {
 
         fft::RealSignal_<Tag, FPT>::zero(result);
     }
-    
+
     bool isZero() const {
         return result.empty();
     }
     
-    RealSignal result;
+    // mutable because used to store results of previous step, to apply them in the next step
+    mutable RealSignal result;
 };
 
 template <typename Parent>
@@ -72,10 +79,15 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     
     static constexpr auto add_assign = fft::RealSignal_<Tag, FPT>::add_assign;
     
-    using Parent::get_fft_length;
     using Parent::compute_convolution;
+    using Parent::doDephaseSteps;
+    using Parent::get_fft_length;
     using Parent::getBlockSize;
-    
+
+    void dephaseSteps(State & s, int n_steps) const {
+        doDephaseSteps(s, n_steps);
+    }
+
     void step(State & s,
               XAndFFTS<T, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const
@@ -104,7 +116,7 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
                   y);
     }
     
-    void forceStep(State & s,
+    void forceStep(State const & s,
                    XAndFFTS<T, Tag> const & x_and_ffts,
                    Y<T, Tag> & y) const
     {
@@ -193,10 +205,14 @@ struct StateFFTConvolutionCRTP {
         };
     }
     
+    template<typename F>
+    void doOnContextFronteer(F f) {
+    }
+    
     void doReset() {
         fft_of_h.clear();
     }
-    
+
     double getEpsilon(Algo const & algo) const {
         return fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon();
     }
@@ -237,6 +253,12 @@ struct AlgoFFTConvolutionCRTP {
         work.resize(fft_length);
     }
 
+    void doDephaseSteps(State & s,
+                        int n_steps) const {
+        // dephasing occurs right after initialization when all buffers are 0s.
+        // since there is no other state that work buffers (that are 0s) there is no need to do anything here.
+    }
+
     bool isValid() const { return true; }
     bool handlesCoefficients() const { return N > 0; }
 
@@ -255,7 +277,7 @@ struct AlgoFFTConvolutionCRTP {
     
 protected:
     
-    auto const & compute_convolution(State & s,
+    auto const & compute_convolution(State const & s,
                                      typename XAndFFTS<T, Tag>::FFTs const & ffts) const
     {
         auto const & fft_of_x = ffts.get_backward(0);
@@ -357,7 +379,11 @@ struct StatePartitionnedFFTConvolutionCRTP {
             }
         };
     }
-    
+
+    template<typename F>
+    void doOnContextFronteer(F f) {
+    }
+
     void doReset() {
         ffts_of_partitionned_h.clear();
     }
@@ -414,11 +440,17 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
 
         work.resize(get_fft_length());
     }
-    
+
+    void doDephaseSteps(State & s,
+                        int n_steps) const {
+        // dephasing occurs right after initialization when all buffers are 0s.
+        // since there is no other state that work buffers (that are 0s) there is no need to do anything here.
+    }
+
     auto countPartitions() const { return partition_count; }
     
 protected:
-    auto const & compute_convolution(State & s,
+    auto const & compute_convolution(State const & s,
                                      typename XAndFFTS<T, Tag>::FFTs const & ffts) const
     {
         int index = 0;
@@ -435,7 +467,7 @@ protected:
                 ++index;
             }
             int & index;
-            std::vector<CplxFreqs> & ffts_of_partitionned_h;
+            std::vector<CplxFreqs> const & ffts_of_partitionned_h;
             CplxFreqs & work;
         } f{index, s.ffts_of_partitionned_h, work};
         

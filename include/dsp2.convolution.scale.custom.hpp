@@ -83,7 +83,14 @@ struct StateCustomScaleConvolution {
         }
         return {0,0,0,{}};
     }
-
+    
+    template<typename F>
+    void onContextFronteer(F f) {
+        for(auto & e : v) {
+            e.onContextFronteer(f);
+        }
+    }
+    
     double getEpsilon(Algo const & algo) const {
         double eps = 0.;
         
@@ -147,6 +154,11 @@ struct AlgoCustomScaleConvolution {
         return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
 
+    void dephaseSteps(State & s,
+                      int n_steps) const {
+        // nothing. For justification, see comment in step()
+    }
+
     void step(State & s,
               XAndFFTS<FPT, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const
@@ -154,7 +166,10 @@ struct AlgoCustomScaleConvolution {
         Assert(s.v.size() <= v.size());
         
         int i = -1;
-        for(auto & state : s.v) {
+        
+        // Note : the const is important here, and this is why the implementation of dephaseSteps is nop.
+        for(auto const & state : s.v)
+        {
             ++i;
             auto & algo = v[i];
 

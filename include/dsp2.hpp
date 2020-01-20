@@ -117,6 +117,9 @@ struct XAndFFTS {
             }
             auto & oldest_fft_of_delayed_x = f.oldestFft();
             Assert(f.fft_length == static_cast<int>(oldest_fft_of_delayed_x.size()));
+            // we could omit that fft computation if:
+            //   - there are only 0s in the input
+            //   - all the ffts in the ring buffer are only 0s.
             f.fft.forward(x.begin() + xStart, oldest_fft_of_delayed_x, f.fft_length);
             f.advance();
         }
@@ -143,7 +146,7 @@ struct XAndFFTS {
     int progress = 0; // last + 1
     int padding = 0;
     int x_unpadded_size = 0;
-    uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^n, the nth bit is set
+    uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^(n+1), the nth bit is set
     uint32_t fftsHalfSizesBitsToCompute = 0;
     
     struct FFTs {
@@ -319,6 +322,13 @@ struct DspContext {
         int const n_steps = x_and_ffts.flushToSilence();
         y.flushToSilence(n_steps);
     }
+    
+    void dephaseSteps(int n) {
+        for(int i=0; i<n; ++i) {
+            x_and_ffts.push(0);
+            y.increment();
+        }
+    }
 };
 
 /* Used to simplify tests */
@@ -334,9 +344,23 @@ struct Convolution {
     using Tag = typename Algo::Tag;
     using DspContext = DspContext<FPT, Tag>;
     using SetupParam = typename Algo::SetupParam;
-
+    
     void setup(SetupParam const & p) {
         algo.setup(p);
+        
+        phase_period.reset();
+        
+        auto f = [this] (auto const & innerP ){
+            std::optional<float> const ph = innerP.getPhase();
+            if(ph) {
+                // There is at most one phase specification
+                // within a set of params depending on the same context.
+                Assert(!phase_period);
+                phase_period = *ph;
+            }
+        };
+        
+        p.forEachUsingSameContext(f);
     }
     void setCoefficients(a64::vector<FPT> v) {
         MinSizeRequirement req = state.setCoefficients(algo, std::move(v));
@@ -352,6 +376,28 @@ struct Convolution {
         }
     }
     
+    std::optional<float> getPhasePeriod() const {
+        if(phase_period) {
+            return phase_period;
+        }
+        int const maxHalfFFTSz = floor_power_of_two(ctxt.x_and_ffts.fftHalfSizesBits);
+        if(maxHalfFFTSz) {
+            return maxHalfFFTSz;
+        }
+        return {};
+    }
+    
+    void dephaseByGroupRatio(float r)
+    {
+        this->phase_group_ratio = r;
+        
+        dephase();
+        
+        state.onContextFronteer([r](auto & s){
+            s.dephaseByGroupRatio(r);
+        });
+    }
+
     bool handlesCoefficients() const {
         return algo.handlesCoefficients();
     }
@@ -365,6 +411,17 @@ struct Convolution {
         return state.getEpsilon(algo);
     }
     void logComputeState(std::ostream & os) const {
+        os << "phase: ";
+        auto per = getPhasePeriod();
+        if(per) {
+            os << *per;
+        }
+        else {
+            os << "none";
+        }
+        os << std::endl;
+        os << "phase group ratio: " << phase_group_ratio << std::endl;
+        IndentingOStreambuf i(os);
         state.logComputeState(algo, os);
     }
     Latency getLatency() const {
@@ -388,7 +445,6 @@ struct Convolution {
         ctxt.y.increment();
         return res;
     }
-    
     
     template<typename FPT2>
     void stepAssignVectorized(FPT2 const * const input_buffer,
@@ -420,6 +476,8 @@ struct Convolution {
     void flushToSilence() {
         algo.flushToSilence(state);
         ctxt.flushToSilence();
+        
+        dephase();
     }
     
     auto & getAlgo() {
@@ -428,10 +486,22 @@ struct Convolution {
     auto & getAlgo() const {
         return algo;
     }
+    
 private:
     DspContext ctxt;
     State state;
     Algo algo;
+    float phase_group_ratio = 0.; // in [0,1[
+    std::optional<float> phase_period;
+
+    void dephase() {
+        auto per = getPhasePeriod();
+        if(per) {
+            const int n_steps = static_cast<int>(0.5f + phase_group_ratio * *per);
+            algo.dephaseSteps(state, n_steps);
+            ctxt.dephaseSteps(n_steps);
+        }
+    }
 };
 
 template<typename Algo>

@@ -21,6 +21,11 @@ struct FIRSetupParam : public Cost {
         //Assert(handlesCoefficients());
         return Latency(0);
     }
+    
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+    }
 };
 
   /*
@@ -162,7 +167,7 @@ struct PartitionAlgo< FIRFilter<T> > {
                   int n_scales,
                   double frame_rate,
                   std::ostream & os) {
-        os << "Optimization of FIRFilter:" << std::endl;
+        os << "Optimization of FIRFilter" << std::endl;
         IndentingOStreambuf i(os);
 
         // there is no variable to optimize with FIRFilter:

@@ -19,8 +19,8 @@ struct Cost {
 
   float getCost() const { return cost; }
     
-    void setPhase(int ph) { phase = ph; }
-    std::optional<int> getPhase() const { return phase; }
+    void setPhase(float ph) { phase = ph; }
+    std::optional<float> getPhase() const { return phase; }
 
     virtual void logSubReport(std::ostream & os) const = 0;
 
@@ -64,7 +64,7 @@ struct Cost {
             os << "Optimized computation phase : " << *phase << endl;
         }
 
-        os << "Composition:" << std::endl;
+        os << "Algorithm:" << std::endl;
         {
             IndentingOStreambuf i(os);
             logSubReport(os);
@@ -77,7 +77,7 @@ private:
     // worst computation time over one callback, averaged per sample.
   float cost = std::numeric_limits<float>::max();
     // phase in frames (in case 2 or more convolutions run at the same time, we can dephase them)
-    std::optional<int> phase;
+    std::optional<float> phase;
 };
 
 }

@@ -295,6 +295,13 @@ public:
         };
     }
     
+    template<typename F>
+    void onContextFronteer(F f) {
+        if(async_conv) {
+            f(*async_conv);
+        }
+    }
+    
     bool isZero() const {
         if(!async_conv) {
             return true;
@@ -344,8 +351,13 @@ public:
         return error_worker_too_slow;
     }
     
-    int curIndex = 0; // todo redondant avec x.progress
+    // _pas_ redondant avec x.progress car permet d'introduire un dephasage
+    // pour soumettre les buffer tous les submissionPeriod, meme quand x est
+    // dephase d'un nombre non entier de submissionPeriod
+    int curIndex = 0;
+    
     block_index signal, previous_result;
+
 private:
     using vec = a64::vector<FPT>;
     
@@ -508,7 +520,13 @@ struct AlgoAsyncCPUConvolution {
                    +1) -1 // we need N inputs before we can submit
         );
     }
-    
+
+    void dephaseSteps(State & s,
+                      int n_steps) const {
+        // We don't dephase so that the submissions occur on callback_size boundaries.
+        // Note that dephasing in the async part is taken care of by async_conv->setCoefficients and async_conv->flushToSilence
+    }
+
     void step(State & s,
               XAndFFTS<FPT, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const

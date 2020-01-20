@@ -75,63 +75,86 @@ namespace imajuscule {
       }
       conv.setCoefficients(coefficients);
       
-      for(int i=0; i<2; ++i) {
-          std::vector<T> output;
-          output.reserve(expectedOutput.size());
-          
-          auto const eps = conv.getEpsilon();
-          int idxStep=0;
-          auto step = [&idxStep, &input]() {
-              return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
-          };
-          
-          if(conv.handlesCoefficients()) {
-              for(; idxStep<conv.getLatency().toInteger(); ++idxStep) {
-                  auto res = conv.step(step());
-                  if(std::abs(res) > 1000*eps) {
-                      LG(INFO,"");
+      std::vector<T> output;
+      output.reserve(expectedOutput.size());
+      std::vector<T> inputVec;
+      inputVec.reserve(expectedOutput.size());
+
+      auto const period = conv.getPhasePeriod();
+      int const maxPhaseInSample = (period && *period) ? (8 * *period) : 1;
+      std::cout << "phases 0 to " << maxPhaseInSample-1 << std::endl;
+      // change phases
+      for(int phase_in_sample=0; phase_in_sample<maxPhaseInSample; ++phase_in_sample) {
+          // fast forward to do less tests
+          if(maxPhaseInSample > 100 && phase_in_sample == 10) {
+              phase_in_sample = maxPhaseInSample-10;
+              continue;
+          }
+          if(phase_in_sample) {
+              float ratio_for_one_sample = 1.f/ *period;
+              conv.dephaseByGroupRatio(ratio_for_one_sample * phase_in_sample);
+          }
+          // repeat after flushToSilence
+          for(int i=0; i<8; ++i) {
+              
+              output.clear();
+              inputVec.clear();
+              
+              auto const eps = conv.getEpsilon();
+              int idxStep=0;
+              auto step = [&idxStep, &input]() {
+                  return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
+              };
+              
+              if(conv.handlesCoefficients()) {
+                  for(; idxStep<conv.getLatency().toInteger(); ++idxStep) {
+                      auto res = conv.step(step());
+                      if(std::abs(res) > 1000*eps) {
+                          LG(INFO,"");
+                      }
+                      ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
                   }
-                  ASSERT_NEAR(0.f, res, 1000*eps); // assumes that no previous signal has been fed
               }
-          }
-          std::vector<T> inputVec;
-          inputVec.reserve(expectedOutput.size());
-          for(;inputVec.size() != expectedOutput.size();++idxStep) {
-              inputVec.push_back(step());
-          }
-          if(vectorLength) {
-              Assert(0);
-              /*
-               // initialize with zeros
-               output.resize(inputVec.size(), {});
-               
-               // then add
-               int const nFrames = inputVec.size();
-               for(int i=0; i<nFrames; i += vectorLength) {
-               conv.stepAddVectorized(inputVec.data()+i,
-               output.data()+i,
-               std::min(vectorLength, nFrames-i));
-               }*/
-          }
-          else {
-              for(T i : inputVec) {
-                  output.push_back(conv.step(i));
+              for(;inputVec.size() != expectedOutput.size();++idxStep) {
+                  inputVec.push_back(step());
               }
-          }
-          
-          using Tr = ConvolutionTraits<Convolution>;
-          for(auto j=0; j<output.size(); ++j) {
-              if(Tr::evenIndexesAreApproximated && (0 == j%2)) {
-                  continue;
+              if(vectorLength) {
+                  Assert(0);
+                  /*
+                   // initialize with zeros
+                   output.resize(inputVec.size(), {});
+                   
+                   // then add
+                   int const nFrames = inputVec.size();
+                   for(int i=0; i<nFrames; i += vectorLength) {
+                   conv.stepAddVectorized(inputVec.data()+i,
+                   output.data()+i,
+                   std::min(vectorLength, nFrames-i));
+                   }*/
               }
-              if(!areNear(expectedOutput[j], output[j], 1000*eps)) { // uses relative error
-                  std::cout << std::endl << "... "; COUT_TYPE(Convolution);
-                  std::cout << std::endl << "coefficient size : " << coefficients.size() << std::endl;
-                  ASSERT_NEAR(expectedOutput[j], output[j], 1000*eps); // doesn't use relative error, only absolute.
+              else {
+                  for(T i : inputVec) {
+                      output.push_back(conv.step(i));
+                  }
               }
+              
+              using Tr = ConvolutionTraits<Convolution>;
+              for(auto j=0; j<output.size(); ++j) {
+                  if(Tr::evenIndexesAreApproximated && (0 == j%2)) {
+                      continue;
+                  }
+                  if(!areNear(expectedOutput[j], output[j], 1000*eps)) { // uses relative error
+                      std::cout << std::endl << "... "; COUT_TYPE(Convolution);
+                      std::cout << std::endl << "coefficient size : " << coefficients.size() << std::endl;
+                      ASSERT_NEAR(expectedOutput[j], output[j], 1000*eps); // doesn't use relative error, only absolute.
+                  }
+              }
+              
+              for(int i=0; i<10; ++i) {
+                  conv.step(1.f);
+              }
+              conv.flushToSilence();
           }
-          
-          conv.flushToSilence();
       }
   }
         
@@ -255,7 +278,6 @@ namespace imajuscule {
     
     template<typename T, typename Tag>
     void testDiracFinegrainedPartitionned(int coeffs_index) {
-      
       auto f = [](int part_size, auto & coefficients)
       {
         for(auto type = TestFinegrained::Begin;
@@ -303,7 +325,7 @@ namespace imajuscule {
 
   template<typename T, typename Tag>
   void testDiracPartitionned(int coeffs_index) {
-      
+
       auto f = [](int part_size, auto & coefficients){
           Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>> conv;
           
@@ -335,8 +357,11 @@ namespace imajuscule {
     template<typename T, typename Tag>
     void testDirac() {
       using namespace fft;
-      
-      for(int i=-1; i<end_index; ++i) {
+        int end = end_index;
+        if constexpr (!std::is_same_v<Tag, fft::Fastest>) {
+            --end;
+        }
+      for(int i=-1; i<end; ++i) {
           LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
         testDiracFinegrainedPartitionned<T, Tag>(i);
@@ -375,7 +400,7 @@ namespace imajuscule {
               }
           }
           for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
-              partition_sz <= ceil_power_of_two(countCoeffs);
+              partition_sz <= ceil_power_of_two(countCoeffs);
               partition_sz *= 2)
           {
             auto c = Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>{};
@@ -387,7 +412,7 @@ namespace imajuscule {
           }
           
           for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
-              partition_sz <= ceil_power_of_two(countCoeffs);
+              partition_sz <= ceil_power_of_two(countCoeffs);
               partition_sz *= 2)
           {
               auto c = Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>>{};

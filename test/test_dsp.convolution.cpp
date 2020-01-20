@@ -325,7 +325,11 @@ namespace imajuscule {
     void testDirac() {
       using namespace fft;
       
-      for(int i=0; i<end_index; ++i) {
+        int end = end_index;
+        if constexpr (!std::is_same_v<Tag, fft::Fastest>) {
+            --end;
+        }
+      for(int i=0; i<end; ++i) {
           LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
         testDiracFinegrainedPartitionned<T, Tag>(i);

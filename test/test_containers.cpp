@@ -214,7 +214,7 @@ TEST(Container, grow2) {
   
   TestLock l;
   
-  for(auto cap = 0; cap < 50; ++cap) {
+  for(auto cap = 0; cap < 50; ++cap) {
     
     std::vector<int> v;
     auto w = mkVectorWrapper(v);

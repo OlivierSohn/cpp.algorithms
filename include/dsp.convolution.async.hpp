@@ -56,6 +56,12 @@ struct AsyncSetupParam : public Cost {
             asyncParams.logSubReport(os);
         }
     }
+    
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+        // do not recurse into asyncParams because the async part uses another context.
+    }
 };
 
 

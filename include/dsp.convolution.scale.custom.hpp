@@ -43,7 +43,6 @@ struct CustomScaleConvolutionSetupParam : public Cost {
     
     std::vector<ScalingParam> scalingParams;
     
-
     void adjustWork(int const nTargetCoeffs) {
         int nHandledCoeffs = 0;
         int sz = 0;
@@ -98,6 +97,14 @@ struct CustomScaleConvolutionSetupParam : public Cost {
             return false;
         }
         return scalingParams.begin()->handlesCoefficients();
+    }
+
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+        for(auto & s : scalingParams) {
+            s.setupParam.forEachUsingSameContext(f);
+        }
     }
 };
 
@@ -182,18 +189,16 @@ struct CustomScaleConvolutionSimulation {
         }
     }
 
-    std::array<int, nComputePhaseable> getComputePeriodicities() const {
-        int res = x_halfSize;
-        Assert(res == getBiggestScale());
-        return {res};
-    }
-    // in [0, getComputePeriodicity())
-    std::array<int, nComputePhaseable> getComputeProgresses() const {
-        return {static_cast<int>(progress)};
-    }
-    void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
-        auto const p = progresses[0];
-        while(getComputeProgresses()[0] != p) {
+    void dephaseByGroupRatio(float phase_group_ratio)
+    {
+        Assert(phase_group_ratio >= 0.f);
+        Assert(phase_group_ratio < 1.f);
+
+        int const phase_period = x_halfSize;
+        Assert(phase_period == getBiggestScale());
+        
+        int nsteps = static_cast<int>(0.5f + phase_group_ratio * phase_period);
+        for(int i=0; i<nsteps; ++i) {
             simuStep();
         }
     }
@@ -414,11 +419,12 @@ struct CustomScaleConvolution {
         x_halfSize = 0;
         reset_states();
     }
+    
     void flushToSilence() {
         for(auto & [param,c] : v) {
             c.flushToSilence();
-            Assert(param.submissionPeriod > 0);
-            param.submissionCountdown = param.submissionPeriod-1;
+            Assert(c.handlesCoefficients());
+            param.submissionCountdown = c.getLatency().toInteger();
         }
         reset_states();
     }

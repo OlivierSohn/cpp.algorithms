@@ -147,7 +147,7 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
                   int const firstSz,
                   std::optional<int> const lastSz)
     {
-        os << "Optimization of CustomScaleConvolution:" << std::endl;
+        os << "Optimization of CustomScaleConvolution" << std::endl;
         IndentingOStreambuf i(os);
 
         int const nEarlyCoeffs = std::min(zero_latency_response_size,
@@ -187,7 +187,7 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
                   std::ostream & os,
                   std::optional<int> const lastSz)
     {
-        os << "Optimization of OptimizedFIRFilter:" << std::endl;
+        os << "Optimization of OptimizedFIRFilter" << std::endl;
         IndentingOStreambuf i(os);
 
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
@@ -281,7 +281,7 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
                   SimulationPhasing const & phasing,
                   CountDroppedScales const & nAsyncScalesDropped)
     {
-        os << "Optimization of AsyncCPUConvolution:" << std::endl;
+        os << "Optimization of AsyncCPUConvolution" << std::endl;
         IndentingOStreambuf i(os);
 
         if(n_channels <= 0) {
@@ -404,7 +404,6 @@ private:
             for(auto & c : simu_convs) {
                 dephase(total_sz,
                         n % total_sz,
-                        asyncParam, // not used
                         *c);
                 ++n;
             }
@@ -647,17 +646,9 @@ private:
             int n=0;
             int const total_sz = phasing.groupSize ? *phasing.groupSize : async_convs.size();
             Assert(total_sz);
-            SetupParam sp{
-                1,
-                1,
-                {
-                    CountDroppedScales(1)
-                }
-            };
             for(auto & c : async_convs) {
                 dephase(total_sz,
                         n % total_sz,
-                        sp,
                         *c);
                 ++n;
             }
@@ -801,7 +792,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
                   std::ostream & os,
                   SimulationPhasing const & phasing)
     {
-        os << "Optimization of ZeroLatencyScaledAsyncConvolution:" << std::endl;
+        os << "Optimization of ZeroLatencyScaledAsyncConvolution" << std::endl;
         IndentingOStreambuf i(os);
 
         // There is a balance to find between the risk of audio dropouts due to:
@@ -873,7 +864,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWo
                   std::ostream & os,
                   SimulationPhasing const & phasing)
     {
-        os << "Optimization of ZeroLatencyScaledAsyncConvolutionOptimized:" << std::endl;
+        os << "Optimization of ZeroLatencyScaledAsyncConvolutionOptimized" << std::endl;
         IndentingOStreambuf i(os);
 
         // There is a balance to find between the risk of audio dropouts due to:
@@ -1092,7 +1083,7 @@ public:
                   double max_avg_time_per_sample,
                   std::ostream & os)
     {
-        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedConvolution:" << std::endl;
+        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedConvolution" << std::endl;
         IndentingOStreambuf i(os);
 
         auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
@@ -1166,7 +1157,7 @@ public:
                   std::ostream & os,
                   ResponseTailSubsampling rts)
     {
-        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution:" << std::endl;
+        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution" << std::endl;
         IndentingOStreambuf i(os);
 
         PS res;

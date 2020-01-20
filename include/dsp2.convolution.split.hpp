@@ -59,6 +59,12 @@ struct StateSplitConvolution {
         return res;
     }
     
+    template<typename F>
+    void onContextFronteer(F f) {
+        a.onContextFronteer(f);
+        b.onContextFronteer(f);
+    }
+    
     template <typename Bool = bool>
     auto hasStepErrors() const -> std::enable_if_t<Desc::step_can_error, Bool> {
         bool errors = false;
@@ -152,6 +158,12 @@ struct AlgoSplitConvolution {
         else {
             return B::Desc::nCoefficientsFadeIn + (b.getLatency() - a.getLatency()).toInteger();
         }
+    }
+
+    void dephaseSteps(State &s,
+                      int n_steps) const {
+        a.dephaseSteps(s.a, n_steps);
+        b.dephaseSteps(s.b, n_steps);
     }
     
     void step(State & s,

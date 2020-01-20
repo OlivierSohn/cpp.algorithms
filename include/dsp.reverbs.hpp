@@ -3,20 +3,18 @@ namespace imajuscule
 {
 
 #ifndef NDEBUG
-  inline bool checkDryWet(double dry, double wet) {
+inline bool checkDryWet(double dry, double wet) {
     if(wet < 0. || wet > 1.) {
-      LG(ERR, "wet %f", wet);
-      return false;
+        LG(ERR, "wet %f", wet);
+        return false;
     }
     if(dry < 0. || dry > 1.) {
-      LG(ERR, "dry %f", dry);
-      return false;
+        LG(ERR, "dry %f", dry);
+        return false;
     }
     return true;
-  }
+}
 #endif
-
-
 
 // does not depend on the optimization
 struct ResponseTopology {
@@ -44,7 +42,11 @@ struct ResponseTopology {
     }
 };
 
-// depends on the optimization
+/*
+ Depends on the optimization.
+ 
+ It can be viewed as a "summary" of the optimized SetupParam 
+ */
 struct ResponseStructure {
     int nEarlyCofficients;
     int totalSizePadded;
@@ -131,6 +133,7 @@ static inline std::string toJustifiedString(ReverbType t) {
     }
     return "?";
 }
+    
   /*
    Depending on the number of sources, represents a convolution reverb
    or a spatialization.
@@ -157,7 +160,10 @@ static inline std::string toJustifiedString(ReverbType t) {
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
         AlgoZeroLatencyScaledAsyncConvolutionOptimized<double, Tag, OnWorkerTooSlow>,
-      void >>>>>;
+    
+      void
+    
+    >>>>>;
       
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
 
@@ -243,8 +249,8 @@ static inline std::string toJustifiedString(ReverbType t) {
                   auto output_buffer = output_buffers[j];
                   for(int i=0; i<nFramesToCompute; i += vectorLength) {
                     conv_reverbs[j]->stepAssignVectorized(input_buffer + i,
-                                                                    output_buffer+ i,
-                                                                    std::min(vectorLength, nFramesToCompute-i));
+                                                          output_buffer+ i,
+                                                          std::min(vectorLength, nFramesToCompute-i));
                   }
                 if constexpr (ConvolutionReverb::step_can_error) {
                     success = !conv_reverbs[j]->hasStepErrors() && success;
@@ -458,7 +464,9 @@ static inline std::string toJustifiedString(ReverbType t) {
 
       // if we have more channels than sources, each ear will receive
       // the sum of multiple convolutions.
-      if(n_sources == n_channels) {
+      if(nAudioOut == n_sources &&
+         n_sources == n_channels)
+      {
           conv_reverbs.reserve(nAudioOut);
           for(int i=0; i<nAudioOut; ++i) {
               conv_reverbs.emplace_back(std::make_unique<ConvolutionReverb>());
@@ -471,19 +479,7 @@ static inline std::string toJustifiedString(ReverbType t) {
           rev.setup(spec);
           rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
           assert(rev.isValid());
-          // uncomment to debug
-          /*
-          assert(scalesAreValid(n_scales, rev));
-          assert(imajuscule::countScales(rev) == n_scales);
-          while(!scalesAreValid(n_scales, rev)) {
-            rev.reset();
-            prepare(*spec, rev, n_scales, scale_sz);
-            rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
-          }*/
-          // to "spread" the computations of each channel's convolution reverbs
-          // on different audio callback calls, we separate them as much as possible using a phase:
-    // TODO reenable later
-          //dephase(nAudioOut, n, spec, rev);
+          dephase(nAudioOut, n, rev);
           ++n;
         }
       }
@@ -508,14 +504,14 @@ static inline std::string toJustifiedString(ReverbType t) {
           assert(!spatializer.empty());
         }
         assert(!spatializer.empty());
-        spatializer.dephaseComputations(spec);
+        spatializer.dephaseComputations();
       }
         
     }
 
     void logReport(double sampleRate, std::ostream & os)
     {
-      os << "Reports:" << std::endl;
+      os << "States:" << std::endl;
       IndentingOStreambuf in(os);
 
       using namespace std;
@@ -538,7 +534,6 @@ static inline std::string toJustifiedString(ReverbType t) {
         if(!spatializer.empty()) {
           os <<  "Spatialization with '" << spatializer.countSources() << "' sources" << endl;
         }
-        
     }
 
     void reset() {

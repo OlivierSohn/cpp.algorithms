@@ -334,14 +334,12 @@ namespace imajuscule
                 return success;
             }
 
-            template<typename PS>
-            void dephaseComputations(PS const & spec) {
+            void dephaseComputations() {
                 int n = 0;
                 int const total = countConvolutions();
-                forEachEar([spec, total, &n](auto & earConvs) {
+                forEachEar([total, &n](auto & earConvs) {
                     for(auto & c : earConvs) {
-                        // TODO reenable later
-                      //dephase(total, n, spec, *c);
+                      dephase(total, n, *c);
                       ++n;
                     }
                 });

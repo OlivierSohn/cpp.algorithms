@@ -64,8 +64,7 @@ namespace imajuscule {
 enum class GrainType {
     FFT,
     IFFT,
-    MultiplicationGroup,
-    Nothing
+    MultiplicationGroup
 };
 
 struct GrainsCosts {
@@ -110,9 +109,7 @@ struct FinegrainedSetupParam : public Cost {
     }
     
     void adjustWork(int targetNCoeffs) {
-        LG(INFO,"from %d", partition_count);
         partition_count = countPartitions(targetNCoeffs, partition_size);
-        LG(INFO,"to   %d", partition_count);
         if(!handlesCoefficients()) {
             setCost(0.);
         }
@@ -126,6 +123,11 @@ struct FinegrainedSetupParam : public Cost {
         return Latency(2*partition_size - 1);
     }
     
+    template<typename F>
+    void forEachUsingSameContext(F f) const {
+        f(*this);
+    }
+
     static FinegrainedSetupParam makeInactive() {
         FinegrainedSetupParam res{0,0,0,0};
         res.setCost(0.f);
@@ -160,8 +162,13 @@ struct FinegrainedFFTConvolutionBase : public Parent {
             os << "zero" << std::endl;
         }
         else {
-            os << "grain {" << grain_counter << "/" << countGrains()
-            << "} progress [" << this->progress << "/" << getBlockSize() << "]" << std::endl;
+            int const n_grains = countGrains();
+            int const granularity = n_grains ? getBlockSize()/n_grains : 0;
+
+            os << "progress [_/" << getBlockSize()
+            << "] grain_counter " << grain_counter << "/" << granularity
+            << " grain " << getGrainNumber() << "/" << countGrains() << std::endl;
+
             doLogComputeState(os);
         }
     }
@@ -211,6 +218,7 @@ struct FinegrainedFFTConvolutionBase : public Parent {
     using Parent::increment_grain;
     using Parent::compute_x_fft;
     using Parent::do_some_multiply_add;
+    using Parent::doFlushToSilence;
     using Parent::get_multiply_add_result;
     
     void setCoefficients(a64::vector<T> coeffs_) {
@@ -238,7 +246,7 @@ struct FinegrainedFFTConvolutionBase : public Parent {
         clear();
     }
     void flushToSilence() {
-        Parent::reset_base_states();
+        Parent::doFlushToSilence();
         if(!result.empty()) {
             zero_signal(result);
         }
@@ -494,8 +502,6 @@ private:
                 increment_grain();
                 break;
             }
-            case GrainType::Nothing:
-                break;
         }
         grain_counter = 0;
     }
@@ -580,6 +586,21 @@ protected:
     
     void reset_base_states() {
         grain_number = 1;
+    }
+
+    void doFlushToSilence() {
+        reset_base_states();
+        
+        if(!work.empty()) {
+            zero(work);
+        }
+
+        for(auto & fft_of_delayed_x : ffts_of_delayed_x) {
+            zero(fft_of_delayed_x);
+        }
+        if(!ffts_of_delayed_x.empty()) {
+            ffts_of_delayed_x.setByIndex(0);
+        }
     }
     
     // 0 means that it will not be used.
@@ -932,7 +953,7 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
                 // TODO [early coefficients cost] we should have a sample-unit cyclic, and put one grain cost
                 // every period
                 
-                result.setPhase(0);
+                result.setPhase(0.);
                 
                 float cost = computeMaxSlidingSum(grains_costs,
                                                   max_n_halfgrains_per_cb);
@@ -941,16 +962,24 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
                     
                     auto n_min_empty_cb_between_consecutive_grains = -1 + n_samples_between_grains / nAudioCbFrames;
                     if(n_min_empty_cb_between_consecutive_grains >= n_channels - 1) {
-                        // easy case : there is enough room between grains to evenly distribute all channels
-                        result.setPhase(grain_period / n_channels);
+                        // There is enough room between grains so that each callback can handle at most
+                        //   a single grain of a single channel.
+                        /*LG(INFO,
+                           "easy %d %d : %d / %d",
+                           n_samples_between_grains,
+                           n_min_empty_cb_between_consecutive_grains,
+                           grain_period,
+                           n_channels);*/
+                        result.setPhase(grain_period / static_cast<float>(n_channels));
                     }
                     else {
-                        // harder case: we need to go more in detail, and find the phase that minimizes
+                        // Grains are close to one another so we will find the phase that minimizes
                         // the worst callback cost.
                         
                         cost *= n_channels;
                         // now cost is the 'phase == 0' cost
-                        result.setPhase(0);
+                        result.setPhase(0.);
+                        //LG(INFO,"phase=0 half grains cost %f", cost);
                         
                         cyclic<float> phased_grains_costs(grains_costs.size());
                         for(int phase = 1; phase < grains_costs.size(); ++phase) {
@@ -964,11 +993,15 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
                             if(phased_cost < cost) {
                                 cost = phased_cost;
                                 result.setPhase(phase); // unit is "half of grain period"
+                                //LG(INFO,"phase=%d half grains cost %f", phase, cost);
                             }
                         }
                         
                         // convert phase units from "half of grain period" to "frames"
-                        result.setPhase(result.getPhase().value() * 2 * grain_period);
+                        float const phaseInGrainPeriod = result.getPhase().value() / 2.f;
+                        float const phaseInFrames = phaseInGrainPeriod * grain_period;
+                        result.setPhase(phaseInFrames);
+                        //LG(INFO,"phase=%f frames", *result.getPhase());
                     }
                     // cost is now the sum of costs of each channel
                     // but cost should be per sample, not per frame, so
@@ -1023,7 +1056,7 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
         val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, phased_cost);
         val.setCost(phased_cost.getCost());
         val.setGrainsCosts(phased_cost.grains_costs);
-        val.setPhase(phased_cost.getPhase().value_or(0));
+        val.setPhase(phased_cost.getPhase().value_or(0.));
         val.partition_size = partition_size;
         val.partition_count = countPartitions(length_impulse, partition_size);
         
@@ -1067,7 +1100,7 @@ struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
                   int const zero_latency_response_size,
                   std::ostream & os)
     {
-        os << "Optimization of FinegrainedPartitionnedFFTConvolution for " << n_scales << " scale(s):" << std::endl;
+        os << "Optimization of FinegrainedPartitionnedFFTConvolution for " << n_scales << " scale(s)" << std::endl;
         IndentingOStreambuf i(os);
         
         assert(n_channels > 0);

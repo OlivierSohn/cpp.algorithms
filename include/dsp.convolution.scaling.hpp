@@ -228,11 +228,11 @@ struct ScalingsIterator {
     template<typename C>
     auto mkSimulation(std::vector<Scaling> const & v,
                       int64_t const nCoeffs) {
-        using CSimulation = typename C::Simulation;
-        using ScalingParam = typename CSimulation::SetupParam::ScalingParam;
+        using Simulation = typename C::Simulation;
+        using ScalingParam = typename Simulation::SetupParam::ScalingParam;
         
         auto scalingParams = scalingsToParams<ScalingParam>(v);
-        CSimulation sim;
+        Simulation sim;
         sim.setup({scalingParams});
         sim.setCoefficientsCount(nCoeffs);
         return sim;
@@ -252,7 +252,7 @@ struct ScalingsIterator {
     }
     
     template<typename Simu>
-    double virtualCostPerSample(Simu sim) {
+    double virtualCostPerSample(Simu & sim) {
         int64_t const end = sim.getBiggestScale();
         if(end) {
             return sim.simuBatch(end)/end;
@@ -413,7 +413,8 @@ struct ScalingsIterator {
             nCoeffs,
             lastSz
          }.forEachScaling([nCoeffs, &best](auto const & v){
-             auto virtualCost = virtualCostPerSample(mkSimulation<Convolution>(v, nCoeffs));
+             auto sim = mkSimulation<Convolution>(v, nCoeffs);
+             auto virtualCost = virtualCostPerSample(sim);
              if(!best || virtualCost < best->second) {
                  best = {{v, virtualCost}};
              }

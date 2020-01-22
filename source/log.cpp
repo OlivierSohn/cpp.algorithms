@@ -36,39 +36,24 @@ namespace imajuscule
 	const char * levelToChar(logLevel level);
 
 
-    std::atomic_flag & logLock() {
-      static std::atomic_flag f = ATOMIC_FLAG_INIT;
-      return f;
+struct ThreadData {
+    ThreadData()
+    : idx(++counter)
+    {
+        str.reserve(200);
     }
-
-  struct ThreadData {
-    ThreadData(size_t idx) : idx(idx) {}
-
+    
     // gets thread data for the current trhead.
     static void getThreadData(ThreadData *& data);
-
+    
     std::string str;
     size_t idx;
-  };
+    
+private:
+    static std::atomic<int> counter;
+};
 
-    static ThreadData& getThreadData() {
-        auto tid = pthread_self();
-        static std::map<decltype(pthread_self()), ThreadData> threads;
-      {
-        // std::map is not thread safe
-        LockGuard l(logLock());
-
-        auto it = threads.find(tid);
-        if (unlikely(it == threads.end()))
-        {
-          auto it = threads.emplace(tid, threads.size());
-          return it.first->second;
-        }
-        else {
-          return it->second;
-        }
-      }
-    }
+std::atomic<int> ThreadData::counter = 0;
 
 	void LG(logLevel level, /*const char* sModule,*/ const char * format, ...)
 	{
@@ -82,7 +67,7 @@ namespace imajuscule
         auto size = vsnprintf(nullptr, 0, format, args);
 		va_end(args);
 
-        ThreadData & thread_data = getThreadData();
+        static thread_local ThreadData thread_data;
 
         // to use a StackVector here we would need to have
         // one "stack" pool per thread

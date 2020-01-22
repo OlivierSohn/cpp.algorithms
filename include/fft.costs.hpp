@@ -344,6 +344,30 @@ namespace imajuscule::fft {
             return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), sum));
         }
     };
-
 } // NS imajuscule::fft
+
+namespace imajuscule {
+
+    struct XFFtCostFactors {
+        XFFtCostFactors(std::map<int, float> const & multiplicators = {})
+        : multiplicators(multiplicators)
+        {}
+        
+        float getCostMultiplicator(int fftSize) const {
+            Assert(!fftSize || is_power_of_two(fftSize));
+            auto it = multiplicators.find(fftSize/2);
+            if(it == multiplicators.end()) {
+                return 1.f;
+            }
+            return it->second;
+        }
+        
+        void setMultiplicator(int sz, float factor) {
+            multiplicators[sz] = factor;
+        }
+    private:
+        // fft half-size -> multiplicator
+        std::map<int, float> multiplicators;
+    };
+} // NS imajuscule
 

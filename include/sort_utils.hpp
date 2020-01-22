@@ -71,17 +71,13 @@ namespace imajuscule {
 
     template< typename Container >
     bool IsSorted(Container const & container) {
-        typename Container::value_type val;
-        for(auto it = container.begin(); it != container.end(); ++it) {
-            if(it == container.begin()) {
-                val = *it;
-                continue;
-            }
-            if(val > *it) {
+        std::optional<typename Container::value_type> val;
+        for(auto v : container) {
+            if(val && (*val > v)) {
                 return false;
             }
-            val = *it;
-        } 
+            val = v;
+        }
         return true;
     }
 

@@ -691,11 +691,11 @@ protected:
     void compute_x_fft(Algo const & fft, RealSignal const & x) {
         assert(grain_number == countGrains());
         grain_number = 0;
+        ffts_of_delayed_x.go_back();
         auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
         auto const fft_length = get_fft_length();
         assert(fft_length == oldest_fft_of_delayed_x.size());
         fft.forward(x.begin(), oldest_fft_of_delayed_x, fft_length);
-        ffts_of_delayed_x.advance();
     }
     
     void do_some_multiply_add() {
@@ -709,7 +709,7 @@ protected:
             ++offset, ++it_fft_of_partitionned_h) {
             assert(it_fft_of_partitionned_h < ffts_of_partitionned_h.end());
             
-            auto const & fft_of_delayed_x = ffts_of_delayed_x.get_backward(offset);
+            auto const & fft_of_delayed_x = ffts_of_delayed_x.get_forward(offset);
             
             if(offset == 0) {
                 multiply(work                /*   =   */,

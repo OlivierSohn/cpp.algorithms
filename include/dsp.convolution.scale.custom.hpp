@@ -120,7 +120,6 @@ struct ScaleMetrics {
 };
 struct CachedCosts {
     double minorCost;
-    double majorCost;
 };
 
 template<typename A>
@@ -176,7 +175,6 @@ struct CustomScaleConvolutionSimulation {
                 throw std::logic_error("CustomScaleConvolutionSimulation is applied to a type that doesn't respect the latency constraints.");
             }
             // assuming these costs are constant
-            algo.first.majorCost = algo.second.simuMajorStep();
             algo.first.minorCost = algo.second.simuMinorStep();
         }
         if(szCoeffs > totalCoeffs) {
@@ -197,16 +195,17 @@ struct CustomScaleConvolutionSimulation {
         int const phase_period = x_halfSize;
         Assert(phase_period == getBiggestScale());
         
+        XFFtCostFactors dummy; // not important because we don't use the return value of simuStep.
         int nsteps = static_cast<int>(0.5f + phase_group_ratio * phase_period);
         for(int i=0; i<nsteps; ++i) {
-            simuStep();
+            simuStep(dummy);
         }
     }
     
     /*
      Dual method of CustomScaleConvolution::step()
      */
-    double simuStep() {
+    double simuStep(XFFtCostFactors const & xFftCostFactors) {
         if(unlikely(isZero())) {
             return {};
         }
@@ -235,7 +234,7 @@ struct CustomScaleConvolutionSimulation {
                         endPadding = neededEndPadding;
                     }
                 }
-                cost += algo.first.majorCost;
+                cost += algo.second.simuMajorStep(xFftCostFactors);
             }
             else {
                 cost += algo.first.minorCost;
@@ -250,28 +249,33 @@ struct CustomScaleConvolutionSimulation {
         return cost;
     }
     
-    double simuBatch(int64_t nRemainingSteps) {
+    double simuBatch(int64_t nRemainingSteps,
+                     XFFtCostFactors const & xFftCostFactors) {
         double cost{};
         
         while(progress != 0 && nRemainingSteps) {
+            //LG(INFO, "! pre");
             Assert(0); // by design a batch should start at progress == 0
-            cost += simuStep();
+            cost += simuStep(xFftCostFactors);
             --nRemainingSteps;
         }
         
         int64_t const period = getBiggestScale();
+        //LG(INFO, "period %d", period);
         if(period) {
             int64_t const nFullPeriods = nRemainingSteps / period;
             nRemainingSteps -= nFullPeriods * period;
-
-            cost += nFullPeriods * simuBiggestPeriod();
+            //LG(INFO, "%d periods", nFullPeriods);
+            cost += nFullPeriods * simuBiggestPeriod(xFftCostFactors);
         }
         
         while(nRemainingSteps) {
+            //LG(INFO, "! post");
             Assert(0); // by design a batch should be a full number of periods
-            cost += simuStep();
+            cost += simuStep(xFftCostFactors);
             --nRemainingSteps;
         }
+        //LG(INFO, "%f", cost);
         return cost;
     }
 
@@ -293,7 +297,7 @@ private:
         endPadding = 0;
     }
     
-    double simuBiggestPeriod() const {
+    double simuBiggestPeriod(XFFtCostFactors const & xFftCostFactors) {
         // we compute the cost for 'biggestSubmissionPeriod' iterations
         int const biggestSubmissionPeriod = getBiggestScale();
         
@@ -339,6 +343,8 @@ private:
             }
         }
         
+        //LG(INFO, "  padding %f", cost);
+        
         // major / minor costs
         for(auto & [param, algo] : v) {
             Assert(param.submissionPeriod > 0);
@@ -348,7 +354,10 @@ private:
             int nMinorSteps = biggestSubmissionPeriod - nMajorSteps;
             Assert(nMinorSteps >= 0);
             
-            cost += nMajorSteps * algo.first.majorCost;
+            //LG(INFO, "  param.submissionPeriod %d", param.submissionPeriod);
+            //LG(INFO, "  %d major steps", nMajorSteps);
+            cost += nMajorSteps * algo.second.simuMajorStep(xFftCostFactors);
+            //LG(INFO, "  %d minor steps", nMinorSteps);
             cost += nMinorSteps * algo.first.minorCost;
         }
         return cost;

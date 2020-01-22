@@ -280,7 +280,7 @@ protected:
     auto const & compute_convolution(State const & s,
                                      typename XAndFFTS<T, Tag>::FFTs const & ffts) const
     {
-        auto const & fft_of_x = ffts.get_backward(0);
+        auto const & fft_of_x = ffts.get_by_age(0);
         
         multiply(work, fft_of_x, s.fft_of_h);
         
@@ -471,7 +471,7 @@ protected:
             CplxFreqs & work;
         } f{index, s.ffts_of_partitionned_h, work};
         
-        ffts.for_some_bkwd(s.ffts_of_partitionned_h.size(), f);
+        ffts.for_some_recent(s.ffts_of_partitionned_h.size(), f);
         
         return work;
     }

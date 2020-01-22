@@ -145,7 +145,7 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
                   double const max_avg_time_per_sample,
                   std::ostream & os,
                   int const firstSz,
-                  std::optional<int> const lastSz)
+                  XFFtCostFactors const & xFftCostFactors)
     {
         os << "Optimization of CustomScaleConvolution" << std::endl;
         IndentingOStreambuf i(os);
@@ -158,7 +158,7 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
         std::optional<std::pair<std::vector<Scaling>, double>> best =
         getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<Convolution>(firstSz,
                                                                              nLateCoeffs,
-                                                                             lastSz);
+                                                                             xFftCostFactors);
         PS ps;
         if(best) {
             auto scalingParams = scalingsToParams<ScalingParam>(best->first);
@@ -185,7 +185,7 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
                   double frame_rate,
                   double max_avg_time_per_sample,
                   std::ostream & os,
-                  std::optional<int> const lastSz)
+                  XFFtCostFactors const & xFftCostFactors)
     {
         os << "Optimization of OptimizedFIRFilter" << std::endl;
         IndentingOStreambuf i(os);
@@ -201,7 +201,7 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
                                                           max_avg_time_per_sample,
                                                           os,
                                                           firstSz,
-                                                          lastSz
+                                                          xFftCostFactors
                                                           );
         PS ps;
         if(pSpecsLate) {
@@ -303,8 +303,8 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
         }
         else {
             int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
-            std::optional<int> const noLastSz;
-            
+            XFFtCostFactors unbiasedXFftCostFactors;
+
             // Because of the queueing mechanism,
             // the real number of late coeffs will be _less_ than what this is optimal for.
             // Hence, as soon as we know the size of the queue, we will be able to deduce the exact
@@ -321,7 +321,7 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
                                                                 max_avg_time_per_sample,
                                                                 os,
                                                                 firstSz,
-                                                                noLastSz);
+                                                                unbiasedXFftCostFactors);
             if(!scalingParams2) {
                 throw std::runtime_error("no best");
             }
@@ -464,10 +464,12 @@ private:
         
         double const submission_period_seconds = submission_period_frames / frame_rate;
         
+        XFFtCostFactors unbiasedXFftCostFactors;
         int queueSize = computeQueueSize([&simu_convs,
-                                          min_allocation_factor](){
+                                          min_allocation_factor,
+                                          &unbiasedXFftCostFactors](){
             // take only the first one into account (each of them is equivalent over a period)
-            return simu_convs[0]->simuStep() / min_allocation_factor;
+            return simu_convs[0]->simuStep(unbiasedXFftCostFactors) / min_allocation_factor;
         },
                                          submission_period_seconds,
                                          2*nLateCoeffs);
@@ -822,7 +824,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
         PS ps;
         if(pSpecsLate) {
             int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
-            std::optional<int> noLastSz;
+            XFFtCostFactors unbiasedXFftCostFactors;
             auto pSpecsEarly = PartitionAlgo<EarlyHandler>::run(n_channels,
                                                                 n_audio_channels,
                                                                 n_audio_frames_per_cb,
@@ -830,7 +832,7 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
                                                                 frame_rate,
                                                                 max_avg_time_per_sample,
                                                                 os,
-                                                                noLastSz);
+                                                                unbiasedXFftCostFactors);
             if(pSpecsEarly) {
                 ps = {
                     *pSpecsEarly,
@@ -1087,7 +1089,7 @@ public:
         IndentingOStreambuf i(os);
 
         auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
-                                         std::optional<int> lastSz) {
+                                         XFFtCostFactors const & xFftCostFactors) {
             return PartitionAlgo<EarlyHandler>::run(n_channels,
                                                     n_audio_channels,
                                                     n_audio_frames_per_cb,
@@ -1095,15 +1097,15 @@ public:
                                                     frame_rate,
                                                     max_avg_time_per_sample,
                                                     os,
-                                                    lastSz);
+                                                    xFftCostFactors);
             
         };
         if(zero_latency_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
             // in that case there is no late handling at all.
             PS ps;
-            std::optional<int> noLastSz;
+            XFFtCostFactors unbiasedXFftCostFactors;
             auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
-                                                  noLastSz);
+                                                  unbiasedXFftCostFactors);
             if(earlyRes)
             {
                 ps = {
@@ -1121,9 +1123,13 @@ public:
                                                        os);
         PS ps;
         if(lateRes) {
+            // this fft comes "for free" because the latehandler uses it:
+            XFFtCostFactors xFftCostFactors{{
+                {lateRes->partition_size, 0.f}
+            }};
             auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
                                                   LateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
-                                                  {lateRes->partition_size});
+                                                  xFftCostFactors);
             if(earlyRes) {
                 ps = SetupParam {
                     *earlyRes,
@@ -1206,7 +1212,7 @@ private:
                           std::ostream & os)
     {
         auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
-                                         std::optional<int> lastSz) {
+                                         XFFtCostFactors const & xFftFactors) {
             return PartitionAlgo<EarlyHandler>::run(n_channels,
                                                     n_audio_channels,
                                                     n_audio_frames_per_cb,
@@ -1214,7 +1220,7 @@ private:
                                                     frame_rate,
                                                     max_avg_time_per_sample,
                                                     os,
-                                                    lastSz);
+                                                    xFftFactors);
             
         };
         if(zero_latency_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
@@ -1224,9 +1230,9 @@ private:
                 return {};
             }
             PS o;
-            std::optional<int> noLastSz;
+            XFFtCostFactors unbiasedXFftCostFactors;
             auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
-                                                  noLastSz);
+                                                  unbiasedXFftCostFactors);
             if(earlyRes) {
                 o = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
                                                         FinegrainedSetupParam::makeInactive(),
@@ -1242,11 +1248,15 @@ private:
                                                                      zero_latency_response_size,
                                                                      os);
         if(lateRes) {
+            // this fft comes "for free" because the latehandler uses it:
+            XFFtCostFactors xFftCostFactors{{
+                {lateRes->partition_size, 0.f}
+            }};
             // scaleSz might be a little bigger than the scale used during optimization, to have a round number of partitions:
             int const scaleSz = lateRes->partition_size * lateRes->partition_count;
             auto earlyRes = getEarlyHandlerParams(EarliestDeepesLateHandler::nCoefficientsFadeIn +
                                                   EarliestDeepesLateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
-                                                  {lateRes->partition_size});
+                                                  xFftCostFactors);
             if(earlyRes) {
                 SetupParam ps = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
                                                                     *lateRes,

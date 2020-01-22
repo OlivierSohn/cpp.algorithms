@@ -20,14 +20,14 @@ static void testByCbSize(int dirac_offset, int cb_change) {
     
     ASSERT_TRUE(coeffs[0] == 1.);
     
-    std::optional<int> noLastSz;
+    XFFtCostFactors factors;
     r.setConvolutionReverbIR(nSources,
                              DeinterlacedBuffers<double>(coeffs, 1),
                              1024,
                              0,
                              44100.,
                              m,
-                             noLastSz
+                             factors
                              );
     ASSERT_EQ(0, m.count(2048));
     ASSERT_EQ(1, m.count(1024));

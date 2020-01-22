@@ -165,7 +165,24 @@ namespace imajuscule
             std::for_each(start, end(), f);
             std::for_each(begin(), start, f);
         }
-
+        template<typename F>
+        int for_some_fwd(int n, F f) const {
+            auto start = cycleEnd();
+            for(auto i = start, end_ = end();
+                i != end_ && n > 0;
+                ++i, --n)
+            {
+                f(*i);
+            }
+            for(auto i = begin();
+                i != start && n > 0;
+                ++i, --n)
+            {
+                f(*i);
+            }
+            return n;
+        }
+        
         template<typename F>
         void for_each_bkwd(F f) const {
             auto start = std::reverse_iterator<const_iterator>(cycleEnd());
@@ -214,6 +231,21 @@ namespace imajuscule
             }
         }
 
+        // usefull when you write _backwards_ in the ring buffer, and want to retrieve
+        // an older element by age
+        auto const & get_forward(int index_fwd) const {
+            Assert(index_fwd >= 0);
+            int end_index = getIndex();
+            auto real_index = end_index + index_fwd;
+            auto sz = buf.size();
+            while(real_index >= sz) {
+                real_index -= sz;
+            }
+            return buf[real_index];
+        }
+        
+        // usefull when you write _forwards_ in the ring buffer, and want to retrieve
+        // an older element by age
         auto const & get_backward(int index_backward) const {
             int end_index = getIndex();
             auto real_index = end_index - 1 - index_backward;

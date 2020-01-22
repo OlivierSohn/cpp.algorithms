@@ -862,11 +862,29 @@ TEST(ConvolutionScale, simulateBatch) {
     it.forEachScaling([nCoeffs](auto const & v){
         auto sim = mkSimulation<C>(v, nCoeffs);
         auto const batchSize = sim.getBiggestScale();
-        double cost{};
-        for(int i=0; i<batchSize; ++i) {
-            cost += sim.simuStep();
+        std::optional<double> prevBatchCost;
+        for(int i=0; i<2; ++i)
+        {
+            XFFtCostFactors factors;
+            if(i) {
+                // disable fft costs
+                for(int sz=2; sz<10000; sz *= 2) {
+                    factors.setMultiplicator(sz, 0.);
+                }
+            }
+            double cost{};
+            for(int i=0; i<batchSize; ++i) {
+                cost += sim.simuStep(factors);
+            }
+            double batchCost = sim.simuBatch(batchSize,
+                                             factors);
+            ASSERT_NEAR(cost, batchCost, 1e-3);
+            
+            if(prevBatchCost) {
+                Assert(i==1);
+                ASSERT_LT(batchCost, 0.99999f * *prevBatchCost);
+            }
+            prevBatchCost = batchCost;
         }
-        double batchCost = sim.simuBatch(batchSize);
-        ASSERT_NEAR(cost, batchCost, 1e-3);
     });
 }

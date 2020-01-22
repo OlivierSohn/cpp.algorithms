@@ -496,13 +496,13 @@ protected:
         int offset = offset_base;
         if(offset == 0) {
             multiply(s.multiply_add_result /* = */,
-                     ffts.get_backward(0), /* x */ s.ffts_of_partitionned_h[0]);
+                     ffts.get_by_age(0), /* x */ s.ffts_of_partitionned_h[0]);
             offset = 1;
         }
         for(; offset != offset_end; ++offset)
         {
             multiply_add(s.multiply_add_result /* += */,
-                         ffts.get_backward(offset), /* x  */ s.ffts_of_partitionned_h[offset]);
+                         ffts.get_by_age(offset), /* x  */ s.ffts_of_partitionned_h[offset]);
         }
     }
     

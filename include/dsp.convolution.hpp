@@ -11,8 +11,9 @@ namespace imajuscule
 
         static constexpr auto cost_copy = fft::RealSignalCosts<FFTTag, FPT>::cost_copy;
         static constexpr auto cost_add_scalar_multiply = fft::RealSignalCosts<FFTTag, FPT>::cost_add_scalar_multiply;
+        static constexpr auto cost_fft_forward = fft::AlgoCosts<FFTTag, FPT>::cost_fft_forward;
         static constexpr auto cost_fft_inverse = fft::AlgoCosts<FFTTag, FPT>::cost_fft_inverse;
-        
+
         using Parent::cost_compute_convolution;
         using Parent::get_fft_length;
         using Parent::getBlockSize;
@@ -30,20 +31,27 @@ namespace imajuscule
             return minorCost;
         }
 
-        double simuMajorStep() {
-            if(unlikely(!majorCost)) {
-                majorCost =
+        double simuMajorStep(XFFtCostFactors const & xFftCostFactors) {
+            if(unlikely(!majorCostExceptXForwardFft)) {
+                majorCostExceptXForwardFft =
                 cost_compute_convolution() + // assuming that cost_compute_convolution is CONSTANT;
                 cost_fft_inverse(get_fft_length()) +
                 cost_add_scalar_multiply(getBlockSize()) +
                 cost_copy(getBlockSize()) +
                 costReadNConsecutive<FPT>(1);
             }
-            return *majorCost;
+            if(unlikely(!costXForwardFft)) {
+                costXForwardFft = cost_fft_forward(get_fft_length());
+            }
+            //LG(INFO, "*:%f fft: %f", *majorCostExceptXForwardFft, *costXForwardFft);
+            return
+            *majorCostExceptXForwardFft +
+            *costXForwardFft * xFftCostFactors.getCostMultiplicator(get_fft_length());
         }
     private:
         double minorCost;
-        std::optional<double> majorCost;
+        std::optional<double> majorCostExceptXForwardFft;
+        std::optional<double> costXForwardFft;
     };
 
     /*
@@ -267,7 +275,6 @@ struct FFTConvolutionCRTPSimulation {
     using FFTAlgo = typename fft::Algo_<Tag, FPT>;
     
     static constexpr auto cost_mult_assign = fft::RealFBinsCosts<Tag, FPT>::cost_mult_assign;
-    static constexpr auto cost_fft_forward = fft::AlgoCosts<Tag, FPT>::cost_fft_forward;
 
     void doSetCoefficientsCount(int64_t szCoeffs) {
         fft_length = get_fft_length(szCoeffs);
@@ -275,9 +282,7 @@ struct FFTConvolutionCRTPSimulation {
     }
 
     double cost_compute_convolution() {
-        return
-        cost_fft_forward(get_fft_length()) +
-        cost_mult_assign(get_fft_length());
+        return cost_mult_assign(get_fft_length());
     }
     
     static auto get_fft_length(int n) {
@@ -478,7 +483,6 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
 
     static constexpr auto cost_multiply     = fft::RealFBinsCosts<Tag, FPT>::cost_multiply;
     static constexpr auto cost_multiply_add = fft::RealFBinsCosts<Tag, FPT>::cost_multiply_add;
-    static constexpr auto cost_fft_forward = fft::AlgoCosts<Tag, FPT>::cost_fft_forward;
 
     void setup(SetupParam const & p) {
       partition_size = p.partition_size;
@@ -493,7 +497,7 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
     
     double cost_compute_convolution() const
     {
-        double cost = cost_fft_forward(get_fft_length());
+        double cost = 0.;
         if(n_partitions) {
             cost += cost_multiply(get_fft_length());
             cost += (n_partitions-1) * cost_multiply_add(get_fft_length());
@@ -627,21 +631,21 @@ private:
         {
             // do fft of x
             {
+                ffts_of_delayed_x.go_back(); // we write backwards so that we can traverse the container forwards for multiply_adds
                 auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
                 auto const fft_length = get_fft_length();
                 assert(fft_length == oldest_fft_of_delayed_x.size());
                 fft.forward(xBegin, oldest_fft_of_delayed_x, fft_length);
-                ffts_of_delayed_x.advance();
             }
 
             int index = 0;
 
-            ffts_of_delayed_x.for_each_bkwd( [this, &index] (auto const & fft_of_delayed_x) {
+            ffts_of_delayed_x.for_each( [this, &index] (auto const & fft_of_delayed_x) {
                 assert(index < ffts_of_partitionned_h.size());
                 auto const & fft_of_partitionned_h = ffts_of_partitionned_h[index];
                 
                 if(index == 0) {
-                    multiply(work /* = */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                    multiply(    work /*  = */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
                 }
                 else {
                     multiply_add(work /* += */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);

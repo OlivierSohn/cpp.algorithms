@@ -115,13 +115,12 @@ struct XAndFFTS {
                 zero_n_raw(&x[padding], countPadding);
                 padding = xEnd;
             }
-            auto & oldest_fft_of_delayed_x = f.oldestFft();
+            auto & oldest_fft_of_delayed_x = f.go_back();
             Assert(f.fft_length == static_cast<int>(oldest_fft_of_delayed_x.size()));
             // we could omit that fft computation if:
             //   - there are only 0s in the input
             //   - all the ffts in the ring buffer are only 0s.
             f.fft.forward(x.begin() + xStart, oldest_fft_of_delayed_x, f.fft_length);
-            f.advance();
         }
     }
     
@@ -167,20 +166,18 @@ struct XAndFFTS {
         
         int fft_length;
         
-        auto & oldestFft() {
+        auto & go_back() {
+            ffts.go_back();
             return *ffts.cycleEnd();
         }
-        void advance() {
-            ffts.advance();
-        }
-        auto const & get_backward(int age) const {
-            return ffts.get_backward(age);
+        auto const & get_by_age(int age) const {
+            return ffts.get_forward(age);
         }
         
         // This method will need to be replaced by rawindex-based iteration to support the async worker case.
         template<typename F>
-        void for_some_bkwd(int count, F f) const {
-            ffts.for_some_bkwd(count, f);
+        void for_some_recent(int count, F f) const {
+            ffts.for_some_fwd(count, f);
         }
         
         void flushToSilence() {

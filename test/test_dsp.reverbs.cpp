@@ -64,10 +64,10 @@ void testReverbDirac(Args ...args) {
                                           args...);
             }
             else if constexpr (reverbType == ReverbType::Offline) {
-                std::optional<int> noLastSz;
+                XFFtCostFactors unbiasedXFftCostFactors;
                 rs.setConvolutionReverbIR(1,
                                           {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
-                                          noLastSz,
+                                          unbiasedXFftCostFactors,
                                           args...);
             }
             else {
@@ -188,10 +188,10 @@ void testReverbDirac(Args ...args) {
                                                       args...);
                         }
                         else if constexpr (reverbType == ReverbType::Offline) {
-                            std::optional<int> noLastSz;
+                            XFFtCostFactors unbiasedXFftCostFactors;
                             rs.setConvolutionReverbIR(nIns,
                                                       all_coeffs, audio_cb_size, 44100., std::cout, structure,
-                                                      noLastSz,
+                                                      unbiasedXFftCostFactors,
                                                       args...);
                         }
                         else {

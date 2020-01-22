@@ -252,10 +252,12 @@ struct ScalingsIterator {
     }
     
     template<typename Simu>
-    double virtualCostPerSample(Simu & sim) {
+    double virtualCostPerSample(Simu & sim,
+                                XFFtCostFactors const & xFftCostFactors) {
         int64_t const end = sim.getBiggestScale();
         if(end) {
-            return sim.simuBatch(end)/end;
+            return sim.simuBatch(end,
+                                 xFftCostFactors)/end;
         }
         else {
             return 0.;
@@ -344,11 +346,27 @@ struct ScalingsIterator {
         return byValue;
     }
 
-            template<typename Iterator>
-            void displayScaling(Iterator it,
-                                int const firstSz,
-                                int const nCoeffs)
-            {
+    inline void displayScalingNumerically(std::vector<Scaling> const & r, std::ostream& os) {
+    
+        int sz = 1;
+        for(auto const & s : r) {
+            Assert(s.sz >= sz);
+            while(s.sz > sz) {
+                os << "." << "\t";
+                sz *= 2;
+            }
+            Assert(s.sz == sz);
+            os << s.nRepeat << "\t";
+            sz *= 2;
+        }
+    
+    }
+            
+    template<typename Iterator>
+    void displayScaling(Iterator it,
+                        int const firstSz,
+                        int const nCoeffs)
+    {
             auto const & [r, cost] = *it;
             std::ostringstream os;
             os << justifyRight(8, std::to_string(firstSz)) << " " << justifyRight(9, std::to_string(nCoeffs)) << " ";
@@ -358,19 +376,7 @@ struct ScalingsIterator {
             auto costStr = os.str();
             std::cout << costStr << std::string(std::max(1, 50 - static_cast<int>(costStr.size())), ' ') << "\t";
             
-            // numeric display:
-            
-            int sz = 1;
-            for(auto const & s : r) {
-            Assert(s.sz >= sz);
-            while(s.sz > sz) {
-            std::cout << "." << "\t";
-            sz *= 2;
-            }
-            Assert(s.sz == sz);
-            std::cout << s.nRepeat << "\t";
-            sz *= 2;
-            }
+            displayScalingNumerically(r, std::cout);
             
             // graphic display:
             
@@ -379,7 +385,8 @@ struct ScalingsIterator {
              std::cout << std::make_pair(firstSz, s);
              }*/
             std::cout << std::endl;
-            }
+    }
+            
     template<typename MapIterator>
     auto analyzeScalings(int const firstSz,
                          int const nCoeffs,
@@ -399,22 +406,17 @@ struct ScalingsIterator {
     template<typename Convolution>
     auto getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation(int const firstSz,
                                                                  int const nCoeffs,
-                                                                 std::optional<int> const lastSz)
+                                                                 XFFtCostFactors const & xFftCostFactors)
             -> std::optional<std::pair<std::vector<Scaling>, double>>
     {
-         
-         if(lastSz && *lastSz < firstSz) {
-            // means no coefficient is handled
-            return {{{}, 0.}};
-         }
          std::optional<std::pair<std::vector<Scaling>, double>> best;
+            
          ScalingsIterator{
             firstSz,
-            nCoeffs,
-            lastSz
-         }.forEachScaling([nCoeffs, &best](auto const & v){
+            nCoeffs
+         }.forEachScaling([nCoeffs, &best, &xFftCostFactors](auto const & v){
              auto sim = mkSimulation<Convolution>(v, nCoeffs);
-             auto virtualCost = virtualCostPerSample(sim);
+             auto virtualCost = virtualCostPerSample(sim, xFftCostFactors);
              if(!best || virtualCost < best->second) {
                  best = {{v, virtualCost}};
              }

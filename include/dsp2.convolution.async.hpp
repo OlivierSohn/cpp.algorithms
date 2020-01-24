@@ -71,19 +71,26 @@ private:
     static constexpr block_index worker_vec_initial = 0;
 public:
     
-    MinSizeRequirement setCoefficients(Algo const & algo,
-                                       a64::vector<FPT> coeffs) {
+    void setCoefficients(Algo const & algo,
+                         a64::vector<FPT> coeffs) {
         reset();
+
+        int const N = algo.getSubmissionPeriod();
+        int const queueSize = algo.getQueueSize();
         
+        if(N <= 0 || queueSize <= 0) {
+            if(!coeffs.empty()) {
+                throw std::logic_error("invalid queue params");
+            }
+            return;
+        }
+
         async_conv = std::make_unique<Convolution<typename Async::Algo>>();
         Assert(algo.asyncParams);
         async_conv->setup(*algo.asyncParams);
         Assert(async_conv->isValid());
         async_conv->setCoefficients(std::move(coeffs));
-        
-        int const N = algo.getSubmissionPeriod();
-        int const queueSize = algo.getQueueSize();
-        
+                
         buffer.resize(N * // size of a block
                       (1+ // previous_result
                        1+ // signal
@@ -286,13 +293,6 @@ public:
 #endif // IMJ_WITH_ASYNCCONV_STATS
             }
         });
-        
-        return {
-            1, // x size : pour l'instant on copie x par x donc un seul suffit.
-            1, // y size : on écrit un par un pour l'instant
-            0, // y anticipé : on n'écrit pas dans le futur
-            {} // ffts : besoin de rien pour l'instant puisque les fft sont recalculées dans la partie async
-        };
     }
     
     template<typename F>
@@ -482,6 +482,9 @@ struct AlgoAsyncCPUConvolution {
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     
+    template<typename TT>
+    using Allocator = typename Async::template Allocator<TT>;
+    
     static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
 
     static constexpr int queue_room_sz = AsyncCPUConvolutionConstants::queue_room_sz;
@@ -494,7 +497,7 @@ struct AlgoAsyncCPUConvolution {
         queueSize = s.queueSize;
         asyncParams = s.asyncParams;
     }
-    
+
     bool handlesCoefficients() const {
         return N > 0 && queueSize > 0 && asyncParams && asyncParams->handlesCoefficients();
     }
@@ -527,8 +530,9 @@ struct AlgoAsyncCPUConvolution {
         // Note that dephasing in the async part is taken care of by async_conv->setCoefficients and async_conv->flushToSilence
     }
 
+    template<template<typename> typename Allocator2>
     void step(State & s,
-              XAndFFTS<FPT, Tag> const & x_and_ffts,
+              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
         if(unlikely(s.signal == s.previous_result)) {

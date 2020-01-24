@@ -328,8 +328,8 @@ namespace imajuscule
     static constexpr auto makeRealSignal = fft::RealSignal_<Tag, FPT>::make;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
+    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, a64::Alloc>::type;
+    static constexpr auto scale = fft::RealFBins_<Tag, FPT, a64::Alloc>::scale;
     
     using Algo = typename fft::Algo_<Tag, FPT>;
     using Contexts = fft::Contexts_<Tag, FPT>;
@@ -406,7 +406,7 @@ namespace imajuscule
           
           // coeffs_slice is padded with 0, because it is bigger than partition_size
           // and initialized with zeros.
-          fft.forward(coeffs_slice.begin(), fft_of_h, fft_length);
+          fft.forward(coeffs_slice.begin(), fft_of_h.data(), fft_length);
           
           // to avoid a division in the last step of the ifft, we scale the frequencies:
           scale(fft_of_h, 1./fft_length);

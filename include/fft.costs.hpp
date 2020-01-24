@@ -125,9 +125,13 @@ namespace imajuscule::fft {
         
     };
     
+
     template<typename Tag, typename T>
     struct RealFBinsCosts {
-        using Impl = RealFBins_<Tag, T>;
+        // we use a simple allocator to compute costs, one that doesn't take too much space
+        // (hence, not page-aligned allocator) and that is simple to use (hence, not monotonic allocator)
+        using Impl = RealFBins_<Tag, T, a64::Alloc>;
+
         using type = typename Impl::type;
         using value_type = typename type::value_type;
 
@@ -211,7 +215,6 @@ namespace imajuscule::fft {
             return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), std::abs(sum)));
         }
         
-        
         static double cost_multiply_add(int64_t sz) {
             static std::unordered_map<int, double> stats;
             static std::mutex mut;
@@ -258,12 +261,20 @@ namespace imajuscule::fft {
     
     template<typename Tag, typename T>
     struct AlgoCosts {
-        using RealInput  = typename RealSignal_ <Tag, T>::type;
-        using RealFBins  = typename RealFBins_<Tag, T>::type;
+        using RealInput = typename RealSignal_ <Tag, T>::type;
+        
+        // we use a simple allocator to compute costs, one that doesn't take too much space
+        // (hence, not page-aligned allocator) and that is simple to use (hence, not monotonic allocator)
+        template<typename TT>
+        using Allocator = a64::Alloc<TT>;
+        
+        using RealFBins = RealFBins_<Tag, T, Allocator>;
+        using RealFBins_t  = typename RealFBins::type;
         using Contexts = fft::Contexts_<Tag, T>;
+        using Algo = Algo_<Tag, T>;
 
-        static constexpr auto setFirstReal = RealFBins_<Tag, T>::setFirstReal;
-        static constexpr auto getFirstReal = RealFBins_<Tag, T>::getFirstReal;
+        static constexpr auto setFirstReal = RealFBins::setFirstReal;
+        static constexpr auto getFirstReal = RealFBins::getFirstReal;
 
         static double cost_fft_inverse(int64_t sz) {
             static std::unordered_map<int, double> stats;
@@ -282,11 +293,11 @@ namespace imajuscule::fft {
             if(sz == 0) {
                 return 0.;
             }
-            RealFBins f;
+            RealFBins_t f;
             RealInput input;
             f.resize(sz);
             input.resize(sz);
-            Algo_<Tag, T> a(Contexts::getInstance().getBySize(sz));
+            Algo a(Contexts::getInstance().getBySize(sz));
 
             int64_t ntests = std::max(static_cast<int64_t>(1),
                                       10000 / sz);
@@ -296,7 +307,7 @@ namespace imajuscule::fft {
             auto duration = measure_thread_cpu_one([&sum, &a, &f, &input, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
                     setFirstReal(f, static_cast<T>(i));
-                    a.inverse(f, input, sz);
+                    a.inverse(f.data(), input, sz);
                     using std::abs;
                     sum += abs(input[0]);
                 }
@@ -322,11 +333,11 @@ namespace imajuscule::fft {
             if(sz == 0) {
                 return 0.;
             }
-            RealFBins f;
+            RealFBins_t f;
             RealInput input;
             f.resize(sz);
             input.resize(sz);
-            Algo_<Tag, T> a(Contexts::getInstance().getBySize(sz));
+            Algo a(Contexts::getInstance().getBySize(sz));
             
             int64_t ntests = std::max(static_cast<int64_t>(1),
                                       10000 / sz);
@@ -336,7 +347,7 @@ namespace imajuscule::fft {
             auto duration = measure_thread_cpu_one([&sum, &a, &f, &input, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
                     input[0] = typename decltype(input)::value_type(static_cast<T>(i));
-                    a.forward(input.begin(), f, sz);
+                    a.forward(input.begin(), f.data(), sz);
                     sum += getFirstReal(f);
                 }
             });

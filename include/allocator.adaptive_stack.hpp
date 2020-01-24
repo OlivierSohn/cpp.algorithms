@@ -115,4 +115,4 @@ namespace imajuscule {
     operator != ( const StackAllocator<T>& a, const StackAllocator<T2>& b)
     { return !(operator==(a,b)); };
 
-} // NS
+} // NS imajuscule

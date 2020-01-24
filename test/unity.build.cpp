@@ -16,9 +16,10 @@
 #include "test_utils.cpp"
 
 //#  include "test_benchmark.convolution.scaling.cpp"
+#include "test_dsp.reverbs.cpp"
 //*
 #include "test_dsp2.convolution.cpp"
-#include "test_dsp.reverbs.cpp"
+#include "test_allocators.cpp"
 #include "test_dsp.convolution.scale.cpp"
 #include "test_dsp.reverbsbycbsize.cpp"
 #include "test_dsp.convolution.cpp"
@@ -58,7 +59,6 @@
 #include "test_freelist.cpp"
 #include "test_cpp.cpp"
 #include "test_types.cpp"
-#include "test_allocators.cpp"
 #include "test_hash_table.cpp"
 //*/
 

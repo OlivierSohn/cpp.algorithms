@@ -245,7 +245,7 @@ namespace imajuscule {
       testSpatialized<typename Convolution::FPT>(coeffs_index, f);
     }
     
-    template<typename Tag>
+    template<typename Tag, template<typename> typename Alloc>
     void testDirac() {
       using namespace fft;
       int end = end_index;
@@ -253,8 +253,8 @@ namespace imajuscule {
           --end;
       }
       for(int i=0; i<end; ++i) {
-        testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Tag>>(i);
-        testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Tag>>(i);
+        testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Alloc, Tag>>(i);
+        testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Alloc, Tag>>(i);
       }
     }
   }
@@ -265,7 +265,7 @@ TEST(Spatialization, dirac) {
   using namespace imajuscule::testspatialize;
   
   for_each(fft::Tags, [](auto t) {
-    testDirac<decltype(t)>();
+    testDirac<decltype(t), a64::Alloc>();
   });
 }
 

@@ -98,10 +98,10 @@ namespace imajuscule {
             }
         };
 
-        template<typename T>
-        struct RealFBins_<imj::Tag, T> {
+        template<typename T, template<typename> typename Allocator>
+        struct RealFBins_<imj::Tag, T, Allocator> {
             using Tag = imj::Tag;
-            using type = a64::vector<complex<T>>;
+            using type = std::vector<complex<T>, Allocator<complex<T>>>;
 
             static type make(type cplx) {
                 return std::move(cplx);
@@ -286,7 +286,10 @@ namespace imajuscule {
             using FPT = T;
 
             using RealInput  = typename RealSignal_ <imj::Tag, T>::type;
-            using RealFBins  = typename RealFBins_<imj::Tag, T>::type;
+            
+            template<template<typename> typename Allocator>
+            using RealFBins  = typename RealFBins_<imj::Tag, T, Allocator>::type;
+
             using Context    = typename Context_   <imj::Tag, T>::type;
 
             using Tr = NumTraits<T>;
@@ -301,27 +304,27 @@ namespace imajuscule {
             }
 
           void forward(typename RealInput::const_iterator inputBegin,
-                         RealFBins & output,
+                         complex<T> * output,
                          unsigned int N) const
           {
             auto * const rootPtr = context.getRoots()->begin().base();
-            TukeyCooley<FftType::FORWARD, typename RealFBins::value_type::FPT>
+            TukeyCooley<FftType::FORWARD, T>
             algo{rootPtr};
             
             algo.run(inputBegin.base(),
-                     output.begin().base(),
+                     output,
                      N);
           }
 
-            void inverse(RealFBins const & input,
+            void inverse(complex<T> const * input,
                          RealInput & output,
                          unsigned int N) const
             {
               auto * const rootPtr = context.getRoots()->begin().base();
-              TukeyCooley<FftType::INVERSE, typename RealFBins::value_type::FPT>
+              TukeyCooley<FftType::INVERSE, T>
               algo{rootPtr};
               
-              algo.run(input.begin().base(),
+              algo.run(input,
                        output.begin().base(),
                        N);
 
@@ -376,8 +379,8 @@ namespace imajuscule {
             template<typename T>
             using RealInput = typename RealSignal_<Tag, T>::type;
 
-            template<typename T>
-            using RealFBins = typename RealFBins_<Tag, T>::type;
+            template<typename T, template<typename> typename Allocator>
+            using RealFBins = typename RealFBins_<Tag, T, Allocator>::type;
 
             template<typename T>
             using Context = typename Context_<Tag, T>::type;

@@ -118,6 +118,19 @@ struct FinegrainedSetupParam : public Cost {
         }
     }
     
+    MinSizeRequirement getMinSizeRequirement() const
+    {
+        auto const fft_length = 2*partition_size;
+        return {
+            0, // x block size
+            static_cast<int>(fft_length/2), // y block size
+            static_cast<int>(fft_length/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
+            {
+                {fft_length, partition_count}
+            }
+        };
+    }
+
     Latency getImpliedLatency() const {
         Assert(handlesCoefficients());
         return Latency(2*partition_size - 1);
@@ -201,7 +214,7 @@ struct FinegrainedFFTConvolutionBase : public Parent {
     static constexpr auto get_signal = fft::RealSignal_<Tag, FPT>::get_signal;
     static constexpr auto add_scalar_multiply = fft::RealSignal_<Tag, FPT>::add_scalar_multiply;
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
-    using Algo = typename fft::Algo_<Tag, FPT>;
+    using Algo = typename Parent::Algo;
     using Contexts = fft::Contexts_<Tag, FPT>;
     
     using Parent::get_fft_length;
@@ -496,7 +509,7 @@ private:
             }
             case GrainType::IFFT:
             {
-                fft.inverse(get_multiply_add_result(),
+                fft.inverse(get_multiply_add_result().data(),
                             result,
                             get_fft_length());
                 increment_grain();
@@ -530,7 +543,7 @@ int constexpr getMinLg2PartitionSz() {
 }
 
 
-template <typename T, typename Tag>
+template <typename T, template<typename> typename Allocator, typename Tag>
 struct FinegrainedPartitionnedFFTConvolutionCRTP {
     using FPT = T;
     using FFTTag = Tag;
@@ -538,10 +551,9 @@ struct FinegrainedPartitionnedFFTConvolutionCRTP {
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-    static constexpr auto zero = fft::RealFBins_<Tag, FPT>::zero;
-    static constexpr auto multiply = fft::RealFBins_<Tag, FPT>::multiply;
-    static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
+    using RealFBins = typename fft::RealFBins_<Tag, FPT, Allocator>;
+    using CplxFreqs = typename RealFBins::type;
+    static constexpr auto zero = RealFBins::zero;
     
     using Algo = typename fft::Algo_<Tag, FPT>;
     void doLogComputeState(std::ostream & os) const {
@@ -639,6 +651,10 @@ public:
     int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
     
     void doSetCoefficients(Algo const & fft, a64::vector<T> coeffs_) {
+        auto const fft_length = get_fft_length();
+
+        work.resize(fft_length);
+
         assert(partition_size > 0);
         
         auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), partition_size);
@@ -651,17 +667,13 @@ public:
         ffts_of_delayed_x.resize(n_partitions);
         ffts_of_partitionned_h.resize(n_partitions);
         
-        auto const fft_length = get_fft_length();
-        
         for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
             fft_of_partitionned_h.resize(fft_length);
         }
         for(auto & fft_of_delayed_x : ffts_of_delayed_x) {
             fft_of_delayed_x.resize(fft_length);
         }
-        
-        work.resize(fft_length);
-        
+                
         // compute fft of padded impulse response
         
         auto it_coeffs = coeffs_.begin();
@@ -678,7 +690,7 @@ public:
                 
                 // coeffs_slice is padded with 0, because it is bigger than partition_size
                 // and initialized with zeros.
-                fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
+                fft.forward(coeffs_slice.begin(), fft_of_partitionned_h.data(), fft_length);
             }
         }
         assert(it_coeffs == coeffs_.end());
@@ -695,7 +707,7 @@ protected:
         auto & oldest_fft_of_delayed_x = *ffts_of_delayed_x.cycleEnd();
         auto const fft_length = get_fft_length();
         assert(fft_length == oldest_fft_of_delayed_x.size());
-        fft.forward(x.begin(), oldest_fft_of_delayed_x, fft_length);
+        fft.forward(x.begin(), oldest_fft_of_delayed_x.data(), fft_length);
     }
     
     void do_some_multiply_add() {
@@ -712,12 +724,12 @@ protected:
             auto const & fft_of_delayed_x = ffts_of_delayed_x.get_forward(offset);
             
             if(offset == 0) {
-                multiply(work                /*   =   */,
-                         fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+                RealFBins::multiply(work                /*   =   */,
+                                    fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
             }
             else {
-                multiply_add(work                /*   +=   */,
-                             fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+                RealFBins::multiply_add(work                /*   +=   */,
+                                        fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
             }
         }
     }
@@ -741,8 +753,9 @@ private:
     CplxFreqs work;
 };
 
-template <typename T, typename FFTTag>
-using FinegrainedPartitionnedFFTConvolution = FinegrainedFFTConvolutionBase< FinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag> >;
+template <typename T, template<typename> typename Allocator, typename FFTTag>
+using FinegrainedPartitionnedFFTConvolution =
+    FinegrainedFFTConvolutionBase< FinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >;
 
   /*
    input parameters :
@@ -1088,9 +1101,9 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
     return min_val;
 }
     
-template<typename T, typename FFTTag>
-struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, FFTTag> > {
-    using Convolution = FinegrainedPartitionnedFFTConvolution<T, FFTTag>;
+template<typename T, template<typename> typename Allocator, typename FFTTag>
+struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag> > {
+    using Convolution = FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>;
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
     

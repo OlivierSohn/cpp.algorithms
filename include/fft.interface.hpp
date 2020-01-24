@@ -5,7 +5,7 @@ namespace imajuscule {
         template<typename TAG, typename T>
         struct RealSignal_;
         
-        template<typename TAG, typename T>
+        template<typename TAG, typename T, template<typename> typename Allocator>
         struct RealFBins_;
         
         template<typename TAG, typename T>

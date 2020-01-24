@@ -25,9 +25,51 @@ namespace imajuscule {
 
  */
 
-using FftSpecs = std::map<uint32_t, int>; // sz -> historySize
 
-template<typename T, typename Tag>
+template<typename T, template<typename> typename Allocator, typename Tag>
+struct FFTs {
+    using Contexts = fft::Contexts_<Tag, T>;
+    using FFTAlgo = typename fft::Algo_<Tag, T>;
+    using FBins = typename fft::RealFBins_<Tag, T, Allocator>::type;
+    static constexpr auto zero = fft::RealFBins_<Tag, T, Allocator>::zero;
+
+    FFTs(int fft_length, int history_sz)
+    : fft(Contexts::getInstance().getBySize(fft_length))
+    , fft_length(fft_length)
+    , ffts(history_sz)
+    {
+        ffts.for_each([fft_length](auto & v){ v.resize(fft_length); });
+    }
+    
+    FFTAlgo fft;
+    
+    int fft_length;
+    
+    auto & go_back() {
+        ffts.go_back();
+        return *ffts.cycleEnd();
+    }
+    auto const & get_by_age(int age) const {
+        return ffts.get_forward(age);
+    }
+    
+    // This method will need to be replaced by rawindex-based iteration to support the async worker case.
+    template<typename F>
+    void for_some_recent(int count, F f) const {
+        ffts.for_some_fwd(count, f);
+    }
+    
+    void flushToSilence() {
+        for(auto & fft : ffts) {
+            zero(fft);
+        }
+    }
+private:
+    cyclic<FBins> ffts;
+};
+
+
+template<typename T, template<typename> typename Allocator, typename Tag>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
 
@@ -55,7 +97,19 @@ struct XAndFFTS {
             };
         }
     }
-    
+
+    static int getAllocationSz_Resize(FftSpecs const & fftSpecs) {
+        int sz = 0;
+        for(auto const & [fftSz, history_sz] : fftSpecs) {
+            if(history_sz == 0 || fftSz == 0) {
+                continue;
+            }
+            Assert(is_power_of_two(fftSz));
+            sz += fftSz * history_sz;
+        }
+        return sz;
+    }
+
     void resize(int const sz, FftSpecs const & fftSpecs) {
         reset_states();
 
@@ -120,7 +174,7 @@ struct XAndFFTS {
             // we could omit that fft computation if:
             //   - there are only 0s in the input
             //   - all the ffts in the ring buffer are only 0s.
-            f.fft.forward(x.begin() + xStart, oldest_fft_of_delayed_x, f.fft_length);
+            f.fft.forward(x.begin() + xStart, oldest_fft_of_delayed_x.data(), f.fft_length);
         }
     }
     
@@ -148,48 +202,7 @@ struct XAndFFTS {
     uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^(n+1), the nth bit is set
     uint32_t fftsHalfSizesBitsToCompute = 0;
     
-    struct FFTs {
-        using Contexts = fft::Contexts_<Tag, T>;
-        using FFTAlgo = typename fft::Algo_<Tag, T>;
-        using FBins = typename fft::RealFBins_<Tag, T>::type;
-        static constexpr auto zero = fft::RealFBins_<Tag, T>::zero;
-
-        FFTs(int fft_length, int history_sz)
-        : fft(Contexts::getInstance().getBySize(fft_length))
-        , fft_length(fft_length)
-        , ffts(history_sz)
-        {
-            ffts.for_each([fft_length](auto & v){ v.resize(fft_length); });
-        }
-        
-        FFTAlgo fft;
-        
-        int fft_length;
-        
-        auto & go_back() {
-            ffts.go_back();
-            return *ffts.cycleEnd();
-        }
-        auto const & get_by_age(int age) const {
-            return ffts.get_forward(age);
-        }
-        
-        // This method will need to be replaced by rawindex-based iteration to support the async worker case.
-        template<typename F>
-        void for_some_recent(int count, F f) const {
-            ffts.for_some_fwd(count, f);
-        }
-        
-        void flushToSilence() {
-            for(auto & fft : ffts) {
-                zero(fft);
-            }
-        }
-    private:
-        cyclic<FBins> ffts;
-    };
-    
-    std::vector<FFTs> x_ffts;
+    std::vector<FFTs<T, Allocator, Tag>> x_ffts;
     
     auto const & find_ffts(int sz) const {
         for(auto const & f : x_ffts) {
@@ -265,50 +278,14 @@ struct Y {
     int32_t zeroed_up_to = 0;
 };
 
-struct MinSizeRequirement {
-    MinSizeRequirement() = delete;
-    
-    /*
-     The needed size of the x buffer is deduced both from the max size of the ffts, and from this parameter.
-     */
-    int minXSize;
-        
-    int minYSize;
-    // "Anticipated" writes touch the block (of size minYSize) after the current block.
-    int minYAnticipatedWrites;
-    
-    FftSpecs xFftSizes;
-    
-    void mergeWith(MinSizeRequirement const & o) {
-        minXSize = std::max(minXSize, o.minXSize);
-        
-        {
-            int res = static_cast<int>(ppcm(minYSize,
-                                            o.minYSize));
-            
-            // only because in practice we have powers of 2.
-            Assert(std::max(minYSize,
-                            o.minYSize) == res);
-
-            minYSize = res;
-        }
-        
-        minYAnticipatedWrites = std::max(minYAnticipatedWrites,
-                                         o.minYAnticipatedWrites);
-        
-        for(auto const & [sz, historySize] : o.xFftSizes) {
-            auto [it, emplaced] = xFftSizes.try_emplace(sz, historySize);
-            if(!emplaced) {
-                it->second = std::max(it->second, historySize);
-            }
-        }
-    }
-};
-
-template<typename T, typename Tag>
+template<typename T, template<typename> typename Allocator, typename Tag>
 struct DspContext {
-    XAndFFTS<T, Tag> x_and_ffts;
+    XAndFFTS<T, Allocator, Tag> x_and_ffts;
     Y<T, Tag> y;
+    
+    static int getAllocationSz_Resize(MinSizeRequirement req) {
+        return XAndFFTS<T, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
+    }
     
     void resize(MinSizeRequirement req) {
         x_and_ffts.resize(req.minXSize, req.xFftSizes);
@@ -339,10 +316,33 @@ struct Convolution {
     using State = typename Algo::State;
     using FPT = typename Algo::FPT;
     using Tag = typename Algo::Tag;
-    using DspContext = DspContext<FPT, Tag>;
+    
+    template<typename TT>
+    using Allocator = typename A::template Allocator<TT>;
+    
+    using DspContext = DspContext<FPT, Allocator, Tag>;
     using SetupParam = typename Algo::SetupParam;
     
+    
+    static int getAllocationSz_Setup(SetupParam const & p) {
+        MinSizeRequirement req = p.getMinSizeRequirement();
+        auto sz = DspContext::getAllocationSz_Resize(req);
+        return sz + Algo::getAllocationSz_Setup(p);
+    }
+    
     void setup(SetupParam const & p) {
+        MinSizeRequirement req = p.getMinSizeRequirement();
+        
+        ctxt.resize(req);
+
+        int const ySz = static_cast<int>(ctxt.y.y.size());
+        int const nSteps = (ySz >= 1) ? 1 : 0;
+
+        // set y progress such that results are written in a single chunk
+        for(int i=0; i<nSteps; ++i) {
+            ctxt.y.increment();
+        }
+
         algo.setup(p);
         
         phase_period.reset();
@@ -359,18 +359,13 @@ struct Convolution {
         
         p.forEachUsingSameContext(f);
     }
-    void setCoefficients(a64::vector<FPT> v) {
-        MinSizeRequirement req = state.setCoefficients(algo, std::move(v));
-        
-        ctxt.resize(req);
-        
-        int const ySz = static_cast<int>(ctxt.y.y.size());
-        int const nSteps = (ySz >= 1) ? 1 : 0;
 
-        // set y progress such that results are written in a single chunk
-        for(int i=0; i<nSteps; ++i) {
-            ctxt.y.increment();
-        }
+    static int getAllocationSz_SetCoefficients(SetupParam const & p) {
+        return State::getAllocationSz_SetCoefficients(p);
+    }
+    void setCoefficients(a64::vector<FPT> v)
+    {
+        state.setCoefficients(algo, std::move(v));
     }
     
     std::optional<float> getPhasePeriod() const {
@@ -424,6 +419,10 @@ struct Convolution {
     Latency getLatency() const {
         Assert(handlesCoefficients());
         return algo.getLatency();
+    }
+    
+    int getBiggestScale() const {
+        return algo.getBiggestScale();
     }
     
     template <typename Bool = bool>

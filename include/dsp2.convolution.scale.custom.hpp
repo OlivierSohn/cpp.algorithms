@@ -38,16 +38,22 @@ struct StateCustomScaleConvolution {
             ++itAlgo;
         }
     }
-    
-    MinSizeRequirement setCoefficients(Algo const & algo,
-                                       a64::vector<FPT> coeffs_)
+
+    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
+        int sz = 0;
+        for(auto const & param : p.scalingParams) {
+            sz += A::getAllocationSz_SetCoefficients(param.setupParam);
+        }
+        return sz;
+    }
+    void setCoefficients(Algo const & algo,
+                         a64::vector<FPT> coeffs_)
     {
         v.clear();
         v.reserve(algo.v.size());
         
         auto it = coeffs_.begin();
         auto end = coeffs_.end();
-        std::optional<MinSizeRequirement> res;
 
         for(int i=0, endI=static_cast<int>(algo.v.size());
             i != endI;
@@ -66,22 +72,11 @@ struct StateCustomScaleConvolution {
             else {
                 it += (algo.v[i+1].getLatency() - conv.getLatency()).toInteger();
             }
-            auto res2 = v[i].setCoefficients(conv, {start,it});
-            if(!res) {
-                res = res2;
-            }
-            else {
-                res->mergeWith(res2);
-            }
+            v[i].setCoefficients(conv, {start,it});
         }
         if(it < end) {
             throw std::runtime_error("not enough scales in CustomScaleConvolution");
         }
-
-        if(res) {
-            return *res;
-        }
-        return {0,0,0,{}};
     }
     
     template<typename F>
@@ -121,6 +116,9 @@ struct StateCustomScaleConvolution {
 
 template<typename A>
 struct AlgoCustomScaleConvolution {
+    template<typename TT>
+    using Allocator = typename A::template Allocator<TT>;
+    
     using SetupParam = CustomScaleConvolutionSetupParam<typename A::SetupParam>;
     using State = StateCustomScaleConvolution<typename A::State>;
     using Desc = DescCustomScaleConvolution<typename A::Desc>;
@@ -130,6 +128,14 @@ struct AlgoCustomScaleConvolution {
     
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
     
+    
+    static int getAllocationSz_Setup(SetupParam const & p) {
+        int sz = 0;
+        for(auto const & param : p.scalingParams) {
+            sz += A::getAllocationSz_Setup(param.setupParam);
+        }
+        return sz;
+    }
     void setup(SetupParam const & p) {
         v.clear();
         v.reserve(p.scalingParams.size());
@@ -159,8 +165,9 @@ struct AlgoCustomScaleConvolution {
         // nothing. For justification, see comment in step()
     }
 
+    template<template<typename> typename Allocator2>
     void step(State & s,
-              XAndFFTS<FPT, Tag> const & x_and_ffts,
+              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
         Assert(s.v.size() <= v.size());

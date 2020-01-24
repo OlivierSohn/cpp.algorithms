@@ -57,57 +57,57 @@ namespace imajuscule {
  
  */
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 using OptimizedFIRFilter =
 SplitConvolution <
-/**/FIRFilter<T>,
+/**/FIRFilter<T, Allocator>,
 /**/CustomScaleConvolution<
-/*  */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>>;
+/*  */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>>;
 
-template<typename T, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
+template<typename T, template<typename> typename Allocator, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
 using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
 SplitConvolution<
-/**/OptimizedFIRFilter<T, FFTTag>,
+/**/OptimizedFIRFilter<T, Allocator, FFTTag>,
 
 /**/SplitConvolution<
-/*  */FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // full resolution
+/*  */FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // full resolution
 /*  */SubSampled< Lat,
 /*    */Delayed<
 
 /**/SplitConvolution<
-/*  */FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // half resolution
+/*  */FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // half resolution
 /*  */SubSampled<Lat,
 /*    */Delayed<
 
 /**/SplitConvolution<
-/*  */FinegrainedPartitionnedFFTConvolution<T, FFTTag>, // quarter resolution
+/*  */FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // quarter resolution
 /*  */SubSampled<Lat,
 /*    */Delayed<
 
-/**/FinegrainedPartitionnedFFTConvolution<T, FFTTag> // heighth resolution
+/**/FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag> // heighth resolution
 >>>>>>>>>>;
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
 SplitConvolution<
-/**/OptimizedFIRFilter<T, FFTTag>,
-/**/FinegrainedPartitionnedFFTConvolution<T, FFTTag>>;
+/**/OptimizedFIRFilter<T, Allocator, FFTTag>,
+/**/FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>;
 
-template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 using ZeroLatencyScaledAsyncConvolution =
 SplitConvolution<
-/**/OptimizedFIRFilter<T, FFTTag>,
+/**/OptimizedFIRFilter<T, Allocator, FFTTag>,
 /**/AsyncCPUConvolution <
 /*  */CustomScaleConvolution<
-/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>, OnWorkerTooSlow>>;
+/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>, OnWorkerTooSlow>>;
 
-template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 using ZeroLatencyScaledAsyncConvolutionOptimized =
 SplitConvolution<
-/**/ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>,
+/**/ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>,
 /**/AsyncCPUConvolution <
 /*  */CustomScaleConvolution<
-/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, FFTTag> >>, OnWorkerTooSlow>>;
+/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>, OnWorkerTooSlow>>;
 
 
 /*
@@ -166,13 +166,16 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
             ps = SetupParam{scalingParams};
             ps->setCost(best->second);
         }
+        else {
+            // dans quels cas arrive-t-on ici?
+        }
         return ps;
     }
 };
 
-template<typename T, typename FFTTag>
-struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
-    using Convolution = OptimizedFIRFilter<T, FFTTag>;
+template<typename T, template<typename> typename Allocator, typename FFTTag>
+struct PartitionAlgo< OptimizedFIRFilter<T, Allocator, FFTTag> > {
+    using Convolution = OptimizedFIRFilter<T, Allocator, FFTTag>;
     using LateHandler = typename Convolution::LateHandler;
     using EarlyHandler = typename Convolution::EarlyHandler;
     using SetupParam = typename Convolution::SetupParam;
@@ -206,7 +209,11 @@ struct PartitionAlgo< OptimizedFIRFilter<T, FFTTag> > {
         PS ps;
         if(pSpecsLate) {
             ps = {
-                {},
+                {
+                    pSpecsLate->handlesCoefficients() ?
+                    pSpecsLate->getImpliedLatency().toInteger() :
+                    zero_latency_response_size
+                },
                 *pSpecsLate
             };
             ps->setCost(pSpecsLate->getCost());
@@ -776,9 +783,9 @@ private:
     }
 };
 
-template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSlow> > {
-    using Convolution = ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSlow>;
+template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, Allocator, FFTTag, OnWorkerTooSlow> > {
+    using Convolution = ZeroLatencyScaledAsyncConvolution<T, Allocator, FFTTag, OnWorkerTooSlow>;
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
     
@@ -846,9 +853,9 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, FFTTag, OnWorkerTooSl
     }
 };
 
-template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow> > {
-    using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, FFTTag, OnWorkerTooSlow>;
+template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, Allocator, FFTTag, OnWorkerTooSlow> > {
+    using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, Allocator, FFTTag, OnWorkerTooSlow>;
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
     
@@ -992,12 +999,12 @@ range<int> getScaleCountRanges(ResponseTailSubsampling rts) {
 }
 
 
-template<typename T, typename FFTTag, typename SPEarly, typename SPLate>
+template<typename T, template<typename> typename Allocator, typename FFTTag, typename SPEarly, typename SPLate>
 auto mkSubsamplingSetupParams(SPEarly const & early_params,
                               SPLate const & late_params,
                               int const n_scales,
                               int const scale_sz) {
-    using SetupParam = typename ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag>::SetupParam;
+    using SetupParam = typename ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, Allocator, FFTTag>::SetupParam;
     int delay = 0;
     if(n_scales > 1) {
         delay = SameSizeScales::getDelays(scale_sz,
@@ -1066,9 +1073,9 @@ int count_scales(SetupParam const & p) {
     return n_scales;
 }
 
-template<typename T, typename FFTTag>
-struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag> > {
-    using Convolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T,FFTTag>;
+template<typename T, template<typename> typename Allocator, typename FFTTag>
+struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag> > {
+    using Convolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>;
     
 private:
     using LateHandler = typename Convolution::LateHandler;
@@ -1143,9 +1150,9 @@ public:
     }
 };
 
-template<typename T, typename FFTTag>
-struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag> > {
-    using Convolution = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T,FFTTag>;
+template<typename T, template<typename> typename Allocator, typename FFTTag>
+struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, Allocator, FFTTag> > {
+    using Convolution = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, Allocator, FFTTag>;
     
 private:
     using EarlyHandler = typename Convolution::EarlyHandler;
@@ -1234,10 +1241,10 @@ private:
             auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
                                                   unbiasedXFftCostFactors);
             if(earlyRes) {
-                o = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
-                                                        FinegrainedSetupParam::makeInactive(),
-                                                        1,
-                                                        0);
+                o = mkSubsamplingSetupParams<T, Allocator, FFTTag>(*earlyRes,
+                                                                   FinegrainedSetupParam::makeInactive(),
+                                                                   1,
+                                                                   0);
                 o->setCost(earlyRes->getCost());
             }
             return {{o}};
@@ -1258,10 +1265,10 @@ private:
                                                   EarliestDeepesLateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
                                                   xFftCostFactors);
             if(earlyRes) {
-                SetupParam ps = mkSubsamplingSetupParams<T, FFTTag>(*earlyRes,
-                                                                    *lateRes,
-                                                                    n_scales,
-                                                                    scaleSz);
+                SetupParam ps = mkSubsamplingSetupParams<T, Allocator, FFTTag>(*earlyRes,
+                                                                               *lateRes,
+                                                                               n_scales,
+                                                                               scaleSz);
                 ps.setCost(earlyRes->getCost() +
                            lateRes->getCost());
                 // we need to adjust because if we have several scales, the last one my contain too many partitions.
@@ -1287,12 +1294,12 @@ struct OptimalFilter_;
 template<typename T>
 struct OptimalFilter_<T, AudioProcessing::Callback> {
     // TODO reevaluate once we know when async is better than sync
-    using type = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, fft::Fastest>;
+    using type = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, a64::Alloc, fft::Fastest>;
 };
 
 template<typename T>
 struct OptimalFilter_<T, AudioProcessing::Offline> {
-    using type = OptimizedFIRFilter<T, fft::Fastest>;
+    using type = OptimizedFIRFilter<T, a64::Alloc, fft::Fastest>;
 };
 
 }

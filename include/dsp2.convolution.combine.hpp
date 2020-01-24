@@ -1,42 +1,42 @@
 
 namespace imajuscule {
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 using AlgoOptimizedFIRFilter =
 /**/Convolution<
 /**/  AlgoSplitConvolution<
-/**/    AlgoFIRFilter<T, FFTTag>,
+/**/    AlgoFIRFilter<T, Allocator, FFTTag>,
 /**/    AlgoCustomScaleConvolution<
 /**/      AlgoFFTConvolutionIntermediate<
-/**/        AlgoPartitionnedFFTConvolutionCRTP<T, FFTTag>>>>>;
+/**/        AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>>>;
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 using AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution =
 /**/Convolution<
 /**/  AlgoSplitConvolution<
-/**/    typename AlgoOptimizedFIRFilter<T, FFTTag>::Algo,
-/**/    AlgoFinegrainedPartitionnedFFTConvolution<T, FFTTag>>>;
+/**/    typename AlgoOptimizedFIRFilter<T, Allocator, FFTTag>::Algo,
+/**/    AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>>;
 
-template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 using AlgoZeroLatencyScaledAsyncConvolution =
 /**/Convolution<
 /**/  AlgoSplitConvolution<
-/**/    typename AlgoOptimizedFIRFilter<T, FFTTag>::Algo,
+/**/    typename AlgoOptimizedFIRFilter<T, Allocator, FFTTag>::Algo,
 /**/    AlgoAsyncCPUConvolution<
 /**/      AlgoCustomScaleConvolution<
 /**/        AlgoFFTConvolutionIntermediate<
-/**/          AlgoPartitionnedFFTConvolutionCRTP<T, FFTTag>>>,
+/**/          AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>,
 /**/      OnWorkerTooSlow>>>;
 
-template<typename T, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 using AlgoZeroLatencyScaledAsyncConvolutionOptimized =
 /**/Convolution<
 /**/  AlgoSplitConvolution<
-/**/    typename AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>::Algo,
+/**/    typename AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>::Algo,
 /**/    AlgoAsyncCPUConvolution<
 /**/      AlgoCustomScaleConvolution<
 /**/        AlgoFFTConvolutionIntermediate<
-/**/          AlgoPartitionnedFFTConvolutionCRTP<T, FFTTag>>>,
+/**/          AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>,
 /**/      OnWorkerTooSlow>>>;
 
 }

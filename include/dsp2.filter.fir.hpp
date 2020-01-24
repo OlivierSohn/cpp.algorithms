@@ -8,34 +8,30 @@ struct DescFIRFilter {
     static constexpr bool step_can_error = false;
 };
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 struct AlgoFIRFilter;
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 struct StateFIRFilter {
-    using Algo = AlgoFIRFilter<T, FFTTag>;
+    using Algo = AlgoFIRFilter<T, Allocator, FFTTag>;
     using Desc = DescFIRFilter;
     
     using FPT = T;
     using Tag = FFTTag;
 
-    MinSizeRequirement setCoefficients(Algo const & algo,
-                                       a64::vector<T> v)
+    void setCoefficients(Algo const & algo,
+                         a64::vector<T> v)
     {
         reset();
 
+        if(v.size() != algo.n_coeffs) {
+            throw std::logic_error("wrong count of coeffs");
+        }
         std::reverse(v.begin(), v.end());
         reversed_coefficients.reserve(v.size());
         for(auto const & vv : v) {
             reversed_coefficients.push_back(typename decltype(reversed_coefficients)::value_type(vv));
         }
-    
-        return {
-            static_cast<int>(reversed_coefficients.size()), // x block size
-            1, // y block size
-            0, // anticipated y writes
-            {}
-        };
     }
         
     template<typename F>
@@ -63,10 +59,13 @@ private:
 };
 
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Alloc, typename FFTTag>
 struct AlgoFIRFilter {
+    template<typename TT>
+    using Allocator = Alloc<TT>;
+    
     using Desc = DescFIRFilter;
-    using State = StateFIRFilter<T, FFTTag>;
+    using State = StateFIRFilter<T, Alloc, FFTTag>;
     using FPT = T;
     using Tag = FFTTag;
     
@@ -74,7 +73,9 @@ struct AlgoFIRFilter {
     
     using SetupParam = FIRSetupParam;
 
-    void setup(SetupParam const &) const {}
+    void setup(SetupParam const &p) {
+        n_coeffs = p.n_coeffs;
+    }
 
     constexpr Latency getLatency() const {
         // commented out because not constexpr
@@ -82,50 +83,49 @@ struct AlgoFIRFilter {
         return Latency(0);
     }
     
-    constexpr bool handlesCoefficients() const {
-        return true;
+    bool handlesCoefficients() const {
+        return n_coeffs > 0;
     }
     bool isValid() const {
-        return true;
+        return n_coeffs >= 0;
     }
 
     void dephaseSteps(State &s,
                       int n_steps) const {
     }
 
+    template<template<typename> typename Allocator2>
     void step(State & s,
-              XAndFFTS<T, Tag> const & x_and_ffts,
+              XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const
     {
-        auto * coeff = s.getReversedCoeffs().data();
+        auto [s1, s2] = x_and_ffts.getSegments(0, n_coeffs);
 
-        int const sz = static_cast<int>(s.getReversedCoeffs().size());
-
-        auto [s1, s2] = x_and_ffts.getSegments(0, sz);
-
-        using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
-        E res; // no need to zero-initialize, dotpr will write it.
-
-        // s1.second may be 0
-        dotpr(&x_and_ffts.x[s1.first], coeff, &res, s1.second);
-
-        if(unlikely(s2.second)) {
-            E res2;
-            dotpr(&x_and_ffts.x[s2.first], coeff+s1.second, &res2, s2.second);
-            res += res2;
+        if(likely(s1.second)) {
+            using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
+            E res; // no need to zero-initialize, dotpr will write it.
+            
+            auto * coeff = s.getReversedCoeffs().data();
+            dotpr(&x_and_ffts.x[s1.first], coeff, &res, s1.second);
+            if(unlikely(s2.second)) {
+                E res2;
+                dotpr(&x_and_ffts.x[s2.first], coeff+s1.second, &res2, s2.second);
+                res += res2;
+            }
+            y.y[y.uProgress] += res;
         }
-
-        y.y[y.uProgress] += res;
     }
 
     void flushToSilence(State & s) const {
     }
+    
+    int n_coeffs = 0;
 };
 
-template<typename T, typename FFTTag>
-struct corresponding_legacy_dsp<AlgoFIRFilter<T, FFTTag>> {
+template<typename T, template<typename> typename Allocator, typename FFTTag>
+struct corresponding_legacy_dsp<AlgoFIRFilter<T, Allocator, FFTTag>> {
     // FFTTag is ignored, legacy FIRFilter uses the fastest one available
-    using type = FIRFilter<T>;
+    using type = FIRFilter<T, Allocator>;
 };
 
 }

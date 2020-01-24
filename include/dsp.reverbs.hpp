@@ -144,22 +144,25 @@ static inline std::string toJustifiedString(ReverbType t) {
     static_assert(nAudioOut > 0);
 
     using Tag = fft::Fastest;
+    
+    template<typename TT>
+    using Allocator = AlignedAllocator<TT, Alignment::CACHE_LINE>;
       
     using ConvolutionReverb =
       std::conditional_t< reverbType==ReverbType::Offline,
-        AlgoOptimizedFIRFilter<double, Tag>,
+        AlgoOptimizedFIRFilter<double, Allocator, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
-        AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Tag>,
+        AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Allocator, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
-        ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Tag>,
+        ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Allocator, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
-        AlgoZeroLatencyScaledAsyncConvolution<double, Tag, OnWorkerTooSlow>,
+        AlgoZeroLatencyScaledAsyncConvolution<double, Allocator, Tag, OnWorkerTooSlow>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
-        AlgoZeroLatencyScaledAsyncConvolutionOptimized<double, Tag, OnWorkerTooSlow>,
+        AlgoZeroLatencyScaledAsyncConvolutionOptimized<double, Allocator, Tag, OnWorkerTooSlow>,
     
       void
     

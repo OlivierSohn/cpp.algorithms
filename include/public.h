@@ -134,6 +134,7 @@
 #include "optimization.local.ranged.hpp"
 #include "debugging.h"
 #include "print_type.hpp"
+#include "allocator.monotonic.hpp"
 #include "pool.adaptive_stack.h"
 #include "allocator.adaptive_stack.hpp"
 #include "allocator.aligned.hpp"

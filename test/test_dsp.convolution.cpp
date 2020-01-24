@@ -196,7 +196,7 @@ namespace imajuscule {
           }
           // produce expected output using brute force convolution
           {
-            FIRFilter<T> filter;
+            FIRFilter<T, a64::Alloc> filter;
             filter.setCoefficients(coefficients);
             EXPECT_EQ(0, filter.getLatency().toInteger());
             for(int i=0; i<randomInput.size(); ++i) {
@@ -247,7 +247,7 @@ namespace imajuscule {
       End
     };
     
-    template<typename T, typename Tag>
+    template<typename T, template<typename> typename Allocator, typename Tag>
     void testDiracFinegrainedPartitionned(int coeffs_index) {
       
       auto f = [](int part_size, auto & coefficients)
@@ -256,7 +256,7 @@ namespace imajuscule {
             type != TestFinegrained::End;
             increment(type))
         {
-          FinegrainedPartitionnedFFTConvolution<T, Tag> conv;
+          FinegrainedPartitionnedFFTConvolution<T, Allocator, Tag> conv;
           int const n_partitions = countPartitions(coefficients.size(), part_size);
 
           conv.setup({part_size, n_partitions, 1000, 0});
@@ -290,11 +290,11 @@ namespace imajuscule {
       testPartitionned<T>(coeffs_index, f);
     }
     
-    template<typename T, typename Tag>
+    template<typename T, template<typename> typename Allocator, typename Tag>
     void testDiracPartitionned(int coeffs_index) {
       
       auto f = [](int part_size, auto & coefficients){
-        PartitionnedFFTConvolution<T,Tag> conv;
+        PartitionnedFFTConvolution<T,Allocator,Tag> conv;
         
         conv.setup({
             part_size,
@@ -321,7 +321,7 @@ namespace imajuscule {
       test(conv, makeCoefficients<T>(coeffs_index));
     }
     
-    template<typename T, typename Tag>
+    template<typename T, template<typename> typename Allocator, typename Tag>
     void testDirac() {
       using namespace fft;
       
@@ -332,15 +332,15 @@ namespace imajuscule {
       for(int i=0; i<end; ++i) {
           LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
-        testDiracFinegrainedPartitionned<T, Tag>(i);
+        testDiracFinegrainedPartitionned<T, Allocator, Tag>(i);
         if(i<10)
         {
-          auto c = FIRFilter<T>{};
+          auto c = FIRFilter<T, Allocator>{};
           testDirac2(i, c);
         }
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
-                  auto c = CustomScaleConvolution<FFTConvolutionCore<T, Tag>>{};
+                  auto c = CustomScaleConvolution<FFTConvolutionCore<T, Allocator, Tag>>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
                   std::vector<ScalingParam> params;
                   int remainingCoeffs = countCoeffs;
@@ -364,7 +364,7 @@ namespace imajuscule {
           // same as above but with some PartitionnedFFTConvolutionCRTP
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
-                  auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>{};
+                  auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
                   std::vector<ScalingParam> params;
                   int remainingCoeffs = countCoeffs;
@@ -391,7 +391,7 @@ namespace imajuscule {
           // same as above but skipping one scale out of 2
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
-                  auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>{};
+                  auto c = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
                   std::vector<ScalingParam> params;
                   int remainingCoeffs = countCoeffs;
@@ -416,7 +416,7 @@ namespace imajuscule {
               }
           }
         {
-          auto c = AsyncCPUConvolution<FIRFilter<T>, PolicyOnWorkerTooSlow::Wait>{};
+          auto c = AsyncCPUConvolution<FIRFilter<T, Allocator>, PolicyOnWorkerTooSlow::Wait>{};
             std::vector<int> submisionPeriods{
                 -1, // invalid
                 0, // invalid
@@ -436,7 +436,7 @@ namespace imajuscule {
                     c.setup({
                         submisionPeriod,
                         queueSize,
-                        {}
+                        {countCoeffs}
                     });
                     testDirac2(i, c);
                 }
@@ -444,8 +444,8 @@ namespace imajuscule {
         }
         if(i<10)
         {
-          auto c = Delayed<FIRFilter<T>>{};
-          c.setup({10,{}});
+          auto c = Delayed<FIRFilter<T, Allocator>>{};
+          c.setup({10,{countCoeffs}});
           testDirac2(i, c);
         }
         /*
@@ -471,7 +471,7 @@ namespace imajuscule {
           testDirac2(i, c);
         }
         {
-          auto c = FFTConvolution<T, Tag>{};
+          auto c = FFTConvolution<T, Allocator, Tag>{};
           c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
           testDirac2(i, c);
         }
@@ -482,12 +482,13 @@ namespace imajuscule {
             int const latencyLateHandler = 2*szPartition - 1;
             int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
             int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
-            auto c = mkRealTimeConvolutionSubsampled<T, Tag>(mkNaiveScaling(1, nEarlyCoeffs),
-                                                             szPartition,
-                                                             nLateCoeffs);
+            auto c = mkRealTimeConvolutionSubsampled<T, Allocator, Tag>(countCoeffs,
+                                                                        mkNaiveScaling(1, nEarlyCoeffs),
+                                                                        szPartition,
+                                                                        nLateCoeffs);
             testDirac2(i, c);
         }
-        testDiracPartitionned<T, Tag>(i);
+        testDiracPartitionned<T, Allocator, Tag>(i);
       }
     }
   }
@@ -498,8 +499,8 @@ TEST(Convolution, dirac) {
   using namespace imajuscule::testdspconv;
   
   for_each(fft::Tags, [](auto t) {
-    testDirac<float, decltype(t)>();
-    testDirac<double, decltype(t)>();
+    testDirac<float, a64::Alloc, decltype(t)>();
+    testDirac<double, a64::Alloc, decltype(t)>();
   });
 }
 
@@ -517,7 +518,7 @@ TEST(Convolution, freq) {
   using ScopedContext = ScopedContext_<Tag, double>;
   using Algo = Algo_<Tag, double>;
   using RealSignal = typename fft::RealSignal_<Tag, double>::type;
-  using CplxFreqs = typename fft::RealFBins_<Tag, double>::type;
+  using CplxFreqs = typename fft::RealFBins_<Tag, double, a64::Alloc>::type;
   
   constexpr auto N = 8;
     constexpr int szPartition = 4;
@@ -528,9 +529,10 @@ TEST(Convolution, freq) {
     int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
 
     
-  auto c = mkRealTimeConvolutionSubsampled<double, Tag>(mkNaiveScaling(1, nEarlyCoeffs),
-                                                        szPartition,
-                                                        nLateCoeffs);
+    auto c = mkRealTimeConvolutionSubsampled<double, a64::Alloc, Tag>(countCoeffs,
+                                                                      mkNaiveScaling(1, nEarlyCoeffs),
+                                                                      szPartition,
+                                                                      nLateCoeffs);
   //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};
   //a64::vector<double> coefficients{1., 0.5, 0., -0.5, -1., -0.5, 0., 0.5};
   //a64::vector<double> coefficients{1., 0.75, 0.25, 0., -0.25, -0.5, -0.75, -1.0};
@@ -623,7 +625,7 @@ TEST(Convolution, freq) {
   fft_of_coeffs.resize(N);
   auto coeffVec = fft::RealSignal_<Tag, double>::make(coefficients);
   ASSERT_EQ(N, coeffVec.size());
-  fft_algo.forward(coeffVec.begin(), fft_of_coeffs, N);
+  fft_algo.forward(coeffVec.begin(), fft_of_coeffs.data(), N);
   auto unwrapped_fft_of_coeffs = unwrap_frequencies<Tag>(fft_of_coeffs, N);
   for(auto &e : unwrapped_fft_of_coeffs) {
     e *= 1 / Algo::scale;

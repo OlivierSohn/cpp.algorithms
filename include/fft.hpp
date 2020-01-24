@@ -51,7 +51,7 @@ namespace imajuscule {
 
             ScopedContext<FPT> scoped_context(fft_length);
             Algo<FPT> fft(scoped_context.get());
-            fft.forward(signal.begin(), result, fft_length);
+            fft.forward(signal.begin(), result.data(), fft_length);
         }
 
         template<typename T>

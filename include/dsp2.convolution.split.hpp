@@ -33,15 +33,15 @@ struct StateSplitConvolution {
         b.reset();
     }
     
-    MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<FPT> coeffs_) {
+    void setCoefficients(Algo const & algo, a64::vector<FPT> coeffs_) {
         int const split = algo.computeSplit();
 
         auto [rangeA,rangeB] = splitAt(split, coeffs_);
 
         if(rangeB.empty()) {
-            auto res = a.setCoefficients(algo.a, rangeA.materialize());
+            a.setCoefficients(algo.a, rangeA.materialize());
             b.reset();
-            return res;
+            return;
         }
 
         // prepend overlapping coefficients to b range:
@@ -53,10 +53,8 @@ struct StateSplitConvolution {
                B::Desc::nCoefficientsFadeIn);
             throw std::logic_error("cannot cross-fade the coefficients");
         }
-        auto res = a.setCoefficients(algo.a, withLinearFadeOut(B::Desc::nCoefficientsFadeIn,rangeA.materialize()));
-        auto resB = b.setCoefficients(algo.b, withLinearFadeIn(B::Desc::nCoefficientsFadeIn,rangeB.materialize()));
-        res.mergeWith(resB);
-        return res;
+        a.setCoefficients(algo.a, withLinearFadeOut(B::Desc::nCoefficientsFadeIn,rangeA.materialize()));
+        b.setCoefficients(algo.b, withLinearFadeIn(B::Desc::nCoefficientsFadeIn,rangeB.materialize()));
     }
     
     template<typename F>
@@ -121,6 +119,16 @@ struct StateSplitConvolution {
 
 template<typename A, typename B>
 struct AlgoSplitConvolution {
+    template<typename TT>
+    using Allocator = typename A::template Allocator<TT>;
+
+    // see https://stackoverflow.com/questions/38630445/stdis-same-equivalent-for-unspecialised-template-types
+    /*
+    template<typename TT>
+    using AllocatorB = typename B::template Allocator<TT>;
+    static_assert(std::is_same_v<Allocator, AllocatorB>);
+     */
+
     using FPT = typename A::FPT;
     using EarlyHandler = A;
     using LateHandler = B;
@@ -138,7 +146,7 @@ struct AlgoSplitConvolution {
         a.setup(p.a);
         b.setup(p.b);
     }
-    
+
     bool isValid() const {
         return a.isValid() && b.isValid();
     }
@@ -166,8 +174,9 @@ struct AlgoSplitConvolution {
         b.dephaseSteps(s.b, n_steps);
     }
     
+    template<template<typename> typename Allocator2>
     void step(State & s,
-              XAndFFTS<FPT, Tag> const & x_and_ffts,
+              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
         a.step(s.a,

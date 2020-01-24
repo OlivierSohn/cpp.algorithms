@@ -76,19 +76,28 @@ static inline a64::vector<double> mkCoefficientsTriangle(int sz) {
 std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
 std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
 
-template<typename T, typename FFTTag>
-auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partitionSize, int nLateCoeffs) {
-    using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, FFTTag>;
+template<typename T, template<typename> typename Allocator, typename FFTTag>
+auto mkRealTimeConvolutionSubsampled(int const countCoeffs,
+                                     std::vector<Scaling> const & v,
+                                     int partitionSize,
+                                     int nLateCoeffs) {
+    using C = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, Allocator, FFTTag>;
     using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
     
     int const n_partitions = countPartitions(nLateCoeffs, partitionSize);
     
     auto scalingParams = scalingsToParams<ScalingParam>(v);
+    int n_brute_coeffs = countCoeffs-nLateCoeffs;
+    if(!scalingParams.empty() &&
+       scalingParams.front().handlesCoefficients()) {
+        n_brute_coeffs = std::min(n_brute_coeffs,
+                                  scalingParams.front().setupParam.getImpliedLatency().toInteger());
+    }
     auto c = C{};
     c.setup(typename C::SetupParam
     {
         {
-            {},
+            {n_brute_coeffs},
             {scalingParams}
         },
         {
@@ -127,9 +136,9 @@ auto mkRealTimeConvolutionSubsampled(std::vector<Scaling> const & v, int partiti
 }
 
 
-template<typename T, typename FFTTag>
+template<typename T, template<typename> typename Allocator, typename FFTTag>
 auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize, int nLateCoeffs) {
-  using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, FFTTag>;
+  using C = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>;
   using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
 
   int const n_partitions = countPartitions(nLateCoeffs, partitionSize);
@@ -155,17 +164,17 @@ auto mkRealTimeConvolution(std::vector<Scaling> const & v, int partitionSize, in
 }
 
 
-template<typename T, typename Tag>
+template<typename T, template<typename> typename Allocator, typename Tag>
 auto mkRealTimeConvolution2(std::vector<Scaling> const & v,
                             int partitionSize,
                             int partitionCount) {
   using C = Convolution<
     AlgoSplitConvolution<
       AlgoSplitConvolution <
-          AlgoFIRFilter<T, Tag>,
-          AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Tag> >>
+          AlgoFIRFilter<T, Allocator, Tag>,
+          AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>
         >,
-      AlgoFinegrainedPartitionnedFFTConvolution<T, Tag>
+      AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>
   >>;
   using ScalingParam = typename C::SetupParam::AParam::BParam::ScalingParam;
   

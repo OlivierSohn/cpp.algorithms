@@ -70,6 +70,25 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         }
     }
     
+    MinSizeRequirement getMinSizeRequirement() const
+    {
+        std::optional<MinSizeRequirement> res;
+        for(auto const & a : scalingParams)
+        {
+            auto res2 = a.setupParam.getMinSizeRequirement();
+            if(!res) {
+                res = res2;
+            }
+            else {
+                res->mergeWith(res2);
+            }
+        }
+        if(res) {
+            return *res;
+        }
+        return {0,0,0,{}};
+    }
+
     Latency getImpliedLatency() const {
         Assert(handlesCoefficients());
         return scalingParams.begin()->setupParam.getImpliedLatency();
@@ -400,6 +419,22 @@ struct CustomScaleConvolution {
     bool isZero() const {
         return v.empty();
     }
+    
+    static int getAllocationSz_Setup(SetupParam const & p) {
+        int sz = 0;
+        for(auto const & param : p.scalingParams) {
+            sz += A::getAllocationSz_Setup(param.setupParam);
+        }
+        return sz;
+    }
+    static int getAllocationSz_SetCoefficients(SetupParam const & p) {
+        int sz = 0;
+        for(auto const & param : p.scalingParams) {
+            sz += A::getAllocationSz_SetCoefficients(param.setupParam);
+        }
+        return sz;
+    }
+    
     void setup(SetupParam const & p) {
         reset();
         v.reserve(p.scalingParams.size());

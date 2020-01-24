@@ -238,19 +238,6 @@ struct ScalingsIterator {
         return sim;
     }
     
-    template<typename T, typename Tag>
-    auto mkConvolution(std::vector<Scaling> const & v,
-                       a64::vector<T> const & coeffs) {
-        using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Tag> >>;
-        using ScalingParam = typename C::SetupParam::ScalingParam;
-        
-        auto scalingParams = scalingsToParams<ScalingParam>(v);
-        C c;
-        c.setup({scalingParams});
-        c.setCoefficients(coeffs);
-        return c;
-    }
-    
     template<typename Simu>
     double virtualCostPerSample(Simu & sim,
                                 XFFtCostFactors const & xFftCostFactors) {
@@ -421,7 +408,7 @@ struct ScalingsIterator {
                  best = {{v, virtualCost}};
              }
          });
-            Assert(best); // assert mis par curiosité pour voir dans quel cas on ne trouve pas de solution
+         Assert(best); // assert mis par curiosité pour voir dans quel cas on ne trouve pas de solution
          return best;
      }
 }

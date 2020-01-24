@@ -56,6 +56,13 @@ struct SplitSetupParam : public Cost {
             setCost(0.);
         }
     }
+    
+    MinSizeRequirement getMinSizeRequirement() const
+    {
+        auto res = a.getMinSizeRequirement();
+        res.mergeWith(b.getMinSizeRequirement());
+        return res;
+    }
 };
 
 /*

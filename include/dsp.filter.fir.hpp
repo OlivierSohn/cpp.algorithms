@@ -3,17 +3,37 @@
 namespace imajuscule
 {
 struct FIRSetupParam : public Cost {
+    FIRSetupParam(int n_coeffs)
+    : n_coeffs(n_coeffs)
+    {}
+    
     void logSubReport(std::ostream & os) const override {
-        os << "Brute" << std::endl;
+        os << "Brute " << n_coeffs << " coeffs" << std::endl;
     }
+
     constexpr bool isValid() const {
         return true;
     }
     constexpr bool handlesCoefficients() const {
-        return true;
+        return n_coeffs > 0;
     }
     
     void adjustWork(int targetNCoeffs) {
+        Assert(n_coeffs >= targetNCoeffs);
+        n_coeffs = std::min(n_coeffs, targetNCoeffs);
+
+        if(!handlesCoefficients()) {
+            setCost(0.);
+        }
+    }
+    
+    MinSizeRequirement getMinSizeRequirement() const {
+        return {
+            static_cast<int>(n_coeffs), // x block size
+            1, // y block size
+            0, // anticipated y writes
+            {}
+        };
     }
     
     constexpr Latency getImpliedLatency() const {
@@ -26,6 +46,8 @@ struct FIRSetupParam : public Cost {
     void forEachUsingSameContext(F f) const {
         f(*this);
     }
+    
+    int n_coeffs;
 };
 
   /*
@@ -33,7 +55,7 @@ struct FIRSetupParam : public Cost {
    
    Always prefer using 'OptimizedFIRFilter' which scales better with the number of coefficients.
    */
-  template<typename T>
+  template<typename T, template<typename> typename Allocator>
   struct FIRFilter {
     using FPT = T;
     static constexpr int nComputePhaseable = 0;
@@ -60,11 +82,11 @@ struct FIRSetupParam : public Cost {
       void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
       }
       
-    void setCoefficients(a64::vector<T> v) {
-      past.resize(v.size());
-        std::reverse(v.begin(), v.end());
-        reversed_coefficients = std::move(v);
-    }
+      void setCoefficients(a64::vector<T> v) {
+          past.resize(v.size());
+          std::reverse(v.begin(), v.end());
+          reversed_coefficients = std::move(v);
+      }
     
     bool handlesCoefficients() const {
         return true;
@@ -150,13 +172,13 @@ struct FIRSetupParam : public Cost {
     }
     
   private:
-    a64::vector<T> reversed_coefficients;
+    std::vector<T, Allocator<T>> reversed_coefficients;
     cyclic<T> past;
   };
 
-template<typename T>
-struct PartitionAlgo< FIRFilter<T> > {
-    using Convolution = FIRFilter<T>;
+template<typename T, template<typename> typename Allocator>
+struct PartitionAlgo< FIRFilter<T, Allocator> > {
+    using Convolution = FIRFilter<T, Allocator>;
     using SetupParam = typename Convolution::SetupParam;
     using PS = std::optional<SetupParam>;
     

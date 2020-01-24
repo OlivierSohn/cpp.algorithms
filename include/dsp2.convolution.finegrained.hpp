@@ -40,11 +40,11 @@ struct StateFinegrainedFFTConvolutionBase : public Parent {
         }
     }
     
-    MinSizeRequirement setCoefficients(Algo const & algo, a64::vector<T> coeffs_) {        
+    void setCoefficients(Algo const & algo, a64::vector<T> coeffs_) {
         reset();
         result.resize(algo.get_fft_length());
         
-        return doSetCoefficients(algo, std::move(coeffs_));
+        doSetCoefficients(algo, std::move(coeffs_));
     }
     
     template<typename F>
@@ -94,6 +94,9 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     
+    template<typename TT>
+    using Allocator = typename Parent::template Allocator<TT>;
+    
     using Parent::countPartitions;
     using Parent::countGrains;
     using Parent::do_some_multiply_add;
@@ -129,8 +132,9 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
         }
     }
 
+    template<template<typename> typename Allocator2>
     void step(State & s,
-              XAndFFTS<T, Tag> const & x_and_ffts,
+              XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
               Y<T, Tag> & y) const {
         if(s.isZero()) {
             return;
@@ -190,8 +194,9 @@ private:
         }
     }
     
+    template<template<typename> typename Allocator2>
     void doGrain(State & s,
-                 XAndFFTS<T, Tag> const & x_and_ffts,
+                 XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
                  Y<T, Tag> & y,
                  GrainType g) const
     {
@@ -240,7 +245,7 @@ private:
                 
                 auto const & ffts = x_and_ffts.find_ffts(fft_length);
                 
-                ffts.fft.inverse(s.multiply_add_result, s.result, fft_length);
+                ffts.fft.inverse(s.multiply_add_result.data(), s.result, fft_length);
                 break;
             }
         }
@@ -258,12 +263,12 @@ struct corresponding_legacy_dsp<AlgoFinegrainedFFTConvolutionBase<Parent>> {
  */
 
 
-template <typename T, typename FFTTag>
+template <typename T, template<typename> typename Allocator, typename FFTTag>
 struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP;
 
-template <typename T, typename FFTTag>
+template <typename T, template<typename> typename Allocator, typename FFTTag>
 struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
-    using Algo = AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>;
+    using Algo = AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>;
     
     using FPT = T;
     using Tag = FFTTag;
@@ -271,12 +276,10 @@ struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
-    static constexpr auto scale = fft::RealFBins_<Tag, FPT>::scale;
-    static constexpr auto multiply = fft::RealFBins_<Tag, FPT>::multiply;
-    static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
-    static constexpr auto zero = fft::RealFBins_<Tag, FPT>::zero;
+    static constexpr auto scale = fft::RealFBins_<Tag, FPT, Allocator>::scale;
+    static constexpr auto zero = fft::RealFBins_<Tag, FPT, Allocator>::zero;
 
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
+    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
     
     bool empty() const {
         return ffts_of_partitionned_h.empty();
@@ -295,8 +298,8 @@ struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
     }
 
 public:
-    MinSizeRequirement doSetCoefficients(Algo const & algo,
-                                         a64::vector<T> coeffs_)
+    void doSetCoefficients(Algo const & algo,
+                           a64::vector<T> coeffs_)
     {
         auto const fft_length = algo.get_fft_length();
         multiply_add_result.resize(fft_length);
@@ -339,7 +342,7 @@ public:
                     
                     // coeffs_slice is padded with 0, because it is bigger than partition_size
                     // and initialized with zeros.
-                    fft.forward(coeffs_slice.begin(), fft_of_partitionned_h, fft_length);
+                    fft.forward(coeffs_slice.begin(), fft_of_partitionned_h.data(), fft_length);
                     scale(fft_of_partitionned_h, factor);
                 }
             }
@@ -350,15 +353,6 @@ public:
         else {
             ffts_of_partitionned_h.clear();
         }
-        
-        return {
-            0, // x block size
-            static_cast<int>(fft_length/2), // y block size
-            static_cast<int>(fft_length/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
-            {
-                {fft_length, algo.countPartitions()}
-            }
-        };
     }
     
     void doFlushToSilence() {
@@ -392,9 +386,12 @@ public:
 };
 
 
-template <typename T, typename FFTTag>
+template <typename T, template<typename> typename Alloc, typename FFTTag>
 struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
-    using State = StateFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>;
+    template<typename TT>
+    using Allocator = Alloc<TT>;
+    
+    using State = StateFinegrainedPartitionnedFFTConvolutionCRTP<T, Alloc, FFTTag>;
     
     using FPT = T;
     using Tag = FFTTag;
@@ -404,10 +401,7 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT>::type;
-
-    static constexpr auto multiply = fft::RealFBins_<Tag, FPT>::multiply;
-    static constexpr auto multiply_add = fft::RealFBins_<Tag, FPT>::multiply_add;
+    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
 
     void setup(SetupParam const & p) {
         assert(p.partition_size == 0 || is_power_of_two(p.partition_size));
@@ -418,7 +412,6 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
 
         setMultiplicationGroupLength(p.multiplication_group_size);
     }
-
     auto get_fft_length() const { return 2 * partition_size; }
     
     auto getBlockSize() const { return partition_size; }
@@ -485,8 +478,9 @@ public:
     int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
     
 protected:
+    template<template<typename> typename Allocator2>
     void do_some_multiply_add(State & s,
-                              typename XAndFFTS<T, Tag>::FFTs const & ffts) const {
+                              FFTs<T, Allocator2, Tag> const & ffts) const {
         auto const M = getMultiplicationsGroupMaxSize();
         auto const offset_base = M * (s.grain_number - 1);
         assert(offset_base >= 0);
@@ -495,14 +489,14 @@ protected:
         int offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
         int offset = offset_base;
         if(offset == 0) {
-            multiply(s.multiply_add_result /* = */,
-                     ffts.get_by_age(0), /* x */ s.ffts_of_partitionned_h[0]);
+            fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result /* = */,
+                                                           ffts.get_by_age(0), /* x */ s.ffts_of_partitionned_h[0]);
             offset = 1;
         }
         for(; offset != offset_end; ++offset)
         {
-            multiply_add(s.multiply_add_result /* += */,
-                         ffts.get_by_age(offset), /* x  */ s.ffts_of_partitionned_h[offset]);
+            fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(s.multiply_add_result /* += */,
+                                                               ffts.get_by_age(offset), /* x  */ s.ffts_of_partitionned_h[offset]);
         }
     }
     
@@ -527,13 +521,14 @@ private:
     }
 };
 
-template <typename T, typename FFTTag>
-struct corresponding_legacy_dsp<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>> {
-    using type = FinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag>;
+template <typename T, template<typename> typename Allocator, typename FFTTag>
+struct corresponding_legacy_dsp<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>> {
+    using type = FinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>;
 };
 
 
-template <typename T, typename FFTTag>
-using AlgoFinegrainedPartitionnedFFTConvolution = AlgoFinegrainedFFTConvolutionBase< AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, FFTTag> >;
+template <typename T, template<typename> typename Allocator, typename FFTTag>
+using AlgoFinegrainedPartitionnedFFTConvolution =
+AlgoFinegrainedFFTConvolutionBase< AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >;
 
 }

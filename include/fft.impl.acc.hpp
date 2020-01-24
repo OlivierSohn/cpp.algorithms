@@ -89,11 +89,12 @@ namespace imajuscule {
          and the nyquist frequency (real) is encoded in the 0th index imag.
          cf. packing here : https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html
          */
-        template<typename T>
+        template<typename T, template<typename> typename A>
         struct RealFBinsImpl {
             using SC = accelerate::SplitComplex<T>;
 
             using value_type = T;
+            using allocator_type = A<T>;
 
             RealFBinsImpl() = default;
 
@@ -113,6 +114,13 @@ namespace imajuscule {
             auto vector_size() const {
                 return buffer.size() / 2;
             }
+            
+            auto data() {
+                return buffer.data();
+            }
+            auto data() const {
+                return buffer.data();
+            }
 
             auto get_hybrid_split() {
                 Assert(buffer.size() >= 2);
@@ -126,7 +134,7 @@ namespace imajuscule {
             }
 
         private:
-            a64::vector<T> buffer;
+            std::vector<T, allocator_type> buffer;
         };
 
         template<typename ComplexSplit>
@@ -135,11 +143,11 @@ namespace imajuscule {
             ++cs.imagp;
         }
 
-        template<typename T>
-        struct RealFBins_<accelerate::Tag, T> {
-            using This = RealFBins_<accelerate::Tag, T>;
+        template<typename T, template<typename> typename Allocator>
+        struct RealFBins_<accelerate::Tag, T, Allocator> {
+            using This = RealFBins_<accelerate::Tag, T, Allocator>;
             using Tag = accelerate::Tag;
-            using type = RealFBinsImpl<T>;
+            using type = RealFBinsImpl<T, Allocator>;
 
             // this is slow, it is used for tests only
             static type make(std::vector<complex<T>> const & cplx) {
@@ -208,11 +216,15 @@ namespace imajuscule {
                                              v.vector_size());
             }
             
-            static void multiply(type & res, type const & const_m1, type const & const_m2) {
+            template<typename TR, typename T1, typename T2>
+            static void multiply(TR & res,
+                                 T1 const & const_m1,
+                                 T2 const & const_m2)
+            {
                 // res = m1 * m2
 
-                auto & m1 = const_cast<type &>(const_m1);
-                auto & m2 = const_cast<type &>(const_m2);
+                auto & m1 = const_cast<T1 &>(const_m1);
+                auto & m2 = const_cast<T2 &>(const_m2);
 
                 auto Res = res.get_hybrid_split();
                 auto M1 = m1.get_hybrid_split();
@@ -238,11 +250,14 @@ namespace imajuscule {
                 }
             }
 
-            static void multiply_add(type & accum, type const & const_m1, type const & const_m2) {
+            template<typename TR, typename T1, typename T2>
+            static void multiply_add(TR & accum,
+                                     T1 const & const_m1,
+                                     T2 const & const_m2) {
                 // accum += m1 * m2
 
-                auto & m1 = const_cast<type &>(const_m1);
-                auto & m2 = const_cast<type &>(const_m2);
+                auto & m1 = const_cast<T1 &>(const_m1);
+                auto & m2 = const_cast<T2 &>(const_m2);
 
                 auto Accum = accum.get_hybrid_split();
                 auto M1 = m1.get_hybrid_split();
@@ -345,12 +360,14 @@ namespace imajuscule {
 
             using FPT = T;
             using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
-            using RealFBins  = typename RealFBins_<accelerate::Tag, T>::type;
+            
+            template<template<typename> typename Allocator>
+            using RealFBins  = typename RealFBins_<accelerate::Tag, T, Allocator>::type;
+            
             using Context    = typename Context_   <accelerate::Tag, T>::type;
             using Contexts = fft::Contexts_<accelerate::Tag, T>;
             using Tr = NumTraits<T>;
 
-            // scaling factor of 2 :
             // https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html#//apple_ref/doc/uid/TP40005147-CH202-16195
             static constexpr auto scale = Tr::two();
 
@@ -362,11 +379,14 @@ namespace imajuscule {
             }
 
           void forward(typename RealInput::const_iterator inputBegin,
-                         RealFBins & output,
+                         T * output,
                          unsigned int N) const
             {
                 using namespace accelerate;
-                auto Output = output.get_hybrid_split();
+                SplitComplex<T> Output {
+                    output,
+                    output + N/2
+                };
 
                 constexpr auto inputStride = 1;
                 API<T>::f_ctoz(reinterpret_cast<Complex<T> const *>(inputBegin.base()),
@@ -400,13 +420,16 @@ namespace imajuscule {
                 }
             }
 
-            void inverse(RealFBins const & const_output,
+            void inverse(T const * const_output,
                          RealInput & input,
                          unsigned int N) const
             {
                 using namespace accelerate;
 
-                auto Output = const_cast<RealFBins &>(const_output).get_hybrid_split();
+                SplitComplex<T> Output {
+                    const_cast<T*>(const_output),
+                    const_cast<T*>(const_output + N/2)
+                };
 
                 if constexpr (ffttype == FFTType::WithTmpBuffer) {
                     auto & buffer = getFFTTmp();
@@ -497,8 +520,8 @@ namespace imajuscule {
             template<typename T>
             using RealInput = typename RealSignal_<Tag, T>::type;
 
-            template<typename T>
-            using RealFBins = typename RealFBins_<Tag, T>::type;
+            template<typename T, template<typename> typename Allocator>
+            using RealFBins = typename RealFBins_<Tag, T, Allocator>::type;
 
             template<typename T>
             using Context = typename Context_<Tag, T>::type;

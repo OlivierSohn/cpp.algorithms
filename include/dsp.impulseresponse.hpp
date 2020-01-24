@@ -99,7 +99,7 @@ public:
       
       using Contexts = fft::Contexts_<Tag, T>;
       using Algo = Algo_<Tag, T>;
-      using CplxFreqs = typename fft::RealFBins_<Tag, T>::type;
+      using CplxFreqs = typename fft::RealFBins_<Tag, T, a64::Alloc>::type;
       
       auto N = ceil_power_of_two(v.size());
       
@@ -110,7 +110,7 @@ public:
       auto coeffVec = fft::RealSignal_<Tag, T>::make(v);
       coeffVec.resize(N);
       Assert(N == coeffVec.size());
-      fft_algo.forward(coeffVec.begin(), fft_of_coeffs, N);
+      fft_algo.forward(coeffVec.begin(), fft_of_coeffs.data(), N);
       auto unwrapped_fft_of_coeffs = unwrap_frequencies<Tag>(fft_of_coeffs, N);
       for(auto &e : unwrapped_fft_of_coeffs) {
         e *= 1 / Algo::scale;

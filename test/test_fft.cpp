@@ -118,14 +118,14 @@ namespace imajuscule {
             ASSERT_NEAR(scale * 0, res[7].imag(), ffteps);
         }
 
-        template<typename Tag, typename T>
+        template<typename Tag, typename T, template<typename> typename Allocator>
         void testForwardFFT() {
             using namespace imajuscule;
             using namespace imajuscule::fft;
             using namespace imajuscule::testfft;
 
             using RealInput = typename RealSignal_<Tag, T>::type;
-            using RealFBins = typename RealFBins_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T, Allocator>::type;
             using Context   = typename Context_<Tag, T>::type;
             using ScopedContext = ScopedContext_<Tag, T>;
             using Algo = Algo_<Tag, T>;
@@ -144,25 +144,25 @@ namespace imajuscule {
 
             Algo fft_algo(setup.get());
             
-            fft_algo.forward(input.begin(), output, N);
+            fft_algo.forward(input.begin(), output.data(), N);
             
             { verifyFrequencies<Tag, T>(output, N); }
         }
         
-        template<typename Tag>
+        template<typename Tag, template<typename> typename Allocator>
         void testForwardFFT() {
-            testForwardFFT<Tag, float>();
-            testForwardFFT<Tag, double>();
+            testForwardFFT<Tag, float, Allocator>();
+            testForwardFFT<Tag, double, Allocator>();
         }
         
-        template<typename Tag, typename T>
+        template<typename Tag, typename T, template<typename> typename Allocator>
         void testInverseFFT() {
             using namespace imajuscule;
             using namespace imajuscule::fft;
             using namespace imajuscule::testfft;
             
             using RealInput = typename RealSignal_<Tag, T>::type;
-            using RealFBins = typename RealFBins_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T, Allocator>::type;
             using Context   = typename Context_<Tag, T>::type;
             using ScopedContext = ScopedContext_<Tag, T>;
             using Algo = Algo_<Tag, T>;
@@ -181,11 +181,11 @@ namespace imajuscule {
             
             Algo fft_algo(setup.get());
             
-            fft_algo.forward(input.begin(), output, N);
+            fft_algo.forward(input.begin(), output.data(), N);
             
             { verifyFrequencies<Tag, T>(output, N); }
             
-            fft_algo.inverse(output, reconstructed_input, N);
+            fft_algo.inverse(output.data(), reconstructed_input, N);
             
             for(auto & v : reconstructed_input) {
                 v *= 1/(Algo::scale * static_cast<T>(N));
@@ -195,7 +195,7 @@ namespace imajuscule {
             
         }
         
-        template<typename Tag, typename T>
+        template<typename Tag, typename T, template<typename> typename Allocator>
         void testInverseFFT2() {
             using namespace imajuscule;
             using namespace imajuscule::fft;
@@ -203,7 +203,7 @@ namespace imajuscule {
             
             using RealInputT = RealSignal_<Tag, T>;
             using RealInput = typename RealSignal_<Tag, T>::type;
-            using RealFBins = typename RealFBins_<Tag, T>::type;
+            using RealFBins = typename RealFBins_<Tag, T, Allocator>::type;
             using Context   = typename Context_<Tag, T>::type;
             using ScopedContext = ScopedContext_<Tag, T>;
             using Algo = Algo_<Tag, T>;
@@ -221,9 +221,9 @@ namespace imajuscule {
             
             Algo fft_algo(setup.get());
             
-            fft_algo.forward(input.begin(), output, N);
+            fft_algo.forward(input.begin(), output.data(), N);
             
-            fft_algo.inverse(output, reconstructed_input, N);
+            fft_algo.inverse(output.data(), reconstructed_input, N);
             
             for(auto & v : reconstructed_input) {
                 v *= 1/(Algo::scale * static_cast<T>(N));
@@ -233,12 +233,12 @@ namespace imajuscule {
             
         }
         
-        template<typename Tag>
+        template<typename Tag, template<typename> typename Allocator>
         void testInverseFFT() {
-            testInverseFFT<Tag, float>();
-            testInverseFFT<Tag, double>();
-            testInverseFFT2<Tag, float>();
-            testInverseFFT2<Tag, double>();
+            testInverseFFT<Tag, float, Allocator>();
+            testInverseFFT<Tag, double, Allocator>();
+            testInverseFFT2<Tag, float, Allocator>();
+            testInverseFFT2<Tag, double, Allocator>();
         }
     }
 }
@@ -249,7 +249,7 @@ TEST(FFT, forward_correctness) {
     using namespace imajuscule::testfft;
     
     for_each(fft::Tags, [](auto t) {
-        testForwardFFT<decltype(t)>();
+        testForwardFFT<decltype(t), a64::Alloc>();
     });
 }
 
@@ -258,7 +258,7 @@ TEST(FFT, inverse_correctness) {
     using namespace imajuscule::testfft;
     
     for_each(fft::Tags, [](auto t) {
-        testInverseFFT<decltype(t)>();
+        testInverseFFT<decltype(t), a64::Alloc>();
     });
 }
 

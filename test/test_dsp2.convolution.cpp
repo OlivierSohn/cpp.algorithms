@@ -223,7 +223,7 @@ namespace imajuscule {
           }
           // produce expected output using brute force convolution
           {
-            FIRFilter<T> filter;
+            FIRFilter<T, a64::Alloc> filter;
             filter.setCoefficients(coefficients);
             if(filter.handlesCoefficients()) {
               EXPECT_EQ(0, filter.getLatency().toInteger());
@@ -276,7 +276,7 @@ namespace imajuscule {
       End
     };
     
-    template<typename T, typename Tag>
+    template<typename T, template<typename> typename Allocator, typename Tag>
     void testDiracFinegrainedPartitionned(int coeffs_index) {
       auto f = [](int part_size, auto & coefficients)
       {
@@ -284,7 +284,7 @@ namespace imajuscule {
             type != TestFinegrained::End;
             increment(type))
         {
-          Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>> conv;
+          Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>> conv;
           auto const n_partitions = imajuscule::countPartitions(coefficients.size(), part_size);
           
           conv.setup({
@@ -323,11 +323,11 @@ namespace imajuscule {
       testPartitionned<T>(coeffs_index, f);
     }
 
-  template<typename T, typename Tag>
+  template<typename T, template<typename> typename Allocator, typename Tag>
   void testDiracPartitionned(int coeffs_index) {
 
       auto f = [](int part_size, auto & coefficients){
-          Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>> conv;
+          Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>> conv;
           
           conv.setup({
               part_size,
@@ -353,57 +353,36 @@ namespace imajuscule {
       
       test(conv, makeCoefficients<T>(coeffs_index));
     }
-    
-    template<typename T, typename Tag>
-    void testDirac() {
+  
+  template<typename T, template<typename> typename Allocator, typename Tag>
+  void testDirac() {
       using namespace fft;
-        int end = end_index;
-        if constexpr (!std::is_same_v<Tag, fft::Fastest>) {
-            --end;
-        }
+      int end = end_index;
+      if constexpr (!std::is_same_v<Tag, fft::Fastest>) {
+          --end;
+      }
       for(int i=-1; i<end; ++i) {
           LG(INFO,"index %d", i);
-        int const countCoeffs = makeCoefficients<T>(i).size();
-        testDiracFinegrainedPartitionned<T, Tag>(i);
-        testDiracPartitionned<T, Tag>(i);
-
-        if(i<10)
-        {
-          auto c = Convolution<AlgoFIRFilter<T, Tag>>{};
-          testDirac2(i, c);
-        }
+          int const countCoeffs = makeCoefficients<T>(i).size();
+           testDiracFinegrainedPartitionned<T, Allocator, Tag>(i);
+           testDiracPartitionned<T, Allocator, Tag>(i);
+          
+          if(i<10)
           {
-            auto c = Convolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Tag>>>{};
-            c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
-            testDirac2(i, c);
+              auto c = Convolution<AlgoFIRFilter<T, Allocator, Tag>>{};
+              c.setup({countCoeffs});
+              testDirac2(i, c);
           }
           {
-              auto c = Convolution<AlgoSplitConvolution<
-              AlgoFIRFilter<T, Tag>,
-              AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Tag>>>>{};
-              int candidateSzBlock = ceil_power_of_two(countCoeffs);
-              int szBlock;
-              bool valid = true;
-              do {
-                  szBlock = candidateSzBlock;
-                  int latency = szBlock-1;
-                  candidateSzBlock = ceil_power_of_two(szBlock-latency);
-                  if(candidateSzBlock + latency < countCoeffs) {
-                      valid = false;
-                      break;
-                  }
-              } while(candidateSzBlock != szBlock);
-
-              if(valid) {
-                  c.setup({{},{static_cast<int>(szBlock)}});
-                  testDirac2(i, c);
-              }
+              auto c = Convolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Allocator, Tag>>>{};
+              c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
+              testDirac2(i, c);
           }
           for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
               partition_sz <= ceil_power_of_two(countCoeffs);
               partition_sz *= 2)
           {
-            auto c = Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>{};
+            auto c = Convolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>{};
             c.setup({
                 partition_sz,
                 countPartitions(countCoeffs, partition_sz)
@@ -415,7 +394,7 @@ namespace imajuscule {
               partition_sz <= ceil_power_of_two(countCoeffs);
               partition_sz *= 2)
           {
-              auto c = Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>>{};
+              auto c = Convolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>{};
               auto const n_partitions = imajuscule::countPartitions(countCoeffs, partition_sz);
               
               c.setup({
@@ -428,7 +407,7 @@ namespace imajuscule {
           }
           
           for(int firstSz=1; firstSz <= 32; firstSz *= 2) {
-              auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Tag>>>>{};
+              auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Allocator, Tag>>>>{};
               using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
               std::vector<ScalingParam> params;
               int remainingCoeffs = countCoeffs;
@@ -452,7 +431,7 @@ namespace imajuscule {
           // same as above but with some PartitionnedFFTConvolutionCRTP
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
-                  auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>>{};
+                  auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
                   std::vector<ScalingParam> params;
                   int remainingCoeffs = countCoeffs;
@@ -479,7 +458,7 @@ namespace imajuscule {
           // same as above but skipping one scale out of 2
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
-                  auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>>{};
+                  auto c = Convolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>>{};
                   using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
                   std::vector<ScalingParam> params;
                   int remainingCoeffs = countCoeffs;
@@ -507,8 +486,8 @@ namespace imajuscule {
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
                   auto c = Convolution<AlgoSplitConvolution<
-                  AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Tag>>>,
-                  AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Tag>>
+                  AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>,
+                  AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>
                   >>{};
                   using ScalingParam = typename decltype(c)::SetupParam::AParam::ScalingParam;
                   std::vector<ScalingParam> paramsFull;
@@ -558,7 +537,7 @@ namespace imajuscule {
               }
           }
         {
-          auto c = Convolution<AlgoAsyncCPUConvolution<AlgoFIRFilter<T, Tag>, PolicyOnWorkerTooSlow::Wait>>{};
+          auto c = Convolution<AlgoAsyncCPUConvolution<AlgoFIRFilter<T, Allocator, Tag>, PolicyOnWorkerTooSlow::Wait>>{};
             std::vector<int> submisionPeriods{
                 -1, // invalid
                 0, // invalid
@@ -578,7 +557,7 @@ namespace imajuscule {
                     c.setup({
                         submisionPeriod,
                         queueSize,
-                        {}
+                        {countCoeffs}
                     });
                     testDirac2(i, c);
                 }
@@ -594,7 +573,7 @@ TEST(Convolution2, dirac) {
   using namespace imajuscule::testdsp2conv;
   
   for_each(fft::Tags, [](auto t) {
-    testDirac<float, decltype(t)>();
-    testDirac<double, decltype(t)>();
+    testDirac<float, a64::Alloc, decltype(t)>();
+    testDirac<double, a64::Alloc, decltype(t)>();
   });
 }

@@ -97,6 +97,9 @@ struct alignas(alignment) Aligned {
     template <typename T, Alignment Align>
     class AlignedAllocator
     {
+        static_assert(std::alignment_of_v<T>
+                      <=
+                      static_cast<std::underlying_type<Alignment>::type>(Align));
     public:
         typedef T         value_type;
         typedef T*        pointer;

@@ -851,7 +851,7 @@ TEST(ConvolutionScale, simulateBatch) {
 
     using namespace imajuscule;
 
-    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<double, fft::Fastest> >>;
+    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<double, a64::Alloc, fft::Fastest> >>;
 
     int const firstSz = 4;
     int const nCoeffs = 4545;

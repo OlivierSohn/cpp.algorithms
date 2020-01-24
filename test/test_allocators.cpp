@@ -65,7 +65,7 @@ void testAdaptiveStack () {
     testAdaptiveStack<Niter, Nalloc, std::pair<const float, uint16_t>>();
 }
 
-void testAdaptiveStack() {
+void testAdaptiveStack(void) {
     testAdaptiveStack<10000, 1>();
     testAdaptiveStack<5000, 2>();
     testAdaptiveStack<2000, 4>();
@@ -153,3 +153,72 @@ TEST(AlignedAllocator, alignment) {
     
 }
 
+TEST(MonotonicAllocator, adresses)
+{
+    using namespace imajuscule;
+    
+    using base_allocator = AlignedAllocator<double, Alignment::PAGE>;
+
+    using vector =
+    monotonic::vector<base_allocator>;
+    
+    using monotonic_buffer =
+    MonotonicBuffer<base_allocator>;
+    
+    using use_monotonic_buffer =
+    UseMonotonicBuffer<base_allocator>;
+    
+    {
+        monotonic_buffer mb(2);
+
+        vector v1;
+        ASSERT_THROW(v1.resize(1),
+                     std::runtime_error);
+        
+        {
+            use_monotonic_buffer u(mb);
+            v1.resize(1);
+        }
+        vector v2;
+        ASSERT_THROW(v2.resize(1),
+                     std::runtime_error);
+        {
+            use_monotonic_buffer u(mb);
+            v2.resize(1);
+            
+            ASSERT_THROW(v2.resize(2),
+                         std::runtime_error);
+        }
+        ASSERT_EQ(&v1[0] + 1,
+                  &v2[0]);
+        ASSERT_EQ(0,
+                  mb.remaining());
+    }
+    
+    
+    {
+        monotonic_buffer mbA(2);
+        monotonic_buffer mbB(2);
+
+        vector v1, v2, v3, v4;
+        
+        {
+            use_monotonic_buffer u(mbA);
+            v1.resize(1);
+            {
+                use_monotonic_buffer u(mbB);
+                v3.resize(1);
+                v4.resize(1);
+            }
+            v2.resize(1);
+        }
+        ASSERT_EQ(&v1[0] + 1,
+                  &v2[0]);
+        ASSERT_EQ(&v3[0] + 1,
+                  &v4[0]);
+        ASSERT_EQ(0,
+                  mbA.remaining());
+        ASSERT_EQ(0,
+                  mbB.remaining());
+    }
+}

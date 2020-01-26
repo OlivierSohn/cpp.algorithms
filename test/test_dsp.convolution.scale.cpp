@@ -854,7 +854,7 @@ TEST(ConvolutionScale, simulateBatch) {
     using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<double, a64::Alloc, fft::Fastest> >>;
 
     int const firstSz = 4;
-    int const nCoeffs = 4545;
+    int const nCoeffs = 454;
     ScalingsIterator it{
         firstSz,
         nCoeffs

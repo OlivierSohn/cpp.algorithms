@@ -293,6 +293,7 @@
 		09CC0D712340F77E00D2F1AC /* c.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = c.h; path = include/c.h; sourceTree = "<group>"; };
 		09CC0D722340F77F00D2F1AC /* samples.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = samples.h; path = include/samples.h; sourceTree = "<group>"; };
 		09CC0D732340F77F00D2F1AC /* read.wav.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = read.wav.h; path = include/read.wav.h; sourceTree = "<group>"; };
+		09CF356723D905BE00732BE8 /* allocator.monotonic.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = allocator.monotonic.hpp; path = include/allocator.monotonic.hpp; sourceTree = "<group>"; };
 		09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.subsampled.hpp; path = include/dsp.subsampled.hpp; sourceTree = "<group>"; };
 		09D0464C217A675D00A00F70 /* dsp.delayed.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.delayed.hpp; path = include/dsp.delayed.hpp; sourceTree = "<group>"; };
 		09D0464E217F27B700A00F70 /* smooth.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = smooth.hpp; path = include/smooth.hpp; sourceTree = "<group>"; };
@@ -573,6 +574,7 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
+				09CF356723D905BE00732BE8 /* allocator.monotonic.hpp */,
 				097E14E923D2270500E1D06A /* dsp.types.hpp */,
 				097E14E823CDB26700E1D06A /* dsp2.correspondances.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
@@ -863,10 +865,9 @@
 			};
 			buildConfigurationList = 09EF8EA11DB3E6A300DC7342 /* Build configuration list for PBXProject "algorithms" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				English,
 				en,
 			);
 			mainGroup = 09EF8E9D1DB3E6A300DC7342;

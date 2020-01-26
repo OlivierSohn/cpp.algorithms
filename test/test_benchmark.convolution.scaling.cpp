@@ -37,7 +37,7 @@ auto mkConvolution(std::vector<Scaling> const & v,
     }
     
     if constexpr (MemRsc::limited) {
-        std::cout << "mem monotonic " << memory->used() << std::endl;
+        //std::cout << "mem monotonic " << memory->used() << std::endl;
         Assert(0 == memory->remaining());
         // else we should fix getAllocationSz_Setup / getAllocationSz_SetCoefficients
     }
@@ -161,9 +161,8 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
             firstSz,
             static_cast<int>(coeffs.size())
         }.forEachScaling([model, &coeffs, &count, &results, &factors, &sideEffect](auto const & v){
-            displayScalingNumerically(v, std::cout);
-            std::cout << std::endl;
-/*            if(v.size() != 1) {
+            //displayScalingNumerically(v, std::cout); std::cout << std::endl;
+            /*if(v.size() != 1) {
                 return;
             }*/
             switch(model) {
@@ -223,8 +222,9 @@ void smallTest(void) {
                 costmodel = CostModel::RealSimulation;
                 break;
             case 2 :
+                continue;/*
                 std::cout << "real cache flushes" << std::endl;
-                costmodel = CostModel::RealSimulationCacheFlushes;
+                costmodel = CostModel::RealSimulationCacheFlushes;*/
                 break;
         }
         XFFtCostFactors factors;
@@ -236,17 +236,55 @@ void smallTest(void) {
                                                      factors,
                                                      sideEffect);
         
-        /*            std::cout << std::endl << "hs 1024 -> 0" << std::endl;
-         factors.setMultiplicator(1024,0.f);
-         analyzeSimulated<double, fft::Fastest>(64, 1984, costmodel, factors, sideEffect);
-         */
+        std::cout << std::endl << "hs 1024 -> 0" << std::endl;
+        factors.setMultiplicator(1024,0.f);
+        analyzeSimulated<T, Allocator, fft::Fastest>(scale*64,
+                                                     scale*1984,
+                                                     costmodel,
+                                                     factors,
+                                                     sideEffect);
     }
     std::cout << "sideEffect " << sideEffect << std::endl;
+}
+template<typename T>
+void printCosts(int const sz) {
+    using namespace fft;
+    using Tag = Fastest;
+    using RealSignalCosts = RealSignalCosts<Tag, T>;
+    using RealFBinsCosts = RealFBinsCosts<Tag, T>;
+    using AlgoCosts = AlgoCosts<Tag, T>;
+    
+    int const fft_length = 2*sz;
+    
+    std::cout << "- for size " << sz << std::endl;
+
+    std::cout << "RealSignalCosts::cost_add_scalar_multiply " << RealSignalCosts::cost_add_scalar_multiply(sz) << std::endl;
+
+    std::cout << "RealSignalCosts::cost_copy " << RealSignalCosts::cost_copy(sz) << std::endl;
+
+    std::cout << "RealSignalCosts::cost_zero_n_raw " << RealSignalCosts::cost_zero_n_raw(sz) << std::endl;
+
+    std::cout << "RealFBinsCosts::cost_mult_assign " << RealFBinsCosts::cost_mult_assign(sz) << std::endl;
+
+    std::cout << "RealFBinsCosts::cost_multiply " << RealFBinsCosts::cost_multiply(sz) << std::endl;
+
+    std::cout << "RealFBinsCosts::cost_multiply_add " << RealFBinsCosts::cost_multiply_add(sz) << std::endl;
+
+    std::cout << "AlgoCosts::cost_fft_inverse " << AlgoCosts::cost_fft_inverse(fft_length) << std::endl;
+
+    std::cout << "AlgoCosts::cost_fft_forward " << AlgoCosts::cost_fft_forward(fft_length) << std::endl;
 }
 } // NS imajuscule
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
+    /*
+    printCosts<double>(64);
+    printCosts<double>(128);
+    printCosts<double>(256);
+    printCosts<double>(512);
+    printCosts<double>(1024);
+     */
     smallTest<double, monotonic::aP::Alloc>();
     smallTest<double, a64::Alloc>();
     findCheapest<float, a64::Alloc>();

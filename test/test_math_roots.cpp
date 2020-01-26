@@ -223,10 +223,11 @@ TEST(MathRoots, find_roots) {
     using namespace imajuscule::audio;
     {
         auto constexpr maxX = 512.;
-        auto res = findSincCurvatureChanges(0., maxX);
-        for(auto r:res) {
+        auto sinc_curvature_changes = findSincCurvatureChanges(0., maxX);
+        /*
+        for(auto r:sinc_curvature_changes) {
             std::cout << r << std::endl;
-        }
+        }*/
         
         std::vector<double> precisions {
             10., 1.,
@@ -237,10 +238,10 @@ TEST(MathRoots, find_roots) {
         };
         
         for(auto precision : precisions) {
-            std::cout << "with precision " << precision << std::endl;
+            //std::cout << "with precision " << precision << std::endl;
 
-            NonUniformSampler nus(fSinc<double>, findSincCurvatureChanges(0., maxX), precision);
-            std::cout << "ok" << std::endl;
+            NonUniformSampler nus(fSinc<double>, sinc_curvature_changes, precision);
+            //std::cout << "ok" << std::endl;
             auto const & exactValues = nus.getExactValues();
             auto minIt = exactValues.cbegin();
 
@@ -276,9 +277,9 @@ TEST(MathRoots, find_roots) {
                     }
                 }
             }
-            std::cout << " max error: " << maxError << std::endl;
-            std::cout << " num samples: " << exactValues.size() << std::endl;
-            std::cout << " gap between samples (min, avg, max) : " << minGap << " " << maxX / exactValues.size() << " " << maxGap << std::endl;
+            //std::cout << " max error: " << maxError << std::endl;
+            //std::cout << " num samples: " << exactValues.size() << std::endl;
+            //std::cout << " gap between samples (min, avg, max) : " << minGap << " " << maxX / exactValues.size() << " " << maxGap << std::endl;
         }
         
     }
@@ -286,7 +287,7 @@ TEST(MathRoots, find_roots) {
     constexpr auto numSamples = 10000000;
     using namespace std::chrono;
     using namespace profiling;
-    {
+    /*{
         std::optional<CpuDuration> dt;
         double sum=0;
         std::cout << "sinc" << std::endl;
@@ -387,7 +388,7 @@ TEST(MathRoots, find_roots) {
         }
         std::cout << sum << std::endl;
         std::cout << dt->count()/1000.f << " ms" << std::endl;
-    }
+    }*/
     {
         auto linear = [](double x) { return 2*x+1; };
         

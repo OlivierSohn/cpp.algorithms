@@ -1,127 +1,158 @@
 namespace imajuscule::fft {
     
+    struct CallCost {
+        using MeasureCall = std::function<profiling::CpuDuration(int64_t, int64_t, double &)>;
+        
+        CallCost(MeasureCall m)
+        : measure_call(m)
+        {}
+        
+        double operator ()(int64_t const sz) {
+            if(!sz) {
+                return 0.;
+            }
+            std::lock_guard<std::mutex> l(mut);
+            
+            auto it = stats.find(sz);
+            if(it != stats.end()) {
+                return it->second;
+            }
+            double const t = forceTiming(sz);
+            stats[sz] = t;
+            return t;
+        }
+
+        double forceTiming(int64_t const sz) const
+        {
+            constexpr int minMicroSeconds = 4;
+            int64_t ntests = 1;
+            // We have a timing granularity of 1 micro second, so we double the number of tests
+            // until the timing is well-bigger than the granularity
+            std::optional<double> minT;
+            double sideEffect = 0.;
+start_again:
+            for(int i=0; i<4; ++i) {
+                auto microseconds = measure_call(sz, ntests, sideEffect).count();
+                if(microseconds < minMicroSeconds) {
+                    ntests *= 2;
+                    minT.reset();
+                    goto start_again;
+                }
+                double localTPerTest = microseconds / (1000000. * static_cast<double>(ntests));
+                if(i==0) {
+                    // don't use the timing, it was just to warm up the cache
+                    continue;
+                }
+                minT = minT ? std::min(*minT,localTPerTest) : localTPerTest;
+            }
+            return *minT + std::min(std::abs(sideEffect), 0.000000000001);
+        }
+        
+    private:
+        std::unordered_map<int, double> stats;
+        std::mutex mut;
+        
+        MeasureCall measure_call;
+    };
+    
     template<typename Tag, typename T>
     struct RealSignalCosts {
         using Impl = RealSignal_<Tag, T>;
         using type = typename Impl::type;
         using value_type = typename type::value_type;
 
-        static double cost_add_scalar_multiply(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
+        inline static CallCost cost_add_scalar_multiply { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::array<type, 3>> va;
+            va.resize(ntests);
+            double d = 1.;
+            for(auto & a:va)
+            {
+                for(auto & v:a) {
+                    v.resize(sz,
+                             value_type{static_cast<T>(d)});
+                    ++d;
+                }
+            }
             
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
-            }
-            double t = nocache_cost_add_scalar_multiply(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static double nocache_cost_add_scalar_multiply(int64_t sz) {
-            std::array<type, 3> a;
-            for(auto & v:a) {
-                v.resize(sz, value_type{1.});
-            }
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
             using namespace profiling;
-            auto duration = measure_thread_cpu_one([&a, sz, ntests](){
-                std::array<int, 3> idx {0,1,2};
-                
-                for(int i=0; i<ntests; i++) {
-                    Impl::add_scalar_multiply(a[idx[0]].begin(),
-                                              a[idx[1]].begin(),
-                                              a[idx[2]].begin(),
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & a:va) {
+                    Impl::add_scalar_multiply(a[0].begin(),
+                                              a[1].begin(),
+                                              a[2].begin(),
                                               0.7,
                                               sz);
-                    std::rotate(idx.begin(),
-                                idx.begin()+1,
-                                idx.end());
                 }
             });
-            using std::abs; // so that abs can be std::abs or imajuscule::abs (for complex)
-            T avg = abs(std::accumulate(a[2].begin(), a[2].end(), value_type{})) / static_cast<T>(a[2].size());
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), avg));
-        }
-        
-
-        static double cost_copy(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
-            
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
+            for(auto & a:va)
+            {
+                using std::abs; // so that abs can be std::abs or imajuscule::abs (for complex)
+                sideEffect += abs(std::accumulate(a[0].begin(),
+                                                  a[0].end(),
+                                                  value_type{})) / static_cast<T>(a[0].size());
             }
-            double t = nocache_cost_copy(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_copy(int64_t sz) {
-            std::array<type, 2> a;
+            return duration;
+        }};
+        
+        inline static CallCost cost_copy { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::array<type, 2>> va;
+            va.resize(ntests);
             {
                 int i=0;
-                for(auto & v:a) {
-                    ++i;
-                    v.resize(sz, value_type{static_cast<T>(i)});
+                for(auto & a : va)
+                {
+                    for(auto & v:a) {
+                        ++i;
+                        v.resize(sz, value_type{static_cast<T>(i)});
+                    }
                 }
             }
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
             using namespace profiling;
-            auto duration = measure_thread_cpu_one([&a, sz, ntests](){
-                std::array<int, 3> idx {0,1};
-                for(int i=0; i<ntests; i++) {
-                    Impl::copy(a[idx[0]].begin(),
-                               a[idx[1]].begin(),
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & a : va) {
+                    Impl::copy(a[0].begin(),
+                               a[1].begin(),
                                sz);
-                    std::rotate(idx.begin(),
-                                idx.begin()+1,
-                                idx.end());
                 }
             });
             using std::abs;
-            T avg = abs(std::accumulate(a[1].begin(), a[1].end(), value_type{})) / static_cast<T>(a[1].size());
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), avg));
-        }
-
-        static double cost_zero_n_raw(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
-            
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
+            for(auto & a : va)
+            {
+                sideEffect += abs(std::accumulate(a[0].begin(),
+                                                  a[0].end(),
+                                                  value_type{})) / static_cast<T>(a[0].size());
             }
-            double t = nocache_cost_zero_n_raw(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_zero_n_raw(int64_t sz) {
-            type a;
-            a.resize(sz, value_type(1.));
+            return duration;
+        }};
+
+        inline static CallCost cost_zero_n_raw { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<type> va;
+            va.resize(ntests);
+            for(auto & a:va) {
+                a.resize(sz, value_type(1.));
+            }
             
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
+            for(auto & a:va) {
+                using std::abs;
+                sideEffect += abs(a[0]);
+            }
+            
             using namespace profiling;
-            T sum = 0;
-            auto duration = measure_thread_cpu_one([&sum, &a, sz, ntests](){
-                for(int i=0; i<ntests; i++) {
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & a : va) {
                     Impl::zero_n_raw(&a[0], sz);
-                    if(sz) {
-                        a[sz-1] += value_type(1.);
-                        using std::abs;
-                        sum += abs(a[sz-1]);
-                    }
                 }
             });
-            sum = std::abs(sum);
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), sum));
-        }
+            
+            for(auto & a:va) {
+                using std::abs;
+                sideEffect += abs(a[sz-1]);
+            }
+            return duration;
+        }};
         
     };
     
@@ -138,125 +169,85 @@ namespace imajuscule::fft {
         static constexpr auto getFirstReal = Impl::getFirstReal;
         static constexpr auto setFirstReal = Impl::setFirstReal;
 
-        static double cost_mult_assign(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
-            
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
-            }
-            double t = nocache_cost_mult_assign(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_mult_assign(int64_t sz) {
-            std::array<type, 2> a;
+        inline static CallCost cost_mult_assign { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::array<type, 2>> va;
+            va.resize(ntests);
             int i=0;
-            for(auto & v:a) {
-                ++i;
-                v.resize(sz);
-                setFirstReal(v, static_cast<T>(i));
+            for(auto & a:va) {
+                for(auto & v:a) {
+                    ++i;
+                    v.resize(sz);
+                    setFirstReal(v, static_cast<T>(i));
+                }
             }
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
             using namespace profiling;
-            auto duration = measure_thread_cpu_one([&a, sz, ntests](){
-                for(int i=0; i<ntests; ++i) {
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & a:va) {
                     Impl::mult_assign(a[0],
                                       a[1]);
                 }
             });
-            T sum = std::abs(getFirstReal(a[0]));
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), sum));
-        }
+            for(auto & a:va) {
+                sideEffect += getFirstReal(a[0]);
+            }
+            return duration;
+        }};
         
-        static double cost_multiply(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
-            
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
+        inline static CallCost cost_multiply { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::array<type, 3>> va;
+            va.resize(ntests);
+            for(auto & a:va) {
+                int i=0;
+                for(auto & v:a) {
+                    ++i;
+                    v.resize(sz);
+                    setFirstReal(v, static_cast<T>(i));
+                }
             }
-            double t = nocache_cost_multiply(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_multiply(int64_t sz) {
-            std::array<type, 3> a;
-            int i=0;
-            for(auto & v:a) {
-                ++i;
-                v.resize(sz);
-                setFirstReal(v, static_cast<T>(i));
-            }
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
             using namespace profiling;
-            auto duration = measure_thread_cpu_one([&a, sz, ntests](){
-                std::array<int, 3> idx {0,1,2};
-                for(int i=0; i<ntests; ++i) {
-                    Impl::multiply(a[idx[0]],
-                                   a[idx[1]],
-                                   a[idx[2]]);
-
-                    std::rotate(idx.begin(),
-                                idx.begin()+1,
-                                idx.end());
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & a:va) {
+                    Impl::multiply(a[0],
+                                   a[1],
+                                   a[2]);
                 }
             });
-            T sum {};
-            for(auto const & aa:a) {
-                sum += getFirstReal(aa);
+            for(auto & a:va) {
+                sideEffect += getFirstReal(a[0]);
             }
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), std::abs(sum)));
-        }
+            return duration;
+        }};
         
-        static double cost_multiply_add(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
+        inline static CallCost cost_multiply_add { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::array<type, 3>> va;
+            va.resize(ntests);
+            {
+                int i=0;
+                for(auto & a:va) {
+                    for(auto & v:a) {
+                        ++i;
+                        v.resize(sz);
+                        setFirstReal(v, static_cast<T>(i));
+                    }
+                }
+            }
             
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
-            }
-            double t = nocache_cost_multiply_add(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_multiply_add(int64_t sz) {
-            std::array<type, 3> a;
-            int i=0;
-            for(auto & v:a) {
-                ++i;
-                v.resize(sz);
-                setFirstReal(v, static_cast<T>(i));
-            }
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
             using namespace profiling;
-            auto duration = measure_thread_cpu_one([&a, sz, ntests](){
-                std::array<int, 3> idx {0,1,2};
-                for(int i=0; i<ntests; ++i) {
-                    Impl::multiply_add(a[idx[0]],
-                                       a[idx[1]],
-                                       a[idx[2]]);
-
-                    std::rotate(idx.begin(),
-                                idx.begin()+1,
-                                idx.end());
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&va](){
+                for(auto & a:va) {
+                    Impl::multiply_add(a[0],
+                                       a[1],
+                                       a[2]);
                 }
             });
-            T sum {};
-            for(auto const & aa:a) {
-                sum += getFirstReal(aa);
+
+            for(auto & a:va) {
+                sideEffect += getFirstReal(a[0]);
             }
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), std::abs(sum)));
-        }
+            return duration;
+        }};
     };
     
     template<typename Tag, typename T>
@@ -276,84 +267,76 @@ namespace imajuscule::fft {
         static constexpr auto setFirstReal = RealFBins::setFirstReal;
         static constexpr auto getFirstReal = RealFBins::getFirstReal;
 
-        static double cost_fft_inverse(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
-            
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
-            }
-            double t = nocache_cost_fft_inverse(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_fft_inverse(int64_t sz) {
-            if(sz == 0) {
-                return 0.;
-            }
-            RealFBins_t f;
-            RealInput input;
-            f.resize(sz);
-            input.resize(sz);
+        inline static CallCost cost_fft_inverse { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            Assert(sz);
             Algo a(Contexts::getInstance().getBySize(sz));
 
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
+            std::vector<RealInput> vinput;
+            vinput.resize(ntests);
+            for(auto &input:vinput) {
+                input.resize(sz);
+            }
 
-            using namespace profiling;
-            T sum = 0;
-            auto duration = measure_thread_cpu_one([&sum, &a, &f, &input, sz, ntests](){
-                for(int i=0; i<ntests; ++i) {
+            std::vector<RealFBins_t> vf;
+            vf.resize(ntests);
+            {
+                int i=1;
+                for(auto & f:vf) {
+                    f.resize(sz);
                     setFirstReal(f, static_cast<T>(i));
-                    a.inverse(f.data(), input, sz);
-                    using std::abs;
-                    sum += abs(input[0]);
+                    ++i;
                 }
-            });
-            sum = std::abs(sum);
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), sum));
-        }
-                    
-        static double cost_fft_forward(int64_t sz) {
-            static std::unordered_map<int, double> stats;
-            static std::mutex mut;
-            std::lock_guard<std::mutex> l(mut);
-            
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
             }
-            double t = nocache_cost_fft_forward(sz);
-            stats[sz] = t;
-            return t;
-        }
-        static auto nocache_cost_fft_forward(int64_t sz) {
-            if(sz == 0) {
-                return 0.;
-            }
-            RealFBins_t f;
-            RealInput input;
-            f.resize(sz);
-            input.resize(sz);
-            Algo a(Contexts::getInstance().getBySize(sz));
-            
-            int64_t ntests = std::max(static_cast<int64_t>(1),
-                                      10000 / sz);
 
             using namespace profiling;
-            T sum = 0;
-            auto duration = measure_thread_cpu_one([&sum, &a, &f, &input, sz, ntests](){
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&a, &vf, &vinput, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
-                    input[0] = typename decltype(input)::value_type(static_cast<T>(i));
-                    a.forward(input.begin(), f.data(), sz);
-                    sum += getFirstReal(f);
+                    a.inverse(vf[i].data(), vinput[i], sz);
                 }
             });
-            sum = std::abs(sum);
-            return duration.count() / (1000000. * static_cast<double>(ntests) + std::min(static_cast<T>(0.000001), sum));
-        }
+            
+            for(auto &input:vinput) {
+                using std::abs;
+                sideEffect += abs(input[0]);
+            }
+            return duration;
+        }};
+                    
+        inline static CallCost cost_fft_forward { [](int64_t sz, int64_t ntests, double & sideEffect) {
+            Assert(sz);
+            Algo a(Contexts::getInstance().getBySize(sz));
+
+            std::vector<RealFBins_t> vf;
+            vf.resize(ntests);
+            for(auto & f:vf) {
+                f.resize(sz);
+            }
+            
+            std::vector<RealInput> vinput;
+            vinput.resize(ntests);
+            {
+                int i=1;
+                for(auto & input:vinput) {
+                    input.resize(sz);
+                    input[0] = typename RealInput::value_type(static_cast<T>(i));
+                    ++i;
+                }
+            }
+
+            using namespace profiling;
+            CachePolluter flushCpuCaches(sideEffect);
+            auto duration = measure_thread_cpu_one([&a, &vf, &vinput, sz, ntests](){
+                for(int i=0; i<ntests; ++i) {
+                    a.forward(vinput[i].begin(), vf[i].data(), sz);
+                }
+            });
+            
+            for(auto &f:vf) {
+                sideEffect += getFirstReal(f);
+            }
+            return duration;
+        }};
     };
 } // NS imajuscule::fft
 

@@ -42,9 +42,14 @@ namespace imajuscule
         CachePolluter(T & dummySum)
         : dummySum(dummySum)
         {
-            // L3 cache size on my machine:
+            // cache sizes on my machine:
 
+            /*
+             The fft (and other) costs measured after flushing caches (including L3) yield to the best approximation of real costs.
+             */
             constexpr int64_t l3_cache_size = 4194304;
+            constexpr int64_t l2_cache_size = 262144;
+            constexpr int64_t l1_cache_size = 32768;
             
             // https://software.intel.com/en-us/forums/software-tuning-performance-optimization-platform-monitoring/topic/744272:
             //
@@ -60,16 +65,12 @@ namespace imajuscule
             std::iota(pollution.begin(), pollution.end(),
                       0);
 
-            std::shuffle(pollution.begin(), pollution.end(),
-                         lagged_fibonacci<SEEDED::No>() // "fast"
-                         );
+            // to reduce the likelyhood that the compiler optimizes the vector away:
+            std::swap(pollution[0], pollution[sz-1]);
         }
 
         void operator()()
         {
-            // the order in which we read the elements matters,
-            // and values depend on random numbers so the compiler
-            // can't optimize away.
             for(auto val : pollution) {
                 if(val & 8) {
                     dummySum *= 2;
@@ -82,7 +83,7 @@ namespace imajuscule
         
     private:
         T & dummySum;
-        std::vector<int> pollution;
+        std::vector<uint8_t> pollution;
     };
     
     template<typename Iterator, typename T = typename Iterator::value_type>

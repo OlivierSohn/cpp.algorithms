@@ -64,6 +64,10 @@ struct FFTs {
             zero(fft);
         }
     }
+    
+    int size() const {
+        return ffts.size();
+    }
 private:
     cyclic<FBins> ffts;
 };
@@ -212,6 +216,16 @@ struct XAndFFTS {
         }
         throw std::runtime_error("fft not found");
     }
+
+    void logComputeState(std::ostream & os) const {
+        os << "x size:" << x.size() <<  " unpadded:" << x_unpadded_size << " progress:" << progress << std::endl;
+        
+        os << "ffts: ";
+        for(auto const & f:x_ffts) {
+            os << f.size() << "x" << f.fft_length << " ";
+        }
+        os << std::endl;
+    }
 private:
     
     void reset_states() {
@@ -270,6 +284,11 @@ struct Y {
         }
     }
 
+    void logComputeState(std::ostream & os) const {
+        os << "y size " << ySz << std::endl;
+        os << "y progress " << uProgress << std::endl;
+    }
+    
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal y;
     uint32_t uProgress = 0;
@@ -302,6 +321,11 @@ struct DspContext {
             x_and_ffts.push(0);
             y.increment();
         }
+    }
+    
+    void logComputeState(std::ostream & os) const {
+        x_and_ffts.logComputeState(os);
+        y.logComputeState(os);
     }
 };
 
@@ -403,6 +427,7 @@ struct Convolution {
         return state.getEpsilon(algo);
     }
     void logComputeState(std::ostream & os) const {
+        ctxt.logComputeState(os);
         os << "phase: ";
         auto per = getPhasePeriod();
         if(per) {

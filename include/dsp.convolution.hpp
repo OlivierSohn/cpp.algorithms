@@ -8,11 +8,6 @@ namespace imajuscule
         using Parent::doSetCoefficientsCount;
         static constexpr bool has_subsampling = false;
 
-        static constexpr auto cost_copy = fft::RealSignalCosts<FFTTag, FPT>::cost_copy;
-        static constexpr auto cost_add_scalar_multiply = fft::RealSignalCosts<FFTTag, FPT>::cost_add_scalar_multiply;
-        static constexpr auto cost_fft_forward = fft::AlgoCosts<FFTTag, FPT>::cost_fft_forward;
-        static constexpr auto cost_fft_inverse = fft::AlgoCosts<FFTTag, FPT>::cost_fft_inverse;
-
         using Parent::cost_compute_convolution;
         using Parent::get_fft_length;
         using Parent::getBlockSize;
@@ -34,13 +29,13 @@ namespace imajuscule
             if(unlikely(!majorCostExceptXForwardFft)) {
                 majorCostExceptXForwardFft =
                 cost_compute_convolution() + // assuming that cost_compute_convolution is CONSTANT;
-                cost_fft_inverse(get_fft_length()) +
-                cost_add_scalar_multiply(getBlockSize()) +
-                cost_copy(getBlockSize()) +
+                fft::AlgoCosts<FFTTag, FPT>::cost_fft_inverse(get_fft_length()) +
+                fft::RealSignalCosts<FFTTag, FPT>::cost_add_scalar_multiply(getBlockSize()) +
+                fft::RealSignalCosts<FFTTag, FPT>::cost_copy(getBlockSize()) +
                 costReadNConsecutive<FPT>(1);
             }
             if(unlikely(!costXForwardFft)) {
-                costXForwardFft = cost_fft_forward(get_fft_length());
+                costXForwardFft = fft::AlgoCosts<FFTTag, FPT>::cost_fft_forward(get_fft_length());
             }
             //LG(INFO, "*:%f fft: %f", *majorCostExceptXForwardFft, *costXForwardFft);
             return
@@ -290,15 +285,13 @@ struct FFTConvolutionCRTPSimulation {
     using FPT = T;
     using FFTTag = Tag;
     
-    static constexpr auto cost_mult_assign = fft::RealFBinsCosts<Tag, FPT>::cost_mult_assign;
-
     void doSetCoefficientsCount(int64_t szCoeffs) {
         fft_length = get_fft_length(szCoeffs);
         N = fft_length/2;
     }
 
     double cost_compute_convolution() {
-        return cost_mult_assign(get_fft_length());
+        return fft::RealFBinsCosts<Tag, FPT>::cost_mult_assign(get_fft_length());
     }
     
     static auto get_fft_length(int n) {
@@ -504,7 +497,7 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
     }
 
     void logSubReport(std::ostream & os) const {
-        os << "partition_sz : " << partition_size << std::endl;
+        os << partition_count << " partition(s) of size " << partition_size << std::endl;
     }
 };
 
@@ -513,9 +506,6 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
     using SetupParam = PartitionnedFFTConvolutionCRTPSetupParam;
     using FPT = T;
     using FFTTag = Tag;
-
-    static constexpr auto cost_multiply     = fft::RealFBinsCosts<Tag, FPT>::cost_multiply;
-    static constexpr auto cost_multiply_add = fft::RealFBinsCosts<Tag, FPT>::cost_multiply_add;
 
     void setup(SetupParam const & p) {
       partition_size = p.partition_size;
@@ -532,8 +522,8 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
     {
         double cost = 0.;
         if(n_partitions) {
-            cost += cost_multiply(get_fft_length());
-            cost += (n_partitions-1) * cost_multiply_add(get_fft_length());
+            cost += fft::RealFBinsCosts<Tag, FPT>::cost_multiply(get_fft_length());
+            cost += (n_partitions-1) * fft::RealFBinsCosts<Tag, FPT>::cost_multiply_add(get_fft_length());
         }
         return cost;
     }

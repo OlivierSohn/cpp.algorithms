@@ -97,7 +97,6 @@ namespace imajuscule
                 // we went too far
                 if(!decreasing_direction) {
                     if(first_param == param) {
-                      LG(INFO,"the first parameter passed is out of range");
                       return first_param;
                     }
                     // we want to go away from where we are

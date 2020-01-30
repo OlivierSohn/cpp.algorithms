@@ -1,8 +1,37 @@
 namespace imajuscule::fft {
-    
+
+    template<typename M, typename F>
+    void forwardPass(M & stats, F f) {
+        auto it1 = stats.begin();
+        if(it1 == stats.end()) {
+            return;
+        }
+        
+        for(auto it2 = std::next(it1);
+            it2 != stats.end();
+            ++it1, ++it2) {
+            f(it1, it2);
+        }
+    }
+    template<typename M, typename F>
+    void backwardPass(M & stats, F f) {
+        auto it1 = stats.rbegin();
+        if(it1 == stats.rend()) {
+            return;
+        }
+        
+        for(auto it2 = std::next(it1);
+            it2 != stats.rend();
+            ++it1, ++it2) {
+            f(it2, it1);
+        }
+    }
+
     struct CallCost {
         using MeasureCall = std::function<profiling::CpuDuration(int64_t, int64_t, double &)>;
         
+        static constexpr int maxAggregateSize = 10;
+
         CallCost(MeasureCall m)
         : measure_call(m)
         {}
@@ -13,25 +42,155 @@ namespace imajuscule::fft {
             }
             std::lock_guard<std::mutex> l(mut);
             
-            auto it = stats.find(sz);
-            if(it != stats.end()) {
-                return it->second;
+            addMeasures(sz);
+            return stats[sz].average();
+        }
+        
+        struct Measure {
+            double time_by_test;
+            int ntests;
+        };
+        
+        struct AggregatedMeasure {
+            void include(Measure m) {
+                measures.push_back(m);
+                avg = computeAvg();
             }
-            double const t = forceTiming(sz);
-            stats[sz] = t;
-            return t;
+            double average() const {
+                return avg;
+            }
+            int size() const {
+                return measures.size();
+            }
+        private:
+            double avg;
+            std::vector<Measure> measures;
+            double computeAvg() const {
+                double avg = 0.;
+                for(auto const & m:measures)
+                {
+                    avg += m.time_by_test;
+                }
+                return avg/measures.size();
+            }
+        };
+
+        template<typename F>
+        void forEachCost(F f) const {
+            std::lock_guard<std::mutex> l(mut);
+            for(auto const & [sz, cost] : stats) {
+                f(sz, cost);
+            }
+        }
+        
+        void clear() {
+            std::lock_guard<std::mutex> l(mut);
+            stats.clear();
+        }
+        
+    private:
+        std::map<int, AggregatedMeasure> stats;
+        mutable std::mutex mut;
+        
+        MeasureCall measure_call;
+
+        /*
+         if the user asked for sz 8, we will automatically add sz 4, 8, 16.
+         
+         and if sz 128 and 256 are already existing,
+         we will also add sz 32 and 64.
+         
+         Then we will (for some iterations, see maxAggregateSize)
+         redo the measurements so as to try to enforce the monotonicity constraint.
+         */
+        void addMeasures(int const sz) {
+            Assert(sz);
+            if(0==stats.count(sz)) {
+                stats[sz].include(forceTiming(sz));
+            }
+            auto it = stats.upper_bound(sz);
+            
+            // We want to have at least one measure every power of 2 on contiguous powers of 2.
+            
+            // We fill the gaps upward
+            {
+                int nextSz = ceil_power_of_two(sz+1);
+                if(it != stats.end()) {
+                    int const nextSzExisting = it->first;
+                    while(nextSz < nextSzExisting) {
+                        stats[nextSz].include(forceTiming(nextSz));
+                        nextSz *= 2;
+                    }
+                }
+                else {
+                    stats[nextSz].include(forceTiming(nextSz));
+                }
+            }
+            // We fill the gaps downward
+            {
+                int prevSz = floor_power_of_two(sz-1);
+                if(!stats.empty() && it != stats.begin()) {
+                    --it;
+                    int const prevSzExisting = it->first;
+                    while(prevSz && (prevSz > prevSzExisting)) {
+                        stats[prevSz].include(forceTiming(prevSz));
+                        prevSz /= 2;
+                    }
+                }
+                else if(prevSz) {
+                    stats[prevSz].include(forceTiming(prevSz));
+                }
+            }
+            
+            enforceMonotonicConstraint();
+        }
+        
+        void enforceMonotonicConstraint()
+        {
+            while(true)
+            {
+                bool stable = true;
+                backwardPass(stats,[this, &stable](auto it1, auto it2){
+                    if(it1->second.size() >= maxAggregateSize) {
+                        return;
+                    }
+                    if(it1->second.average() > it2->second.average()) {
+                        // assume the measure of higher size is right
+                        it1->second.include(forceTiming(it1->first));
+                        stable = false;
+                    }
+                });
+                forwardPass(stats,[this, &stable](auto it1, auto it2){
+                    if(it2->second.size() >= maxAggregateSize) {
+                        return;
+                    }
+                    if(it1->second.average() > it2->second.average()) {
+                        // assume the measure of lower size is right
+                        it2->second.include(forceTiming(it2->first));
+                        stable = false;
+                    }
+                });
+                if(stable) {
+                    return;
+                }
+            }
         }
 
-        double forceTiming(int64_t const sz) const
+        Measure forceTiming(int64_t const sz) const
         {
-            constexpr int minMicroSeconds = 4;
-            int64_t ntests = 1;
+            constexpr int minMicroSeconds = 2;
+            int ntests = 1;
             // We have a timing granularity of 1 micro second, so we double the number of tests
             // until the timing is well-bigger than the granularity
             std::optional<double> minT;
             double sideEffect = 0.;
-start_again:
-            for(int i=0; i<4; ++i) {
+            constexpr int nDropped = 1; // to warm-up the cache
+            constexpr int nUsed = 3;
+            constexpr int nTests = nDropped + nUsed;
+            
+        start_again:
+
+            for(int i=0; i<nTests; ++i) {
                 auto microseconds = measure_call(sz, ntests, sideEffect).count();
                 if(microseconds < minMicroSeconds) {
                     ntests *= 2;
@@ -45,14 +204,11 @@ start_again:
                 }
                 minT = minT ? std::min(*minT,localTPerTest) : localTPerTest;
             }
-            return *minT + std::min(std::abs(sideEffect), 0.000000000001);
+            return {
+                *minT + std::min(std::abs(sideEffect), 0.000000000001),
+                ntests
+            };
         }
-        
-    private:
-        std::unordered_map<int, double> stats;
-        std::mutex mut;
-        
-        MeasureCall measure_call;
     };
     
     template<typename Tag, typename T>

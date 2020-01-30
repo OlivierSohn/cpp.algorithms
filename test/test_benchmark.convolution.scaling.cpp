@@ -223,8 +223,8 @@ void smallTest(void) {
                 break;
             case 2 :
                 continue;/*
-                std::cout << "real cache flushes" << std::endl;
-                costmodel = CostModel::RealSimulationCacheFlushes;*/
+                          std::cout << "real cache flushes" << std::endl;
+                          costmodel = CostModel::RealSimulationCacheFlushes;*/
                 break;
         }
         XFFtCostFactors factors;
@@ -246,49 +246,103 @@ void smallTest(void) {
     }
     std::cout << "sideEffect " << sideEffect << std::endl;
 }
-template<typename T>
-void printCosts(int const sz) {
+
+template<typename T, typename F>
+void forEachCost(F f) {
     using namespace fft;
+    //using Tag = imj::Tag;
     using Tag = Fastest;
     using RealSignalCosts = RealSignalCosts<Tag, T>;
     using RealFBinsCosts = RealFBinsCosts<Tag, T>;
     using AlgoCosts = AlgoCosts<Tag, T>;
-    
-    int const fft_length = 2*sz;
+
+    f("RealSignalCosts::cost_add_scalar_multiply ",
+      RealSignalCosts::cost_add_scalar_multiply);
+    f("RealSignalCosts::cost_copy ",
+      RealSignalCosts::cost_copy);
+    f("RealSignalCosts::cost_zero_n_raw ",
+      RealSignalCosts::cost_zero_n_raw);
+    f("RealFBinsCosts::cost_mult_assign ",
+      RealFBinsCosts::cost_mult_assign);
+    f("RealFBinsCosts::cost_multiply ",
+      RealFBinsCosts::cost_multiply);
+    f("RealFBinsCosts::cost_multiply_add ",
+      RealFBinsCosts::cost_multiply_add);
+    f("AlgoCosts::cost_fft_forward ",
+      AlgoCosts::cost_fft_forward);
+    f("AlgoCosts::cost_fft_inverse ",
+      AlgoCosts::cost_fft_inverse);
+}
+
+template<typename T>
+void printCosts(int const sz) {
     
     std::cout << "- for size " << sz << std::endl;
-
-    std::cout << "RealSignalCosts::cost_add_scalar_multiply " << RealSignalCosts::cost_add_scalar_multiply(sz) << std::endl;
-
-    std::cout << "RealSignalCosts::cost_copy " << RealSignalCosts::cost_copy(sz) << std::endl;
-
-    std::cout << "RealSignalCosts::cost_zero_n_raw " << RealSignalCosts::cost_zero_n_raw(sz) << std::endl;
-
-    std::cout << "RealFBinsCosts::cost_mult_assign " << RealFBinsCosts::cost_mult_assign(sz) << std::endl;
-
-    std::cout << "RealFBinsCosts::cost_multiply " << RealFBinsCosts::cost_multiply(sz) << std::endl;
-
-    std::cout << "RealFBinsCosts::cost_multiply_add " << RealFBinsCosts::cost_multiply_add(sz) << std::endl;
-
-    std::cout << "AlgoCosts::cost_fft_inverse " << AlgoCosts::cost_fft_inverse(fft_length) << std::endl;
-
-    std::cout << "AlgoCosts::cost_fft_forward " << AlgoCosts::cost_fft_forward(fft_length) << std::endl;
+    forEachCost<T>([sz](std::string const & name,
+                        auto & cost){
+        std::cout << name << " " << cost(sz) << std::endl;
+    });
 }
+
+template<typename T>
+void analyzeCostsCoherence(int const szBegin,
+                           int const szEnd)
+{
+    forEachCost<T>([szBegin, szEnd](std::string const & name,
+                                    auto & cost){
+        std::cout << name << std::endl;
+        for(int i=0; i<2; ++i) {
+            cost.clear();
+            int n=0;
+            for(auto sz = szBegin; sz <= szEnd; sz*=2) {
+                cost(sz);
+                ++n;
+            }
+            std::vector<double> costs;
+            costs.reserve(n);
+            //std::vector<int> ntests;
+            //ntests.reserve(n);
+            cost.forEachCost([&costs/*, &ntests*/](int sz, auto const & m){
+                //            std::cout << sz << " \t" << m.ntests << " " << m.time_by_test << std::endl;
+                costs.emplace_back(m.average());
+                //ntests.emplace_back(m.ntests);
+            });
+            StringPlot plot(20, costs.size());
+            plot.drawLog(costs, '+');
+            plot.log();
+            /*
+            for(auto n:ntests) {
+                if(n==1) {
+                    std::cout << " ";
+                }
+                else {
+                    std::cout << n;
+                }
+            }
+            std::cout << std::endl;
+             */
+        }
+        
+    });
+    
+}
+
 } // NS imajuscule
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
+    analyzeCostsCoherence<double>(1, 40000);
     /*
     printCosts<double>(64);
     printCosts<double>(128);
     printCosts<double>(256);
     printCosts<double>(512);
     printCosts<double>(1024);
-     */
     smallTest<double, monotonic::aP::Alloc>();
     smallTest<double, a64::Alloc>();
     findCheapest<float, a64::Alloc>();
     findCheapest<double, a64::Alloc>();
+    */
 }
 
 namespace imajuscule {

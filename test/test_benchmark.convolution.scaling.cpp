@@ -304,7 +304,7 @@ void analyzeCostsCoherence(int const szBegin,
             //ntests.reserve(n);
             cost.forEachCost([&costs/*, &ntests*/](int sz, auto const & m){
                 //            std::cout << sz << " \t" << m.ntests << " " << m.time_by_test << std::endl;
-                costs.emplace_back(m.average());
+                costs.emplace_back(m.minimum());
                 //ntests.emplace_back(m.ntests);
             });
             StringPlot plot(20, costs.size());
@@ -331,18 +331,18 @@ void analyzeCostsCoherence(int const szBegin,
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
-    analyzeCostsCoherence<double>(1, 40000);
     /*
+    analyzeCostsCoherence<double>(1, 40000);
     printCosts<double>(64);
     printCosts<double>(128);
     printCosts<double>(256);
     printCosts<double>(512);
     printCosts<double>(1024);
+     */
     smallTest<double, monotonic::aP::Alloc>();
     smallTest<double, a64::Alloc>();
     findCheapest<float, a64::Alloc>();
     findCheapest<double, a64::Alloc>();
-    */
 }
 
 namespace imajuscule {

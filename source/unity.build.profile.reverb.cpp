@@ -406,7 +406,6 @@ void testCostsReadWrites3() {
     v.resize(Max);
 
     int sideEffect = 0;
-    CachePolluter flushCpuCaches(sideEffect);
 
     std::vector<int> indexes;
     indexes.reserve(Max);
@@ -428,7 +427,7 @@ void testCostsReadWrites3() {
         
         for(int k=0; k<2; ++k)
         {
-            flushCpuCaches();
+            polluteCache(sideEffect);
             loadInCache(indexes.begin(), indexes.end(), sideEffect);
             
             auto duration = measure_thread_cpu_one([&v, &indexes, &sideEffect, i](){

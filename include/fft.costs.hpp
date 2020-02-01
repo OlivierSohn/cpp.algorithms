@@ -28,10 +28,18 @@ namespace imajuscule::fft {
     }
 
     struct CallCost {
-        using MeasureCall = std::function<profiling::CpuDuration(int64_t, int64_t, double &)>;
-        
-        static constexpr int maxAggregateSize = 10;
+        using MeasureCall = std::function<profiling::CpuDuration(std::function<void(double&)>, int64_t, int64_t, double &)>;
 
+    private:
+        /*
+         The count of measurements is in the interval :
+         [nConstecutiveMeasures, nConstecutiveMeasures * maxAggregateSize]
+         */
+        static constexpr int nConstecutiveMeasures = 3;
+        static constexpr int maxAggregateSize = 4;
+
+    public:
+        
         CallCost(MeasureCall m)
         : measure_call(m)
         {}
@@ -43,7 +51,7 @@ namespace imajuscule::fft {
             std::lock_guard<std::mutex> l(mut);
             
             addMeasures(sz);
-            return stats[sz].average();
+            return stats[sz].minimum();
         }
         
         struct Measure {
@@ -54,24 +62,26 @@ namespace imajuscule::fft {
         struct AggregatedMeasure {
             void include(Measure m) {
                 measures.push_back(m);
-                avg = computeAvg();
+                min_ = computeMin();
             }
-            double average() const {
-                return avg;
+            double minimum() const {
+                return min_;
             }
             int size() const {
                 return measures.size();
             }
         private:
-            double avg;
+            double min_;
             std::vector<Measure> measures;
-            double computeAvg() const {
-                double avg = 0.;
-                for(auto const & m:measures)
+            double computeMin() const {
+                std::optional<double> m;
+                for(auto const & me:measures)
                 {
-                    avg += m.time_by_test;
+                    if(!m || *m > me.time_by_test) {
+                        m = me.time_by_test;
+                    }
                 }
-                return avg/measures.size();
+                return *m;
             }
         };
 
@@ -154,7 +164,7 @@ namespace imajuscule::fft {
                     if(it1->second.size() >= maxAggregateSize) {
                         return;
                     }
-                    if(it1->second.average() > it2->second.average()) {
+                    if(it1->second.minimum() > it2->second.minimum()) {
                         // assume the measure of higher size is right
                         it1->second.include(forceTiming(it1->first));
                         stable = false;
@@ -164,7 +174,7 @@ namespace imajuscule::fft {
                     if(it2->second.size() >= maxAggregateSize) {
                         return;
                     }
-                    if(it1->second.average() > it2->second.average()) {
+                    if(it1->second.minimum() > it2->second.minimum()) {
                         // assume the measure of lower size is right
                         it2->second.include(forceTiming(it2->first));
                         stable = false;
@@ -184,24 +194,25 @@ namespace imajuscule::fft {
             // until the timing is well-bigger than the granularity
             std::optional<double> minT;
             double sideEffect = 0.;
-            constexpr int nDropped = 1; // to warm-up the cache
-            constexpr int nUsed = 3;
-            constexpr int nTests = nDropped + nUsed;
+
+            // to make sure there will be no hard page fault during the test,
+            // we run the test (but we don't need to flush caches)
+            measure_call({},
+                         sz, ntests, sideEffect);
             
         start_again:
 
-            for(int i=0; i<nTests; ++i) {
-                auto microseconds = measure_call(sz, ntests, sideEffect).count();
+            for(int i=0; i<nConstecutiveMeasures; ++i) {
+                using namespace profiling;
+                
+                auto microseconds = measure_call([](double & se){ polluteCache(se); },
+                                                 sz, ntests, sideEffect).count();
                 if(microseconds < minMicroSeconds) {
                     ntests *= 2;
                     minT.reset();
                     goto start_again;
                 }
                 double localTPerTest = microseconds / (1000000. * static_cast<double>(ntests));
-                if(i==0) {
-                    // don't use the timing, it was just to warm up the cache
-                    continue;
-                }
                 minT = minT ? std::min(*minT,localTPerTest) : localTPerTest;
             }
             return {
@@ -217,7 +228,8 @@ namespace imajuscule::fft {
         using type = typename Impl::type;
         using value_type = typename type::value_type;
 
-        inline static CallCost cost_add_scalar_multiply { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_add_scalar_multiply { [](std::function<void(double&)> fBeforeMeasure,
+                                                             int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 3>> va;
             va.resize(ntests);
             double d = 1.;
@@ -231,7 +243,9 @@ namespace imajuscule::fft {
             }
             
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
                     Impl::add_scalar_multiply(a[0].begin(),
@@ -251,7 +265,8 @@ namespace imajuscule::fft {
             return duration;
         }};
         
-        inline static CallCost cost_copy { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_copy { [](std::function<void(double&)> fBeforeMeasure,
+                                              int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 2>> va;
             va.resize(ntests);
             {
@@ -265,7 +280,9 @@ namespace imajuscule::fft {
                 }
             }
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a : va) {
                     Impl::copy(a[0].begin(),
@@ -273,9 +290,9 @@ namespace imajuscule::fft {
                                sz);
                 }
             });
-            using std::abs;
             for(auto & a : va)
             {
+                using std::abs;
                 sideEffect += abs(std::accumulate(a[0].begin(),
                                                   a[0].end(),
                                                   value_type{})) / static_cast<T>(a[0].size());
@@ -283,7 +300,8 @@ namespace imajuscule::fft {
             return duration;
         }};
 
-        inline static CallCost cost_zero_n_raw { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_zero_n_raw { [](std::function<void(double&)> fBeforeMeasure,
+                                                    int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<type> va;
             va.resize(ntests);
             for(auto & a:va) {
@@ -296,7 +314,9 @@ namespace imajuscule::fft {
             }
             
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a : va) {
                     Impl::zero_n_raw(&a[0], sz);
@@ -325,7 +345,8 @@ namespace imajuscule::fft {
         static constexpr auto getFirstReal = Impl::getFirstReal;
         static constexpr auto setFirstReal = Impl::setFirstReal;
 
-        inline static CallCost cost_mult_assign { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_mult_assign { [](std::function<void(double&)> fBeforeMeasure,
+                                                     int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 2>> va;
             va.resize(ntests);
             int i=0;
@@ -337,7 +358,9 @@ namespace imajuscule::fft {
                 }
             }
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
                     Impl::mult_assign(a[0],
@@ -350,7 +373,8 @@ namespace imajuscule::fft {
             return duration;
         }};
         
-        inline static CallCost cost_multiply { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_multiply { [](std::function<void(double&)> fBeforeMeasure,
+                                                  int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 3>> va;
             va.resize(ntests);
             for(auto & a:va) {
@@ -362,6 +386,9 @@ namespace imajuscule::fft {
                 }
             }
             using namespace profiling;
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
                     Impl::multiply(a[0],
@@ -375,7 +402,8 @@ namespace imajuscule::fft {
             return duration;
         }};
         
-        inline static CallCost cost_multiply_add { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_multiply_add { [](std::function<void(double&)> fBeforeMeasure,
+                                                      int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 3>> va;
             va.resize(ntests);
             {
@@ -390,7 +418,9 @@ namespace imajuscule::fft {
             }
             
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&va](){
                 for(auto & a:va) {
                     Impl::multiply_add(a[0],
@@ -423,7 +453,8 @@ namespace imajuscule::fft {
         static constexpr auto setFirstReal = RealFBins::setFirstReal;
         static constexpr auto getFirstReal = RealFBins::getFirstReal;
 
-        inline static CallCost cost_fft_inverse { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_fft_inverse { [](std::function<void(double&)> fBeforeMeasure,
+                                                     int64_t sz, int64_t ntests, double & sideEffect) {
             Assert(sz);
             Algo a(Contexts::getInstance().getBySize(sz));
 
@@ -445,7 +476,9 @@ namespace imajuscule::fft {
             }
 
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&a, &vf, &vinput, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
                     a.inverse(vf[i].data(), vinput[i], sz);
@@ -459,7 +492,8 @@ namespace imajuscule::fft {
             return duration;
         }};
                     
-        inline static CallCost cost_fft_forward { [](int64_t sz, int64_t ntests, double & sideEffect) {
+        inline static CallCost cost_fft_forward { [](std::function<void(double&)> fBeforeMeasure,
+                                                     int64_t sz, int64_t ntests, double & sideEffect) {
             Assert(sz);
             Algo a(Contexts::getInstance().getBySize(sz));
 
@@ -481,7 +515,9 @@ namespace imajuscule::fft {
             }
 
             using namespace profiling;
-            CachePolluter flushCpuCaches(sideEffect);
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
             auto duration = measure_thread_cpu_one([&a, &vf, &vinput, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
                     a.forward(vinput[i].begin(), vf[i].data(), sz);

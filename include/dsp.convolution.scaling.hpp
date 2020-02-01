@@ -277,8 +277,6 @@ struct ScalingsIterator {
         
         using namespace imajuscule::profiling;
 
-        CachePolluter flushCpuCaches(sum);
-
         int64_t end = c.getBiggestScale();
         constexpr int minSamples = 40000;
         if(end < minSamples) {
@@ -288,7 +286,7 @@ struct ScalingsIterator {
         
         CpuDuration flush_duration{};
         
-        auto test_and_flush_duration = measure_thread_cpu_one([&sum, end, &c, cacheFlushPeriodInSamples, &flushCpuCaches, &flush_duration](){
+        auto test_and_flush_duration = measure_thread_cpu_one([&sum, end, &c, cacheFlushPeriodInSamples, &flush_duration](){
             int64_t remainingToCacheFlush = cacheFlushPeriodInSamples;
             for(int64_t i= 0; i<end; ++i) {
                 sum += c.step({});
@@ -299,7 +297,7 @@ struct ScalingsIterator {
                     {
                         Timer t(local_flush_duration);
                         remainingToCacheFlush = cacheFlushPeriodInSamples;
-                        flushCpuCaches();
+                        polluteCache(sum);
                     }
                     if(unlikely(!local_flush_duration)) {
                         throw std::runtime_error("cannot measure flush duration");

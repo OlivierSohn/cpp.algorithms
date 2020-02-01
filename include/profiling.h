@@ -36,11 +36,15 @@ namespace imajuscule
      with it (printto the console for example) else the compiler could see that pollute()
      has no side effect and optimize it away.
      */
-    template<typename T>
-    struct CachePolluter {
+    namespace detail {
+    struct CachePolluterImpl {
         
-        CachePolluter(T & dummySum)
-        : dummySum(dummySum)
+        static CachePolluterImpl const & getInstance() {
+            static CachePolluterImpl p;
+            return p;
+        }
+        
+        CachePolluterImpl()
         {
             // cache sizes on my machine:
 
@@ -69,7 +73,7 @@ namespace imajuscule
             std::swap(pollution[0], pollution[sz-1]);
         }
 
-        void operator()()
+        void operator()(double & dummySum) const
         {
             for(auto val : pollution) {
                 if(val & 8) {
@@ -82,9 +86,15 @@ namespace imajuscule
         }
         
     private:
-        T & dummySum;
         std::vector<uint8_t> pollution;
     };
+    }
+    
+    template<typename T>
+    void polluteCache(T & dummySum)
+    {
+        detail::CachePolluterImpl::getInstance()(dummySum);
+    }
     
     template<typename Iterator, typename T = typename Iterator::value_type>
     void loadInCache(Iterator it, Iterator end, T & dummy)

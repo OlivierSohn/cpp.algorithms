@@ -24,7 +24,7 @@ namespace imajuscule {
     }
     
     template<typename Spatialize, typename T = typename Spatialize::FPT>
-    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals, int vectorLength, bool assign) {
+    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals, int vectorLength, bool test_zero) {
       using namespace fft;
       constexpr auto nEars = Spatialize::nEars;
       
@@ -55,57 +55,44 @@ namespace imajuscule {
       }
 
       // process the dirac
-        if(!vectorLength) {
-            for(auto & r : results) {
-              spatialize.step(r.data(), 0., 1.);
+        Assert(vectorLength);
+        std::vector<T> v_output, v_input;
+        v_input.reserve(nEars * results.size());
+        for(int i=0; i<nEars; ++i) {
+            for(auto const & r : results) {
+                v_input.push_back(r[i]);
             }
         }
-        else {
-            std::vector<T> v_output, v_input;
-            v_input.reserve(nEars * results.size());
+        {
+            v_output.resize(nEars * results.size(), {});
+            T const * a_inputs[nEars];
             for(int i=0; i<nEars; ++i) {
-                for(auto const & r : results) {
-                    v_input.push_back(r[i]);
-                }
+                a_inputs[i] = &v_input[i*results.size()];
             }
-            if(assign) {
-                v_output.resize(nEars * results.size(), {});
-                T const * a_inputs[nEars];
-                for(int i=0; i<nEars; ++i) {
-                    a_inputs[i] = &v_input[i*results.size()];
-                }
-                T * a_outputs[nEars];
-                for(int i=0; i<nEars; ++i) {
-                    a_outputs[i] = &v_output[i*results.size()];
-                }
-                spatialize.assignWetVectorized(a_inputs,
-                                               nEars,
-                                               a_outputs,
-                                               nEars,
-                                               results.size(),
-                                               vectorLength);
+            T * a_outputs[nEars];
+            for(int i=0; i<nEars; ++i) {
+                a_outputs[i] = &v_output[i*results.size()];
             }
-            else {
-                v_output.resize(nEars * results.size());
-                T const * a_inputs[nEars];
-                for(int i=0; i<nEars; ++i) {
-                    a_inputs[i] = &v_input[i*results.size()];
-                }
-                T * a_outputs[nEars];
-                for(int i=0; i<nEars; ++i) {
-                    a_outputs[i] = &v_output[i*results.size()];
-                }
-                spatialize.addWetVectorized(a_inputs,
-                                            nEars,
-                                            a_outputs,
-                                            nEars,
-                                            results.size(),
-                                            vectorLength);
+            spatialize.assignWetVectorized(a_inputs,
+                                           nEars,
+                                           a_outputs,
+                                           nEars,
+                                           test_zero ? 1 : results.size(),
+                                           vectorLength);
+        }
+        if(test_zero && (results.size() > 1)) {
+            T * a_outputs[nEars];
+            for(int i=0; i<nEars; ++i) {
+                a_outputs[i] = &v_output[i*results.size() + 1];
             }
-            for(int j=0; j<results.size(); ++j) {
-                for(int i=0; i<nEars; ++i) {
-                    results[j][i] = v_output[i*results.size() + j];
-                }
+            spatialize.addWetInputZeroVectorized(a_outputs,
+                                                 nEars,
+                                                 results.size() - 1,
+                                                 vectorLength);
+        }
+        for(int j=0; j<results.size(); ++j) {
+            for(int i=0; i<nEars; ++i) {
+                results[j][i] = v_output[i*results.size() + j];
             }
         }
       
@@ -120,7 +107,9 @@ namespace imajuscule {
       for(int j=lat; j<results.size(); ++j) {
         int i=0;
         for(auto r : results[j]) {
-          ASSERT_NEAR(ear_signals[i][j-lat], r, eps);
+            if(!areNear(ear_signals[i][j-lat], r, eps)) { // uses relative error
+                ASSERT_NEAR(ear_signals[i][j-lat], r, eps);
+            }
           ++i;
         }
       }
@@ -128,7 +117,6 @@ namespace imajuscule {
     template<typename Spatialize, typename T = typename Spatialize::FPT>
     void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals) {
         std::set<int> vectorLengths;
-        vectorLengths.insert(0);
         vectorLengths.insert(1);
         vectorLengths.insert(2);
         vectorLengths.insert(3);
@@ -139,11 +127,11 @@ namespace imajuscule {
         vectorLengths.insert(ear_signals[0].size());
 
         for(auto l : vectorLengths) {
-            if(l<0) {
+            if(l <= 0) {
                 continue;
             }
-            test(spatialize, ear_signals, l, true);
             test(spatialize, ear_signals, l, false);
+            test(spatialize, ear_signals, l, true);
         }
     }
   
@@ -180,7 +168,9 @@ namespace imajuscule {
           audio::Spatializer<nOutMono, Convolution> spatialized;
           {
             int nScales = 1;
-            spatialized.addSourceLocation({{coefficients}}, setup);
+            spatialized.setSources(1,
+                                   {coefficients},
+                                   setup);
           }
           
           test(spatialized, {{coefficients}});
@@ -193,10 +183,9 @@ namespace imajuscule {
           // source1 has only left component
           // source2 has only right component
           {
-            spatialized.addSourceLocation({{coefficients, zero_coeffs}}, setup);
-          }
-          {
-            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
+            spatialized.setSources(2,
+                                   {coefficients, zero_coeffs, zero_coeffs, coefficients},
+                                   setup);
           }
           
           test(spatialized, {{coefficients, coefficients}});
@@ -214,10 +203,9 @@ namespace imajuscule {
           // source1 right component is the opposite of source 2
           // source2 right component is the opposite of source 1
           {
-            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
-          }
-          {
-            spatialized.addSourceLocation({{opposite_coeffs, coefficients}}, setup);
+            spatialized.setSources(2,
+                                   {coefficients, opposite_coeffs, opposite_coeffs, coefficients},
+                                   setup);
           }
 
           test(spatialized, {{zero_coeffs,zero_coeffs}});
@@ -232,13 +220,12 @@ namespace imajuscule {
           }
           
           {
-            spatialized.addSourceLocation({{coefficients, opposite_coeffs}}, setup);
-          }
-          {
-            spatialized.addSourceLocation({{zero_coeffs, coefficients}}, setup);
+            spatialized.setSources(2,
+                                   {coefficients, opposite_coeffs, zero_coeffs, coefficients},
+                                   setup);
           }
 
-          test(spatialized, {{coefficients,zero_coeffs}});
+          test(spatialized, {{zero_coeffs,coefficients}});
         }
       };
       

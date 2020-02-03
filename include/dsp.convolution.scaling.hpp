@@ -47,19 +47,10 @@ struct Scaling {
 
 struct ScalingsIterator {
     ScalingsIterator(int firstSz,
-                     int totalNCoeffs,
-                     std::optional<int> lastSz = {})
+                     int totalNCoeffs)
     : firstSz(firstSz)
     , totalNCoeffs(totalNCoeffs)
-    , lastSz(lastSz)
     {
-        if(lastSz) {
-            Assert(firstSz <= *lastSz);
-            if(firstSz) {
-                Assert(firstSz*(*lastSz/firstSz) == *lastSz);
-                Assert(is_power_of_two(*lastSz/firstSz));
-            }
-        }
     }
     
     template<typename F>
@@ -73,7 +64,6 @@ struct ScalingsIterator {
 
     int const firstSz;
     int const totalNCoeffs;
-    std::optional<int> lastSz;
 
  private:
     template<typename F>
@@ -81,15 +71,6 @@ struct ScalingsIterator {
                                  int const preNCoeffs,
                                  F f) {
         if(preNCoeffs >= totalNCoeffs) {
-            if(lastSz) {
-                if(pre.empty()) {
-                    return;
-                }
-                Assert(pre.back().sz <= *lastSz);
-                if(pre.back().sz != *lastSz) {
-                    return;
-                }
-            }
             f(pre);
         }
         else {
@@ -150,20 +131,9 @@ struct ScalingsIterator {
             //
             //   1 1 1 1 1 1
 
-            bool const changeSizeIsInteresting = (remainingCoeffs > candidateNextSize/2);
-
-            bool canRepeat = true;
-            bool canChangeSize = changeSizeIsInteresting;
-            if(lastSz) {
-                if(candidateNextSize == *lastSz) {
-                    canChangeSize = true;
-                    canRepeat = false;
-                }
-                else if(candidateNextSize > *lastSz) {
-                    canChangeSize = false;
-                }
-            }
-
+            bool const canChangeSize = (remainingCoeffs > candidateNextSize/2);
+            constexpr bool canRepeat = true;
+            
             if(canChangeSize) {
                 res.emplace_back(candidateNextSize, 1);
             }

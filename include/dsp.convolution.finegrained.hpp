@@ -410,7 +410,7 @@ public:
             nSamples -= g.first;
             grain_counter += g.first;
             for(int i=0; i<g.first; ++i) {
-                x[progress] = {};
+                x[progress] = typename RealSignal::value_type(0);
                 ++progress;
                 if(i == g.first-1 && g.second) {
                     doGrain(*g.second);

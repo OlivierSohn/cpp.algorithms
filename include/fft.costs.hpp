@@ -35,8 +35,14 @@ namespace imajuscule::fft {
          The count of measurements is in the interval :
          [nConstecutiveMeasures, nConstecutiveMeasures * maxAggregateSize]
          */
+#ifdef NDEBUG
         static constexpr int nConstecutiveMeasures = 3;
         static constexpr int maxAggregateSize = 4;
+#else
+        static constexpr int nConstecutiveMeasures = 1;
+        static constexpr int maxAggregateSize = 1;
+#endif
+        
 
     public:
         

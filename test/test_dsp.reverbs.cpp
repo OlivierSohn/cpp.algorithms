@@ -357,7 +357,7 @@ void testReverbDiracNout()
     testReverbDirac<ReverbType::Offline, nOut, nIns>();
     testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy, nOut, nIns>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Realtime_Asynchronous, nOut, nIns>(SimulationPhasing::no_phasing());
-    testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled, nOut, nIns>();
+    //testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled, nOut, nIns>();
 }
 
 TEST(Reverbs, dirac)

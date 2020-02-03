@@ -107,7 +107,7 @@ using ConvReverbOptimizationReport = Either<std::string, ConvReverbOptimizationR
     enum class ReverbType {
         Offline,
         Realtime_Synchronous,
-        Realtime_Synchronous_Subsampled,
+        //Realtime_Synchronous_Subsampled,
         Realtime_Asynchronous_Legacy,
         Realtime_Asynchronous
     };
@@ -124,8 +124,9 @@ static inline std::string toJustifiedString(ReverbType t) {
             return "Offline                        ";
         case ReverbType::Realtime_Synchronous :
             return "Realtime_Synchronous           ";
-        case ReverbType::Realtime_Synchronous_Subsampled :
+        /*case ReverbType::Realtime_Synchronous_Subsampled :
             return "Realtime_Synchronous_Subsampled";
+        */
         case ReverbType::Realtime_Asynchronous_Legacy :
             return "Realtime_Asynchronous_Legacy   ";
         case ReverbType::Realtime_Asynchronous :
@@ -155,8 +156,8 @@ static inline std::string toJustifiedString(ReverbType t) {
       std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
         AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Allocator, Tag>,
 
-      std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
-        ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Allocator, Tag>,
+      //std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
+      //  ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Allocator, Tag>,
 
       std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
         AlgoZeroLatencyScaledAsyncConvolution<double, Allocator, Tag, OnWorkerTooSlow>,
@@ -166,7 +167,7 @@ static inline std::string toJustifiedString(ReverbType t) {
     
       void
     
-    >>>>>;
+    >>>>/*>*/;
       
     using Spatializer = audio::Spatializer<nAudioOut, ConvolutionReverb>;
 
@@ -174,29 +175,11 @@ static inline std::string toJustifiedString(ReverbType t) {
     using SetupParam = typename ConvolutionReverb::SetupParam;
 
     int countScales() {
-        if(nAudioOut && !conv_reverbs.empty() && !conv_reverbs[0]->isZero()) {
-            if constexpr(ConvolutionReverb::has_subsampling) {
-                return imajuscule::countScales(*conv_reverbs[0]);
-            }
-            else {
-                return 1;
-            }
-        }
-        else if(!spatializer.empty()) {
-            return spatializer.countScales();
-        }
-        return 0;
+        return spatializer.countScales();
     }
       template<typename F>
       void foreachConvReverb(F f) const {
-          if(nAudioOut && !conv_reverbs.empty()) {
-              for(auto const & c : conv_reverbs) {
-                  f(*c);
-              }
-          }
-          else if(!spatializer.empty()) {
-              return spatializer.foreachConvReverb(f);
-          }
+          spatializer.foreachConvReverb(f);
       }
       
       template<typename FPT2>
@@ -205,19 +188,7 @@ static inline std::string toJustifiedString(ReverbType t) {
                      FPT2 ** output_buffers,
                      int nOutputBuffers,
                      int nFramesToCompute) {
-          // raw convolutions and spatializer are mutually exclusive.
-          if(!conv_reverbs.empty()) {
-              Assert(conv_reverbs.size() == nAudioOut);
-              Assert(spatializer.empty());
-              Assert(nOutputBuffers == nAudioOut);
-              Assert(nInputBuffers == nAudioOut);
-              for(int j=0; j<nAudioOut; ++j) {
-                  conv_reverbs[j]->stepAssignVectorized(input_buffers[j],
-                                                        output_buffers[j],
-                                                        nFramesToCompute);
-              }
-          }
-          else if(!spatializer.empty()) {
+          if(!spatializer.empty()) {
               spatializer.assignWet(input_buffers,
                                     nInputBuffers,
                                     output_buffers,
@@ -239,29 +210,9 @@ static inline std::string toJustifiedString(ReverbType t) {
                                int nOutputBuffers,
                                int nFramesToCompute,
                                int vectorLength) {
-          bool success = true;
           assert(vectorLength > 0);
-          // raw convolutions and spatializer are mutually exclusive.
-          if(!conv_reverbs.empty()) {
-              Assert(conv_reverbs.size() == nAudioOut);
-              Assert(spatializer.empty());
-              Assert(nOutputBuffers == nAudioOut);
-              Assert(nInputBuffers == nAudioOut);
-              for(int j=0; j<nAudioOut; ++j) {
-                  auto input_buffer = input_buffers[j];
-                  auto output_buffer = output_buffers[j];
-                  for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                    conv_reverbs[j]->stepAssignVectorized(input_buffer + i,
-                                                          output_buffer+ i,
-                                                          std::min(vectorLength, nFramesToCompute-i));
-                  }
-                if constexpr (ConvolutionReverb::step_can_error) {
-                    success = !conv_reverbs[j]->hasStepErrors() && success;
-                }
-              }
-          }
-          else if(!spatializer.empty()) {
-            success = spatializer.assignWetVectorized(input_buffers,
+          if(!spatializer.empty()) {
+            return spatializer.assignWetVectorized(input_buffers,
                                                        nInputBuffers,
                                                        output_buffers,
                                                        nOutputBuffers,
@@ -274,8 +225,8 @@ static inline std::string toJustifiedString(ReverbType t) {
                   auto output_buffer = output_buffers[j];
                   fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffer, nFramesToCompute);
               }
+              return true;
           }
-        return success;
       }
       
       template<typename FPT2>
@@ -283,44 +234,23 @@ static inline std::string toJustifiedString(ReverbType t) {
                                      int nOutputBuffers,
                                      int nFramesToCompute,
                                      int vectorLength) {
-          bool success = true;
           assert(vectorLength > 0);
-          // raw convolutions and spatializer are mutually exclusive.
-          if(!conv_reverbs.empty()) {
-              Assert(conv_reverbs.size() == nAudioOut);
-              Assert(spatializer.empty());
-              Assert(nOutputBuffers == nAudioOut);
-              for(int j=0; j<nAudioOut; ++j) {
-                  auto output_buffer = output_buffers[j];
-                  for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                      conv_reverbs[j]->stepAddInputZeroVectorized(output_buffer + i,
-                                                                            std::min(vectorLength, nFramesToCompute-i));
-                  }
-                  if constexpr (ConvolutionReverb::step_can_error) {
-                    success = !conv_reverbs[j]->hasStepErrors() && success;
-                  }
-              }
-          }
-          else if(!spatializer.empty()) {
-              success = spatializer.addWetInputZeroVectorized(output_buffers,
+          if(!spatializer.empty()) {
+              return spatializer.addWetInputZeroVectorized(output_buffers,
                                                               nOutputBuffers,
                                                               nFramesToCompute,
                                                               vectorLength);
           }
-          return success;
+          return true;
       }
       
     void flushToSilence()
     {
-        for(auto & r : conv_reverbs) {
-            r->flushToSilence();
-        }
         spatializer.flushToSilence();
     }
 
     void disable()
     {
-      conv_reverbs.clear();
       spatializer.clear();
     }
 
@@ -383,22 +313,15 @@ static inline std::string toJustifiedString(ReverbType t) {
           logReport(sampleRate, os);
       }
       
-    bool hasSpatializer() const { return !spatializer.empty(); }
-      
       // This is the 'relevant' length of the reverb: after that coefficients are all zeroes
       int getUnpaddedSize() const {
           return total_response_size;
       }
-      int getPaddedSize() const {
-          return total_response_size_padded;
-      }
 
   private:
 
-    std::vector<std::unique_ptr<ConvolutionReverb>> conv_reverbs;
     Spatializer spatializer;
     int total_response_size = 0;
-    int total_response_size_padded = 0;
 
       ResponseStructure handleScales(SetupParam const & spec,
                                      std::vector<a64::vector<double>> & deinterlaced_coeffs) {
@@ -411,6 +334,8 @@ static inline std::string toJustifiedString(ReverbType t) {
                   throw std::runtime_error("deinterlaced coefficients have different sizes");
               }
           }
+
+          int total_response_size_padded = 0;
 
           if constexpr (ConvolutionReverb::has_subsampling) {
               int const n_scales = count_scales(spec);
@@ -462,81 +387,26 @@ static inline std::string toJustifiedString(ReverbType t) {
             throw std::runtime_error("inconsistent number of audio sources / channels");
         }
         
-      assert(conv_reverbs.empty());
-      assert(spatializer.empty());
+        assert(spatializer.empty());
+        // for wir files of wave, it seems the order is by "ears" then by "source":
 
-      // if we have more channels than sources, each ear will receive
-      // the sum of multiple convolutions.
-      if(nAudioOut == n_sources &&
-         n_sources == n_channels)
-      {
-          conv_reverbs.reserve(nAudioOut);
-          for(int i=0; i<nAudioOut; ++i) {
-              conv_reverbs.emplace_back(std::make_unique<ConvolutionReverb>());
-          }
+        // ear Left source 1
+        // ...
+        // ear Left source N
+        // ear Right source 1
+        // ...
+        // ear Right source N
+        spatializer.setSources(n_sources,
+                               std::move(deinterlaced_coeffs),
+                               spec);
 
-        auto n = 0;
-        for(auto & prev : conv_reverbs)
-        {
-          auto & rev = *prev;
-          rev.setup(spec);
-          rev.setCoefficients(deinterlaced_coeffs[n%n_channels]);
-          assert(rev.isValid());
-          dephase(nAudioOut, n, rev);
-          ++n;
-        }
-      }
-      else {
-
-        for(int i=0; i<n_sources; ++i) {
-          std::array<a64::vector<double>, nAudioOut> a;
-          for(int j=0; j<nAudioOut; ++j) {
-            // for wir files of wave, it seems the order is by "ears" then by "source":
-
-            // ear Left source 1
-            // ...
-            // ear Left source N
-            // ear Right source 1
-            // ...
-            // ear Right source N
-
-            a[j] = std::move(deinterlaced_coeffs[nAudioOut*i+j]);
-          }
-
-          spatializer.addSourceLocation(std::move(a), spec);
-          assert(!spatializer.empty());
-        }
         assert(!spatializer.empty());
         spatializer.dephaseComputations();
-      }
-        
     }
 
     void logReport(double sampleRate, std::ostream & os)
     {
-      os << "States:" << std::endl;
-      IndentingOStreambuf in(os);
-
-      using namespace std;
-        
-        int i=0;
-        auto logConv = [&os, &i](auto const & r) mutable {
-            ++i;
-            os << "Convolution " << i << ":" << std::endl;
-            IndentingOStreambuf indent(os);
-            r.logComputeState(os);
-        };
-
-        for(auto const & pr : conv_reverbs)
-        {
-            logConv(*pr);
-        }
-
-        spatializer.foreachConvReverb([&logConv](auto const & r){ logConv(r); });
-
-        if(!spatializer.empty()) {
-          os <<  "Spatialization with '" << spatializer.countSources() << "' sources" << endl;
-        }
+        spatializer.logReport(sampleRate, os);
     }
 
     void reset() {

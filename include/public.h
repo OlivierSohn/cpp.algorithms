@@ -219,7 +219,6 @@ extern "C"
 #include "dsp2.convolution.combine.hpp"
 
 #include "dsp.impulseresponse.hpp"
-#include "dsp.spatialize.hpp"
 #include "dsp.reverb.hpp"
 #include "dsp.reverbs.hpp"
 #include "dsp.convolution.bycbsize.hpp"

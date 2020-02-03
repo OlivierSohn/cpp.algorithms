@@ -29,8 +29,10 @@ struct ConvReverbsByBlockSize {
         reverbsByBlockSize.clear();
         deprecated.clear();
         current = {};
-        
+                
         results.clear();
+
+        reverbUnpaddedLength = deinterlaced.countFrames();
 
         // we make reverbs optimized exactly for maxCountFramesPerBlock, and smaller powers of 2
         for(int max2 = maxCountFramesPerBlock;
@@ -42,13 +44,13 @@ struct ConvReverbsByBlockSize {
             try {
                 ConvReverbOptimizationReportSuccess result;
                 std::stringstream os;
-                r->setConvolutionReverbIR(n_sources,
-                                          deinterlaced,
-                                          max2,
-                                          sampleRate,
-                                          os,
-                                          result.structure,
-                                          args...);
+                imajuscule::setConvolutionReverbIR(*r,
+                                                   n_sources,
+                                                   deinterlaced,
+                                                   max2,
+                                                   sampleRate,
+                                                   os,
+                                                   args...);
                 result.optimizationReport = os.str();
                 {
                     auto res = results.try_emplace(max2, result);
@@ -101,7 +103,8 @@ struct ConvReverbsByBlockSize {
                                  deprecated.end());
                 
                 // add the former current to deprecated
-                deprecated.emplace_back(prevCurrent->reverbIt);
+                deprecated.emplace_back(prevCurrent->reverbIt,
+                                        reverbUnpaddedLength);
             }
         }
         return current ? current->blockSizeHypothesys() : -1;
@@ -201,9 +204,9 @@ private:
     Map reverbsByBlockSize;
     std::optional<Current> current;
     struct DeprecatedReverb {
-        DeprecatedReverb(ConstIterator it)
+        DeprecatedReverb(ConstIterator it, int numFramesToGo)
         : reverbIt(it),
-        numFramesToGo(it->second->getUnpaddedSize())
+        numFramesToGo(numFramesToGo)
         {}
         
         ConstIterator reverbIt;
@@ -220,6 +223,7 @@ private:
         }
     };
     std::vector<DeprecatedReverb> deprecated;
+    int reverbUnpaddedLength = 0;
 
 
     template<typename F>

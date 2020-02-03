@@ -22,13 +22,13 @@ static void testByCbSize(int dirac_offset, int cb_change) {
     
     XFFtCostFactors factors;
     r.setConvolutionReverbIR(nSources,
-                             DeinterlacedBuffers<double>(coeffs, 1),
-                             1024,
-                             0,
-                             44100.,
-                             m,
-                             factors
-                             );
+                           DeinterlacedBuffers<double>(coeffs, 1),
+                           1024,
+                           0,
+                           44100.,
+                           m,
+                           factors
+                           );
     ASSERT_EQ(0, m.count(2048));
     ASSERT_EQ(1, m.count(1024));
     ASSERT_EQ(1, m.count(512));

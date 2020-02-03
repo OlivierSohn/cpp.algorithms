@@ -28,8 +28,6 @@ namespace imajuscule {
       using namespace fft;
       constexpr auto nEars = Spatialize::nEars;
       
-      spatialize.setMaxMultiplicationGroupLength();
-      
       if(!spatialize.isValid()) {
         /*
          std::cout << std::endl << "Not testing invalid setup for "; COUT_TYPE(Convolution);
@@ -152,7 +150,6 @@ namespace imajuscule {
       }
     }
     
-    template<typename Convolution>
     void testDiracFinegrainedPartitionned(int coeffs_index) {
       
       auto f = [](int part_size, auto const & coefficients)
@@ -161,40 +158,47 @@ namespace imajuscule {
         zero_coeffs.resize(coefficients.size());
         int const n_partitions = countPartitions(coefficients.size(), part_size);
 
-        FinegrainedSetupParam setup {part_size,n_partitions,1,0};
-        
+          XFFtCostFactors emptyCostFactors;
+          
         {
           constexpr auto nOutMono = 1;
-          audio::Spatializer<nOutMono, Convolution> spatialized;
-          {
-            int nScales = 1;
-            spatialized.setSources(1,
-                                   {coefficients},
-                                   setup);
-          }
+          Reverbs<nOutMono, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
           
+          setConvolutionReverbIR(spatialized,
+                                 1,
+                                 {{coefficients}},
+                                 10000,
+                                 44100.,
+                                 std::cout,
+                                 emptyCostFactors
+                                 );
+      
           test(spatialized, {{coefficients}});
         }
         {
           constexpr auto nOutStereo = 2;
-          audio::Spatializer<nOutStereo, Convolution> spatialized;
-          
+          Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+
           // no cross-talk :
           // source1 has only left component
           // source2 has only right component
-          {
-            spatialized.setSources(2,
-                                   {coefficients, zero_coeffs, zero_coeffs, coefficients},
-                                   setup);
-          }
+      
+        setConvolutionReverbIR(spatialized,
+                               2,
+                               {{coefficients, zero_coeffs, zero_coeffs, coefficients}},
+                               10000,
+                               44100.,
+                               std::cout,
+                               emptyCostFactors
+                               );
           
           test(spatialized, {{coefficients, coefficients}});
         }
         
         {
           constexpr auto nOutStereo = 2;
-          audio::Spatializer<nOutStereo, Convolution> spatialized;
-          
+          Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+
           opposite_coeffs = coefficients;
           for(auto & o : opposite_coeffs) {
             o = -o;
@@ -202,34 +206,42 @@ namespace imajuscule {
           // extreme cross-talk :
           // source1 right component is the opposite of source 2
           // source2 right component is the opposite of source 1
-          {
-            spatialized.setSources(2,
-                                   {coefficients, opposite_coeffs, opposite_coeffs, coefficients},
-                                   setup);
-          }
+          
+            setConvolutionReverbIR(spatialized,
+                                   2,
+                                   {{coefficients, opposite_coeffs, opposite_coeffs, coefficients}},
+                                   10000,
+                                   44100.,
+                                   std::cout,
+                                   emptyCostFactors
+                                   );
+          
 
           test(spatialized, {{zero_coeffs,zero_coeffs}});
         }
         {
           constexpr auto nOutStereo = 2;
-          audio::Spatializer<nOutStereo, Convolution> spatialized;
-          
+          Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+
           opposite_coeffs = coefficients;
           for(auto & o : opposite_coeffs) {
             o = -o;
           }
           
-          {
-            spatialized.setSources(2,
-                                   {coefficients, opposite_coeffs, zero_coeffs, coefficients},
-                                   setup);
-          }
-
+          setConvolutionReverbIR(spatialized,
+                                           2,
+                                           {{coefficients, opposite_coeffs, zero_coeffs, coefficients}},
+                                           10000,
+                                           44100.,
+                                           std::cout,
+                                           emptyCostFactors
+                                           );
+            
           test(spatialized, {{zero_coeffs,coefficients}});
         }
       };
       
-      testSpatialized<typename Convolution::FPT>(coeffs_index, f);
+      testSpatialized<double>(coeffs_index, f);
     }
     
     template<typename Tag, template<typename> typename Alloc>
@@ -240,8 +252,7 @@ namespace imajuscule {
           --end;
       }
       for(int i=0; i<end; ++i) {
-        testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<float, Alloc, Tag>>(i);
-        testDiracFinegrainedPartitionned<FinegrainedPartitionnedFFTConvolution<double, Alloc, Tag>>(i);
+        testDiracFinegrainedPartitionned(i);
       }
     }
   }

@@ -80,7 +80,8 @@ struct GrainsCosts {
 
 struct FinegrainedSetupParam : public Cost {
     static constexpr int nCoefficientsFadeIn = 0;
-    
+    static constexpr bool has_subsampling = false;
+
     explicit FinegrainedSetupParam() {}
     
     FinegrainedSetupParam(int partitionSz,

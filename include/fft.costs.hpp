@@ -56,8 +56,34 @@ namespace imajuscule::fft {
             }
             std::lock_guard<std::mutex> l(mut);
             
-            addMeasures(sz);
-            return stats[sz].minimum();
+            if(is_power_of_two(sz)) {
+                int const nAdded = addMeasures(sz);
+                if(nAdded) {
+                    enforceMonotonicConstraint();
+                }
+                return stats[sz].minimum();
+            }
+            else {
+                // do a linear interpolation
+                
+                int const ceil2 = ceil_power_of_two(sz);
+                int const floor2 = floor_power_of_two(sz);
+                int const middle2 = (ceil2 + floor2) / 2;
+                Assert(ceil2 > middle2 && middle2 > floor2);
+                Assert(ceil2 > sz && sz > floor2);
+                int const nAdded = addMeasures(middle2) + addMeasures(floor2) + addMeasures(ceil2);
+                if(nAdded) {
+                    enforceMonotonicConstraint();
+                }
+                double const ceilVal = stats[ceil2].minimum();
+                double const floorVal = stats[floor2].minimum();
+                double const midValMinimumBound = (ceilVal + floorVal) / 2.; // so that interpolation > floorVal
+                double const midVal = std::max(midValMinimumBound,
+                                               stats[middle2].minimum());
+                double const interpolation = midVal + (ceilVal - midVal) * (sz-middle2)/static_cast<double>(ceil2-middle2);
+                Assert(ceilVal >= interpolation && interpolation >= floorVal);
+                return interpolation;
+            }
         }
         
         struct Measure {
@@ -67,6 +93,7 @@ namespace imajuscule::fft {
         
         struct AggregatedMeasure {
             void include(Measure m) {
+                Assert(size() < maxAggregateSize);
                 measures.push_back(m);
                 min_ = computeMin();
             }
@@ -75,6 +102,10 @@ namespace imajuscule::fft {
             }
             int size() const {
                 return measures.size();
+            }
+            void force(double value) {
+                Assert(size() == maxAggregateSize);
+                min_ = value;
             }
         private:
             double min_;
@@ -116,13 +147,14 @@ namespace imajuscule::fft {
          and if sz 128 and 256 are already existing,
          we will also add sz 32 and 64.
          
-         Then we will (for some iterations, see maxAggregateSize)
-         redo the measurements so as to try to enforce the monotonicity constraint.
+         returns the count of measures added
          */
-        void addMeasures(int const sz) {
+        int addMeasures(int const sz) {
             Assert(sz);
+            int count = 0;
             if(0==stats.count(sz)) {
                 stats[sz].include(forceTiming(sz));
+                ++count;
             }
             auto it = stats.upper_bound(sz);
             
@@ -135,11 +167,13 @@ namespace imajuscule::fft {
                     int const nextSzExisting = it->first;
                     while(nextSz < nextSzExisting) {
                         stats[nextSz].include(forceTiming(nextSz));
+                        ++count;
                         nextSz *= 2;
                     }
                 }
                 else {
                     stats[nextSz].include(forceTiming(nextSz));
+                    ++count;
                 }
             }
             // We fill the gaps downward
@@ -150,45 +184,50 @@ namespace imajuscule::fft {
                     int const prevSzExisting = it->first;
                     while(prevSz && (prevSz > prevSzExisting)) {
                         stats[prevSz].include(forceTiming(prevSz));
+                        ++count;
                         prevSz /= 2;
                     }
                 }
                 else if(prevSz) {
                     stats[prevSz].include(forceTiming(prevSz));
+                    ++count;
                 }
             }
             
-            enforceMonotonicConstraint();
+            return count;
         }
         
         void enforceMonotonicConstraint()
         {
-            while(true)
+            bool stable = false;
+            while(!stable)
             {
-                bool stable = true;
+                stable = true;
                 backwardPass(stats,[this, &stable](auto it1, auto it2){
-                    if(it1->second.size() >= maxAggregateSize) {
-                        return;
-                    }
                     if(it1->second.minimum() > it2->second.minimum()) {
-                        // assume the measure of higher size is right
-                        it1->second.include(forceTiming(it1->first));
+                        // assume the measure of _higher_ size is right
+                        if(it1->second.size() >= maxAggregateSize) {
+                            it1->second.force(it2->second.minimum());
+                        }
+                        else {
+                            it1->second.include(forceTiming(it1->first));
+                        }
                         stable = false;
                     }
                 });
                 forwardPass(stats,[this, &stable](auto it1, auto it2){
-                    if(it2->second.size() >= maxAggregateSize) {
-                        return;
-                    }
                     if(it1->second.minimum() > it2->second.minimum()) {
-                        // assume the measure of lower size is right
-                        it2->second.include(forceTiming(it2->first));
+                        // assume the measure of _lower_ size is right
+                        if(it2->second.size() >= maxAggregateSize) {
+                            it2->second.force(it1->second.minimum());
+                            return;
+                        }
+                        else {
+                            it2->second.include(forceTiming(it2->first));
+                        }
                         stable = false;
                     }
                 });
-                if(stable) {
-                    return;
-                }
             }
         }
 

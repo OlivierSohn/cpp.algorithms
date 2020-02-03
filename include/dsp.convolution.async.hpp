@@ -15,6 +15,8 @@ struct AsyncCPUConvolutionConstants {
 
 template<typename InnerParams>
 struct AsyncSetupParam : public Cost {
+    static constexpr bool has_subsampling = InnerParams::has_subsampling;
+
     using AsyncParam = InnerParams;
     static constexpr int queue_room_sz = AsyncCPUConvolutionConstants::queue_room_sz;
 

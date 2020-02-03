@@ -67,25 +67,24 @@ namespace imajuscule::bench::vecto {
         csv_file.push(n_audio_frames_per_cb);
         
         Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::PermanentlySwitchToDry /* because AudioHostSimulator uses real time simulation*/> rs;
-        ResponseStructure structure;
-        {
-            std::vector<a64::vector<double>> db;
-            db.resize(nResponses);
-            for(auto & coeffs:db) {
-                coeffs.reserve(nCoeffs);
-                for(int i=0; i<nCoeffs; ++i) {
-                    coeffs.push_back(cos(static_cast<double>(i)/100.));
-                }
+
+        std::vector<a64::vector<double>> db;
+        db.resize(nResponses);
+        for(auto & coeffs:db) {
+            coeffs.reserve(nCoeffs);
+            for(int i=0; i<nCoeffs; ++i) {
+                coeffs.push_back(cos(static_cast<double>(i)/100.));
             }
-            DeinterlacedBuffers<double> deinterlaced_buffers(std::move(db));
-            rs.setConvolutionReverbIR(n_sources,
-                                      deinterlaced_buffers,
-                                      n_audio_frames_per_cb,
-                                      frame_rate,
-                                      std::cout,
-                                      structure,
-                                      args...);
         }
+        DeinterlacedBuffers<double> deinterlaced_buffers(std::move(db));
+        setConvolutionReverbIR(rs,
+                               n_sources,
+                               deinterlaced_buffers,
+                               n_audio_frames_per_cb,
+                               frame_rate,
+                               std::cout,
+                               args...);
+        
         if(!f(rs)) {
             return;
         }

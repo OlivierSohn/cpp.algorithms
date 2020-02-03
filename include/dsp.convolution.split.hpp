@@ -6,6 +6,7 @@ static constexpr int noSplit = -2;
 
 template<typename A, typename B>
 struct SplitSetupParam : public Cost {
+    static constexpr bool has_subsampling = B::has_subsampling;
     static constexpr int nCoefficientsFadeIn = A::nCoefficientsFadeIn;
 
     using AParam = A;

@@ -4,6 +4,8 @@ namespace imajuscule {
 template<typename SetupParam>
 struct CustomScaleConvolutionSetupParam : public Cost {
     
+    static constexpr bool has_subsampling = false;
+    static_assert(!SetupParam::has_subsampling);
     static constexpr int nCoefficientsFadeIn = 0;
     static_assert(SetupParam::nCoefficientsFadeIn == 0); // else we need to handle them
 

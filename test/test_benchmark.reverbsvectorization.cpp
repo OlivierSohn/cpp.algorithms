@@ -59,17 +59,16 @@ namespace imajuscule::vecto {
             
             for(auto audio_cb_size : blocksSz) {
                 Reverbs<nOut> rs;
-                ResponseStructure structure;
                 try {
                     NullBuffer null_buffer;
                     std::ostream null_stream(&null_buffer);
-                    rs.setConvolutionReverbIR(1,
-                                              deinterlaced_buffers,
-                                              audio_cb_size,
-                                              44100.,
-                                              ResponseTailSubsampling::HighestAffordableResolution,
-                                              null_stream,
-                                              structure);
+                    setConvolutionReverbIR(rs,
+                                           1,
+                                           deinterlaced_buffers,
+                                           audio_cb_size,
+                                           44100.,
+                                           ResponseTailSubsampling::HighestAffordableResolution,
+                                           null_stream);
                 }
                 catch(std::exception const &e) {
                     LG(INFO, "skip : %s", e.what());

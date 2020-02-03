@@ -17,7 +17,7 @@ namespace imajuscule {
 template<ReverbType reverbType, int nOut, int nIns, typename ...Args>
 void testReverbDirac(Args ...args) {
     Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::Wait> rs;
-    using Convolution = typename decltype(rs)::ConvolutionReverb;
+    using Convolution = typename decltype(rs)::Convolution;
 
     constexpr int audio_cb_size = 99;
     
@@ -56,24 +56,22 @@ void testReverbDirac(Args ...args) {
     // for 0-length responses, reverb is inactive.
     {
         try {
-            ResponseStructure structure;
             if constexpr (Convolution::has_subsampling) {
-                rs.setConvolutionReverbIR(1,
-                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
+                setConvolutionReverbIR(rs,1,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout,
                                           ResponseTailSubsampling::HighestAffordableResolution,
                                           args...);
             }
             else if constexpr (reverbType == ReverbType::Offline) {
                 XFFtCostFactors unbiasedXFftCostFactors;
-                rs.setConvolutionReverbIR(1,
-                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
+                setConvolutionReverbIR(rs,1,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout,
                                           unbiasedXFftCostFactors,
                                           args...);
             }
             else {
-                rs.setConvolutionReverbIR(1,
-                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout, structure,
-                                          
+                setConvolutionReverbIR(rs,1,
+                                          {a64::vector<double>{}, 1}, audio_cb_size, 44100., std::cout,
                                           args...);
             }
             ASSERT_TRUE(false);
@@ -179,24 +177,23 @@ void testReverbDirac(Args ...args) {
                 
                 {
                     bool res = false;
-                    ResponseStructure structure;
                     try {
                         if constexpr (Convolution::has_subsampling) {
-                            rs.setConvolutionReverbIR(nIns,
-                                                      all_coeffs, audio_cb_size, 44100., std::cout, structure,
+                            setConvolutionReverbIR(rs,nIns,
+                                                      all_coeffs, audio_cb_size, 44100., std::cout,
                                                       rts,
                                                       args...);
                         }
                         else if constexpr (reverbType == ReverbType::Offline) {
                             XFFtCostFactors unbiasedXFftCostFactors;
-                            rs.setConvolutionReverbIR(nIns,
-                                                      all_coeffs, audio_cb_size, 44100., std::cout, structure,
+                            setConvolutionReverbIR(rs,nIns,
+                                                      all_coeffs, audio_cb_size, 44100., std::cout,
                                                       unbiasedXFftCostFactors,
                                                       args...);
                         }
                         else {
-                            rs.setConvolutionReverbIR(nIns,
-                                                      all_coeffs, audio_cb_size, 44100., std::cout, structure,
+                            setConvolutionReverbIR(rs,nIns,
+                                                      all_coeffs, audio_cb_size, 44100., std::cout,
                                                       
                                                       args...);
                         }
@@ -321,7 +318,7 @@ void testReverbDirac(Args ...args) {
     
     // reverb is inactive when disabled
     {
-        rs.disable();
+        rs.clear();
         std::vector<double> const input = mkDirac<double>(4);
         std::vector<std::vector<double>> output;
         output.resize(nOut);
@@ -339,9 +336,9 @@ void testReverbDirac(Args ...args) {
         }
 
         rs.assignWetVectorized(a_inputs.data(),
-                               1,
+                               nIns,
                                a_outputs.data(),
-                               1,
+                               nOut,
                                input.size(),
                                input.size());
         ASSERT_EQ(output, prevOutput);
@@ -385,7 +382,7 @@ TEST(Reverbs, reproQueueSizeGarageband) {
     using namespace imajuscule;
     
     Reverbs<2, ReverbType::Realtime_Asynchronous, PolicyOnWorkerTooSlow::Wait> rs;
-    using Convolution = typename decltype(rs)::ConvolutionReverb;
+    using Convolution = typename decltype(rs)::Convolution;
     
     constexpr int audio_cb_size = 128;
     
@@ -398,14 +395,12 @@ TEST(Reverbs, reproQueueSizeGarageband) {
     
     {
         bool res = false;
-        ResponseStructure structure;
         try {
-            rs.setConvolutionReverbIR(1,
+            setConvolutionReverbIR(rs,1,
                                       {vcoeffs},
                                       audio_cb_size,
                                       44100.,
                                       std::cout,
-                                      structure,
                                       SimulationPhasing::phasing_with_group_size(2));
             res = true;
         }

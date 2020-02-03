@@ -238,6 +238,7 @@ private:
 
 struct FFTConvolutionCRTPSetupParam : public Cost
 {
+    static constexpr bool has_subsampling = false;
     static constexpr int nCoefficientsFadeIn = 0;
 
     FFTConvolutionCRTPSetupParam(int blockSize)
@@ -446,6 +447,7 @@ protected:
  */
 
 struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
+    static constexpr bool has_subsampling = false;
     static constexpr int nCoefficientsFadeIn = 0;
 
     PartitionnedFFTConvolutionCRTPSetupParam(int partition_size,

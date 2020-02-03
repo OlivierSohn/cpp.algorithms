@@ -130,10 +130,14 @@ struct FinegrainedSetupParam : public Cost {
             }
         };
     }
+    
+    static constexpr Latency getLatencyForPartitionSize(int sz) {
+        return Latency(2 * sz - 1);
+    }
 
     Latency getImpliedLatency() const {
         Assert(handlesCoefficients());
-        return Latency(2*partition_size - 1);
+        return getLatencyForPartitionSize(partition_size);
     }
     
     template<typename F>
@@ -530,11 +534,11 @@ constexpr Latency minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilt
     ScaleConvolution_::latencyForDroppedConvolutions(ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft)
 };
     
-template<typename C>
+template<typename SetupParam>
 int constexpr getMinLg2PartitionSz() {
     int partition_sz = 1;
     for(;;partition_sz *= 2) {
-        if(C::getLatencyForPartitionSize(partition_sz) >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
+        if(SetupParam::getLatencyForPartitionSize(partition_sz) >= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
             break;
         }
     }
@@ -827,7 +831,7 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
         int const partition_size = pow2(lg2_partition_size);
         //            cout << "partition size : " << partition_size << endl;
         
-        auto maybe_impulse_sz = n_coeffs_for_latency(Convolution::getLatencyForPartitionSize(partition_size));
+        auto maybe_impulse_sz = n_coeffs_for_latency(SetupParam::getLatencyForPartitionSize(partition_size));
         if(!maybe_impulse_sz) {
             return ParamState::OutOfRange;
         }
@@ -1088,7 +1092,7 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
     });
     
     // must yield a valid result:
-    int const min_lg2_partitionsz = getMinLg2PartitionSz<Convolution>();
+    int const min_lg2_partitionsz = getMinLg2PartitionSz<SetupParam>();
     
     Optional<SetupParam> min_val;
     auto res = gradient_descent.findLocalMinimum(n_iterations,
@@ -1101,17 +1105,16 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
     return min_val;
 }
     
-template<typename T, template<typename> typename Allocator, typename FFTTag>
-struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag> > {
-    using Convolution = FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>;
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
+template<typename T, typename FFTTag>
+struct PartitionAlgo< FinegrainedSetupParam, T, FFTTag > {
+    using Convolution = FinegrainedPartitionnedFFTConvolution<T, a64::Alloc, FFTTag>;
+    using SetupParam = FinegrainedSetupParam;
     
-    static PS run(int const n_channels,
-                  int const n_scales,
-                  int const n_audio_frames_per_cb,
-                  int const zero_latency_response_size,
-                  std::ostream & os)
+    static std::optional<SetupParam> run(int const n_channels,
+                                         int const n_scales,
+                                         int const n_audio_frames_per_cb,
+                                         int const zero_latency_response_size,
+                                         std::ostream & os)
     {
         os << "Optimization of FinegrainedPartitionnedFFTConvolution for " << n_scales << " scale(s)" << std::endl;
         IndentingOStreambuf i(os);
@@ -1119,7 +1122,7 @@ struct PartitionAlgo< FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag
         assert(n_channels > 0);
         GradientDescent<SetupParam> gd;
         constexpr auto n_iterations = 1;
-        PS res = find_optimal_partition_size<Convolution>(gd,
+        std::optional<SetupParam> res = find_optimal_partition_size<Convolution>(gd,
                                                           n_iterations,
                                                           n_channels,
                                                           n_scales,

@@ -475,6 +475,7 @@ namespace imajuscule {
           c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
           testDirac2(i, c);
         }
+          /*
         {
             // min partition size of 4 else it is not valid (countGrains() < blockSize())
             int const szPartition = std::max(4,
@@ -487,7 +488,7 @@ namespace imajuscule {
                                                                         szPartition,
                                                                         nLateCoeffs);
             testDirac2(i, c);
-        }
+        }*/
         testDiracPartitionned<T, Allocator, Tag>(i);
       }
     }
@@ -503,140 +504,6 @@ TEST(Convolution, dirac) {
     testDirac<double, a64::Alloc, decltype(t)>();
   });
 }
-
-// shows that the fft of the coefficients ** do not ** give the long term amplitude
-// by frequency.
-TEST(Convolution, freq) {
-  using namespace imajuscule;
-  using namespace imajuscule::fft;
-  using namespace imajuscule::fft::slow_debug;
-  using namespace imajuscule::testdspconv;
-  
-  //using Tag = Fastest;
-  using Tag = imj::Tag;
-  
-  using ScopedContext = ScopedContext_<Tag, double>;
-  using Algo = Algo_<Tag, double>;
-  using RealSignal = typename fft::RealSignal_<Tag, double>::type;
-  using CplxFreqs = typename fft::RealFBins_<Tag, double, a64::Alloc>::type;
-  
-  constexpr auto N = 8;
-    constexpr int szPartition = 4;
-    
-    int const countCoeffs = N;
-    int const latencyLateHandler = 2*szPartition - 1;
-    int const nLateCoeffs = std::max(0, countCoeffs - latencyLateHandler);
-    int const nEarlyCoeffs = countCoeffs - nLateCoeffs;
-
-    
-    auto c = mkRealTimeConvolutionSubsampled<double, a64::Alloc, Tag>(countCoeffs,
-                                                                      mkNaiveScaling(1, nEarlyCoeffs),
-                                                                      szPartition,
-                                                                      nLateCoeffs);
-  //a64::vector<double> coefficients{1., 0.707106, 0., -0.707106, -1., -0.707106, 0., 0.707106};
-  //a64::vector<double> coefficients{1., 0.5, 0., -0.5, -1., -0.5, 0., 0.5};
-  //a64::vector<double> coefficients{1., 0.75, 0.25, 0., -0.25, -0.5, -0.75, -1.0};
-  a64::vector<double> coefficients{1., -0.5, 0.25, -0.125, 0.06, -0.03, 0.01, -0.005};
-  /*
-   corresponding norms:
-   
-   1.98
-   1.35721
-   0.894427
-   0.714822
-   0.66
-   0.714822
-   0.894427
-   1.35721
-   
-   d     : 1.98    // constant
-   f2 16 : 1.758
-   f2 8  : 1.304
-   f     : 1.304
-   f2 6  : 0.9975
-   h     : 0.8
-   g     : 0.66
-   */
-  
-  c.setCoefficients(coefficients);
-  auto d = [](int i) {
-    return 1.;
-  };
-  
-  auto g = [](int i) {
-    switch(i%2) {
-      case 0: return 1.;
-      case 1: return -1.;
-    }
-    Assert(0);
-    return 0.;
-  };
-  
-  auto h = [](int i) {
-    switch(i%4) {
-      case 0: return 1.;
-      case 1: return 0.;
-      case 2: return -1.;
-      case 3: return 0.;
-    }
-    Assert(0);
-    return 0.;
-  };
-  
-  auto f = [](int i) {
-    switch(i%8) {
-      case 0: return 1.;
-      case 1: return 0.707106;
-      case 2: return 0.;
-      case 3: return -0.707106;
-      case 4: return -1.;
-      case 5: return -0.707106;
-      case 6: return 0.;
-      case 7: return 0.707106;
-    }
-    Assert(0);
-    return 0.;
-  };
-  
-  auto f2 = [](double i, int j) {
-    return cos(static_cast<double>(j) * 2 * M_PI * i / N);
-  };
-  
-  auto f3 = [](int i, int j) {
-    return (i%(2*j) >= j) ? 1.f : -1.f;
-  };
-  
-  for(int j=1; j<20; ++j) {
-    double maxOut = 0;
-    for(int i=0; i<10000; ++i) {
-      auto res = c.step(f3(i,j));
-      if(i>1000) {
-        if(maxOut < res)
-          maxOut = res;
-      }
-    }
-    LG(INFO,"%d : %f",j,maxOut);
-  }
-  
-  ScopedContext setup(N);
-  
-  Algo fft_algo(setup.get());
-  CplxFreqs fft_of_coeffs;
-  fft_of_coeffs.resize(N);
-  auto coeffVec = fft::RealSignal_<Tag, double>::make(coefficients);
-  ASSERT_EQ(N, coeffVec.size());
-  fft_algo.forward(coeffVec.begin(), fft_of_coeffs.data(), N);
-  auto unwrapped_fft_of_coeffs = unwrap_frequencies<Tag>(fft_of_coeffs, N);
-  for(auto &e : unwrapped_fft_of_coeffs) {
-    e *= 1 / Algo::scale;
-  }
-  for(auto const&e : unwrapped_fft_of_coeffs) {
-    std::cout << abs(e) << std::endl;
-  }
-  LG(INFO,"%f", 0.f);
-  
-}
-
 
 TEST(Convolution, testComputeQueueSize) {
     using namespace imajuscule;

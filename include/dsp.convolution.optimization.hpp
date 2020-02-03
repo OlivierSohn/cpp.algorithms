@@ -3,7 +3,7 @@
 namespace imajuscule
 {
 
-template<typename T>
+template<typename Param, typename FPT, typename FFTTag>
 struct PartitionAlgo;
 
 struct Cost {

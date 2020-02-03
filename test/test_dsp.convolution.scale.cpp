@@ -452,7 +452,9 @@ TEST(ConvolutionScale, simulateBatch) {
 
     using namespace imajuscule;
 
-    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<double, a64::Alloc, fft::Fastest> >>;
+    using T = double;
+    using Tag = fft::Fastest;
+    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, a64::Alloc, Tag> >>;
 
     int const firstSz = 4;
     int const nCoeffs = 65;
@@ -461,7 +463,7 @@ TEST(ConvolutionScale, simulateBatch) {
         nCoeffs
     };
     it.forEachScaling([nCoeffs](auto const & v){
-        auto sim = mkSimulation<C>(v, nCoeffs);
+        auto sim = mkSimulation<C::SetupParam, T, Tag>(v, nCoeffs);
         auto const batchSize = sim.getBiggestScale();
         std::optional<double> prevBatchCost;
         for(int i=0; i<2; ++i)

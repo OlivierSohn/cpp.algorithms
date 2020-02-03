@@ -122,10 +122,4 @@ struct AlgoFIRFilter {
     int n_coeffs = 0;
 };
 
-template<typename T, template<typename> typename Allocator, typename FFTTag>
-struct corresponding_legacy_dsp<AlgoFIRFilter<T, Allocator, FFTTag>> {
-    // FFTTag is ignored, legacy FIRFilter uses the fastest one available
-    using type = FIRFilter<T, Allocator>;
-};
-
 }

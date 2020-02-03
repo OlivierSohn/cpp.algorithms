@@ -10,10 +10,10 @@ namespace imajuscule {
  
  ********************************************************************************
  *
- * For ** live ** audio processing, use 'ZeroLatencyScaledFineGrainedPartitionnedConvolution':
+ * For ** live ** audio processing, use 'AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution':
  *   it has the smallest worst cost per audio callback.
  *
- * For ** offline ** audio processing, use 'OptimizedFIRFilter':
+ * For ** offline ** audio processing, use 'AlgoOptimizedFIRFilter':
  *   it has the smallest average cost per sample.
  *
  * Both of them are 0-latency and are designed to scale both for very high and very low count of coefficients.
@@ -57,6 +57,33 @@ namespace imajuscule {
  
  */
 
+using OptimizedFIRFilterSetupParam =
+SplitSetupParam <
+/**/FIRSetupParam,
+/**/CustomScaleConvolutionSetupParam <
+/*  */PartitionnedFFTConvolutionCRTPSetupParam >>;
+
+using ZeroLatencyScaledFineGrainedPartitionnedParam =
+SplitSetupParam<
+/**/OptimizedFIRFilterSetupParam,
+/**/FinegrainedSetupParam>;
+
+using ZeroLatencyScaledAsyncConvolutionParam =
+SplitSetupParam <
+/**/OptimizedFIRFilterSetupParam,
+/**/AsyncSetupParam <
+/*  */CustomScaleConvolutionSetupParam <
+/*    */PartitionnedFFTConvolutionCRTPSetupParam >>>;
+
+using ZeroLatencyScaledAsyncConvolutionOptimizedParam =
+SplitSetupParam <
+/**/ZeroLatencyScaledFineGrainedPartitionnedParam,
+/**/AsyncSetupParam <
+/*  */CustomScaleConvolutionSetupParam <
+/*    */PartitionnedFFTConvolutionCRTPSetupParam >>>;
+
+
+
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 using OptimizedFIRFilter =
 SplitConvolution <
@@ -64,50 +91,36 @@ SplitConvolution <
 /**/CustomScaleConvolution<
 /*  */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>>;
 
-template<typename T, template<typename> typename Allocator, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
-using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
-SplitConvolution<
-/**/OptimizedFIRFilter<T, Allocator, FFTTag>,
-
-/**/SplitConvolution<
-/*  */FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // full resolution
-/*  */SubSampled< Lat,
-/*    */Delayed<
-
-/**/SplitConvolution<
-/*  */FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // half resolution
-/*  */SubSampled<Lat,
-/*    */Delayed<
-
-/**/SplitConvolution<
-/*  */FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // quarter resolution
-/*  */SubSampled<Lat,
-/*    */Delayed<
-
-/**/FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag> // heighth resolution
->>>>>>>>>>;
-
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
 SplitConvolution<
 /**/OptimizedFIRFilter<T, Allocator, FFTTag>,
 /**/FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>;
 
-template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-using ZeroLatencyScaledAsyncConvolution =
+/*
+template<typename T, template<typename> typename Allocator, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
+using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
 SplitConvolution<
-/**/OptimizedFIRFilter<T, Allocator, FFTTag>,
-/**/AsyncCPUConvolution <
-/*  */CustomScaleConvolution<
-/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>, OnWorkerTooSlow>>;
+OptimizedFIRFilter<T, Allocator, FFTTag>,
 
-template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-using ZeroLatencyScaledAsyncConvolutionOptimized =
 SplitConvolution<
-/**/ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>,
-/**/AsyncCPUConvolution <
-/*  */CustomScaleConvolution<
-/*    */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>, OnWorkerTooSlow>>;
+FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // full resolution
+SubSampled< Lat,
+Delayed<
+
+SplitConvolution<
+FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // half resolution
+SubSampled<Lat,
+Delayed<
+
+SplitConvolution<
+FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>, // quarter resolution
+SubSampled<Lat,
+Delayed<
+
+FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag> // heighth resolution
+>>>>>>>>>>;
+*/
 
 
 /*
@@ -130,22 +143,20 @@ ZeroLatency***      : latence fixe 0
 */
 
 
-template<typename A>
-struct PartitionAlgo<CustomScaleConvolution<A>> {
-    using Convolution = CustomScaleConvolution<A>;
-    using SetupParam = typename Convolution::SetupParam;
+template<typename A, typename T, typename FFTTag>
+struct PartitionAlgo<CustomScaleConvolutionSetupParam<A>, T, FFTTag> {
+    using SetupParam = CustomScaleConvolutionSetupParam<A>;
     using ScalingParam = typename SetupParam::ScalingParam;
-    using PS = std::optional<SetupParam>;
 
-    static PS run(int const n_channels,
-                  int const n_audio_channels,
-                  int const n_audio_frames_per_cb,
-                  int const zero_latency_response_size,
-                  double const frame_rate,
-                  double const max_avg_time_per_sample,
-                  std::ostream & os,
-                  int const firstSz,
-                  XFFtCostFactors const & xFftCostFactors)
+    static std::optional<SetupParam> run(int const n_channels,
+                                         int const n_audio_channels,
+                                         int const n_audio_frames_per_cb,
+                                         int const zero_latency_response_size,
+                                         double const frame_rate,
+                                         double const max_avg_time_per_sample,
+                                         std::ostream & os,
+                                         int const firstSz,
+                                         XFFtCostFactors const & xFftCostFactors)
     {
         os << "Optimization of CustomScaleConvolution" << std::endl;
         IndentingOStreambuf i(os);
@@ -156,10 +167,10 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
                                          zero_latency_response_size - nEarlyCoeffs);
 
         std::optional<std::pair<std::vector<Scaling>, double>> best =
-        getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<Convolution>(firstSz,
-                                                                             nLateCoeffs,
-                                                                             xFftCostFactors);
-        PS ps;
+        getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation<SetupParam, T, FFTTag>(firstSz,
+                                                                                       nLateCoeffs,
+                                                                                       xFftCostFactors);
+        std::optional<SetupParam> ps;
         if(best) {
             auto scalingParams = scalingsToParams<ScalingParam>(best->first);
             
@@ -173,43 +184,48 @@ struct PartitionAlgo<CustomScaleConvolution<A>> {
     }
 };
 
-template<typename T, template<typename> typename Allocator, typename FFTTag>
-struct PartitionAlgo< OptimizedFIRFilter<T, Allocator, FFTTag> > {
-    using Convolution = OptimizedFIRFilter<T, Allocator, FFTTag>;
-    using LateHandler = typename Convolution::LateHandler;
-    using EarlyHandler = typename Convolution::EarlyHandler;
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
+template<typename T, typename FFTTag>
+struct PartitionAlgo< OptimizedFIRFilterSetupParam, T, FFTTag > {
+    using SetupParam = OptimizedFIRFilterSetupParam;
+    using EarlyHandlerParam = typename SetupParam::AParam;
+    using LateHandlerParam = typename SetupParam::BParam;
     
-    static PS run(int n_channels,
-                  int n_audio_channels,
-                  int n_audio_frames_per_cb,
-                  int zero_latency_response_size,
-                  double frame_rate,
-                  double max_avg_time_per_sample,
-                  std::ostream & os,
-                  XFFtCostFactors const & xFftCostFactors)
+    static std::optional<SetupParam> run(int n_channels,
+                                         int n_audio_channels,
+                                         int n_audio_frames_per_cb,
+                                         int zero_latency_response_size,
+                                         double frame_rate,
+                                         double max_avg_time_per_sample,
+                                         std::ostream & os,
+                                         XFFtCostFactors const & xFftCostFactors)
     {
-        os << "Optimization of OptimizedFIRFilter" << std::endl;
+        os << "Optimization of OptimizedFIRFilterSetupParam" << std::endl;
         IndentingOStreambuf i(os);
 
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
                 
-        auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
-                                                          n_audio_channels,
-                                                          n_audio_frames_per_cb,
-                                                          zero_latency_response_size,
-                                                          frame_rate,
-                                                          max_avg_time_per_sample,
-                                                          os,
-                                                          firstSz,
-                                                          xFftCostFactors
-                                                          );
-        PS ps;
+        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+                                                                          n_audio_channels,
+                                                                          n_audio_frames_per_cb,
+                                                                          zero_latency_response_size,
+                                                                          frame_rate,
+                                                                          max_avg_time_per_sample,
+                                                                          os,
+                                                                          firstSz,
+                                                                          xFftCostFactors
+                                                                          );
+        std::optional<SetupParam> ps;
         if(pSpecsLate) {
             ps = {
                 {
+                    /*
+                     TODO instead, use PartitionAlgo<EarlyHandlerParam>
+                     or replace
+                     PartitionAlgo<OptimizedFIRFilterSetupParam>
+                     by more generic
+                     PartitionAlgo<SplitSetupParam>
+                     */
                     pSpecsLate->handlesCoefficients() ?
                     pSpecsLate->getImpliedLatency().toInteger() :
                     zero_latency_response_size
@@ -267,26 +283,22 @@ int computeQueueSize(F nextProcessingDuration,
 }
 
 
-template<typename Algo, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
-    using Convolution = AsyncCPUConvolution<Algo, OnWorkerTooSlow>;
-    using AsyncPart = typename Convolution::AsyncPart;
-    using AsyncSetupParam = typename AsyncPart::SetupParam;
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
+template<typename AsyncParam, typename T, typename FFTTag>
+struct PartitionAlgo< AsyncSetupParam<AsyncParam>, T, FFTTag > {
+    using SetupParam = AsyncSetupParam<AsyncParam>;
     
-    // to account for a system that is under heavier load
+    // to account for a system that is under heavier load at run-time than at optimization time
     static constexpr int safeFactor = 4;
     
-    static PS run(int const n_channels,
-                  int const n_audio_channels,
-                  int const n_audio_frames_per_cb,
-                  int const zero_latency_response_size,
-                  double const frame_rate,
-                  double const max_avg_time_per_sample,
-                  std::ostream & os,
-                  SimulationPhasing const & phasing,
-                  CountDroppedScales const & nAsyncScalesDropped)
+    static std::optional<SetupParam> run(int const n_channels,
+                                         int const n_audio_channels,
+                                         int const n_audio_frames_per_cb,
+                                         int const zero_latency_response_size,
+                                         double const frame_rate,
+                                         double const max_avg_time_per_sample,
+                                         std::ostream & os,
+                                         SimulationPhasing const & phasing,
+                                         CountDroppedScales const & nAsyncScalesDropped)
     {
         os << "Optimization of AsyncCPUConvolution" << std::endl;
         IndentingOStreambuf i(os);
@@ -303,7 +315,7 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
         std::optional<int> maybeQueueSz;
         std::optional<std::pair<std::vector<Scaling>, double>> optimalScaling;
                 
-        AsyncSetupParam scalingParams({});
+        AsyncParam scalingParams({});
 
         if(nAsyncCoeffs <= 0) {
             maybeQueueSz = 0;
@@ -319,16 +331,16 @@ struct PartitionAlgo< AsyncCPUConvolution<Algo, OnWorkerTooSlow> > {
             //
             // This future adaptation will be minor (we may remove work but _not_ change the structure
             // because we would have to run the simulation again, as the peak computation times could be worse.
-            auto scalingParams2 = PartitionAlgo<AsyncPart>::run(n_channels,
-                                                                n_audio_channels,
-                                                                n_audio_frames_per_cb,
-                                                                // so that the actual number of ceofficients handled is nAsyncCoeffs:
-                                                                nAsyncCoeffs + firstSz-1,
-                                                                frame_rate,
-                                                                max_avg_time_per_sample,
-                                                                os,
-                                                                firstSz,
-                                                                unbiasedXFftCostFactors);
+            auto scalingParams2 = PartitionAlgo<AsyncParam, T, FFTTag>::run(n_channels,
+                                                                            n_audio_channels,
+                                                                            n_audio_frames_per_cb,
+                                                                            // so that the actual number of ceofficients handled is nAsyncCoeffs:
+                                                                            nAsyncCoeffs + firstSz-1,
+                                                                            frame_rate,
+                                                                            max_avg_time_per_sample,
+                                                                            os,
+                                                                            firstSz,
+                                                                            unbiasedXFftCostFactors);
             if(!scalingParams2) {
                 throw std::runtime_error("no best");
             }
@@ -377,7 +389,7 @@ private:
                                              int const n_audio_frames_per_cb,
                                              int const nLateCoeffs,
                                              double const frame_rate,
-                                             AsyncSetupParam const & asyncParam,
+                                             AsyncParam const & asyncParam,
                                              int const submission_period_frames,
                                              SimulationPhasing const & phasing,
                                              std::ostream & os)
@@ -391,7 +403,7 @@ private:
         os << "Virtual simulation with " << nThreads << " threads:" << std::endl;
         IndentingOStreambuf i(os);
 
-        using Sim = typename AsyncPart::Simulation;
+        using Sim = Simulation<AsyncParam, T, FFTTag>;
         
         std::vector<std::unique_ptr<Sim>> simu_convs;
         simu_convs.reserve(n_channels);
@@ -485,7 +497,7 @@ private:
         
         return queueSize + max_sleep_submissions;
     }
-    
+    /*
     static std::optional<int>
     computeQueueMetricsWithRealSimulation(int n_channels,
                                           int n_audio_channels,
@@ -781,27 +793,26 @@ private:
             return minQueueSize;
         }
     }
+    */
 };
 
-template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, Allocator, FFTTag, OnWorkerTooSlow> > {
-    using Convolution = ZeroLatencyScaledAsyncConvolution<T, Allocator, FFTTag, OnWorkerTooSlow>;
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
+template<typename T, typename FFTTag>
+struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionParam, T, FFTTag > {
+    using SetupParam = ZeroLatencyScaledAsyncConvolutionParam;
     
-    using LateHandler = typename Convolution::LateHandler;
-    using EarlyHandler = typename Convolution::EarlyHandler;
+    using EarlyHandlerParam = typename SetupParam::AParam;
+    using LateHandlerParam = typename SetupParam::BParam;
     
-    static PS run(int n_channels,
-                  int n_audio_channels,
-                  int n_audio_frames_per_cb,
-                  int zero_latency_response_size,
-                  double frame_rate,
-                  double max_avg_time_per_sample,
-                  std::ostream & os,
-                  SimulationPhasing const & phasing)
+    static std::optional<SetupParam> run(int n_channels,
+                                         int n_audio_channels,
+                                         int n_audio_frames_per_cb,
+                                         int zero_latency_response_size,
+                                         double frame_rate,
+                                         double max_avg_time_per_sample,
+                                         std::ostream & os,
+                                         SimulationPhasing const & phasing)
     {
-        os << "Optimization of ZeroLatencyScaledAsyncConvolution" << std::endl;
+        os << "Optimization of ZeroLatencyScaledAsyncConvolutionParam" << std::endl;
         IndentingOStreambuf i(os);
 
         // There is a balance to find between the risk of audio dropouts due to:
@@ -819,27 +830,27 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, Allocator, FFTTag, On
         // So this design choice may be changed in the future.
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         
-        auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
-                                                          n_audio_channels,
-                                                          n_audio_frames_per_cb,
-                                                          zero_latency_response_size,
-                                                          frame_rate,
-                                                          max_avg_time_per_sample,
-                                                          os,
-                                                          phasing,
-                                                          nAsyncScalesDropped);
-        PS ps;
+        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+                                                                          n_audio_channels,
+                                                                          n_audio_frames_per_cb,
+                                                                          zero_latency_response_size,
+                                                                          frame_rate,
+                                                                          max_avg_time_per_sample,
+                                                                          os,
+                                                                          phasing,
+                                                                          nAsyncScalesDropped);
+        std::optional<SetupParam> ps;
         if(pSpecsLate) {
             int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
             XFFtCostFactors unbiasedXFftCostFactors;
-            auto pSpecsEarly = PartitionAlgo<EarlyHandler>::run(n_channels,
-                                                                n_audio_channels,
-                                                                n_audio_frames_per_cb,
-                                                                nEarlyCoeffs,
-                                                                frame_rate,
-                                                                max_avg_time_per_sample,
-                                                                os,
-                                                                unbiasedXFftCostFactors);
+            auto pSpecsEarly = PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_channels,
+                                                                                n_audio_channels,
+                                                                                n_audio_frames_per_cb,
+                                                                                nEarlyCoeffs,
+                                                                                frame_rate,
+                                                                                max_avg_time_per_sample,
+                                                                                os,
+                                                                                unbiasedXFftCostFactors);
             if(pSpecsEarly) {
                 ps = {
                     *pSpecsEarly,
@@ -853,27 +864,23 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolution<T, Allocator, FFTTag, On
     }
 };
 
-template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, Allocator, FFTTag, OnWorkerTooSlow> > {
-    using Convolution = ZeroLatencyScaledAsyncConvolutionOptimized<T, Allocator, FFTTag, OnWorkerTooSlow>;
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
+template<typename T, typename FFTTag>
+struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimizedParam, T, FFTTag > {
+    using SetupParam = ZeroLatencyScaledAsyncConvolutionOptimizedParam;
     
-    using EarlyHandler = typename Convolution::EarlyHandler;
-    using LateHandler = typename Convolution::LateHandler;
-    
-    using LateSetupParam = typename LateHandler::SetupParam;
-    
-    static PS run(int n_channels,
-                  int n_audio_channels,
-                  int n_audio_frames_per_cb,
-                  int zero_latency_response_size,
-                  double frame_rate,
-                  double max_avg_time_per_sample,
-                  std::ostream & os,
-                  SimulationPhasing const & phasing)
+    using EarlyHandlerParam = typename SetupParam::AParam;
+    using LateHandlerParam = typename SetupParam::BParam;
+
+    static std::optional<SetupParam> run(int n_channels,
+                                         int n_audio_channels,
+                                         int n_audio_frames_per_cb,
+                                         int zero_latency_response_size,
+                                         double frame_rate,
+                                         double max_avg_time_per_sample,
+                                         std::ostream & os,
+                                         SimulationPhasing const & phasing)
     {
-        os << "Optimization of ZeroLatencyScaledAsyncConvolutionOptimized" << std::endl;
+        os << "Optimization of ZeroLatencyScaledAsyncConvolutionOptimizedParam" << std::endl;
         IndentingOStreambuf i(os);
 
         // There is a balance to find between the risk of audio dropouts due to:
@@ -891,27 +898,27 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimized<T, Allocator, F
         // So this design choice may be changed in the future.
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         
-        auto pSpecsLate = PartitionAlgo<LateHandler>::run(n_channels,
-                                                          n_audio_channels,
-                                                          n_audio_frames_per_cb,
-                                                          zero_latency_response_size,
-                                                          frame_rate,
-                                                          max_avg_time_per_sample,
-                                                          os,
-                                                          phasing,
-                                                          nAsyncScalesDropped);
-        PS ps;
+        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+                                                                          n_audio_channels,
+                                                                          n_audio_frames_per_cb,
+                                                                          zero_latency_response_size,
+                                                                          frame_rate,
+                                                                          max_avg_time_per_sample,
+                                                                          os,
+                                                                          phasing,
+                                                                          nAsyncScalesDropped);
+        std::optional<SetupParam> ps;
         if(pSpecsLate) {
             int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
             os << "Deduced early handler coeffs:" << nEarlyCoeffs << std::endl;
             
-            auto pSpecsEarly = PartitionAlgo<EarlyHandler>::run(n_channels,
-                                                                n_audio_channels,
-                                                                n_audio_frames_per_cb,
-                                                                nEarlyCoeffs,
-                                                                frame_rate,
-                                                                max_avg_time_per_sample,
-                                                                os);
+            auto pSpecsEarly = PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_channels,
+                                                                                n_audio_channels,
+                                                                                n_audio_frames_per_cb,
+                                                                                nEarlyCoeffs,
+                                                                                frame_rate,
+                                                                                max_avg_time_per_sample,
+                                                                                os);
             
             if(pSpecsEarly) {
                 ps = {
@@ -998,7 +1005,7 @@ range<int> getScaleCountRanges(ResponseTailSubsampling rts) {
     return r;
 }
 
-
+/*
 template<typename T, template<typename> typename Allocator, typename FFTTag, typename SPEarly, typename SPLate>
 auto mkSubsamplingSetupParams(SPEarly const & early_params,
                               SPLate const & late_params,
@@ -1053,7 +1060,7 @@ auto mkSubsamplingSetupParams(SPEarly const & early_params,
             }
         }
     };
-}
+}*/
 
 // TODO make more generic
 template<typename SetupParam>
@@ -1073,43 +1080,42 @@ int count_scales(SetupParam const & p) {
     return n_scales;
 }
 
-template<typename T, template<typename> typename Allocator, typename FFTTag>
-struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag> > {
-    using Convolution = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>;
+template<typename T, typename FFTTag>
+struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedParam, T, FFTTag > {
     
-private:
-    using LateHandler = typename Convolution::LateHandler;
-    using EarlyHandler = typename Convolution::EarlyHandler;
-public:
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
-    
-    static PS run(int n_channels,
-                  int n_audio_channels,
-                  int n_audio_frames_per_cb,
-                  int zero_latency_response_size,
-                  double frame_rate,
-                  double max_avg_time_per_sample,
-                  std::ostream & os)
+    using SetupParam = ZeroLatencyScaledFineGrainedPartitionnedParam;
+
+    using EarlyHandlerParam = typename SetupParam::AParam;
+    using LateHandlerParam = typename SetupParam::BParam;
+
+    static std::optional<SetupParam> run(int n_channels,
+                                         int n_audio_channels,
+                                         int n_audio_frames_per_cb,
+                                         int zero_latency_response_size,
+                                         double frame_rate,
+                                         double max_avg_time_per_sample,
+                                         std::ostream & os)
     {
-        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedConvolution" << std::endl;
+        os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedParam" << std::endl;
         IndentingOStreambuf i(os);
 
         auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
                                          XFFtCostFactors const & xFftCostFactors) {
-            return PartitionAlgo<EarlyHandler>::run(n_channels,
-                                                    n_audio_channels,
-                                                    n_audio_frames_per_cb,
-                                                    countEarlyHandlerCoeffs,
-                                                    frame_rate,
-                                                    max_avg_time_per_sample,
-                                                    os,
-                                                    xFftCostFactors);
+            return PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_channels,
+                                                                    n_audio_channels,
+                                                                    n_audio_frames_per_cb,
+                                                                    countEarlyHandlerCoeffs,
+                                                                    frame_rate,
+                                                                    max_avg_time_per_sample,
+                                                                    os,
+                                                                    xFftCostFactors);
             
         };
+        
+        std::optional<SetupParam> ps;
+        
         if(zero_latency_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
             // in that case there is no late handling at all.
-            PS ps;
             XFFtCostFactors unbiasedXFftCostFactors;
             auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
                                                   unbiasedXFftCostFactors);
@@ -1121,35 +1127,36 @@ public:
                 };
                 ps->setCost(earlyRes->getCost());
             }
-            return ps;
         }
-        auto lateRes = PartitionAlgo<LateHandler>::run(n_channels,
-                                                       1,
-                                                       n_audio_frames_per_cb,
-                                                       zero_latency_response_size,
-                                                       os);
-        PS ps;
-        if(lateRes) {
-            // this fft comes "for free" because the latehandler uses it:
-            XFFtCostFactors xFftCostFactors{{
-                {lateRes->partition_size, 0.f}
-            }};
-            auto earlyRes = getEarlyHandlerParams(LateHandler::nCoefficientsFadeIn +
-                                                  LateHandler::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
-                                                  xFftCostFactors);
-            if(earlyRes) {
-                ps = SetupParam {
-                    *earlyRes,
-                    *lateRes
-                };
-                ps->setCost(earlyRes->getCost() +
-                            lateRes->getCost());
+        else {
+            auto lateRes = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+                                                                           1,
+                                                                           n_audio_frames_per_cb,
+                                                                           zero_latency_response_size,
+                                                                           os);
+            if(lateRes) {
+                // this fft comes "for free" because the latehandler uses it:
+                XFFtCostFactors xFftCostFactors{{
+                    {lateRes->partition_size, 0.f}
+                }};
+                auto earlyRes = getEarlyHandlerParams(LateHandlerParam::nCoefficientsFadeIn +
+                                                      LateHandlerParam::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
+                                                      xFftCostFactors);
+                if(earlyRes) {
+                    ps = SetupParam {
+                        *earlyRes,
+                        *lateRes
+                    };
+                    ps->setCost(earlyRes->getCost() +
+                                lateRes->getCost());
+                }
             }
         }
         return ps;
     }
 };
 
+/*
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, Allocator, FFTTag> > {
     using Convolution = ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<T, Allocator, FFTTag>;
@@ -1281,31 +1288,8 @@ private:
         return {};
     }
 };
+*/
 
-enum class AudioProcessing {
-    Callback, // here, we want 0 latency and the smallest worst case cost per audio callback.
-    Offline // here, we want the smallest averaged cost per sample.
-};
-
-namespace detail {
-template<typename T, AudioProcessing P>
-struct OptimalFilter_;
-
-template<typename T>
-struct OptimalFilter_<T, AudioProcessing::Callback> {
-    // TODO reevaluate once we know when async is better than sync
-    using type = ZeroLatencyScaledFineGrainedPartitionnedConvolution<T, a64::Alloc, fft::Fastest>;
-};
-
-template<typename T>
-struct OptimalFilter_<T, AudioProcessing::Offline> {
-    using type = OptimizedFIRFilter<T, a64::Alloc, fft::Fastest>;
-};
-
-}
-
-template<typename T, AudioProcessing P>
-using ZeroLatencyFilter = typename detail::OptimalFilter_<T,P>::type;
 
 static inline std::ostream & operator << (std::ostream & o, SimulationPhasing const & p)
 {

@@ -525,11 +525,4 @@ private:
     }
 };
 
-template<typename Algo>
-struct corresponding_legacy_dsp<Convolution<Algo>> {
-    using type = corresponding_legacy_dsp_t<Algo>;
-};
-
-
-
 }

@@ -33,7 +33,7 @@ auto mkBruteThenScale(int firstSz, int nCoeffs) {
             firstSz,
             nCoeffs
         }.forEachScaling([nCoeffs, &count, &results](auto const & v){
-            auto sim = mkSimulation<Scale>(v, nCoeffs);
+            auto sim = mkSimulation<typename Scale::SetupParam, T, Tag>(v, nCoeffs);
             results.emplace(v, virtualCostPerSample(sim));
             ++count;
         });

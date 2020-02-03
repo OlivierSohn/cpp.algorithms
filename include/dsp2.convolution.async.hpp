@@ -595,9 +595,4 @@ private:
     int queueSize = 0;
 };
 
-template <typename Async, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-struct corresponding_legacy_dsp<AlgoAsyncCPUConvolution<Async, OnWorkerTooSlow>> {
-    using type = AsyncCPUConvolution<corresponding_legacy_dsp_t<Async>, OnWorkerTooSlow>;
-};
-
 }

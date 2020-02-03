@@ -75,7 +75,7 @@ static inline a64::vector<double> mkCoefficientsTriangle(int sz) {
 
 std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
 std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
-
+/*
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 auto mkRealTimeConvolutionSubsampled(int const countCoeffs,
                                      std::vector<Scaling> const & v,
@@ -133,7 +133,7 @@ auto mkRealTimeConvolutionSubsampled(int const countCoeffs,
     }
             );
     return c;
-}
+}*/
 
 
 template<typename T, template<typename> typename Allocator, typename FFTTag>

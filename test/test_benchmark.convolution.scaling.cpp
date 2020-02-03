@@ -71,7 +71,7 @@ void findCheapest2(int const firstSz, int const nCoeffs, XFFtCostFactors const &
         }.forEachScaling([&coeffs, &count, &results, &factors, &sideEffect](auto const & v){
             auto [conv, mem] = mkConvolution<T, Allocator, Tag>(v, coeffs);
             constexpr int cache_flush_period_samples = 128;
-            auto sim = mkSimulation<C>(v, coeffs.size());
+            auto sim = mkSimulation<typename C::SetupParam, T, Tag>(v, coeffs.size());
             results.emplace(v,
                             Costs{
                 virtualCostPerSample(sim, factors),
@@ -168,7 +168,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
             switch(model) {
                 case CostModel::VirtualSimulation:
                 {
-                    auto sim = mkSimulation<C>(v, coeffs.size());
+                    auto sim = mkSimulation<typename C::SetupParam, T, Tag>(v, coeffs.size());
                     results.emplace(v,
                                     virtualCostPerSample(sim, factors));
                 }

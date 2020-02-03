@@ -86,4 +86,10 @@ struct MinSizeRequirement {
     }
 };
 
+template<typename A, typename T, typename FFTTag>
+struct Simulation_;
+
+template<typename A, typename T, typename FFTTag>
+using Simulation = typename Simulation_<A, T, FFTTag>::type;
+
 }

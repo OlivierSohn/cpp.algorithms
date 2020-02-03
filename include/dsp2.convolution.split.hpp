@@ -196,12 +196,5 @@ struct AlgoSplitConvolution {
     B b;
 };
 
-template<typename A, typename B>
-struct corresponding_legacy_dsp<AlgoSplitConvolution<A, B>> {
-    using type = SplitConvolution<
-    corresponding_legacy_dsp_t<A>,
-    corresponding_legacy_dsp_t<B>
-    >;
-};
 
 }

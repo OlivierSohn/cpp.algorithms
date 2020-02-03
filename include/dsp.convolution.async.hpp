@@ -15,6 +15,7 @@ struct AsyncCPUConvolutionConstants {
 
 template<typename InnerParams>
 struct AsyncSetupParam : public Cost {
+    using AsyncParam = InnerParams;
     static constexpr int queue_room_sz = AsyncCPUConvolutionConstants::queue_room_sz;
 
     AsyncSetupParam(int inputSubmissionPeriod,

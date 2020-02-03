@@ -102,7 +102,6 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
     using Parent::do_some_multiply_add;
     using Parent::get_fft_length;
     using Parent::getBlockSize;
-    using Parent::getLatencyForPartitionSize;
     using Parent::isValid;
     using Parent::setMultiplicationGroupLength;
     using Parent::getGranularity;
@@ -251,13 +250,6 @@ private:
         }
     }
 };
-
-
-template<typename Parent>
-struct corresponding_legacy_dsp<AlgoFinegrainedFFTConvolutionBase<Parent>> {
-    using type = FinegrainedFFTConvolutionBase<corresponding_legacy_dsp_t<Parent>>;
-};
-
 
 /*
  */
@@ -415,12 +407,9 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
     auto get_fft_length() const { return 2 * partition_size; }
     
     auto getBlockSize() const { return partition_size; }
-    static constexpr Latency getLatencyForPartitionSize(int partSz) {
-        return Latency(2*partSz - 1);
-    }
     Latency getLatency() const {
         Assert(handlesCoefficients());
-        return getLatencyForPartitionSize(partition_size);
+        return FinegrainedSetupParam::getLatencyForPartitionSize(partition_size);
     }
     bool isValid() const {
         if(mult_grp_len == 0) {
@@ -520,12 +509,6 @@ private:
         }
     }
 };
-
-template <typename T, template<typename> typename Allocator, typename FFTTag>
-struct corresponding_legacy_dsp<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>> {
-    using type = FinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>;
-};
-
 
 template <typename T, template<typename> typename Allocator, typename FFTTag>
 using AlgoFinegrainedPartitionnedFFTConvolution =

@@ -221,10 +221,4 @@ public:
     std::vector<A> v;
 };
 
-
-template<typename A>
-struct corresponding_legacy_dsp<AlgoCustomScaleConvolution<A>> {
-    using type = CustomScaleConvolution<corresponding_legacy_dsp_t<A>>;
-};
-
 }

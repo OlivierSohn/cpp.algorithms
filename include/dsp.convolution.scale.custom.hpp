@@ -383,6 +383,10 @@ private:
     }
 };
 
+template<typename A, typename T, typename FFTTag>
+struct Simulation_<CustomScaleConvolutionSetupParam<A>, T, FFTTag> {
+    using type = CustomScaleConvolutionSimulation<Simulation<A, T, FFTTag>>;
+};
 
 /*
  A generalization of ScaleConvolution
@@ -390,7 +394,6 @@ private:
 template<typename A>
 struct CustomScaleConvolution {
     using SetupParam = CustomScaleConvolutionSetupParam<typename A::SetupParam>;
-    using Simulation = CustomScaleConvolutionSimulation<typename A::Simulation>;
 
     using FPT = typename A::FPT;
     using RealSignal = typename A::RealSignal;

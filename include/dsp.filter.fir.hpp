@@ -52,8 +52,6 @@ struct FIRSetupParam : public Cost {
 
   /*
    Brute force filtering (no fft is used).
-   
-   Always prefer using 'OptimizedFIRFilter' which scales better with the number of coefficients.
    */
   template<typename T, template<typename> typename Allocator>
   struct FIRFilter {
@@ -176,27 +174,24 @@ struct FIRSetupParam : public Cost {
     cyclic<T> past;
   };
 
-template<typename T, template<typename> typename Allocator>
-struct PartitionAlgo< FIRFilter<T, Allocator> > {
-    using Convolution = FIRFilter<T, Allocator>;
-    using SetupParam = typename Convolution::SetupParam;
-    using PS = std::optional<SetupParam>;
+template<typename T, typename FFTTag>
+struct PartitionAlgo< FIRSetupParam, T, FFTTag> {
+    using SetupParam = FIRSetupParam;
     
-    static PS run(int n_channels,
-                  int n_audio_channels,
-                  int n_audio_frames_per_cb,
-                  int total_response_size,
-                  int n_scales,
-                  double frame_rate,
-                  std::ostream & os) {
+    static std::optional<SetupParam> run(int n_channels,
+                                         int n_audio_channels,
+                                         int n_audio_frames_per_cb,
+                                         int total_response_size,
+                                         int n_scales,
+                                         double frame_rate,
+                                         std::ostream & os) {
         os << "Optimization of FIRFilter" << std::endl;
         IndentingOStreambuf i(os);
 
         // there is no variable to optimize with FIRFilter:
-        PS ps;
-        ps.cost = SetupParam();
-        ps.cost->setCost(0.);
-        return ps;
+        SetupParam p{total_response_size};
+        p.setCost(0.);
+        return p;
     }
 };
 

@@ -154,11 +154,6 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     }
 };
 
-template<typename Parent>
-struct corresponding_legacy_dsp<AlgoFFTConvolutionIntermediate<Parent>> {
-    using type = FFTConvolutionIntermediate<corresponding_legacy_dsp_t<Parent>>;
-};
-
 
 /*
  */
@@ -298,12 +293,6 @@ private:
     int N;
     mutable CplxFreqs work;
 };
-
-template <typename T, template<typename> typename Allocator, typename Tag>
-struct corresponding_legacy_dsp<AlgoFFTConvolutionCRTP<T, Allocator, Tag>> {
-    using type = FFTConvolutionCRTP<T, Allocator, Tag>;
-};
-
 
 /*
  */
@@ -493,11 +482,6 @@ private:
     int partition_size = -1;
     int partition_count = 0;
     mutable CplxFreqs work;
-};
-
-template <typename T, template<typename> typename Allocator, typename Tag>
-struct corresponding_legacy_dsp<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>> {
-    using type = PartitionnedFFTConvolutionCRTP<T, Allocator, Tag>;
 };
 
 }

@@ -195,14 +195,14 @@ struct ScalingsIterator {
         return scalingParams;
     }
 
-    template<typename C>
+    template<typename SetupParam, typename T, typename FFTTag>
     auto mkSimulation(std::vector<Scaling> const & v,
                       int64_t const nCoeffs) {
-        using Simulation = typename C::Simulation;
-        using ScalingParam = typename Simulation::SetupParam::ScalingParam;
+        using Sim = Simulation<SetupParam, T, FFTTag>;
+        using ScalingParam = typename SetupParam::ScalingParam;
         
         auto scalingParams = scalingsToParams<ScalingParam>(v);
-        Simulation sim;
+        Sim sim;
         sim.setup({scalingParams});
         sim.setCoefficientsCount(nCoeffs);
         return sim;
@@ -358,7 +358,7 @@ struct ScalingsIterator {
         }
     }
             
-    template<typename Convolution>
+    template<typename SetupParam, typename T, typename FFTTag>
     auto getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation(int const firstSz,
                                                                  int const nCoeffs,
                                                                  XFFtCostFactors const & xFftCostFactors)
@@ -370,7 +370,7 @@ struct ScalingsIterator {
             firstSz,
             nCoeffs
          }.forEachScaling([nCoeffs, &best, &xFftCostFactors](auto const & v){
-             auto sim = mkSimulation<Convolution>(v, nCoeffs);
+             auto sim = mkSimulation<SetupParam, T, FFTTag>(v, nCoeffs);
              auto virtualCost = virtualCostPerSample(sim, xFftCostFactors);
              if(!best || virtualCost < best->second) {
                  best = {{v, virtualCost}};

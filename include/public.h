@@ -209,7 +209,6 @@ extern "C"
 #  include "dsp.convolution.gpu.hpp"
 #endif // WITH_OPENCL
 
-#include "dsp2.correspondances.hpp"
 #include "dsp2.hpp"
 #include "dsp2.filter.fir.hpp"
 #include "dsp2.convolution.async.hpp"

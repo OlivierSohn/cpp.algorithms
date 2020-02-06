@@ -163,44 +163,52 @@ namespace imajuscule::testspatialize {
             
             {
                 constexpr auto nOutMono = 1;
-                Reverbs<nOutMono, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+                using Rev = Reverbs<nOutMono, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                typename Rev::MemResource::type memory;
+                Rev spatialized;
                 
-                setConvolutionReverbIR(spatialized,
-                                       1,
-                                       {{coefficients}},
-                                       work,
-                                       10000,
-                                       44100.,
-                                       std::cout,
-                                       emptyCostFactors
-                                       );
+                applyBestParams(spatialized,
+                                memory,
+                                1,
+                                {{coefficients}},
+                                work,
+                                10000,
+                                44100.,
+                                std::cout,
+                                emptyCostFactors
+                                );
                 
                 test(spatialized, {{coefficients}});
             }
             {
                 constexpr auto nOutStereo = 2;
-                Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+                using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                typename Rev::MemResource::type memory;
+                Rev spatialized;
                 
                 // no cross-talk :
                 // source1 has only left component
                 // source2 has only right component
                 
-                setConvolutionReverbIR(spatialized,
-                                       2,
-                                       {{coefficients, zero_coeffs, zero_coeffs, coefficients}},
-                                       work,
-                                       10000,
-                                       44100.,
-                                       std::cout,
-                                       emptyCostFactors
-                                       );
+                applyBestParams(spatialized,
+                                memory,
+                                2,
+                                {{coefficients, zero_coeffs, zero_coeffs, coefficients}},
+                                work,
+                                10000,
+                                44100.,
+                                std::cout,
+                                emptyCostFactors
+                                );
                 
                 test(spatialized, {{coefficients, coefficients}});
             }
             
             {
                 constexpr auto nOutStereo = 2;
-                Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+                using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                typename Rev::MemResource::type memory;
+                Rev spatialized;
                 
                 opposite_coeffs = coefficients;
                 for(auto & o : opposite_coeffs) {
@@ -210,37 +218,41 @@ namespace imajuscule::testspatialize {
                 // source1 right component is the opposite of source 2
                 // source2 right component is the opposite of source 1
                 
-                setConvolutionReverbIR(spatialized,
-                                       2,
-                                       {{coefficients, opposite_coeffs, opposite_coeffs, coefficients}},
-                                       work,
-                                       10000,
-                                       44100.,
-                                       std::cout,
-                                       emptyCostFactors
-                                       );
+                applyBestParams(spatialized,
+                                memory,
+                                2,
+                                {{coefficients, opposite_coeffs, opposite_coeffs, coefficients}},
+                                work,
+                                10000,
+                                44100.,
+                                std::cout,
+                                emptyCostFactors
+                                );
                 
                 
                 test(spatialized, {{zero_coeffs,zero_coeffs}});
             }
             {
                 constexpr auto nOutStereo = 2;
-                Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait> spatialized;
+                using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                typename Rev::MemResource::type memory;
+                Rev spatialized;
                 
                 opposite_coeffs = coefficients;
                 for(auto & o : opposite_coeffs) {
                     o = -o;
                 }
                 
-                setConvolutionReverbIR(spatialized,
-                                       2,
-                                       {{coefficients, opposite_coeffs, zero_coeffs, coefficients}},
-                                       work,
-                                       10000,
-                                       44100.,
-                                       std::cout,
-                                       emptyCostFactors
-                                       );
+                applyBestParams(spatialized,
+                                memory,
+                                2,
+                                {{coefficients, opposite_coeffs, zero_coeffs, coefficients}},
+                                work,
+                                10000,
+                                44100.,
+                                std::cout,
+                                emptyCostFactors
+                                );
                 
                 test(spatialized, {{zero_coeffs,coefficients}});
             }

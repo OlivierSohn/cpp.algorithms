@@ -290,61 +290,66 @@ struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
     }
 
 public:
+    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
+        return p.get_fft_length() * (1 + p.partition_count);
+    }
+    
     void doSetCoefficients(Algo const & algo,
                            a64::vector<T> coeffs_)
     {
-        auto const fft_length = algo.get_fft_length();
-        multiply_add_result.resize(fft_length);
 
-        if(fft_length) {
-            auto const N = algo.getBlockSize();
-            assert(N > 0);
+        ffts_of_partitionned_h.clear();
+        multiply_add_result.clear();
+        
+        auto const fft_length = algo.get_fft_length();
+        if(!fft_length) {
+            return;
+        }
+        multiply_add_result.resize(fft_length);
+        auto const N = algo.getBlockSize();
+        assert(N > 0);
+        
+        auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), N);
+        if(n_partitions != algo.countPartitions()) {
+            throw std::logic_error("wrong number of partitions");
+        }
+        // if one partition is partial, it will be padded with zeroes.
+        coeffs_.resize(n_partitions * N);
+        
+        ffts_of_partitionned_h.resize(n_partitions);
+        
+        for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
+            fft_of_partitionned_h.resize(fft_length);
+        }
+        
+        // compute fft of padded impulse response
+        
+        auto it_coeffs = coeffs_.begin();
+        {
+            using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+            using Contexts = fft::Contexts_<Tag, FPT>;
+            FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
             
-            auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), N);
-            if(n_partitions != algo.countPartitions()) {
-                throw std::logic_error("wrong number of partitions");
-            }
-            // if one partition is partial, it will be padded with zeroes.
-            coeffs_.resize(n_partitions * N);
-            
-            ffts_of_partitionned_h.resize(n_partitions);
-            
+            auto const factor = scaleFactor<FFTAlgo>(static_cast<FPT>(fft_length));
+            RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
             for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                fft_of_partitionned_h.resize(fft_length);
-            }
-            
-            // compute fft of padded impulse response
-            
-            auto it_coeffs = coeffs_.begin();
-            {
-                using FFTAlgo = typename fft::Algo_<Tag, FPT>;
-                using Contexts = fft::Contexts_<Tag, FPT>;
-                FFTAlgo fft(Contexts::getInstance().getBySize(fft_length));
-                
-                auto const factor = scaleFactor<FFTAlgo>(static_cast<FPT>(fft_length));
-                RealSignal coeffs_slice(fft_length, Signal_value_type(0)); // initialize with zeros (second half is padding)
-                for(auto & fft_of_partitionned_h : ffts_of_partitionned_h) {
-                    auto end_coeffs = it_coeffs + N;
-                    assert(end_coeffs <= coeffs_.end());
-                    auto slice_it = coeffs_slice.begin();
-                    for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
-                        using RealT = typename RealSignal::value_type;
-                        *slice_it = RealT(*it_coeffs);
-                    }
-                    
-                    // coeffs_slice is padded with 0, because it is bigger than partition_size
-                    // and initialized with zeros.
-                    fft.forward(coeffs_slice.begin(), fft_of_partitionned_h.data(), fft_length);
-                    scale(fft_of_partitionned_h, factor);
+                auto end_coeffs = it_coeffs + N;
+                assert(end_coeffs <= coeffs_.end());
+                auto slice_it = coeffs_slice.begin();
+                for(;it_coeffs != end_coeffs; ++it_coeffs, ++slice_it) {
+                    using RealT = typename RealSignal::value_type;
+                    *slice_it = RealT(*it_coeffs);
                 }
+                
+                // coeffs_slice is padded with 0, because it is bigger than partition_size
+                // and initialized with zeros.
+                fft.forward(coeffs_slice.begin(), fft_of_partitionned_h.data(), fft_length);
+                scale(fft_of_partitionned_h, factor);
             }
-            Assert(it_coeffs == coeffs_.end());
-            
-            Assert(fft_length > 1);
         }
-        else {
-            ffts_of_partitionned_h.clear();
-        }
+        Assert(it_coeffs == coeffs_.end());
+        
+        Assert(fft_length > 1);
     }
     
     void doFlushToSilence() {

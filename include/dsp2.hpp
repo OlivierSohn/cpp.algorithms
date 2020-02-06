@@ -536,6 +536,9 @@ private:
 // avoid false sharing (for use in async convolution)
 template<typename Algo>
 struct alignas(64) SelfContainedConvolution {
+    
+    using State = Convolution<Algo>;
+    
     SelfContainedConvolution()
     : state(async_work)
     {}
@@ -543,9 +546,35 @@ struct alignas(64) SelfContainedConvolution {
     using WorkCplxFreqs = typename Convolution<Algo>::WorkCplxFreqs;
     using SetupParam = typename Algo::SetupParam;
     using FPT = typename Algo::FPT;
-    void setup(SetupParam const & s) {
-        algo.setup(s);
-        state.setup(s);
+    using FFTTag = typename Algo::Tag;
+    
+    template<typename TT>
+    using Allocator = typename State::template Allocator<TT>;
+    
+    void setupAndSetCoefficients(SetupParam const & p, a64::vector<FPT> v) {
+        memory.clear();
+        int const requiredSetup = State::getAllocationSz_Setup(p);
+        int const requiredCoeffs = State::getAllocationSz_SetCoefficients(p);
+        int const required = requiredCoeffs + requiredSetup;
+        memory.reserve(required);
+
+        {
+            typename MemResource::use_type use(memory);
+
+            algo.setup(p);
+            if(algo.isValid()) {
+                state.setup(p);
+                state.setCoefficients(std::move(v), algo);
+            }
+        }
+        
+        if constexpr (MemResource::limited) {
+            //std::cout << "mem monotonic " << memory.used() << std::endl;
+            //std::cout << "mem monotonic " << memory.remaining() << std::endl;
+            // verify that getAllocationSz_Setup / getAllocationSz_SetCoefficients are correct
+            Assert(!algo.isValid() || required == memory.used()); // or there is padding to avoid false sharing?
+        }
+        
     }
     
     void dephaseByGroupRatio(float r) {
@@ -554,10 +583,6 @@ struct alignas(64) SelfContainedConvolution {
 
     std::optional<float> getPhasePeriod() const {
         return state.getPhasePeriod();
-    }
-
-    void setCoefficients(a64::vector<FPT> v) {
-        state.setCoefficients(std::move(v), algo);
     }
     
     template<typename F>
@@ -596,9 +621,20 @@ struct alignas(64) SelfContainedConvolution {
         Assert(handlesCoefficients());
         return algo.getLatency();
     }
+    
+    int getBiggestScale() const {
+        return algo.getBiggestScale();
+    }
+
+
+    using FBinsAllocator = typename fft::RealFBins_<FFTTag, FPT, Allocator>::type::allocator_type;
+    using MemResource = MemResource<FBinsAllocator>;
+
     WorkCplxFreqs async_work;
     Algo algo;
-    Convolution<Algo> state;
+    State state;
+    typename MemResource::type memory;
+    
     char padding[63];
 };
 

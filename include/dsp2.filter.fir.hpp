@@ -19,6 +19,10 @@ struct StateFIRFilter {
     using FPT = T;
     using Tag = FFTTag;
 
+    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
+        return 0;
+    }
+
     void setCoefficients(Algo const & algo,
                          a64::vector<T> v)
     {

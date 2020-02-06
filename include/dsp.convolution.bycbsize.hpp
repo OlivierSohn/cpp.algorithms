@@ -28,6 +28,7 @@ struct ConvReverbsByBlockSize {
     {        
         // it's ok not to lock here : we are the only thread using these
         reverbsByBlockSize.clear();
+        memories.clear();
         deprecated.clear();
         current = {};
                 
@@ -40,34 +41,42 @@ struct ConvReverbsByBlockSize {
             max2 > 0;
             max2 = floor_power_of_two(max2)/2)
         {
+            auto memory = std::make_unique<typename Rev::MemResource::type>();
+            
             auto r = std::make_unique<Rev>();
 
             try {
                 ConvReverbOptimizationReportSuccess result;
                 std::stringstream os;
-                imajuscule::setConvolutionReverbIR(*r,
-                                                   n_sources,
-                                                   deinterlaced,
-                                                   work,
-                                                   max2,
-                                                   sampleRate,
-                                                   os,
-                                                   args...);
+                imajuscule::applyBestParams(*r,
+                                            *memory,
+                                            n_sources,
+                                            deinterlaced,
+                                            work,
+                                            max2,
+                                            sampleRate,
+                                            os,
+                                            args...);
                 result.optimizationReport = os.str();
                 {
                     auto res = results.try_emplace(max2, result);
-                    assert(res.second);
-                }
-                {
-                    auto res = reverbsByBlockSize.try_emplace(max2, std::move(r));
                     assert(res.second);
                 }
             }
             catch (std::exception const & e) {
                 auto res = results.try_emplace(max2, e.what());
                 assert(res.second);
+                r.reset();
             }
-            
+
+            if(r)
+            {
+                auto res = reverbsByBlockSize.try_emplace(max2, std::move(r));
+                assert(res.second);
+
+                memories.push_back(std::move(memory));
+            }
+
             if(max2 <= minSize) {
                 break;
             }
@@ -228,6 +237,7 @@ private:
     int reverbUnpaddedLength = 0;
     
     WorkCplxFreqs work;
+    std::vector<std::unique_ptr<typename Rev::MemResource::type>> memories;
 
 
     template<typename F>

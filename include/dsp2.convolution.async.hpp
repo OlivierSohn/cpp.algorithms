@@ -73,6 +73,10 @@ private:
     static constexpr block_index worker_vec_initial = 0;
 public:
     
+    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
+        return 0;
+    }
+
     void setCoefficients(Algo const & algo,
                          a64::vector<FPT> coeffs) {
         reset();
@@ -91,10 +95,9 @@ public:
 
         Assert(algo.asyncParams);
 
-        async->setup(*algo.asyncParams);
+        async->setupAndSetCoefficients(*algo.asyncParams,
+                                       std::move(coeffs));
         Assert(async->isValid());
-
-        async->setCoefficients(std::move(coeffs));
                 
         buffer.resize(N * // size of a block
                       (1+ // previous_result

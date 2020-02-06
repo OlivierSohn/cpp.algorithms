@@ -10,10 +10,10 @@ namespace imajuscule {
  
  ********************************************************************************
  *
- * For ** live ** audio processing, use 'AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution':
+ * For ** live ** audio processing, use 'StateZeroLatencyScaledFineGrainedPartitionnedConvolution':
  *   it has the smallest worst cost per audio callback.
  *
- * For ** offline ** audio processing, use 'AlgoOptimizedFIRFilter':
+ * For ** offline ** audio processing, use 'StateOptimizedFIRFilter':
  *   it has the smallest average cost per sample.
  *
  * Both of them are 0-latency and are designed to scale both for very high and very low count of coefficients.

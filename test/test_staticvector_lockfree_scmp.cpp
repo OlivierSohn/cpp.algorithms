@@ -234,11 +234,11 @@ void testLFASlowConsumer() {
     v_threads.emplace_back(std::thread{[&a,&values] () {
       auto v = values;
       Shuffle(v);
-      LG(INFO,"X");
+      //LG(INFO,"X");
       for(auto e : v) {
         while(!a.tryInsert({e})); // repeat until we succeed.
       }
-      LG(INFO,".");
+      //LG(INFO,".");
     }});
   }
   
@@ -319,12 +319,12 @@ void testLFAFastConsumer() {
     v_threads.emplace_back(std::thread{[&a,&values,&run] () {
       auto v = values;
       Shuffle(v);
-      LG(INFO,"X");
+      //LG(INFO,"X");
       
       for(auto e : v) {
         while(!(run && a.tryInsert({e}))); // repeat until we succeed.
       }
-      LG(INFO,".");
+      //LG(INFO,".");
     }});
   }
   

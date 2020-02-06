@@ -10,7 +10,16 @@ struct MonotonicBuffer {
     
     MonotonicBuffer(int capacity)
     {
+        reserve(capacity);
+    }
+    
+    MonotonicBuffer() = default;
+    
+    void reserve(int capacity) {
         buffer.reserve(capacity);
+    }
+    void clear() {
+        buffer.clear();
     }
     
     T * take(int sz) {
@@ -165,11 +174,18 @@ operator != ( const MonotonicAllocator<T>& a, const MonotonicAllocator<T2>& b)
 { return !(operator==(a,b)); };
 
 
+struct NothingResource {
+    void clear() const {}
+    void reserve(int) const {}
+    int used() const { return 666; }
+    int remaining() const { return 666; }
+};
+
 template<typename Allocator>
 struct MemResource {
     static constexpr bool limited = false;
-    using type = int;
-    using use_type = int;
+    using type = NothingResource;
+    using use_type = NothingResource;
 };
 
 template<typename BaseAllocator>

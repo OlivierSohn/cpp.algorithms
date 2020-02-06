@@ -5,7 +5,7 @@ template<typename T, template<typename> typename Allocator, typename Tag>
 auto mkConvolution(std::vector<Scaling> const & v,
                    a64::vector<T> const & coeffs) {
     using CLegacy = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
-    using CNew = Convolution<
+    using CNew = XYConvolution<
     AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>
     >;
     //using C = CLegacy;

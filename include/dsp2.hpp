@@ -306,48 +306,9 @@ struct Y {
     int32_t zeroed_up_to = 0;
 };
 
-template<typename T, template<typename> typename Allocator, typename Tag, typename WorkCplxFreqs>
-struct DspContext {
-    XAndFFTS<T, Allocator, Tag, WorkCplxFreqs> x_and_ffts;
-    Y<T, Tag> y;
-    
-    DspContext(WorkCplxFreqs & work)
-    : x_and_ffts(work)
-    {}
-    
-    static int getAllocationSz_Resize(MinSizeRequirement req) {
-        return XAndFFTS<T, Allocator, Tag, WorkCplxFreqs>::getAllocationSz_Resize(req.xFftSizes);
-    }
-    
-    void resize(MinSizeRequirement req) {
-        x_and_ffts.resize(req.minXSize,
-                          req.xFftSizes,
-                          req.minWorkSize);
-        y.resize(req.minYSize,
-                 req.minYAnticipatedWrites);
-    }
-    
-    void flushToSilence() {
-        int const n_steps = x_and_ffts.flushToSilence();
-        y.flushToSilence(n_steps);
-    }
-    
-    void dephaseSteps(int n) {
-        for(int i=0; i<n; ++i) {
-            x_and_ffts.push(0);
-            y.increment();
-        }
-    }
-    
-    void logComputeState(std::ostream & os) const {
-        x_and_ffts.logComputeState(os);
-        y.logComputeState(os);
-    }
-};
-
 /* Used to simplify tests */
 template<typename A>
-struct Convolution {
+struct XYConvolution {
     using Algo = A;
 
     static constexpr bool step_can_error = Algo::Desc::step_can_error;
@@ -361,30 +322,32 @@ struct Convolution {
     using Allocator = typename A::template Allocator<TT>;
     
     using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
-    using DspContext = DspContext<FPT, Allocator, Tag, WorkCplxFreqs>;
     using SetupParam = typename Algo::SetupParam;
 
-    Convolution(WorkCplxFreqs & work)
-    : ctxt(work)
+    XYConvolution(WorkCplxFreqs & work)
+    : x_and_ffts(work)
     {}
-
 
     static int getAllocationSz_Setup(SetupParam const & p) {
         MinSizeRequirement req = p.getMinSizeRequirement();
-        return DspContext::getAllocationSz_Resize(req);
+        return XAndFFTS<FPT, Allocator, Tag, WorkCplxFreqs>::getAllocationSz_Resize(req.xFftSizes);
     }
     
     void setup(SetupParam const & p) {
         MinSizeRequirement req = p.getMinSizeRequirement();
         
-        ctxt.resize(req);
+        x_and_ffts.resize(req.minXSize,
+                          req.xFftSizes,
+                          req.minWorkSize);
+        y.resize(req.minYSize,
+                 req.minYAnticipatedWrites);
 
-        int const ySz = static_cast<int>(ctxt.y.y.size());
+        int const ySz = static_cast<int>(y.y.size());
         int const nSteps = (ySz >= 1) ? 1 : 0;
 
         // set y progress such that results are written in a single chunk
         for(int i=0; i<nSteps; ++i) {
-            ctxt.y.increment();
+            y.increment();
         }
         
         phase_period.reset();
@@ -414,7 +377,7 @@ struct Convolution {
         if(phase_period) {
             return phase_period;
         }
-        int const maxHalfFFTSz = floor_power_of_two(ctxt.x_and_ffts.fftHalfSizesBits);
+        int const maxHalfFFTSz = floor_power_of_two(x_and_ffts.fftHalfSizesBits);
         if(maxHalfFFTSz) {
             return maxHalfFFTSz;
         }
@@ -439,7 +402,9 @@ struct Convolution {
         return state.getEpsilon(algo);
     }
     void logComputeState(std::ostream & os, Algo const & algo) const {
-        ctxt.logComputeState(os);
+        x_and_ffts.logComputeState(os);
+        y.logComputeState(os);
+        
         os << "phase: ";
         auto per = getPhasePeriod();
         if(per) {
@@ -461,14 +426,14 @@ struct Convolution {
 
     FPT step(FPT val,
              Algo const & algo) {
-        ctxt.x_and_ffts.push(val);
+        x_and_ffts.push(val);
         
         algo.step(state,
-                  ctxt.x_and_ffts,
-                  ctxt.y);
+                  x_and_ffts,
+                  y);
         
-        FPT res = fft::RealSignal_<Tag, FPT>::get_signal(ctxt.y.y[ctxt.y.uProgress]);
-        ctxt.y.increment();
+        FPT res = fft::RealSignal_<Tag, FPT>::get_signal(y.y[y.uProgress]);
+        y.increment();
         return res;
     }
     
@@ -504,18 +469,23 @@ struct Convolution {
     
     void flushToSilence(Algo const & algo) {
         algo.flushToSilence(state);
-        ctxt.flushToSilence();
+
+        {
+            int const n_steps = x_and_ffts.flushToSilence();
+            // in the future it will _not_ be needed to keep the 2 in sync.
+            y.flushToSilence(n_steps);
+        }
         
         dephase(algo);
     }
     
 private:
-    // x: 1 for all inputs
-    // y: 1 for all outputs
-    DspContext ctxt;
+    // 1 for all inputs
+    XAndFFTS<FPT, Allocator, Tag, WorkCplxFreqs> x_and_ffts;
+    // 1 for all outputs
+    Y<FPT, Tag> y;
 
 public:
-    // 1 for each convolution:
     State state;
 private:
     
@@ -527,23 +497,29 @@ private:
         auto per = getPhasePeriod();
         if(per) {
             const int n_steps = static_cast<int>(0.5f + phase_group_ratio * *per);
+
             algo.dephaseSteps(state, n_steps);
-            ctxt.dephaseSteps(n_steps);
+
+            for(int i=0; i<n_steps; ++i) {
+                x_and_ffts.push(0);
+                // in the future it will _not_ be needed to keep them in sync
+                y.increment();
+            }
         }
     }
 };
 
 // avoid false sharing (for use in async convolution)
 template<typename Algo>
-struct alignas(64) SelfContainedConvolution {
+struct alignas(64) SelfContainedXYConvolution {
     
-    using State = Convolution<Algo>;
+    using State = XYConvolution<Algo>;
     
-    SelfContainedConvolution()
+    SelfContainedXYConvolution()
     : state(async_work)
     {}
 
-    using WorkCplxFreqs = typename Convolution<Algo>::WorkCplxFreqs;
+    using WorkCplxFreqs = typename XYConvolution<Algo>::WorkCplxFreqs;
     using SetupParam = typename Algo::SetupParam;
     using FPT = typename Algo::FPT;
     using FFTTag = typename Algo::Tag;

@@ -841,7 +841,7 @@ void verifyFftMutualizationEffect() {
         FinegrainedPartitionnedFFTConvolution<T, Tag>
     >;
     using NewConv =
-    Convolution<
+    XYConvolution<
       AlgoSplitConvolution<
         AlgoSplitConvolution <
             AlgoFIRFilter<T, Tag>,

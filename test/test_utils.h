@@ -168,7 +168,7 @@ template<typename T, template<typename> typename Allocator, typename Tag>
 auto mkRealTimeConvolution2(std::vector<Scaling> const & v,
                             int partitionSize,
                             int partitionCount) {
-  using C = Convolution<
+  using C = XYConvolution<
     AlgoSplitConvolution<
       AlgoSplitConvolution <
           AlgoFIRFilter<T, Allocator, Tag>,

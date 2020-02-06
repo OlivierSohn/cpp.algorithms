@@ -58,7 +58,8 @@ struct AsyncSetupParam : public Cost {
             1, // x size : pour l'instant on copie x par x donc un seul suffit.
             1, // y size : on écrit un par un pour l'instant
             0, // y anticipé : on n'écrit pas dans le futur
-            {} // ffts : besoin de rien pour l'instant puisque les fft sont recalculées dans la partie async
+            {}, // ffts : besoin de rien pour l'instant puisque les fft sont recalculées dans la partie async
+            0 // work size
         };
     }
     

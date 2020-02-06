@@ -216,68 +216,77 @@ namespace imajuscule {
                                              v.vector_size());
             }
             
-            template<typename TR, typename T1, typename T2>
-            static void multiply(TR & res,
-                                 T1 const & const_m1,
-                                 T2 const & const_m2)
+           static void multiply(T * res,
+                                T const * const_m1,
+                                T const * const_m2,
+                                int N)
             {
                 // res = m1 * m2
-
-                auto & m1 = const_cast<T1 &>(const_m1);
-                auto & m2 = const_cast<T2 &>(const_m2);
-
-                auto Res = res.get_hybrid_split();
-                auto M1 = m1.get_hybrid_split();
-                auto M2 = m2.get_hybrid_split();
-
+                
+                Assert(N >= 1);
                 {
-                    *Res.realp = *M1.realp * *M2.realp;
-                    *Res.imagp = *M1.imagp * *M2.imagp;
+                    res[0] = const_m1[0] * const_m2[0];
+                    res[N] = const_m1[N] * const_m2[N];
                 }
 
-                advance(Res);
-                advance(M1);
-                advance(M2);
+                if(likely(N > 1)) {
+                    using namespace accelerate;
 
-                auto const sz = res.vector_size();
-                if(likely(sz > 0)) {
-                    constexpr auto conjugation = false;
+                    SplitComplex<T> Rs {
+                        &res[1],
+                        &res[N+1]
+                    };
+                    SplitComplex<T> M1 {
+                        const_cast<T *>(&const_m1[1]),
+                        const_cast<T *>(&const_m1[N+1])
+                    };
+                    SplitComplex<T> M2 {
+                        const_cast<T *>(&const_m2[1]),
+                        const_cast<T *>(&const_m2[N+1])
+                    };
+
+                    constexpr bool conjugation = false;
                     accelerate::API<T>::f_zvmul(&M1, 1,
                                                 &M2, 1,
-                                                &Res, 1,
-                                                sz - 1,
+                                                &Rs, 1,
+                                                N - 1,
                                                 conjugation);
                 }
             }
 
-            template<typename TR, typename T1, typename T2>
-            static void multiply_add(TR & accum,
-                                     T1 const & const_m1,
-                                     T2 const & const_m2) {
+            static void multiply_add(T * __restrict accum,
+                                     T const * __restrict const_m1,
+                                     T const * __restrict const_m2,
+                                     int N) {
                 // accum += m1 * m2
 
-                auto & m1 = const_cast<T1 &>(const_m1);
-                auto & m2 = const_cast<T2 &>(const_m2);
-
-                auto Accum = accum.get_hybrid_split();
-                auto M1 = m1.get_hybrid_split();
-                auto M2 = m2.get_hybrid_split();
-
+                Assert(N >= 1);
                 {
-                    *Accum.realp += *M1.realp * *M2.realp;
-                    *Accum.imagp += *M1.imagp * *M2.imagp;
+                    accum[0] += const_m1[0] * const_m2[0];
+                    accum[N] += const_m1[N] * const_m2[N];
                 }
 
-                advance(Accum);
-                advance(M1);
-                advance(M2);
+                if(likely(N > 1)) {
+                    using namespace accelerate;
 
-                auto const sz = accum.vector_size();
-                if(likely(sz > 0)) {
+                    SplitComplex<T> Ac {
+                        &accum[1],
+                        &accum[N+1]
+                    };
+                    SplitComplex<T> M1 {
+                        const_cast<T *>(&const_m1[1]),
+                        const_cast<T *>(&const_m1[N+1])
+                    };
+                    SplitComplex<T> M2 {
+                        const_cast<T *>(&const_m2[1]),
+                        const_cast<T *>(&const_m2[N+1])
+                    };
+
                     accelerate::API<T>::f_zvma(&M1, 1,
                                                &M2, 1,
-                                               &Accum, 1,
-                                               &Accum, 1, sz - 1);
+                                               &Ac, 1,
+                                               &Ac, 1,
+                                               N - 1);
                 }
             }
 

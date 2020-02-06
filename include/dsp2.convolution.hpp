@@ -140,9 +140,10 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
 
         auto const & ffts = x_and_ffts.find_ffts(fft_length);
         
-        auto const & frequencies = compute_convolution(s, ffts);
+        auto * workData = x_and_ffts.work.data();
+        compute_convolution(s, ffts, workData);
         
-        ffts.fft.inverse(frequencies.data(), s.result, fft_length);
+        ffts.fft.inverse(workData, s.result, fft_length);
         
         add_assign(y.y.begin() + y.uProgress,
                    s.result.begin(),
@@ -239,7 +240,7 @@ struct AlgoFFTConvolutionCRTP {
     using FPT = T;
     using FFTTag = Tag;
     
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
+    using CplxFreqsValueType = typename fft::RealFBins_<Tag, FPT, Allocator>::type::value_type;
     
     using FFTAlgo = typename fft::Algo_<Tag, FPT>;
     
@@ -250,8 +251,6 @@ struct AlgoFFTConvolutionCRTP {
         if(N>0 && !is_power_of_two(N)) {
             throw std::runtime_error("non power of 2");
         }
-        auto fft_length = 2*N;
-        work.resize(fft_length);
     }
     
 
@@ -279,19 +278,18 @@ struct AlgoFFTConvolutionCRTP {
     
 protected:
     template<template<typename> typename Allocator2>
-    auto const & compute_convolution(State const & s,
-                                     FFTs<T, Allocator2, Tag> const & ffts) const
+    void compute_convolution(State const & s,
+                             FFTs<T, Allocator2, Tag> const & ffts,
+                             CplxFreqsValueType * workData) const
     {
-        auto const & fft_of_x = ffts.get_by_age(0);
-        
-        fft::RealFBins_<Tag, FPT, Allocator2>::multiply(work, fft_of_x, s.fft_of_h);
-        
-        return work;
+        fft::RealFBins_<Tag, FPT, Allocator2>::multiply(workData,
+                                                        ffts.get_by_age(0),
+                                                        s.fft_of_h.data(),
+                                                        N);
     }
     
 private:
     int N;
-    mutable CplxFreqs work;
 };
 
 /*
@@ -411,6 +409,7 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
+    using CplxFreqsValueType = typename fft::RealFBins_<Tag, FPT, Allocator>::type::value_type;
     using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
     
     using FFTAlgo = typename fft::Algo_<Tag, FPT>;
@@ -426,17 +425,12 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
     bool isValid() const { return true; }
     bool handlesCoefficients() const { return partition_size > 0; }
 
-    static int getAllocationSz_Setup(SetupParam const & p) {
-        return 2 * p.partition_size;
-    }
     void setup(SetupParam const & p) {
         partition_size = p.partition_size;
         partition_count = p.partition_count;
         
         assert(partition_size > 0);
         assert(is_power_of_two(partition_size));
-
-        work.resize(get_fft_length());
     }
 
     void doDephaseSteps(State & s,
@@ -450,8 +444,9 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
 protected:
     
     template<template<typename> typename Allocator2>
-    auto const & compute_convolution(State const & s,
-                                     FFTs<T, Allocator2, Tag> const & ffts) const
+    void compute_convolution(State const & s,
+                             FFTs<T, Allocator2, Tag> const & ffts,
+                             CplxFreqsValueType * workData) const
     {
         int index = 0;
         using CplxFreqs2 = typename fft::RealFBins_<Tag, FPT, Allocator2>::type;
@@ -459,29 +454,29 @@ protected:
             void operator()(CplxFreqs2 const & fft_of_delayed_x) {
                 auto const & fft_of_partitionned_h = ffts_of_partitionned_h[index];
                 if(0 == index) {
-                    fft::RealFBins_<Tag, FPT, Allocator>::multiply(work /* = */,
-                                                                   fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                    fft::RealFBins_<Tag, FPT, Allocator>::multiply(workData /* = */,
+                                                                   fft_of_delayed_x.data(), /* * */ fft_of_partitionned_h.data(),
+                                                                   partition_size);
                 }
                 else {
-                    fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(work /* += */,
-                                                                       fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                    fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(workData /* += */,
+                                                                       fft_of_delayed_x.data(), /* * */ fft_of_partitionned_h.data(),
+                                                                       partition_size);
                 }
                 ++index;
             }
             int & index;
             std::vector<typename State::CplxFreqs> const & ffts_of_partitionned_h;
-            CplxFreqs & work;
-        } f{index, s.ffts_of_partitionned_h, work};
+            CplxFreqsValueType * workData;
+            int partition_size;
+        } f{index, s.ffts_of_partitionned_h, workData, partition_size};
         
         ffts.for_some_recent(s.ffts_of_partitionned_h.size(), f);
-        
-        return work;
     }
     
 private:
     int partition_size = -1;
     int partition_count = 0;
-    mutable CplxFreqs work;
 };
 
 }

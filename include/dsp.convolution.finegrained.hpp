@@ -119,15 +119,18 @@ struct FinegrainedSetupParam : public Cost {
         }
     }
     
+    int get_fft_length() const {
+        return 2 * partition_size;
+    }
+    
     MinSizeRequirement getMinSizeRequirement() const
     {
-        auto const fft_length = 2*partition_size;
         return {
             0, // x block size
-            static_cast<int>(fft_length/2), // y block size
-            static_cast<int>(fft_length/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
+            static_cast<int>(get_fft_length()/2), // y block size
+            static_cast<int>(get_fft_length()/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
             {
-                {fft_length, partition_count}
+                {get_fft_length(), partition_count}
             },
             0 // work size
         };

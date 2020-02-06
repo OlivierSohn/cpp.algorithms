@@ -72,36 +72,44 @@ struct Reverbs {
     using Tag = fft::Fastest;
     
     template<typename TT>
-    using Allocator = AlignedAllocator<TT, Alignment::CACHE_LINE>;//monotonic::aP::Alloc<TT>
+    using Allocator = monotonic::aP::Alloc<TT>;
     
-    using Convolution =
+    using FPT = double;
+    using T = FPT;
+
+    using FBinsAllocator = typename fft::RealFBins_<Tag, FPT, Allocator>::type::allocator_type;
+    using MemResource = MemResource<FBinsAllocator>;
+    
+    using State =
     std::conditional_t< reverbType==ReverbType::Offline,
-    AlgoOptimizedFIRFilter<double, Allocator, Tag>,
+    StateOptimizedFIRFilter<FPT, Allocator, Tag>,
     
     std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
-    AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<double, Allocator, Tag>,
+    StateZeroLatencyScaledFineGrainedPartitionnedConvolution<FPT, Allocator, Tag>,
     
     //std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
     //  ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Allocator, Tag>,
     
     std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
-    AlgoZeroLatencyScaledAsyncConvolution<double, Allocator, Tag, OnWorkerTooSlow>,
+    StateZeroLatencyScaledAsyncConvolution<FPT, Allocator, Tag, OnWorkerTooSlow>,
     
     std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
-    AlgoZeroLatencyScaledAsyncConvolutionOptimized<double, Allocator, Tag, OnWorkerTooSlow>,
+    StateZeroLatencyScaledAsyncConvolutionOptimized<FPT, Allocator, Tag, OnWorkerTooSlow>,
     
     void
     
     >>>>/*>*/;
     
-    using FPT = typename Convolution::FPT;
-    using T = FPT;
-    using SetupParam = typename Convolution::SetupParam;
+    using SetupParam = typename State::SetupParam;
     using PartitionAlgo = PartitionAlgo<SetupParam, FPT, Tag>;
-    using WorkCplxFreqs = typename Convolution::WorkCplxFreqs;
-    using Algo = typename Convolution::Algo;
+    using WorkCplxFreqs = typename State::WorkCplxFreqs;
+    using Algo = typename State::Algo;
 
-    
+    static int getAllocationSz(SetupParam const & p,
+                               int const n_channels) {
+        return n_channels * (State::getAllocationSz_Setup(p) + State::getAllocationSz_SetCoefficients(p));
+    }
+
     // for wir files of wave, it seems the order is by "ears" then by "source":
     // ear Left source 1
     // ...
@@ -116,30 +124,30 @@ struct Reverbs {
                     WorkCplxFreqs & work) {
         algo.setup(setup);
 
-        convs.clear();
-        convs.reserve(deinterlaced_coeffs.size());
+        states.clear();
+        states.reserve(deinterlaced_coeffs.size());
         for(auto & coeffs : deinterlaced_coeffs) {
-            convs.push_back(std::make_unique<Convolution>(work));
-            auto & c = convs.back();
+            states.push_back(std::make_unique<State>(work));
+            auto & c = states.back();
             c->setup(setup);
             c->setCoefficients(std::move(coeffs), algo);
         }
-        int const nConvolutionsPerSource = convs.size() / n_sources;
-        if((n_sources * nConvolutionsPerSource) != convs.size()) {
+        int const nConvolutionsPerSource = states.size() / n_sources;
+        if((n_sources * nConvolutionsPerSource) != states.size()) {
             throw std::runtime_error("inconsistent number of audio sources / channels");
         }
-        nConvolutionsPerEar = convs.size() / nEars;
-        Assert((nEars * nConvolutionsPerEar) == convs.size());
+        nConvolutionsPerEar = states.size() / nEars;
+        Assert((nEars * nConvolutionsPerEar) == states.size());
         
         int n = 0;
-        int const total = convs.size();
-        for(auto & c : convs) {
+        int const total = states.size();
+        for(auto & c : states) {
             dephase(total, n, *c, algo);
             ++n;
         }
     }
     
-    void logReport(double sampleRate, std::ostream & os) const
+    void logReport(std::ostream & os) const
     {
         os << "States:" << std::endl;
         IndentingOStreambuf in(os);
@@ -147,18 +155,18 @@ struct Reverbs {
         int i=0;
         foreachConvReverb([&os, &i, this](auto const & r){
             ++i;
-            os << "Convolution " << i << ":" << std::endl;
+            os << i << ":" << std::endl;
             IndentingOStreambuf indent(os);
             r.logComputeState(os, algo);
         });
     }
     
     int countScales() {
-        if (convs.empty()) {
+        if (states.empty()) {
             return 0;
         }
-        if constexpr(Convolution::has_subsampling) {
-            return imajuscule::countScales(*convs[0]);
+        if constexpr(State::has_subsampling) {
+            return imajuscule::countScales(*states[0]);
         }
         else {
             return 1;
@@ -166,7 +174,7 @@ struct Reverbs {
     }
     
     bool handlesCoefficients() const {
-        if(convs.empty()) {
+        if(states.empty()) {
             return false;
         }
         return algo.handlesCoefficients();
@@ -174,15 +182,15 @@ struct Reverbs {
     
     Latency getLatency() const {
         Assert(handlesCoefficients());
-        return convs.empty() ? Latency(0) : algo.getLatency();
+        return states.empty() ? Latency(0) : algo.getLatency();
     }
     
     double getEpsilon() const {
-        return epsilonOfNaiveSummation(convs, algo) / nEars;
+        return epsilonOfNaiveSummation(states, algo) / nEars;
     }
     
     bool isValid() const {
-        if(convs.empty()) {
+        if(states.empty()) {
             return true;
         }
         return algo.isValid();
@@ -190,14 +198,14 @@ struct Reverbs {
     
     template<typename F>
     void foreachConvReverb(F f) const {
-        for(auto const & c : convs) {
+        for(auto const & c : states) {
             f(*c);
         }
     }
     
     template<typename F>
     void foreachConvReverb(F f) {
-        for(auto & c : convs) {
+        for(auto & c : states) {
             f(*c);
         }
     }
@@ -213,7 +221,7 @@ struct Reverbs {
         bool success = true;
         
         int i_in = 0;
-        auto itConv = convs.begin();
+        auto itConv = states.begin();
         
         Assert(nOutputBuffers == nEars);
         for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
@@ -242,7 +250,7 @@ struct Reverbs {
                     }
                 }
                 assign = false;
-                if constexpr (Convolution::step_can_error) {
+                if constexpr (State::step_can_error) {
                     success = !c->hasStepErrors() && success;
                 }
             }
@@ -269,11 +277,11 @@ struct Reverbs {
             FPT2 * out = output_buffers[i_out];
             for(int i=0; i<nFramesToCompute; i += vectorLength) {
                 for(int i_in = 0; i_in < nConvolutionsPerEar; ++i_in) {
-                    auto & c = convs[nConvolutionsPerEar*i_out + i_in];
+                    auto & c = states[nConvolutionsPerEar*i_out + i_in];
                     c->stepAddInputZeroVectorized(out+i,
                                                   std::min(vectorLength, nFramesToCompute-i),
                                                   algo);
-                    if constexpr (Convolution::step_can_error) {
+                    if constexpr (State::step_can_error) {
                         success = !c->hasStepErrors() && success;
                     }
                 }
@@ -284,12 +292,12 @@ struct Reverbs {
     
     
     void clear() {
-        convs.clear();
+        states.clear();
         nConvolutionsPerEar = 0;
     }
     
     void flushToSilence() {
-        for(auto & c : convs) {
+        for(auto & c : states) {
             c->flushToSilence(algo);
         }
     }
@@ -297,9 +305,9 @@ struct Reverbs {
 private:
     
     int nConvolutionsPerEar = 0;
+    std::vector<std::unique_ptr<State>> states;
     Algo algo;
-    std::vector<std::unique_ptr<Convolution>> convs;
-    
+
     bool empty() const {
         return nConvolutionsPerEar == 0;
     }
@@ -351,19 +359,15 @@ void padForScales(SetupParam const & spec,
 }
 
 template<typename Reverb, typename ...Args>
-void setConvolutionReverbIR(Reverb & rev,
-                            int const n_sources,
-                            DeinterlacedBuffers<typename Reverb::FPT> const & deinterlaced,
-                            typename Reverb::WorkCplxFreqs & work,
-                            int n_audiocb_frames,
-                            double sampleRate,
-                            std::ostream & os,
-                            Args... args)
+auto findBestParams(int const n_response_channels,
+                    int const n_frames,
+                    int n_audiocb_frames,
+                    double sampleRate,
+                    std::ostream & os,
+                    Args... args)
 {
     using PartitionAlgo = typename Reverb::PartitionAlgo;
     constexpr auto nEars = Reverb::nEars;
-    
-    rev.clear();
     
     if(n_audiocb_frames <= 0) {
         std::stringstream ss;
@@ -372,8 +376,6 @@ void setConvolutionReverbIR(Reverb & rev,
     }
     
     using namespace std;
-    
-    int const n_response_channels = deinterlaced.countChannels();
     
     static constexpr double ratio_hard_limit = 1.0;
     //    because of overhead due to os managing audio, because of "other things running on the device", etc...
@@ -387,7 +389,7 @@ void setConvolutionReverbIR(Reverb & rev,
     auto partitionning = PartitionAlgo::run(n_response_channels,
                                             nEars,
                                             n_audiocb_frames,
-                                            deinterlaced.countFrames(),
+                                            n_frames,
                                             sampleRate,
                                             max_avg_time_per_sample,
                                             os,
@@ -397,21 +399,75 @@ void setConvolutionReverbIR(Reverb & rev,
         ss << "could not optimize (2) :" << std::endl << os.rdbuf();
         throw std::runtime_error(ss.str());
     }
-    // buffers are copied here:
-    auto buffers = deinterlaced.getBuffers();
-    padForScales(*partitionning, buffers);
-    
-    partitionning->logReport(deinterlaced.countChannels(),
+    partitionning->logReport(n_response_channels,
                              theoretical_max_ns_per_frame,
                              os);
-    
-    rev.setSources(n_sources,
-                   buffers,
-                   *partitionning,
-                   work);
-    rev.logReport(sampleRate, os);
+    return *partitionning;
 }
 
+template<typename Reverb>
+void applyParams(Reverb & rev,
+                 int const n_sources,
+                 DeinterlacedBuffers<typename Reverb::FPT> const & deinterlaced,
+                 typename Reverb::WorkCplxFreqs & work,
+                 typename Reverb::SetupParam const & p,
+                 std::ostream & os)
+{
+    // buffers are copied here:
+    auto buffers = deinterlaced.getBuffers();
+    padForScales(p, buffers);
+
+    rev.clear();
+    rev.setSources(n_sources,
+                   buffers,
+                   p,
+                   work);
+    rev.logReport(os);
+}
+
+template<typename Reverb, typename ...Args>
+void applyBestParams(Reverb & rev,
+                     typename Reverb::MemResource::type & memory,
+                     int const n_sources,
+                     DeinterlacedBuffers<typename Reverb::FPT> const & deinterlaced,
+                     typename Reverb::WorkCplxFreqs & work,
+                     int n_audiocb_frames,
+                     double sampleRate,
+                     std::ostream & os,
+                     Args... args)
+{
+    auto p = findBestParams<Reverb>(deinterlaced.countChannels(),
+                                    deinterlaced.countFrames(),
+                                    n_audiocb_frames,
+                                    sampleRate,
+                                    os,
+                                    args...);
+    
+    int const sz = Reverb::getAllocationSz(p, deinterlaced.countChannels());
+    
+    memory.clear();
+    memory.reserve(sz);
+    
+    using MemRsc = typename Reverb::MemResource;
+    
+    {
+        typename MemRsc::use_type use(memory);
+
+        applyParams(rev,
+                    n_sources,
+                    deinterlaced,
+                    work,
+                    p,
+                    os);
+    }
+    
+    if constexpr (MemRsc::limited) {
+        //std::cout << "mem monotonic " << memory.used() << std::endl;
+        //std::cout << "mem monotonic " << memory.remaining() << std::endl;
+        // verify that getAllocationSz_Setup / getAllocationSz_SetCoefficients are correct
+        Assert(sz == memory.used()); // or there is padding to avoid false sharing?
+    }
+}
 
 static std::ostream & operator << (std::ostream &ss, const ConvReverbOptimizationReportSuccess & r) {
     ss << r.optimizationReport << std::endl;

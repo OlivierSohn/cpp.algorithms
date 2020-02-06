@@ -38,8 +38,8 @@ auto mkConvolution(std::vector<Scaling> const & v,
     
     if constexpr (MemRsc::limited) {
         //std::cout << "mem monotonic " << memory->used() << std::endl;
-        Assert(0 == memory->remaining());
-        // else we should fix getAllocationSz_Setup / getAllocationSz_SetCoefficients
+        // verify that getAllocationSz_Setup / getAllocationSz_SetCoefficients are correct
+        Assert(sz == memory->used()); // or there is padding to avoid false sharing?
     }
 
     return std::make_pair(std::move(c), std::move(memory));

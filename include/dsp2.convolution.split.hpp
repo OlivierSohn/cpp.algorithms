@@ -33,6 +33,12 @@ struct StateSplitConvolution {
         b.reset();
     }
     
+    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
+        return
+        A::getAllocationSz_SetCoefficients(p.a) +
+        B::getAllocationSz_SetCoefficients(p.b);
+    }
+
     void setCoefficients(Algo const & algo, a64::vector<FPT> coeffs_) {
         int const split = algo.computeSplit();
 

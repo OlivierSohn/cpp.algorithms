@@ -16,11 +16,14 @@ static inline void scaleVec(double coeff, std::vector<double> & v) {
 namespace imajuscule {
 template<ReverbType reverbType, int nOut, int nIns, typename ...Args>
 void testReverbDirac(Args ...args) {
-    Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::Wait> rs;
+    using Rev = Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::Wait>;
+    typename Rev::MemResource::type memory;
+    Rev rs;
+
     using WorkCplxFreqs = typename decltype(rs)::WorkCplxFreqs;
     WorkCplxFreqs work;
 
-    using Convolution = typename decltype(rs)::Convolution;
+    using Convolution = typename decltype(rs)::State;
 
     constexpr int audio_cb_size = 99;
     
@@ -60,22 +63,24 @@ void testReverbDirac(Args ...args) {
     {
         try {
             if constexpr (Convolution::has_subsampling) {
-                setConvolutionReverbIR(rs,1,
-                                          {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
-                                          ResponseTailSubsampling::HighestAffordableResolution,
-                                          args...);
+                applyBestParams(rs,
+                                memory,
+                                1,
+                                {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
+                                ResponseTailSubsampling::HighestAffordableResolution,
+                                args...);
             }
             else if constexpr (reverbType == ReverbType::Offline) {
                 XFFtCostFactors unbiasedXFftCostFactors;
-                setConvolutionReverbIR(rs,1,
-                                          {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
-                                          unbiasedXFftCostFactors,
-                                          args...);
+                applyBestParams(rs,memory,1,
+                                {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
+                                unbiasedXFftCostFactors,
+                                args...);
             }
             else {
-                setConvolutionReverbIR(rs,1,
-                                          {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
-                                          args...);
+                applyBestParams(rs,memory,1,
+                                {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
+                                args...);
             }
             ASSERT_TRUE(false);
         }
@@ -182,23 +187,23 @@ void testReverbDirac(Args ...args) {
                     bool res = false;
                     try {
                         if constexpr (Convolution::has_subsampling) {
-                            setConvolutionReverbIR(rs,nIns,
-                                                      all_coeffs, work, audio_cb_size, 44100., std::cout,
-                                                      rts,
-                                                      args...);
+                            applyBestParams(rs, memory, nIns,
+                                            all_coeffs, work, audio_cb_size, 44100., std::cout,
+                                            rts,
+                                            args...);
                         }
                         else if constexpr (reverbType == ReverbType::Offline) {
                             XFFtCostFactors unbiasedXFftCostFactors;
-                            setConvolutionReverbIR(rs,nIns,
-                                                      all_coeffs, work, audio_cb_size, 44100., std::cout,
-                                                      unbiasedXFftCostFactors,
-                                                      args...);
+                            applyBestParams(rs, memory, nIns,
+                                            all_coeffs, work, audio_cb_size, 44100., std::cout,
+                                            unbiasedXFftCostFactors,
+                                            args...);
                         }
                         else {
-                            setConvolutionReverbIR(rs,nIns,
-                                                      all_coeffs, work, audio_cb_size, 44100., std::cout,
-                                                      
-                                                      args...);
+                            applyBestParams(rs, memory, nIns,
+                                            all_coeffs, work, audio_cb_size, 44100., std::cout,
+                                            
+                                            args...);
                         }
                         res = true;
                     }
@@ -384,11 +389,14 @@ TEST(Reverbs, dirac)
 TEST(Reverbs, reproQueueSizeGarageband) {
     using namespace imajuscule;
     
-    Reverbs<2, ReverbType::Realtime_Asynchronous, PolicyOnWorkerTooSlow::Wait> rs;
+    using Rev = Reverbs<2, ReverbType::Realtime_Asynchronous, PolicyOnWorkerTooSlow::Wait>;
+    typename Rev::MemResource::type memory;
+    Rev rs;
+    
     using WorkCplxFreqs = typename decltype(rs)::WorkCplxFreqs;
     WorkCplxFreqs work;
     
-    using Convolution = typename decltype(rs)::Convolution;
+    using Convolution = typename decltype(rs)::State;
     
     constexpr int audio_cb_size = 128;
     
@@ -402,14 +410,15 @@ TEST(Reverbs, reproQueueSizeGarageband) {
     {
         bool res = false;
         try {
-            setConvolutionReverbIR(rs,
-                                   1,
-                                   {vcoeffs},
-                                   work,
-                                   audio_cb_size,
-                                   44100.,
-                                   std::cout,
-                                   SimulationPhasing::phasing_with_group_size(2));
+            applyBestParams(rs,
+                            memory,
+                            1,
+                            {vcoeffs},
+                            work,
+                            audio_cb_size,
+                            44100.,
+                            std::cout,
+                            SimulationPhasing::phasing_with_group_size(2));
             res = true;
         }
         catch(std::exception const &e) {

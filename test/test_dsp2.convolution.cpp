@@ -54,6 +54,7 @@ a64::vector<T> makeCoefficients(int coeffs_index) {
 
 template<typename Convolution, typename Coeffs, typename Input, typename Output>
 void testGeneric(Convolution & conv,
+                 typename Convolution::SetupParam const & p,
                  Coeffs const & coefficients,
                  Input const & input,
                  Output const & expectedOutput,
@@ -61,19 +62,19 @@ void testGeneric(Convolution & conv,
 {
     using T = typename Convolution::FPT;
     using namespace fft;
-    
-    if(!conv.isValid())
-    {
-        return;
-    }
-    
+        
     using Tr = ConvolutionTraits<Convolution>;
     if(!Tr::supportsOddCountOfCoefficients
        && 1 == coefficients.size() % 2) {
         return;
     }
-    conv.setCoefficients(coefficients);
-    
+    conv.setupAndSetCoefficients(p, coefficients);
+
+    if(!conv.isValid())
+    {
+        return;
+    }
+
     std::vector<T> output;
     output.reserve(expectedOutput.size());
     std::vector<T> inputVec;
@@ -158,7 +159,9 @@ void testGeneric(Convolution & conv,
 }
 
 template<typename Convolution, typename Coeffs, typename Input, typename Output>
-void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput) {
+void testGeneric(Convolution & conv,
+                 typename Convolution::SetupParam const & p,
+                 Coeffs const & coefficients, Input const & input, Output const & expectedOutput) {
     int sz = expectedOutput.size();
     
     std::set<int> vectorLengths;
@@ -181,13 +184,15 @@ void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & 
         if(vectorLength < 0) {
             continue;
         }
-        testGeneric(conv, coefficients, input, expectedOutput, vectorLength);
+        testGeneric(conv, p, coefficients, input, expectedOutput, vectorLength);
     }
 }
 
 // we take 'coefficients' by value because we modify it in the function
 template<typename Convolution, typename Coeffs>
-void test(Convolution & conv, Coeffs const coefficients)
+void test(Convolution & conv,
+          typename Convolution::SetupParam const & p,
+          Coeffs const coefficients)
 {
     using T = typename Convolution::FPT;
     using Tr = ConvolutionTraits<Convolution>;
@@ -200,7 +205,7 @@ void test(Convolution & conv, Coeffs const coefficients)
         }
         auto diracInput = mkDirac<T>(output.size());
         Tr::adaptCoefficients(output);
-        testGeneric(conv, coefficients, diracInput, output);
+        testGeneric(conv, p, coefficients, diracInput, output);
     }
     
     // test using a random (but reproducible) signal
@@ -244,7 +249,7 @@ void test(Convolution & conv, Coeffs const coefficients)
         }
         
         Tr::adaptCoefficients(output);
-        testGeneric(conv, coefficients, randomInput, output);
+        testGeneric(conv, p, coefficients, randomInput, output);
     }
 }
 
@@ -286,16 +291,17 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
             SelfContainedConvolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>> conv;
             auto const n_partitions = imajuscule::countPartitions(coefficients.size(), part_size);
             
-            conv.setup({
+            typename decltype(conv)::SetupParam p {
                 part_size,
                 n_partitions,
                 1000,
                 0
-            });
+            };
+            
+            conv.setupAndSetCoefficients(p, coefficients);
             if(!conv.isValid()) {
                 continue;
             }
-            conv.setCoefficients(coefficients);
             
             range<int> r {
                 conv.algo.getLowestValidMultiplicationsGroupSize(),
@@ -304,18 +310,18 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
             
             switch(type) {
                 case TestFinegrained::Low:
-                    conv.algo.setMultiplicationGroupLength(r.getMin());
+                    p.multiplication_group_size = r.getMin();
                     break;
                 case TestFinegrained::High:
-                    conv.algo.setMultiplicationGroupLength(r.getMax());
+                    p.multiplication_group_size = r.getMax();
                     break;
                 case TestFinegrained::Med:
-                    conv.algo.setMultiplicationGroupLength(r.getExpCenter());
+                    p.multiplication_group_size = r.getExpCenter();
                     break;
                 default:
                     throw std::logic_error("not supported");
             }
-            test(conv, coefficients);
+            test(conv, p, coefficients);
         }
     };
     
@@ -328,13 +334,11 @@ void testDiracPartitionned(int coeffs_index) {
     auto f = [](int part_size, auto & coefficients){
         SelfContainedConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>> conv;
         
-        conv.setup({
+        test(conv, {
             part_size,
             countPartitions(coefficients.size(),
                             part_size)
-        });
-        
-        test(conv, coefficients);
+        }, coefficients);
     };
     
     testPartitionned<T>(coeffs_index, f);
@@ -342,7 +346,7 @@ void testDiracPartitionned(int coeffs_index) {
 
 
 template<typename Convolution>
-void testDirac2(int coeffs_index, Convolution & conv) {
+void testDirac2(int coeffs_index, Convolution & conv, typename Convolution::SetupParam const & p) {
     
     if(!conv.isValid()) {
         return;
@@ -350,7 +354,7 @@ void testDirac2(int coeffs_index, Convolution & conv) {
     
     using T = typename Convolution::FPT;
     
-    test(conv, makeCoefficients<T>(coeffs_index));
+    test(conv, p, makeCoefficients<T>(coeffs_index));
 }
 
 template<typename T, template<typename> typename Allocator, typename Tag>
@@ -369,24 +373,21 @@ void testDirac() {
         if(i<10)
         {
             auto c = SelfContainedConvolution<AlgoFIRFilter<T, Allocator, Tag>>{};
-            c.setup({countCoeffs});
-            testDirac2(i, c);
+            testDirac2(i, c, {countCoeffs});
         }
         {
             auto c = SelfContainedConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Allocator, Tag>>>{};
-            c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
-            testDirac2(i, c);
+            testDirac2(i, c, {static_cast<int>(ceil_power_of_two(countCoeffs))});
         }
         for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
             partition_sz <= ceil_power_of_two(countCoeffs);
             partition_sz *= 2)
         {
             auto c = SelfContainedConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>{};
-            c.setup({
+            testDirac2(i, c, {
                 partition_sz,
                 countPartitions(countCoeffs, partition_sz)
             });
-            testDirac2(i, c);
         }
         
         for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
@@ -396,13 +397,12 @@ void testDirac() {
             auto c = SelfContainedConvolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>{};
             auto const n_partitions = imajuscule::countPartitions(countCoeffs, partition_sz);
             
-            c.setup({
+            testDirac2(i, c, {
                 partition_sz,
                 n_partitions,
                 std::max(1, n_partitions/4), // size of multiplication group
                 0
             });
-            testDirac2(i, c);
         }
         
         for(int firstSz=1; firstSz <= 32; firstSz *= 2) {
@@ -423,8 +423,7 @@ void testDirac() {
                 remainingCoeffs -= sz;
                 sz *= 2;
             }
-            c.setup({params});
-            testDirac2(i, c);
+            testDirac2(i, c, {params});
         }
         
         // same as above but with some PartitionnedFFTConvolutionCRTP
@@ -450,8 +449,7 @@ void testDirac() {
                     remainingCoeffs -= sz;
                     sz *= 2;
                 }
-                c.setup({params});
-                testDirac2(i, c);
+                testDirac2(i, c, {params});
             }
         }
         // same as above but skipping one scale out of 2
@@ -477,8 +475,7 @@ void testDirac() {
                     remainingCoeffs -= countCoeffs;
                     sz *= 4;
                 }
-                c.setup({params});
-                testDirac2(i, c);
+                testDirac2(i, c, {params});
             }
         }
         // custom scale followed by finegrained with same block size as the last in the scale
@@ -521,7 +518,7 @@ void testDirac() {
                 int const partition_sz = params.empty() ? 0 : params.back().setupParam.partition_size;
                 auto const n_partitions = imajuscule::countPartitions(countDiscardedCoeffs, partition_sz);
                 
-                c.setup({
+                testDirac2(i, c, {
                     {
                         params
                     },
@@ -532,7 +529,6 @@ void testDirac() {
                         0
                     }
                 });
-                testDirac2(i, c);
             }
         }
         {
@@ -553,12 +549,11 @@ void testDirac() {
             };
             for(auto submisionPeriod:submisionPeriods) {
                 for(auto queueSize:queueSizes) {
-                    c.setup({
+                    testDirac2(i, c, {
                         submisionPeriod,
                         queueSize,
                         {countCoeffs}
                     });
-                    testDirac2(i, c);
                 }
             }
         }

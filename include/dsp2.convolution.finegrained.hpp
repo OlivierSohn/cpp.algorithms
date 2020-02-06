@@ -131,9 +131,9 @@ struct AlgoFinegrainedFFTConvolutionBase : public Parent {
         }
     }
 
-    template<template<typename> typename Allocator2>
+    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
     void step(State & s,
-              XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+              XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
               Y<T, Tag> & y) const {
         if(s.isZero()) {
             return;
@@ -193,9 +193,9 @@ private:
         }
     }
     
-    template<template<typename> typename Allocator2>
+    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
     void doGrain(State & s,
-                 XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+                 XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
                  Y<T, Tag> & y,
                  GrainType g) const
     {

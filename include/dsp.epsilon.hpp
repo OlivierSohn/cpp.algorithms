@@ -24,14 +24,14 @@ struct pointed<std::pair<T, U>> {
     }
 };
 
-template<typename C>
-double epsilonOfNaiveSummation(C const & cont) {
+template<typename C, typename ...Args>
+double epsilonOfNaiveSummation(C const & cont, Args&&... args) {
     using Pointed = pointed<typename C::value_type>;
     using FPT = typename std::remove_reference_t<typename Pointed::type>::FPT;
     double err = {};
     // inner epsilons:
     for(auto const & c : cont) {
-        err += Pointed::get(c).getEpsilon();
+        err += Pointed::get(c).getEpsilon(std::forward<Args>(args)...);
     }
     // and there are cont.size() additions :
     err += cont.size() * std::numeric_limits<FPT>::epsilon();

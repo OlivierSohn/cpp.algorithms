@@ -95,9 +95,9 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
         doDephaseSteps(s, n_steps);
     }
 
-    template<template<typename> typename Allocator2>
+    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
     void step(State & s,
-              XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+              XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
               Y<T, Tag> & y) const
     {
         if(s.isZero()) {
@@ -124,10 +124,10 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
                   y);
     }
     
-    template<template<typename> typename Allocator2>
+    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
     void forceStep(State const & s,
-                   XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
-                   Y<T, Tag> & y) const
+              XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
+              Y<T, Tag> & y) const
     {
         int const N = getBlockSize();
         

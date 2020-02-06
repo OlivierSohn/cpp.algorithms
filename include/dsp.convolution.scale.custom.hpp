@@ -88,7 +88,7 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         if(res) {
             return *res;
         }
-        return {0,0,0,{}};
+        return {0,0,0,{},0};
     }
 
     Latency getImpliedLatency() const {
@@ -425,13 +425,6 @@ struct CustomScaleConvolution {
         return v.empty();
     }
     
-    static int getAllocationSz_Setup(SetupParam const & p) {
-        int sz = 0;
-        for(auto const & param : p.scalingParams) {
-            sz += A::getAllocationSz_Setup(param.setupParam);
-        }
-        return sz;
-    }
     static int getAllocationSz_SetCoefficients(SetupParam const & p) {
         int sz = 0;
         for(auto const & param : p.scalingParams) {

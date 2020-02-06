@@ -78,7 +78,7 @@ static inline std::string toJustifiedString(ReverbType t) {
     using Tag = fft::Fastest;
 
     template<typename TT>
-    using Allocator = AlignedAllocator<TT, Alignment::CACHE_LINE>;
+    using Allocator = AlignedAllocator<TT, Alignment::CACHE_LINE>;//monotonic::aP::Alloc<TT>
       
     using Convolution =
       std::conditional_t< reverbType==ReverbType::Offline,

@@ -478,14 +478,16 @@ protected:
         int offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
         int offset = offset_base;
         if(offset == 0) {
-            fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result /* = */,
-                                                           ffts.get_by_age(0), /* x */ s.ffts_of_partitionned_h[0]);
+            fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result.data() /* = */,
+                                                           ffts.get_by_age(0), /* x */ s.ffts_of_partitionned_h[0].data(),
+                                                           partition_size);
             offset = 1;
         }
         for(; offset != offset_end; ++offset)
         {
-            fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(s.multiply_add_result /* += */,
-                                                               ffts.get_by_age(offset), /* x  */ s.ffts_of_partitionned_h[offset]);
+            fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(s.multiply_add_result.data() /* += */,
+                                                               ffts.get_by_age(offset), /* x  */ s.ffts_of_partitionned_h[offset].data(),
+                                                               partition_size);
         }
     }
     

@@ -131,30 +131,24 @@ namespace imajuscule {
                 std::fill(v.begin(), v.end(), zero);
             }
             
-            static void multiply(type & res, type const & m1, type const & m2) {
-                auto * __restrict it_res = res.begin().base();
-                auto * __restrict it1 = m1.begin().base();
-                auto * __restrict it2 = m2.begin().base();
-
-                for(auto * __restrict end1 = m1.end().base();
-                    it1 != end1;
-                    ++it2, ++it1, ++it_res)
-                  {
-                    assert(it_res < res.end().base());
-                    *it_res = *it1 * *it2;
+            static void multiply(complex<T> * const __restrict res,
+                                 complex<T> const * const __restrict m1,
+                                 complex<T> const * const __restrict m2,
+                                 int N) {
+                Assert(N > 0);
+                for(int i=0, end = 2*N; i != end; ++i)
+                {
+                    res[i] = m1[i] * m2[i];
                 }
             }
-            static void multiply_add(type & accum, type const & m1, type const & m2) {
-                auto * __restrict it_accum = accum.begin().base();
-                auto * __restrict it1 = m1.begin().base();
-                auto * __restrict it2 = m2.begin().base();
-
-                for(auto * __restrict end1 = m1.end().base();
-                    it1 != end1;
-                    ++it2, ++it1, ++it_accum)
-                  {
-                    assert(it_accum < accum.end().base());
-                    *it_accum += *it1 * *it2;
+            static void multiply_add(complex<T> * const __restrict res,
+                                     complex<T> const * const __restrict m1,
+                                     complex<T> const * const __restrict m2,
+                                     int N) {
+                Assert(N > 0);
+                for(int i=0, end = 2*N; i != end; ++i)
+                {
+                    res[i] += m1[i] * m2[i];
                 }
             }
 

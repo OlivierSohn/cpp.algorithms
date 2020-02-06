@@ -13,7 +13,10 @@ namespace imajuscule {
         auto f2 = FBins::make({{    {3,0}, {0,-1}, {0,+1}, {5,0}, {0,+1}, {0,-1} }});
         auto accum = FBins::make({{ {1,0}, {3,4},  {5,6}, {2,0}, {3,-4}, {5,-6} }});
         
-        FBins::multiply(accum, f1, f2);
+        FBins::multiply(accum.data(),
+                        f1.data(),
+                        f2.data(),
+                        N/2);
         
         auto const res = unwrap_frequencies<Tag>(accum, N);
         
@@ -46,7 +49,10 @@ namespace imajuscule {
             auto f2 = FBins::make({{    {3,0}, {0,-1}, {0,+1}, {5,0}, {0,+1}, {0,-1} }});
             auto accum = FBins::make({{ {1,0}, {3,4},  {5,6}, {2,0}, {3,-4}, {5,-6} }});
             
-            FBins::multiply_add(accum, f1, f2);
+            FBins::multiply_add(accum.data(),
+                                f1.data(),
+                                f2.data(),
+                                N/2);
             
             auto const res = unwrap_frequencies<Tag>(accum, N);
             

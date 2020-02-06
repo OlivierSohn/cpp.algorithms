@@ -43,7 +43,17 @@ private:
 using FftSpecs = std::map<uint32_t, int>; // sz -> historySize
 
 struct MinSizeRequirement {
-    MinSizeRequirement() = delete;
+    MinSizeRequirement(int minXSize,
+                       int minYSize,
+                       int minYAnticipatedWrites,
+                       FftSpecs xFftSizes,
+                       int minWorkSize)
+    : minXSize(minXSize)
+    , minYSize(minYSize)
+    , minYAnticipatedWrites(minYAnticipatedWrites)
+    , xFftSizes(xFftSizes)
+    , minWorkSize(minWorkSize)
+    {}
     
     /*
      The needed size of the x buffer is deduced both from the max size of the ffts, and from this parameter.
@@ -56,9 +66,14 @@ struct MinSizeRequirement {
     
     FftSpecs xFftSizes;
     
+    int minWorkSize;
+    
     void mergeWith(MinSizeRequirement const & o) {
-        minXSize = std::max(minXSize, o.minXSize);
-        
+        minWorkSize = std::max(minWorkSize,
+                               o.minWorkSize);
+        minXSize = std::max(minXSize,
+                            o.minXSize);
+
         if(!minYSize || !o.minYSize) {
             minYSize = std::max(minYSize, o.minYSize);
         }

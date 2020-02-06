@@ -128,7 +128,8 @@ struct FinegrainedSetupParam : public Cost {
             static_cast<int>(fft_length/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
             {
                 {fft_length, partition_count}
-            }
+            },
+            0 // work size
         };
     }
     
@@ -729,12 +730,14 @@ protected:
             auto const & fft_of_delayed_x = ffts_of_delayed_x.get_forward(offset);
             
             if(offset == 0) {
-                RealFBins::multiply(work                /*   =   */,
-                                    fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+                RealFBins::multiply(work.data()                /*   =   */,
+                                    fft_of_delayed_x.data(),   /*   x   */   it_fft_of_partitionned_h->data(),
+                                    partition_size);
             }
             else {
-                RealFBins::multiply_add(work                /*   +=   */,
-                                        fft_of_delayed_x,   /*   x   */   *it_fft_of_partitionned_h);
+                RealFBins::multiply_add(work.data()                /*   +=   */,
+                                        fft_of_delayed_x.data(),   /*   x   */   it_fft_of_partitionned_h->data(),
+                                        partition_size);
             }
         }
     }

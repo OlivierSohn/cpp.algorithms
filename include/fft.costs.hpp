@@ -426,7 +426,7 @@ namespace imajuscule::fft {
                 int i=0;
                 for(auto & v:a) {
                     ++i;
-                    v.resize(sz);
+                    v.resize(2*sz);
                     setFirstReal(v, static_cast<T>(i));
                 }
             }
@@ -436,9 +436,10 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
-                    Impl::multiply(a[0],
-                                   a[1],
-                                   a[2]);
+                    Impl::multiply(a[0].data(),
+                                   a[1].data(),
+                                   a[2].data(),
+                                   sz);
                 }
             });
             for(auto & a:va) {
@@ -456,7 +457,7 @@ namespace imajuscule::fft {
                 for(auto & a:va) {
                     for(auto & v:a) {
                         ++i;
-                        v.resize(sz);
+                        v.resize(2*sz);
                         setFirstReal(v, static_cast<T>(i));
                     }
                 }
@@ -466,11 +467,12 @@ namespace imajuscule::fft {
             if(fBeforeMeasure) {
                 fBeforeMeasure(sideEffect);
             }
-            auto duration = measure_thread_cpu_one([&va](){
+            auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
-                    Impl::multiply_add(a[0],
-                                       a[1],
-                                       a[2]);
+                    Impl::multiply_add(a[0].data(),
+                                       a[1].data(),
+                                       a[2].data(),
+                                       sz);
                 }
             });
 

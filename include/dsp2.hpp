@@ -49,8 +49,8 @@ struct FFTs {
         ffts.go_back();
         return *ffts.cycleEnd();
     }
-    auto const & get_by_age(int age) const {
-        return ffts.get_forward(age);
+    auto * get_by_age(int age) const {
+        return ffts.get_forward(age).data();
     }
     
     // This method will need to be replaced by rawindex-based iteration to support the async worker case.
@@ -102,7 +102,7 @@ struct XAndFFTS {
         }
     }
 
-    static int getAllocationSz_Resize(FftSpecs const & fftSpecs) {
+    static int getAllocationSz_Resize(FftSpecs const & fftSpecs, int const workSz) {
         int sz = 0;
         for(auto const & [fftSz, history_sz] : fftSpecs) {
             if(history_sz == 0 || fftSz == 0) {
@@ -111,10 +111,10 @@ struct XAndFFTS {
             Assert(is_power_of_two(fftSz));
             sz += fftSz * history_sz;
         }
-        return sz;
+        return sz + workSz;
     }
 
-    void resize(int const sz, FftSpecs const & fftSpecs) {
+    void resize(int const sz, FftSpecs const & fftSpecs, int const workSz) {
         reset_states();
 
         x_ffts.clear();
@@ -141,6 +141,9 @@ struct XAndFFTS {
         x.clear();
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
         padding = x.size();
+        
+        work.clear();
+        work.resize(workSz);
     }
     
     void push(T v) {
@@ -198,7 +201,8 @@ struct XAndFFTS {
     }
     
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
-    
+    using CplxFreqs = typename fft::RealFBins_<Tag, T, Allocator>::type;
+
     RealSignal x;
     int progress = 0; // last + 1
     int padding = 0;
@@ -207,6 +211,7 @@ struct XAndFFTS {
     uint32_t fftsHalfSizesBitsToCompute = 0;
     
     std::vector<FFTs<T, Allocator, Tag>> x_ffts;
+    mutable CplxFreqs work; // temporary work buffer
     
     auto const & find_ffts(int sz) const {
         for(auto const & f : x_ffts) {
@@ -303,12 +308,16 @@ struct DspContext {
     Y<T, Tag> y;
     
     static int getAllocationSz_Resize(MinSizeRequirement req) {
-        return XAndFFTS<T, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
+        return XAndFFTS<T, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes,
+                                                                   req.minWorkSize);
     }
     
     void resize(MinSizeRequirement req) {
-        x_and_ffts.resize(req.minXSize, req.xFftSizes);
-        y.resize(req.minYSize, req.minYAnticipatedWrites);
+        x_and_ffts.resize(req.minXSize,
+                          req.xFftSizes,
+                          req.minWorkSize);
+        y.resize(req.minYSize,
+                 req.minYAnticipatedWrites);
     }
     
     void flushToSilence() {
@@ -350,8 +359,7 @@ struct Convolution {
     
     static int getAllocationSz_Setup(SetupParam const & p) {
         MinSizeRequirement req = p.getMinSizeRequirement();
-        auto sz = DspContext::getAllocationSz_Resize(req);
-        return sz + Algo::getAllocationSz_Setup(p);
+        return DspContext::getAllocationSz_Resize(req);
     }
     
     void setup(SetupParam const & p) {
@@ -509,9 +517,17 @@ struct Convolution {
     }
     
 private:
+    // x: 1 for all inputs
+    // y: 1 for all outputs
     DspContext ctxt;
+
+    // 1 for each convolution:
     State state;
+
+    // 1 for all convolutions:
     Algo algo;
+
+    // cette phase lie 'x' a 'y', il faudra ouvrir la possibilité d'écrire dans y de facon non-contigue
     float phase_group_ratio = 0.; // in [0,1[
     std::optional<float> phase_period;
 

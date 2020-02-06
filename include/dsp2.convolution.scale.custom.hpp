@@ -128,14 +128,6 @@ struct AlgoCustomScaleConvolution {
     
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, FPT>::zero_n_raw;
     
-    
-    static int getAllocationSz_Setup(SetupParam const & p) {
-        int sz = 0;
-        for(auto const & param : p.scalingParams) {
-            sz += A::getAllocationSz_Setup(param.setupParam);
-        }
-        return sz;
-    }
     void setup(SetupParam const & p) {
         v.clear();
         v.reserve(p.scalingParams.size());

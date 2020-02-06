@@ -263,7 +263,8 @@ struct FFTConvolutionCRTPSetupParam : public Cost
             0, // no y anticipated writes
             {
                 {fft_length, 1}
-            }
+            },
+            static_cast<int>(fft_length) // work size
         };
     }
     
@@ -474,7 +475,8 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
             0, // no y anticipated writes
             {
                 {fft_length, partition_count}
-            }
+            },
+            fft_length // work size
         };
     }
     
@@ -527,8 +529,8 @@ struct PartitionnedFFTConvolutionCRTPSimulation {
     {
         double cost = 0.;
         if(n_partitions) {
-            cost += fft::RealFBinsCosts<Tag, FPT>::cost_multiply(get_fft_length());
-            cost += (n_partitions-1) * fft::RealFBinsCosts<Tag, FPT>::cost_multiply_add(get_fft_length());
+            cost += fft::RealFBinsCosts<Tag, FPT>::cost_multiply(partition_size);
+            cost += (n_partitions-1) * fft::RealFBinsCosts<Tag, FPT>::cost_multiply_add(partition_size);
         }
         return cost;
     }
@@ -594,9 +596,6 @@ struct PartitionnedFFTConvolutionCRTP {
     
     int countPartitions() const { return partition_count; }
     
-    static int getAllocationSz_Setup(SetupParam const & p) {
-        return 0;
-    }
     static int getAllocationSz_SetCoefficients(SetupParam const & p) {
         int const fft_length = 2 * p.partition_size;
         return fft_length * (2 * p.partition_count + 1);
@@ -687,10 +686,12 @@ protected:
             auto const & fft_of_partitionned_h = ffts_of_partitionned_h[index];
             
             if(index == 0) {
-                RealFBins::multiply(    work /*  = */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                RealFBins::multiply(    work.data() /*  = */, fft_of_delayed_x.data(), /* * */ fft_of_partitionned_h.data(),
+                                    partition_size);
             }
             else {
-                RealFBins::multiply_add(work /* += */, fft_of_delayed_x, /* * */ fft_of_partitionned_h);
+                RealFBins::multiply_add(work.data() /* += */, fft_of_delayed_x.data(), /* * */ fft_of_partitionned_h.data(),
+                                        partition_size);
             }
             ++ index;
         });

@@ -3,7 +3,7 @@ namespace imajuscule {
 
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 using StateOptimizedFIRFilter =
-/**/Convolution<
+/**/XYConvolution<
 /**/  AlgoSplitConvolution<
 /**/    AlgoFIRFilter<T, Allocator, FFTTag>,
 /**/    AlgoCustomScaleConvolution<
@@ -12,14 +12,14 @@ using StateOptimizedFIRFilter =
 
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 using StateZeroLatencyScaledFineGrainedPartitionnedConvolution =
-/**/Convolution<
+/**/XYConvolution<
 /**/  AlgoSplitConvolution<
 /**/    typename StateOptimizedFIRFilter<T, Allocator, FFTTag>::Algo,
 /**/    AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>>;
 
 template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 using StateZeroLatencyScaledAsyncConvolution =
-/**/Convolution<
+/**/XYConvolution<
 /**/  AlgoSplitConvolution<
 /**/    typename StateOptimizedFIRFilter<T, Allocator, FFTTag>::Algo,
 /**/    AlgoAsyncCPUConvolution<
@@ -30,7 +30,7 @@ using StateZeroLatencyScaledAsyncConvolution =
 
 template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 using StateZeroLatencyScaledAsyncConvolutionOptimized =
-/**/Convolution<
+/**/XYConvolution<
 /**/  AlgoSplitConvolution<
 /**/    typename StateZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>::Algo,
 /**/    AlgoAsyncCPUConvolution<

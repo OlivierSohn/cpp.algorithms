@@ -91,7 +91,7 @@ public:
             return;
         }
 
-        async = std::make_unique<SelfContainedConvolution<AsyncAlgo>>();
+        async = std::make_unique<SelfContainedXYConvolution<AsyncAlgo>>();
 
         Assert(algo.asyncParams);
 
@@ -390,7 +390,7 @@ private:
     Queue rt_2_worker = Queue(0);
     Queue worker_2_rt = Queue(0);
 
-    std::unique_ptr<SelfContainedConvolution<AsyncAlgo>> async;
+    std::unique_ptr<SelfContainedXYConvolution<AsyncAlgo>> async;
 public:
     bool error_worker_too_slow = false;
     

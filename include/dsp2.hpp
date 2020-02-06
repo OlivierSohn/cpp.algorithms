@@ -73,7 +73,7 @@ private:
 };
 
 
-template<typename T, template<typename> typename Allocator, typename Tag>
+template<typename T, template<typename> typename Allocator, typename Tag, typename WorkCplxFreqs>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
 
@@ -102,7 +102,7 @@ struct XAndFFTS {
         }
     }
 
-    static int getAllocationSz_Resize(FftSpecs const & fftSpecs, int const workSz) {
+    static int getAllocationSz_Resize(FftSpecs const & fftSpecs) {
         int sz = 0;
         for(auto const & [fftSz, history_sz] : fftSpecs) {
             if(history_sz == 0 || fftSz == 0) {
@@ -111,7 +111,7 @@ struct XAndFFTS {
             Assert(is_power_of_two(fftSz));
             sz += fftSz * history_sz;
         }
-        return sz + workSz;
+        return sz;
     }
 
     void resize(int const sz, FftSpecs const & fftSpecs, int const workSz) {
@@ -142,8 +142,7 @@ struct XAndFFTS {
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
         padding = x.size();
         
-        work.clear();
-        work.resize(workSz);
+        work.reserve(workSz);
     }
     
     void push(T v) {
@@ -201,17 +200,17 @@ struct XAndFFTS {
     }
     
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
-    using CplxFreqs = typename fft::RealFBins_<Tag, T, Allocator>::type;
-
     RealSignal x;
-    int progress = 0; // last + 1
-    int padding = 0;
-    int x_unpadded_size = 0;
+    
+    int32_t progress = 0;
+    int32_t padding = 0;
+    int32_t x_unpadded_size = 0;
     uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^(n+1), the nth bit is set
     uint32_t fftsHalfSizesBitsToCompute = 0;
     
     std::vector<FFTs<T, Allocator, Tag>> x_ffts;
-    mutable CplxFreqs work; // temporary work buffer
+
+    WorkCplxFreqs & work; // temporary work buffer
     
     auto const & find_ffts(int sz) const {
         for(auto const & f : x_ffts) {
@@ -231,11 +230,16 @@ struct XAndFFTS {
         }
         os << std::endl;
     }
+    
+    XAndFFTS(WorkCplxFreqs & work)
+    : work(work)
+    {}
+    
 private:
     
     void reset_states() {
-        progress = 0; // last + 1
-        padding = 0; // firstNonPadded
+        progress = 0;
+        padding = 0;
     }
 };
 
@@ -302,14 +306,17 @@ struct Y {
     int32_t zeroed_up_to = 0;
 };
 
-template<typename T, template<typename> typename Allocator, typename Tag>
+template<typename T, template<typename> typename Allocator, typename Tag, typename WorkCplxFreqs>
 struct DspContext {
-    XAndFFTS<T, Allocator, Tag> x_and_ffts;
+    XAndFFTS<T, Allocator, Tag, WorkCplxFreqs> x_and_ffts;
     Y<T, Tag> y;
     
+    DspContext(WorkCplxFreqs & work)
+    : x_and_ffts(work)
+    {}
+    
     static int getAllocationSz_Resize(MinSizeRequirement req) {
-        return XAndFFTS<T, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes,
-                                                                   req.minWorkSize);
+        return XAndFFTS<T, Allocator, Tag, WorkCplxFreqs>::getAllocationSz_Resize(req.xFftSizes);
     }
     
     void resize(MinSizeRequirement req) {
@@ -353,10 +360,15 @@ struct Convolution {
     template<typename TT>
     using Allocator = typename A::template Allocator<TT>;
     
-    using DspContext = DspContext<FPT, Allocator, Tag>;
+    using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
+    using DspContext = DspContext<FPT, Allocator, Tag, WorkCplxFreqs>;
     using SetupParam = typename Algo::SetupParam;
-    
-    
+
+    Convolution(WorkCplxFreqs & work)
+    : ctxt(work)
+    {}
+
+
     static int getAllocationSz_Setup(SetupParam const & p) {
         MinSizeRequirement req = p.getMinSizeRequirement();
         return DspContext::getAllocationSz_Resize(req);
@@ -374,8 +386,6 @@ struct Convolution {
         for(int i=0; i<nSteps; ++i) {
             ctxt.y.increment();
         }
-
-        algo.setup(p);
         
         phase_period.reset();
         
@@ -395,7 +405,7 @@ struct Convolution {
     static int getAllocationSz_SetCoefficients(SetupParam const & p) {
         return State::getAllocationSz_SetCoefficients(p);
     }
-    void setCoefficients(a64::vector<FPT> v)
+    void setCoefficients(a64::vector<FPT> v, Algo const & algo)
     {
         state.setCoefficients(algo, std::move(v));
     }
@@ -411,30 +421,24 @@ struct Convolution {
         return {};
     }
     
-    void dephaseByGroupRatio(float r)
+    void dephaseByGroupRatio(float r, Algo const & algo)
     {
         this->phase_group_ratio = r;
         
-        dephase();
+        dephase(algo);
         
-        state.onContextFronteer([r](auto & s){
-            s.dephaseByGroupRatio(r);
+        state.onContextFronteer([r](auto & s, auto const & fronteerAlgo){
+            s.dephaseByGroupRatio(r, fronteerAlgo);
         });
     }
 
-    bool handlesCoefficients() const {
-        return algo.handlesCoefficients();
-    }
-    bool isValid() const {
-        return algo.isValid();
-    }
     bool isZero() const {
         return state.isZero();
     }
-    double getEpsilon() const {
+    double getEpsilon(Algo const & algo) const {
         return state.getEpsilon(algo);
     }
-    void logComputeState(std::ostream & os) const {
+    void logComputeState(std::ostream & os, Algo const & algo) const {
         ctxt.logComputeState(os);
         os << "phase: ";
         auto per = getPhasePeriod();
@@ -449,21 +453,14 @@ struct Convolution {
         IndentingOStreambuf i(os);
         state.logComputeState(algo, os);
     }
-    Latency getLatency() const {
-        Assert(handlesCoefficients());
-        return algo.getLatency();
-    }
-    
-    int getBiggestScale() const {
-        return algo.getBiggestScale();
-    }
-    
+        
     template <typename Bool = bool>
     auto hasStepErrors() const -> std::enable_if_t<step_can_error, Bool> {
         return state.hasStepErrors();
     }
-    
-    FPT step(FPT val) {
+
+    FPT step(FPT val,
+             Algo const & algo) {
         ctxt.x_and_ffts.push(val);
         
         algo.step(state,
@@ -478,42 +475,38 @@ struct Convolution {
     template<typename FPT2>
     void stepAssignVectorized(FPT2 const * const input_buffer,
                               FPT2 * output_buffer,
-                              int nSamples)
+                              int nSamples,
+                              Algo const & algo)
     {
         for(int i=0; i<nSamples; ++i) {
-            output_buffer[i] = step(input_buffer[i]);
+            output_buffer[i] = step(input_buffer[i], algo);
         }
     }
     template<typename FPT2>
     void stepAddVectorized(FPT2 const * const input_buffer,
                            FPT2 * output_buffer,
-                           int nSamples)
+                           int nSamples,
+                           Algo const & algo)
     {
         for(int i=0; i<nSamples; ++i) {
-            output_buffer[i] += step(input_buffer[i]);
+            output_buffer[i] += step(input_buffer[i], algo);
         }
     }
     template<typename FPT2>
     void stepAddInputZeroVectorized(FPT2 * output_buffer,
-                                    int nSamples)
+                                    int nSamples,
+                                    Algo const & algo)
     {
         for(int i=0; i<nSamples; ++i) {
-            output_buffer[i] += step({});
+            output_buffer[i] += step({}, algo);
         }
     }
     
-    void flushToSilence() {
+    void flushToSilence(Algo const & algo) {
         algo.flushToSilence(state);
         ctxt.flushToSilence();
         
-        dephase();
-    }
-    
-    auto & getAlgo() {
-        return algo;
-    }
-    auto & getAlgo() const {
-        return algo;
+        dephase(algo);
     }
     
 private:
@@ -521,17 +514,16 @@ private:
     // y: 1 for all outputs
     DspContext ctxt;
 
+public:
     // 1 for each convolution:
     State state;
-
-    // 1 for all convolutions:
-    Algo algo;
-
+private:
+    
     // cette phase lie 'x' a 'y', il faudra ouvrir la possibilité d'écrire dans y de facon non-contigue
     float phase_group_ratio = 0.; // in [0,1[
     std::optional<float> phase_period;
 
-    void dephase() {
+    void dephase(Algo const & algo) {
         auto per = getPhasePeriod();
         if(per) {
             const int n_steps = static_cast<int>(0.5f + phase_group_ratio * *per);
@@ -539,6 +531,75 @@ private:
             ctxt.dephaseSteps(n_steps);
         }
     }
+};
+
+// avoid false sharing (for use in async convolution)
+template<typename Algo>
+struct alignas(64) SelfContainedConvolution {
+    SelfContainedConvolution()
+    : state(async_work)
+    {}
+
+    using WorkCplxFreqs = typename Convolution<Algo>::WorkCplxFreqs;
+    using SetupParam = typename Algo::SetupParam;
+    using FPT = typename Algo::FPT;
+    void setup(SetupParam const & s) {
+        algo.setup(s);
+        state.setup(s);
+    }
+    
+    void dephaseByGroupRatio(float r) {
+        state.dephaseByGroupRatio(r, algo);
+    }
+
+    std::optional<float> getPhasePeriod() const {
+        return state.getPhasePeriod();
+    }
+
+    void setCoefficients(a64::vector<FPT> v) {
+        state.setCoefficients(std::move(v), algo);
+    }
+    
+    template<typename F>
+    void onContextFronteer(F f) {
+        f(state, algo);
+    }
+
+    bool isValid() const {
+        return algo.isValid();
+    }
+    
+    bool isZero() const {
+        return state.isZero();
+    }
+    
+    FPT step(FPT val) {
+        return state.step(val, algo);
+    }
+    void flushToSilence()
+    {
+        state.flushToSilence(algo);
+    }
+
+    double getEpsilon() const {
+        return state.getEpsilon(algo);
+    }
+    
+    void logComputeState(std::ostream & os) const {
+        state.logComputeState(os, algo);
+    }
+    
+    bool handlesCoefficients() const {
+        return algo.handlesCoefficients();
+    }
+    Latency getLatency() const {
+        Assert(handlesCoefficients());
+        return algo.getLatency();
+    }
+    WorkCplxFreqs async_work;
+    Algo algo;
+    Convolution<Algo> state;
+    char padding[63];
 };
 
 }

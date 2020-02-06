@@ -56,6 +56,8 @@ struct StateAsyncCPUConvolution {
     using FPT = typename Async::FPT;
     using Tag = typename Async::Tag;
 
+    using AsyncAlgo = typename Async::Algo;
+    
     StateAsyncCPUConvolution() = default;
     
     // not movable, because the worker lambda captures this
@@ -85,11 +87,14 @@ public:
             return;
         }
 
-        async_conv = std::make_unique<Convolution<typename Async::Algo>>();
+        async = std::make_unique<SelfContainedConvolution<AsyncAlgo>>();
+
         Assert(algo.asyncParams);
-        async_conv->setup(*algo.asyncParams);
-        Assert(async_conv->isValid());
-        async_conv->setCoefficients(std::move(coeffs));
+
+        async->setup(*algo.asyncParams);
+        Assert(async->isValid());
+
+        async->setCoefficients(std::move(coeffs));
                 
         buffer.resize(N * // size of a block
                       (1+ // previous_result
@@ -279,7 +284,7 @@ public:
                     // Verify that worker_vec and work represent adjacent blocks in the ring:
                     Assert(worker_vec == work-N || (work==0 && worker_vec==(buffer.size()-N)));
                     for(int i=0; i<N; ++i) {
-                        bufferData[worker_vec + i] = async_conv->step(bufferData[work + i]);
+                        bufferData[worker_vec + i] = async->step(bufferData[work + i]);
                     }
                     auto res = worker_2_rt.try_push(worker_vec);
                     Assert(res);
@@ -297,32 +302,32 @@ public:
     
     template<typename F>
     void onContextFronteer(F f) {
-        if(async_conv) {
-            f(*async_conv);
+        if(async) {
+            async->onContextFronteer(f);
         }
     }
     
     bool isZero() const {
-        if(!async_conv) {
+        if(!async) {
             return true;
         }
-        return async_conv->isZero();
+        return async->isZero();
     }
     
     void reset() {
         terminateAsyncJobs();
         Assert(jobs == 0);
-        async_conv.reset();
+        async.reset();
         error_worker_too_slow = false;
         buffer.clear();
         previous_result = signal = 0; // when both values are equal the convolution is not active
     }
         
     double getEpsilon(Algo const & algo) const {
-        if(!async_conv) {
+        if(!async) {
             return 0;
         }
-        return async_conv->getEpsilon();
+        return async->getEpsilon();
     }
     
     void logComputeState(Algo const & algo, std::ostream & os) const {
@@ -332,8 +337,8 @@ public:
         os << "Async [_/" << N << "], queueSize : " << queueSize << std::endl;
 
         IndentingOStreambuf i(os);
-        if(async_conv) {
-            async_conv->logComputeState(os);
+        if(async) {
+            async->logComputeState(os);
         }
         else {
             os << "nothing" << std::endl;
@@ -381,7 +386,8 @@ public:
 private:
     Queue rt_2_worker = Queue(0);
     Queue worker_2_rt = Queue(0);
-    std::unique_ptr<Convolution<typename Async::Algo>> async_conv;
+
+    std::unique_ptr<SelfContainedConvolution<AsyncAlgo>> async;
 public:
     bool error_worker_too_slow = false;
     
@@ -462,9 +468,9 @@ public:
         std::fill(buffer.begin(),
                   buffer.end(),
                   FPT());
-        if(async_conv)
+        if(async)
         {
-            async_conv->flushToSilence();
+            async->flushToSilence();
         }
         curIndex = 0;
         // it is important to _not_ change signal and previous_result
@@ -530,9 +536,9 @@ struct AlgoAsyncCPUConvolution {
         // Note that dephasing in the async part is taken care of by async_conv->setCoefficients and async_conv->flushToSilence
     }
 
-    template<template<typename> typename Allocator2>
+    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
     void step(State & s,
-              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+              XAndFFTS<FPT, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
         if(unlikely(s.signal == s.previous_result)) {

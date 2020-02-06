@@ -15,6 +15,7 @@ struct ConvReverbsByBlockSize {
     static_assert(nOut != 0);
     
     using FPT = typename Rev::FPT;
+    using WorkCplxFreqs = typename Rev::WorkCplxFreqs;
     
     template<typename ...Args>
     void setConvolutionReverbIR(int const n_sources,
@@ -47,6 +48,7 @@ struct ConvReverbsByBlockSize {
                 imajuscule::setConvolutionReverbIR(*r,
                                                    n_sources,
                                                    deinterlaced,
+                                                   work,
                                                    max2,
                                                    sampleRate,
                                                    os,
@@ -224,6 +226,8 @@ private:
     };
     std::vector<DeprecatedReverb> deprecated;
     int reverbUnpaddedLength = 0;
+    
+    WorkCplxFreqs work;
 
 
     template<typename F>

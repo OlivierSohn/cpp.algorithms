@@ -174,9 +174,9 @@ struct AlgoSplitConvolution {
         b.dephaseSteps(s.b, n_steps);
     }
     
-    template<template<typename> typename Allocator2>
+    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
     void step(State & s,
-              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+              XAndFFTS<FPT, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
               Y<FPT, Tag> & y) const
     {
         a.step(s.a,

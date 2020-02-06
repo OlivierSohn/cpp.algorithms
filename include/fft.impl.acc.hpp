@@ -101,16 +101,19 @@ namespace imajuscule {
             RealFBinsImpl(int size) : buffer(size) {
             }
 
+            void reserve(int sz) {
+                buffer.reserve(sz);
+            }
             void resize(size_t sz) {
                 buffer.resize(sz);
             }
             void clear() {
                 buffer.clear();
             }
-
+            
             auto size() const { return buffer.size(); }
-          auto empty() const { return buffer.empty(); }
-
+            auto empty() const { return buffer.empty(); }
+            
             auto vector_size() const {
                 return buffer.size() / 2;
             }

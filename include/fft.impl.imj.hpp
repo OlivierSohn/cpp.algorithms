@@ -41,13 +41,10 @@ namespace imajuscule {
                 return c.real();
             }
             
-            static void add_assign(iter res_,
-                                   const_iter add_,
+            static void add_assign(value_type * __restrict res,
+                                   value_type const * __restrict add,
                                    int const N) {
-                value_type * __restrict res = res_.base();
-                value_type const * __restrict add = add_.base();
-
-                for(value_type const * __restrict resEnd = res + N;
+                for(auto const * resEnd = res + N;
                     res != resEnd;
                     ++res, ++add)
                 {

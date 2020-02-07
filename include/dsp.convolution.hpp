@@ -293,7 +293,7 @@ struct FFTConvolutionCRTPSimulation {
     }
 
     double cost_compute_convolution() {
-        return fft::RealFBinsCosts<Tag, FPT>::cost_mult_assign(get_fft_length());
+        return fft::RealFBinsCosts<Tag, FPT>::cost_mult_assign(N);
     }
     
     static auto get_fft_length(int n) {

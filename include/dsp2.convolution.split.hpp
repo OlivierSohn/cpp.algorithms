@@ -174,10 +174,10 @@ struct AlgoSplitConvolution {
         }
     }
 
-    void dephaseSteps(State &s,
-                      int n_steps) const {
-        a.dephaseSteps(s.a, n_steps);
-        b.dephaseSteps(s.b, n_steps);
+    void dephaseStep(State &s,
+                     int x_progress) const {
+        a.dephaseStep(s.a, x_progress);
+        b.dephaseStep(s.b, x_progress);
     }
     
     template<template<typename> typename Allocator2, typename WorkCplxFreqs>

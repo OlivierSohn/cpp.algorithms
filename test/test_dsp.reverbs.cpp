@@ -124,6 +124,9 @@ void testReverbDirac(Args ...args) {
 #endif
     };
     for(auto const sz : sizes) {
+        /*std::cout << "sz=" << sz << std::endl;
+        IndentingOStreambuf ind(std::cout);*/
+
         auto const coeffs_base = mkCoefficientsTriangle(sz);
         
         for(int crosstalk = 0; crosstalk<2; ++crosstalk) {
@@ -132,6 +135,9 @@ void testReverbDirac(Args ...args) {
                     continue;
                 }
             }
+            /*std::cout << "crosstalk=" << crosstalk << std::endl;
+            IndentingOStreambuf ind(std::cout);*/
+
             int const nResponses = crosstalk ? (nIns*nOut) : nOut;
             int const nResponsesPerOut = nResponses / nOut;
 
@@ -178,7 +184,6 @@ void testReverbDirac(Args ...args) {
             {
                 bool retried = false;
             retry:
-                LG(INFO, "sz %d, rts %d,", sz, rts_i);
                 auto const rts = static_cast<ResponseTailSubsampling>(rts_i);
                 
                 auto const scaleRange = getScaleCountRanges<Convolution>(rts);
@@ -238,6 +243,9 @@ void testReverbDirac(Args ...args) {
                 
                 for(int i=0; i<8; ++i) // retry after a flushToSilence()
                 {
+                    /*std::cout << "i=" << i << std::endl;
+                    IndentingOStreambuf ind(std::cout);*/
+
                     rs.assignWetVectorized(a_inputs.data(),
                                            nIns,
                                            a_outputs.data(),

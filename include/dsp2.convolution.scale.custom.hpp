@@ -152,8 +152,8 @@ struct AlgoCustomScaleConvolution {
         return std::all_of(v.begin(), v.end(), [](auto & e) -> bool { return e.isValid(); });
     }
 
-    void dephaseSteps(State & s,
-                      int n_steps) const {
+    void dephaseStep(State & s,
+                     int x_progress) const {
         // nothing. For justification, see comment in step()
     }
 
@@ -180,12 +180,12 @@ struct AlgoCustomScaleConvolution {
             Assert(is_power_of_two(N));
             
             if((x_and_ffts.fftsHalfSizesBitsToCompute & static_cast<uint32_t>(N)) != N) {
-                Assert(0 != (x_and_ffts.progress & static_cast<uint32_t>(N-1)));
+                Assert(0 != ((x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1)));
                 // early exit
                 return;
             }
             // TODO no need to have fftsHalfSizesBitsToCompute if we can do this instead:
-            Assert(0 == (x_and_ffts.progress & static_cast<uint32_t>(N-1)));
+            Assert(0 == ((x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1)));
             
             algo.forceStep(state,
                            x_and_ffts,

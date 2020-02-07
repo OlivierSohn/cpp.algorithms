@@ -73,33 +73,32 @@ private:
 };
 
 
+struct XSegments {
+    int start;
+    int size_from_start; // from start
+    int size_from_zero; // from 0
+    
+    // The invariant is that if size_from_zero is not 0, then size_from_zero is not 0.
+};
+
 template<typename T, template<typename> typename Allocator, typename Tag, typename WorkCplxFreqs>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
 
-    using Segment = std::pair<int, int>;
-
-    std::pair<Segment, Segment> getSegments(int const h, int const pastSize) const {
-        int start = progress - h - pastSize;
+    XSegments getPastSegments(int const pastSize) const {
+        int start = progress + 1 - pastSize;
         while(start < 0) {
             start += x_unpadded_size;
         }
         Assert(start >= 0);
         
-        int const diff = start+pastSize-x_unpadded_size;
-        if(diff <= 0)
-        {
-            return {
-                {start, pastSize},
-                {0,0}
-            };
-        }
-        else {
-            return {
-                {start, pastSize-diff},
-                {0    , diff}
-            };
-        }
+        int const szFromZero = std::max(0,
+                                        start+pastSize-x_unpadded_size);
+        return {
+            start,
+            pastSize-szFromZero,
+            szFromZero
+        };
     }
 
     static int getAllocationSz_Resize(FftSpecs const & fftSpecs) {
@@ -115,8 +114,6 @@ struct XAndFFTS {
     }
 
     void resize(int const sz, FftSpecs const & fftSpecs, int const workSz) {
-        reset_states();
-
         x_ffts.clear();
         x_ffts.reserve(fftSpecs.size());
         fftHalfSizesBits = 0;
@@ -140,24 +137,27 @@ struct XAndFFTS {
 
         x.clear();
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
+        
         padding = x.size();
+        progress = x_unpadded_size-1;
         
         work.reserve(workSz);
     }
     
     void push(T v) {
+        ++progress;
         if(unlikely(progress == x_unpadded_size)) {
             progress = 0;
             padding = 0;
         }
         x[progress] = typename RealSignal::value_type(v);
-        ++progress;
-        padding = std::max(padding, progress);
+        int const next_progress = progress+1;
+        padding = std::max(padding, next_progress);
         if(unlikely(padding == x_unpadded_size)) {
             padding = static_cast<int>(x.size());
         }
         
-        uint32_t nZeroes = count_trailing_zeroes(progress);
+        uint32_t nZeroes = count_trailing_zeroes(next_progress);
         uint32_t mask = (1 << (nZeroes+1)) - 1;
         fftsHalfSizesBitsToCompute = fftHalfSizesBits & mask;
         for(int i=0, nComputedFFTs = count_set_bits(fftsHalfSizesBitsToCompute);
@@ -166,10 +166,10 @@ struct XAndFFTS {
         {
             auto & f = x_ffts[i];
             int halfFftSize = f.fft_length/2;
-            int xStart = progress - halfFftSize;
+            int xStart = next_progress - halfFftSize;
             Assert(xStart >= 0);
 
-            int const xEnd = progress + halfFftSize;
+            int const xEnd = next_progress + halfFftSize;
             int const countPadding = xEnd - padding;
             if(countPadding > 0) {
                 zero_n_raw(&x[padding], countPadding);
@@ -191,19 +191,20 @@ struct XAndFFTS {
         if(!x.empty()) {
             zero_n_raw(&x[0], x.size());
         }
+        Assert(progress < x_unpadded_size);
         int const progressBackup = progress;
-        progress = 0;
+        progress = x_unpadded_size-1;
         padding = x.size();
         fftsHalfSizesBitsToCompute = 0;
         Assert(progressBackup <= x_unpadded_size);
-        return progressBackup ? (x_unpadded_size-progressBackup) : 0;
+        return progress - progressBackup;
     }
     
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal x;
     
-    int32_t progress = 0;
-    int32_t padding = 0;
+    int32_t progress = 0; // the last position that has been written to
+    int32_t padding = 0; // the position of the first non-zero (non-padded) element
     int32_t x_unpadded_size = 0;
     uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^(n+1), the nth bit is set
     uint32_t fftsHalfSizesBitsToCompute = 0;
@@ -234,18 +235,48 @@ struct XAndFFTS {
     XAndFFTS(WorkCplxFreqs & work)
     : work(work)
     {}
-    
-private:
-    
-    void reset_states() {
-        progress = 0;
-        padding = 0;
-    }
+};
+
+struct YSegments {
+    int size_from_progress;
+    int size_from_zero;
+
+    // The invariant is that if size_from_progress is not 0, then size_from_zero is not 0.
 };
 
 template<typename T, typename Tag>
 struct Y {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
+
+    using RealSignal = typename fft::RealSignal_<Tag, T>::type;
+
+    YSegments getFutureSegments(int progress, int const future) const {
+        int const end = progress + future;
+        int const szFromZero = std::max(0,
+                                        end - static_cast<int>(ySz));
+        return {
+            future - szFromZero,
+            szFromZero
+        };
+    }
+
+    static constexpr auto add_assign = fft::RealSignal_<Tag, T>::add_assign;
+
+    void addAssign(int yProgress,
+                   typename RealSignal::value_type * x,
+                   int N) {
+        auto s = getFutureSegments(yProgress, N);
+        if(likely(s.size_from_progress)) {
+            add_assign(&y[yProgress],
+                       &x[0],
+                       s.size_from_progress);
+            if(unlikely(s.size_from_zero)) {
+                add_assign(&y[0],
+                           &x[s.size_from_progress],
+                           s.size_from_zero);
+            }
+        }
+    }
     
     void resize(int const blockSz_,
                 int const nAnticipatedWrites) {
@@ -298,7 +329,6 @@ struct Y {
         os << "y progress " << uProgress << std::endl;
     }
     
-    using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal y;
     uint32_t uProgress = 0;
     uint32_t ySz=0;
@@ -342,8 +372,7 @@ struct XYConvolution {
         y.resize(req.minYSize,
                  req.minYAnticipatedWrites);
 
-        int const ySz = static_cast<int>(y.y.size());
-        int const nSteps = (ySz >= 1) ? 1 : 0;
+        int const nSteps = (y.ySz >= 1) ? 1 : 0;
 
         // set y progress such that results are written in a single chunk
         for(int i=0; i<nSteps; ++i) {
@@ -498,11 +527,13 @@ private:
         if(per) {
             const int n_steps = static_cast<int>(0.5f + phase_group_ratio * *per);
 
-            algo.dephaseSteps(state, n_steps);
-
             for(int i=0; i<n_steps; ++i) {
                 x_and_ffts.push(0);
-                // in the future it will _not_ be needed to keep them in sync
+
+                algo.dephaseStep(state,
+                                 x_and_ffts.progress);
+                
+                // in the future it will _not_ be needed to keep x and y in sync
                 y.increment();
             }
         }

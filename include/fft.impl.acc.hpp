@@ -32,14 +32,14 @@ namespace imajuscule {
                 return r;
             }
             
-            static void add_assign(iter res,
-                                   const_iter const_add,
+            static void add_assign(value_type * __restrict res,
+                                   value_type const * const __restrict const_add,
                                    int N) {
                 // res += add
 
-                accelerate::API<T>::f_vadd(&*res, 1,
-                                           &*const_add, 1,
-                                           &*res, 1,
+                accelerate::API<T>::f_vadd(res, 1,
+                                           const_add, 1,
+                                           res, 1,
                                            N);
             }
             
@@ -330,7 +330,7 @@ namespace imajuscule {
                 if(v.empty()) {
                     throw std::logic_error("setFirstReal on empty");
                 }
-                *v.get_hybrid_split().realp = value;
+                v.data()[0] = value;
             }
             
             static T getFirstReal(type const & const_v) {
@@ -338,7 +338,7 @@ namespace imajuscule {
                 if(v.empty()) {
                     throw std::logic_error("getFirstReal on empty");
                 }
-                return *v.get_hybrid_split().realp;
+                return v.data()[0];
             }
 
         };

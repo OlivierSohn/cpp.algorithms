@@ -390,6 +390,7 @@ namespace imajuscule::fft {
         static constexpr auto getFirstReal = Impl::getFirstReal;
         static constexpr auto setFirstReal = Impl::setFirstReal;
 
+        // sz = partition size
         inline static CallCost cost_mult_assign { [](std::function<void(double&)> fBeforeMeasure,
                                                      int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 2>> va;
@@ -398,7 +399,7 @@ namespace imajuscule::fft {
             for(auto & a:va) {
                 for(auto & v:a) {
                     ++i;
-                    v.resize(sz);
+                    v.resize(2*sz);
                     setFirstReal(v, static_cast<T>(i));
                 }
             }
@@ -406,7 +407,7 @@ namespace imajuscule::fft {
             if(fBeforeMeasure) {
                 fBeforeMeasure(sideEffect);
             }
-            auto duration = measure_thread_cpu_one([&va, sz](){
+            auto duration = measure_thread_cpu_one([&va](){
                 for(auto & a:va) {
                     Impl::mult_assign(a[0],
                                       a[1]);
@@ -418,6 +419,7 @@ namespace imajuscule::fft {
             return duration;
         }};
         
+        // sz = partition size
         inline static CallCost cost_multiply { [](std::function<void(double&)> fBeforeMeasure,
                                                   int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 3>> va;
@@ -448,6 +450,7 @@ namespace imajuscule::fft {
             return duration;
         }};
         
+        // sz = partition size
         inline static CallCost cost_multiply_add { [](std::function<void(double&)> fBeforeMeasure,
                                                       int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 3>> va;

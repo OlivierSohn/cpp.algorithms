@@ -533,8 +533,8 @@ struct AlgoAsyncCPUConvolution {
         );
     }
 
-    void dephaseSteps(State & s,
-                      int n_steps) const {
+    void dephaseStep(State & s,
+                     int x_progress) const {
         // We don't dephase so that the submissions occur on callback_size boundaries.
         // Note that dephasing in the async part is taken care of by async_conv->setCoefficients and async_conv->flushToSilence
     }
@@ -549,11 +549,11 @@ struct AlgoAsyncCPUConvolution {
         }
         if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
             if(unlikely(s.error_worker_too_slow)) {
-                y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress-1];
+                y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress];
                 return;
             }
         }
-        s.buffer[s.signal+(s.curIndex)] = get_signal(x_and_ffts.x[x_and_ffts.progress-1]);
+        s.buffer[s.signal+(s.curIndex)] = get_signal(x_and_ffts.x[x_and_ffts.progress]);
         ++s.curIndex;
         if(unlikely(s.curIndex == N))
         {
@@ -561,7 +561,7 @@ struct AlgoAsyncCPUConvolution {
             while(unlikely(!s.try_submit_signal(s.signal))) {
                 s.error_worker_too_slow = true;
                 if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
-                    y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress-1];
+                    y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress];
                     return;
                 }
                 else {
@@ -572,7 +572,7 @@ struct AlgoAsyncCPUConvolution {
             while(unlikely(!s.try_receive_result(s.previous_result))) {
                 s.error_worker_too_slow = true;
                 if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
-                    y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress-1];
+                    y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress];
                     return;
                 }
                 else {

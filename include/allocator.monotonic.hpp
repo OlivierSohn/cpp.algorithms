@@ -175,10 +175,13 @@ operator != ( const MonotonicAllocator<T>& a, const MonotonicAllocator<T2>& b)
 
 
 struct NothingResource {
+    NothingResource(int) {}
+    NothingResource() = default;
+    
     void clear() const {}
     void reserve(int) const {}
-    int used() const { return 666; }
-    int remaining() const { return 666; }
+    constexpr int used() const { return 666; }
+    constexpr int remaining() const { return 666; }
 };
 
 template<typename Allocator>

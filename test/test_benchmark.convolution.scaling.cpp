@@ -5,7 +5,7 @@ template<typename T, template<typename> typename Allocator, typename Tag>
 auto mkConvolution(std::vector<Scaling> const & v,
                    a64::vector<T> const & coeffs) {
     using CLegacy = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
-    using CNew = XYConvolution<
+    using CNew = SelfContainedXYConvolution<
     AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>
     >;
     //using C = CLegacy;
@@ -19,30 +19,9 @@ auto mkConvolution(std::vector<Scaling> const & v,
     
     SetupParam p({scalingParams});
 
-    int const sz =
-    C::getAllocationSz_Setup(p) +
-    C::getAllocationSz_SetCoefficients(p);
+    c->setupAndSetCoefficients(p, coeffs);
     
-    using FBinsAllocator = typename fft::RealFBins_<Tag, T, Allocator>::type::allocator_type;
-    
-    using MemRsc = MemResource<FBinsAllocator>;
-    
-    auto memory = std::make_unique<typename MemRsc::type>(sz);
-    
-    {
-        typename MemRsc::use_type use(*memory);
-
-        c->setup(p);
-        c->setCoefficients(coeffs);
-    }
-    
-    if constexpr (MemRsc::limited) {
-        //std::cout << "mem monotonic " << memory->used() << std::endl;
-        // verify that getAllocationSz_Setup / getAllocationSz_SetCoefficients are correct
-        Assert(sz == memory->used()); // or there is padding to avoid false sharing?
-    }
-
-    return std::make_pair(std::move(c), std::move(memory));
+    return std::move(c);
 }
 
 
@@ -69,7 +48,7 @@ void findCheapest2(int const firstSz, int const nCoeffs, XFFtCostFactors const &
             firstSz,
             static_cast<int>(coeffs.size())
         }.forEachScaling([&coeffs, &count, &results, &factors, &sideEffect](auto const & v){
-            auto [conv, mem] = mkConvolution<T, Allocator, Tag>(v, coeffs);
+            auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs);
             constexpr int cache_flush_period_samples = 128;
             auto sim = mkSimulation<typename C::SetupParam, T, Tag>(v, coeffs.size());
             results.emplace(v,
@@ -175,7 +154,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
                     break;
                 case CostModel::RealSimulation:
                 {
-                    auto [conv, mem] = mkConvolution<T, Allocator, Tag>(v, coeffs);
+                    auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs);
                     results.emplace(v,
                                     realCostPerSample(*conv, sideEffect));
                     
@@ -183,7 +162,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
                     break;
                 case CostModel::RealSimulationCacheFlushes:
                 {
-                    auto [conv, mem] = mkConvolution<T, Allocator, Tag>(v, coeffs);
+                    auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs);
                     constexpr int cache_flush_period_samples = 128;
                     results.emplace(v,
                                     realCostPerSampleWithCacheFlushes(*conv, cache_flush_period_samples, sideEffect));
@@ -331,7 +310,7 @@ void analyzeCostsCoherence(int const szBegin,
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
-    analyzeCostsCoherence<double>(1, 40000);
+    //analyzeCostsCoherence<double>(1, 40000);
     /*
     printCosts<double>(64);
     printCosts<double>(128);

@@ -84,15 +84,13 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
     using Contexts = fft::Contexts_<Tag, FPT>;
     
-    static constexpr auto add_assign = fft::RealSignal_<Tag, FPT>::add_assign;
-    
     using Parent::compute_convolution;
-    using Parent::doDephaseSteps;
+    using Parent::doDephaseStep;
     using Parent::get_fft_length;
     using Parent::getBlockSize;
 
-    void dephaseSteps(State & s, int n_steps) const {
-        doDephaseSteps(s, n_steps);
+    void dephaseStep(State & s, int x_progress) const {
+        doDephaseStep(s, x_progress);
     }
 
     template<template<typename> typename Allocator2, typename WorkCplxFreqs>
@@ -116,7 +114,7 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
             return;
         }
         
-        Assert((static_cast<uint32_t>(x_and_ffts.progress) & static_cast<uint32_t>(getBlockSize()-1)) == 0);
+        Assert((static_cast<uint32_t>(x_and_ffts.progress + 1) & static_cast<uint32_t>(getBlockSize()-1)) == 0);
         Assert(s.result.size() == 2*N);
         
         forceStep(s,
@@ -131,10 +129,10 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     {
         int const N = getBlockSize();
         
-        Assert(y.uProgress+(N-1) < y.y.size());
-        add_assign(y.y.begin() + y.uProgress,
-                   s.result.begin() + N,
-                   N);
+        Assert(y.uProgress+(N-1) < y.ySz);
+        y.addAssign(y.uProgress,
+                    &s.result[N],
+                    N);
         
         auto const fft_length = get_fft_length();
 
@@ -145,9 +143,9 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
         
         ffts.fft.inverse(workData, s.result, fft_length);
         
-        add_assign(y.y.begin() + y.uProgress,
-                   s.result.begin(),
-                   N);
+        y.addAssign(y.uProgress,
+                    &s.result[0],
+                    N);
     }
     
     void flushToSilence(State & s) const {
@@ -254,8 +252,8 @@ struct AlgoFFTConvolutionCRTP {
     }
     
 
-    void doDephaseSteps(State & s,
-                        int n_steps) const {
+    void doDephaseStep(State & s,
+                       int x_progress) const {
         // dephasing occurs right after initialization when all buffers are 0s.
         // since there is no other state that work buffers (that are 0s) there is no need to do anything here.
     }
@@ -433,8 +431,8 @@ struct AlgoPartitionnedFFTConvolutionCRTP {
         assert(is_power_of_two(partition_size));
     }
 
-    void doDephaseSteps(State & s,
-                        int n_steps) const {
+    void doDephaseStep(State & s,
+                       int x_progress) const {
         // dephasing occurs right after initialization when all buffers are 0s.
         // since there is no other state that work buffers (that are 0s) there is no need to do anything here.
     }

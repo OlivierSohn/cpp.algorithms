@@ -233,6 +233,9 @@ struct Reverbs {
                 ++i_in, ++itConv) {
                 Assert(i_in < nInputBuffers);
                 
+                /*std::cout << "out " << i_out << " in " << i_in << std::endl;
+                IndentingOStreambuf ind(std::cout);*/
+
                 auto & c = *itConv;
                 FPT2 const * const in = input_buffers[i_in];
                 for(int i=0; i<nFramesToCompute; i += vectorLength) {

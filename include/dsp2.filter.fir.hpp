@@ -94,26 +94,32 @@ struct AlgoFIRFilter {
         return n_coeffs >= 0;
     }
 
-    void dephaseSteps(State &s,
-                      int n_steps) const {
+    void dephaseStep(State &s,
+                     int x_progress) const {
     }
 
     template<template<typename> typename Allocator2, typename WorkCplxFreqs>
-    void step(State & s,
+    void step(State & state,
               XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
               Y<T, Tag> & y) const
     {
-        auto [s1, s2] = x_and_ffts.getSegments(0, n_coeffs);
+        auto s = x_and_ffts.getPastSegments(n_coeffs);
 
-        if(likely(s1.second)) {
+        if(likely(s.size_from_start)) {
             using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
             E res; // no need to zero-initialize, dotpr will write it.
             
-            auto * coeff = s.getReversedCoeffs().data();
-            dotpr(&x_and_ffts.x[s1.first], coeff, &res, s1.second);
-            if(unlikely(s2.second)) {
+            auto * coeff = state.getReversedCoeffs().data();
+            dotpr(&x_and_ffts.x[s.start],
+                  coeff,
+                  &res,
+                  s.size_from_start);
+            if(unlikely(s.size_from_zero)) {
                 E res2;
-                dotpr(&x_and_ffts.x[s2.first], coeff+s1.second, &res2, s2.second);
+                dotpr(&x_and_ffts.x[0],
+                      coeff+s.size_from_start,
+                      &res2,
+                      s.size_from_zero);
                 res += res2;
             }
             y.y[y.uProgress] += res;

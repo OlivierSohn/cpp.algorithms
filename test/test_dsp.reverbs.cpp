@@ -24,6 +24,7 @@ void testReverbDirac(Args ...args) {
     WorkCplxFreqs work;
 
     using Convolution = typename decltype(rs)::State;
+    using Desc = typename Convolution::Desc;
 
     constexpr int audio_cb_size = 99;
     
@@ -62,7 +63,7 @@ void testReverbDirac(Args ...args) {
     // for 0-length responses, reverb is inactive.
     {
         try {
-            if constexpr (Convolution::has_subsampling) {
+            if constexpr (Desc::has_subsampling) {
                 applyBestParams(rs,
                                 memory,
                                 1,
@@ -179,7 +180,7 @@ void testReverbDirac(Args ...args) {
             }
             
             for(int rts_i=0;
-                rts_i<(Convolution::has_subsampling?5:1);
+                rts_i<(Desc::has_subsampling?5:1);
                 ++rts_i)
             {
                 bool retried = false;
@@ -191,7 +192,7 @@ void testReverbDirac(Args ...args) {
                 {
                     bool res = false;
                     try {
-                        if constexpr (Convolution::has_subsampling) {
+                        if constexpr (Desc::has_subsampling) {
                             applyBestParams(rs, memory, nIns,
                                             all_coeffs, work, audio_cb_size, 44100., std::cout,
                                             rts,
@@ -213,7 +214,7 @@ void testReverbDirac(Args ...args) {
                         res = true;
                     }
                     catch(std::exception const &e) {
-                        if constexpr (!Convolution::has_subsampling) {
+                        if constexpr (!Desc::has_subsampling) {
                             if(rts != ResponseTailSubsampling::FullRes &&
                                rts != ResponseTailSubsampling::HighestAffordableResolution) {
                                 // an exception is expected in that case

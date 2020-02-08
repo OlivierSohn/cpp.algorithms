@@ -397,7 +397,7 @@ struct Y {
     void addAssignPresent(typename RealSignal::value_type * x,
                           int N)
     {
-        auto s = getFutureSegments(N);
+        auto s = getFutureSegments(progress, N);
         if(likely(s.size_from_progress)) {
             
             if(write_sz >= s.size_from_progress) {
@@ -454,15 +454,6 @@ struct Y {
     }
     
 private:
-    YSegments getFutureSegments(int const future) const {
-        int const end = progress + future;
-        int const szFromZero = std::max(0,
-                                        end - ySz);
-        return {
-            future - szFromZero,
-            szFromZero
-        };
-    }
     YSegments getFutureSegments(int const from, int const future) const {
         int const end = from + future;
         int const szFromZero = std::max(0,
@@ -523,73 +514,6 @@ public:
     int32_t progress = 0;
     int32_t ySz=0;
     int32_t write_sz = 0; // the number of locations, starting from uProgress, that are _not_ old samples.
-};
-
-// TODO remove, use state directly
-template<typename A>
-struct Convolution {
-    using Algo = A;
-
-    static constexpr bool step_can_error = Algo::Desc::step_can_error;
-    static constexpr bool has_subsampling = Algo::Desc::has_subsampling;
-    
-    using State = typename Algo::State;
-    using FPT = typename Algo::FPT;
-    using Tag = typename Algo::Tag;
-    
-    template<typename TT>
-    using Allocator = typename A::template Allocator<TT>;
-    
-    using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
-    using WorkData = typename WorkCplxFreqs::value_type;
-    
-    using SetupParam = typename Algo::SetupParam;
-
-    static int getAllocationSz_SetCoefficients(SetupParam const & p) {
-        return State::getAllocationSz_SetCoefficients(p);
-    }
-    void setCoefficients(a64::vector<FPT> v, Algo const & algo)
-    {
-        state.setCoefficients(algo, std::move(v));
-    }
-    
-    bool isZero() const {
-        return state.isZero();
-    }
-    double getEpsilon(Algo const & algo) const {
-        return state.getEpsilon(algo);
-    }
-    void logComputeState(std::ostream & os, Algo const & algo) const {
-        IndentingOStreambuf i(os);
-        state.logComputeState(algo, os);
-    }
-
-    template <typename Bool = bool>
-    auto hasStepErrors() const -> std::enable_if_t<step_can_error, Bool> {
-        return state.hasStepErrors();
-    }
-
-    void step(StepType stepType,
-              Algo const & algo,
-              XAndFFTS<FPT, Allocator, Tag> const & x_and_ffts,
-              Y<FPT, Tag> & y,
-              WorkData * workData) {
-        algo.step(state,
-                  x_and_ffts,
-                  y,
-                  workData);
-    }
-    
-    void flushToSilence(Algo const & algo) {
-        algo.flushToSilence(state);
-    }
-
-    template<typename F>
-    void onContextFronteer(F f) {
-        state.onContextFronteer(f);
-    }
-    
-    State state;
 };
 
 template<typename A>

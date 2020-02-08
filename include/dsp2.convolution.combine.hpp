@@ -2,42 +2,38 @@
 namespace imajuscule {
 
 template<typename T, template<typename> typename Allocator, typename FFTTag>
-using StateOptimizedFIRFilter =
-/**/Convolution<
-/**/  AlgoSplitConvolution<
-/**/    AlgoFIRFilter<T, Allocator, FFTTag>,
-/**/    AlgoCustomScaleConvolution<
-/**/      AlgoFFTConvolutionIntermediate<
-/**/        AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>>>;
+using AlgoOptimizedFIRFilter =
+/**/AlgoSplitConvolution<
+/**/  AlgoFIRFilter<T, Allocator, FFTTag>,
+/**/  AlgoCustomScaleConvolution<
+/**/    AlgoFFTConvolutionIntermediate<
+/**/      AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>>;
 
 template<typename T, template<typename> typename Allocator, typename FFTTag>
-using StateZeroLatencyScaledFineGrainedPartitionnedConvolution =
-/**/Convolution<
-/**/  AlgoSplitConvolution<
-/**/    typename StateOptimizedFIRFilter<T, Allocator, FFTTag>::Algo,
-/**/    AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>>;
+using AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution =
+/**/AlgoSplitConvolution<
+/**/  AlgoOptimizedFIRFilter<T, Allocator, FFTTag>,
+/**/  AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>;
 
 template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-using StateZeroLatencyScaledAsyncConvolution =
-/**/Convolution<
-/**/  AlgoSplitConvolution<
-/**/    typename StateOptimizedFIRFilter<T, Allocator, FFTTag>::Algo,
-/**/    AlgoAsyncCPUConvolution<
-/**/      AlgoCustomScaleConvolution<
-/**/        AlgoFFTConvolutionIntermediate<
-/**/          AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>,
-/**/      OnWorkerTooSlow>>>;
+using AlgoZeroLatencyScaledAsyncConvolution =
+/**/AlgoSplitConvolution<
+/**/  AlgoOptimizedFIRFilter<T, Allocator, FFTTag>,
+/**/  AlgoAsyncCPUConvolution<
+/**/    AlgoCustomScaleConvolution<
+/**/      AlgoFFTConvolutionIntermediate<
+/**/        AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>,
+/**/    OnWorkerTooSlow>>;
 
 template<typename T, template<typename> typename Allocator, typename FFTTag, PolicyOnWorkerTooSlow OnWorkerTooSlow>
-using StateZeroLatencyScaledAsyncConvolutionOptimized =
-/**/Convolution<
-/**/  AlgoSplitConvolution<
-/**/    typename StateZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>::Algo,
-/**/    AlgoAsyncCPUConvolution<
-/**/      AlgoCustomScaleConvolution<
-/**/        AlgoFFTConvolutionIntermediate<
-/**/          AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>,
-/**/      OnWorkerTooSlow>>>;
+using AlgoZeroLatencyScaledAsyncConvolutionOptimized =
+/**/AlgoSplitConvolution<
+/**/  AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<T, Allocator, FFTTag>,
+/**/  AlgoAsyncCPUConvolution<
+/**/    AlgoCustomScaleConvolution<
+/**/      AlgoFFTConvolutionIntermediate<
+/**/        AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>>>,
+/**/    OnWorkerTooSlow>>;
 
 
 
@@ -55,12 +51,12 @@ struct OptimalFilter_;
 template<typename T>
 struct OptimalFilter_<T, AudioProcessing::Callback> {
     // TODO reevaluate once we know when async is better than sync
-    using type = StateZeroLatencyScaledFineGrainedPartitionnedConvolution<T, a64::Alloc, fft::Fastest>;
+    using type = AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<T, a64::Alloc, fft::Fastest>;
 };
 
 template<typename T>
 struct OptimalFilter_<T, AudioProcessing::Offline> {
-    using type = StateOptimizedFIRFilter<T, a64::Alloc, fft::Fastest>;
+    using type = AlgoOptimizedFIRFilter<T, a64::Alloc, fft::Fastest>;
 };
 
 }

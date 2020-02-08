@@ -10,10 +10,10 @@ namespace imajuscule {
  
  ********************************************************************************
  *
- * For ** live ** audio processing, use 'StateZeroLatencyScaledFineGrainedPartitionnedConvolution':
+ * For ** live ** audio processing, use 'AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution':
  *   it has the smallest worst cost per audio callback.
  *
- * For ** offline ** audio processing, use 'StateOptimizedFIRFilter':
+ * For ** offline ** audio processing, use 'AlgoOptimizedFIRFilter':
  *   it has the smallest average cost per sample.
  *
  * Both of them are 0-latency and are designed to scale both for very high and very low count of coefficients.
@@ -977,7 +977,7 @@ template<typename Convolution>
 range<int> getScaleCountRanges(ResponseTailSubsampling rts) {
     range<int> r;
     
-    if constexpr (Convolution::has_subsampling) {
+    if constexpr (Convolution::Desc::has_subsampling) {
         switch(rts) {
             case ResponseTailSubsampling::ScaleCount_1:
                 r.extend(1);

@@ -80,31 +80,33 @@ struct Reverbs {
     using FBinsAllocator = typename fft::RealFBins_<Tag, FPT, Allocator>::type::allocator_type;
     using MemResource = MemResource<FBinsAllocator>;
     
-    using State =
+    using Algo =
     std::conditional_t< reverbType==ReverbType::Offline,
-    StateOptimizedFIRFilter<FPT, Allocator, Tag>,
+    AlgoOptimizedFIRFilter<FPT, Allocator, Tag>,
     
     std::conditional_t< reverbType==ReverbType::Realtime_Synchronous,
-    StateZeroLatencyScaledFineGrainedPartitionnedConvolution<FPT, Allocator, Tag>,
+    AlgoZeroLatencyScaledFineGrainedPartitionnedConvolution<FPT, Allocator, Tag>,
     
     //std::conditional_t< reverbType==ReverbType::Realtime_Synchronous_Subsampled,
     //  ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution<double, Allocator, Tag>,
     
     std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous_Legacy,
-    StateZeroLatencyScaledAsyncConvolution<FPT, Allocator, Tag, OnWorkerTooSlow>,
+    AlgoZeroLatencyScaledAsyncConvolution<FPT, Allocator, Tag, OnWorkerTooSlow>,
     
     std::conditional_t< reverbType==ReverbType::Realtime_Asynchronous,
-    StateZeroLatencyScaledAsyncConvolutionOptimized<FPT, Allocator, Tag, OnWorkerTooSlow>,
+    AlgoZeroLatencyScaledAsyncConvolutionOptimized<FPT, Allocator, Tag, OnWorkerTooSlow>,
     
     void
     
     >>>>/*>*/;
     
-    using SetupParam = typename State::SetupParam;
-    using PartitionAlgo = PartitionAlgo<SetupParam, FPT, Tag>;
-    using WorkCplxFreqs = typename State::WorkCplxFreqs;
-    using Algo = typename State::Algo;
+    using Desc = typename Algo::Desc;
+    using State = typename Algo::State;
 
+    using SetupParam = typename Algo::SetupParam;
+    using PartitionAlgo = PartitionAlgo<SetupParam, FPT, Tag>;
+    using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
+    
     static int getAllocationSz(SetupParam const & p,
                                int const n_sources,
                                int const n_channels) {
@@ -167,7 +169,7 @@ struct Reverbs {
         for(auto & coeffs : deinterlaced_coeffs) {
             it->channels.push_back(std::make_unique<State>());
             auto & c = it->channels.back();
-            c->setCoefficients(std::move(coeffs), algo);
+            c->setCoefficients(algo, std::move(coeffs));
 
             ++it;
             if(it == input_states.end()) {
@@ -190,7 +192,7 @@ struct Reverbs {
             ++i;
             os << i << ":" << std::endl;
             IndentingOStreambuf indent(os);
-            r.logComputeState(os, algo);
+            r.logComputeState(algo, os);
         });
     }
     
@@ -198,7 +200,7 @@ struct Reverbs {
         if (input_states.empty() || input_states[0].channels.empty()) {
             return 0;
         }
-        if constexpr(State::has_subsampling) {
+        if constexpr(Desc::has_subsampling) {
             return imajuscule::countScales(*(input_states[0].channels[0]));
         }
         else {
@@ -279,7 +281,7 @@ struct Reverbs {
                 input_state.x_and_ffts.push(input_buffers[i][f]);
                 
                 for(auto & c : input_state.channels) {
-                    algo.step(c->state,
+                    algo.step(*c,
                               input_state.x_and_ffts,
                               outputs[o],
                               workData);
@@ -299,7 +301,7 @@ struct Reverbs {
             }
         }
         
-        if constexpr (State::step_can_error) {
+        if constexpr (Desc::step_can_error) {
             for(auto const & i : input_states) {
                 for(auto const & c : i.channels) {
                     if(c->hasStepErrors()) {
@@ -336,7 +338,7 @@ struct Reverbs {
                 input_state.x_and_ffts.push(0);
                 
                 for(auto & c : input_state.channels) {
-                    algo.step(c->state,
+                    algo.step(*c,
                               input_state.x_and_ffts,
                               outputs[o],
                               workData);
@@ -356,7 +358,7 @@ struct Reverbs {
             }
         }
         
-        if constexpr (State::step_can_error) {
+        if constexpr (Desc::step_can_error) {
             for(auto const & i : input_states) {
                 for(auto const & c : i.channels) {
                     if(c->hasStepErrors()) {
@@ -381,7 +383,7 @@ struct Reverbs {
 
         for(auto & i : input_states) {
             for(auto & state : i.channels) {
-                algo.flushToSilence(state->state);
+                algo.flushToSilence(*state);
             }
             
             int const n_steps = i.x_and_ffts.flushToSilence();
@@ -442,7 +444,7 @@ private:
             i.x_and_ffts.phase_group_ratio = ratio;
             i.x_and_ffts.dephase([&i, this, xy_linked, n](int x_progress){
                 for(auto & state : i.channels) {
-                    algo.dephaseStep(state->state,
+                    algo.dephaseStep(*state,
                                      x_progress);
                 }
 

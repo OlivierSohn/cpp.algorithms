@@ -711,6 +711,9 @@ void printConvolutionCosts2() {
     std::cout << std::endl << "sig add scalar multiply" << std::endl << std::endl;
     compute(RealSignalCosts<Tag, T>::cost_add_scalar_multiply);
 
+    std::cout << std::endl << "sig add assign" << std::endl << std::endl;
+    compute(RealSignalCosts<Tag, T>::cost_add_assign);
+
     std::cout << std::endl << "sig copy" << std::endl << std::endl;
     compute(RealSignalCosts<Tag, T>::cost_copy);
 

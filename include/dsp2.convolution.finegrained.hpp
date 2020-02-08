@@ -1,33 +1,36 @@
 
 namespace imajuscule {
 
-struct DescFinegrainedFFTConvolutionBase {
+struct DescFinegrainedFFTConvolution {
     static constexpr int nCoefficientsFadeIn = 0;
     static constexpr bool has_subsampling = false;
     static constexpr bool step_can_error = false;
 };
 
-template <typename Parent>
-struct AlgoFinegrainedFFTConvolutionBase;
+template <typename T, template<typename> typename Allocator, typename FFTTag>
+struct AlgoFinegrainedPartitionnedFFTConvolution;
 
-template <typename Parent>
-struct StateFinegrainedFFTConvolutionBase : public Parent {
-    using T = typename Parent::FPT;
+template <typename T, template<typename> typename Allocator, typename FFTTag>
+struct StateFinegrainedPartitionnedFFTConvolution {
     using FPT = T;
-    using Tag = typename Parent::Tag;
-    using Desc = DescFinegrainedFFTConvolutionBase;
-    using Algo = AlgoFinegrainedFFTConvolutionBase<typename Parent::Algo>;
+    using Tag = FFTTag;
+    using Desc = DescFinegrainedFFTConvolution;
+    using Algo = AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>;
     
     using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+    using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
+    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
+
+    static constexpr auto scale = fft::RealFBins_<Tag, FPT, Allocator>::scale;
+    static constexpr auto zero = fft::RealFBins_<Tag, FPT, Allocator>::zero;
+
     static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
 
-    using Parent::clear;
-    using Parent::doSetCoefficients;
-    using Parent::doLogComputeState;
-    using Parent::doOnContextFronteer;
-    using Parent::doFlushToSilence;
-    
+    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
+        return p.get_fft_length() * (1 + p.partition_count);
+    }
+
     void logComputeState(Algo const & algo, std::ostream & os) const {
         os << "Finegrained ";
         if(isZero()) {
@@ -36,263 +39,16 @@ struct StateFinegrainedFFTConvolutionBase : public Parent {
         else {
             os << "progress [_/" << algo.getBlockSize()
             << "] grain_counter " << grain_counter << "/" << algo.getGranularity();
-            doLogComputeState(algo, os);
+
+            os << " grain " << grain_number << "/" << algo.countGrains() << std::endl;
+            os << algo.countPartitions() << " partitions "
+            << algo.getMultiplicationsGroupMaxSize() << " multGroupMaxSize" << std::endl;
         }
     }
     
     void setCoefficients(Algo const & algo, a64::vector<T> coeffs_) {
         reset();
-        result.resize(algo.get_fft_length());
         
-        doSetCoefficients(algo, std::move(coeffs_));
-    }
-    
-    template<typename F>
-    void onContextFronteer(F f) {
-        doOnContextFronteer(f);
-    }
-    
-    void reset() {
-        reset_states();
-        result.clear();
-        clear();
-    }
-    void flushToSilence() {
-        reset_states();
-
-        if(!result.empty()) {
-            zero_signal(result);
-        }
-        
-        doFlushToSilence();
-    }
-    
-    bool isZero() const {
-        return result.empty();
-    }
-    
-    int grain_counter = 0;
-    mutable RealSignal result;
-    
-private:
-    void reset_states() {
-        Parent::reset_base_states();
-        grain_counter = 0;
-    }
-};
-
-template <typename Parent>
-struct AlgoFinegrainedFFTConvolutionBase : public Parent {
-    using State = StateFinegrainedFFTConvolutionBase<typename Parent::State>;
-    
-    using T = typename Parent::FPT;
-    using FPT = T;
-    using Tag = typename Parent::Tag;
-    using Desc = DescFinegrainedFFTConvolutionBase;
-        
-    using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
-    
-    template<typename TT>
-    using Allocator = typename Parent::template Allocator<TT>;
-    
-    using Parent::countPartitions;
-    using Parent::countMultiplicativeGrains;
-    using Parent::do_some_multiply_add;
-    using Parent::get_fft_length;
-    using Parent::getBlockSize;
-    using Parent::isValid;
-    using Parent::setMultiplicationGroupLength;
-    using Parent::getGranularity;
-    
-    void dephaseStep(State & s,
-                     int const x_progress) const {
-        //LG(INFO, "dephase by %d", n_steps);
-        if(s.isZero()) {
-            return;
-        }
-        if(unlikely(countPartitions() == 0)) {
-            return;
-        }
-        // Note that the high bits of x_progress will be ignored (& mask with block_size-1)
-        auto g = nextGrain(s, x_progress);
-        if(g.first == 1 && g.second) {
-            s.updatePostGrain(*g.second);
-            s.grain_counter = 0;
-        }
-        else {
-            ++s.grain_counter;
-        }
-    }
-
-    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
-    void step(State & s,
-              XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
-              Y<T, Tag> & y) const {
-        if(s.isZero()) {
-            return;
-        }
-        if(unlikely(countPartitions() == 0)) {
-            return;
-        }
-        assert(isValid());
-        auto g = nextGrain(s, x_and_ffts.progress);
-        assert(g.first > 0);
-        
-        //int const progress = s.grain_number * getGranularity() + s.grain_counter;
-        //std::cout << y.uProgress << "\t" << progress << "\t" << s.grain_number << "\t" << s.grain_counter << "\t" << getGranularity() << std::endl;
-        if(g.first == 1 && g.second) {
-            doGrain(s, x_and_ffts, y, *g.second);
-            s.updatePostGrain(*g.second);
-            s.grain_counter = 0;
-        }
-        else {
-            ++s.grain_counter;
-        }
-    }
-
-    void flushToSilence(State & s) const {
-        s.flushToSilence();
-    }
-
-private:
-    
-    std::pair<int, std::optional<GrainType>> nextGrain(State const & s,
-                                                       int const x_progress) const {
-        
-        auto const n_mult_grains_remaining = countMultiplicativeGrains() - s.grain_number;
-        
-        if(unlikely(n_mult_grains_remaining < 0)) {
-            unsigned int const block_size = getBlockSize();
-            int distToFFTGrain = block_size - (x_progress & (block_size-1));
-            assert(distToFFTGrain >= 0);
-            return {distToFFTGrain, GrainType::FFT};
-        }
-        
-        int const dist = getGranularity() - s.grain_counter;
-        
-        assert(dist >= 0);
-        if(unlikely(n_mult_grains_remaining == 0)) {
-            return {dist, GrainType::IFFT};
-        }
-        else {
-            Assert(n_mult_grains_remaining > 0);
-            return {dist, GrainType::MultiplicationGroup};
-        }
-    }
-    
-    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
-    void doGrain(State & s,
-                 XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
-                 Y<T, Tag> & y,
-                 GrainType g) const
-    {
-        switch(g)
-        {
-            case GrainType::FFT:
-            {
-                // the fft is implicit (in x_and_ffts)
-                
-                int const N = getBlockSize();
-                Assert(0 == ((x_and_ffts.progress+1) & (N-1))); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
-                
-                Assert(y.uProgress+(N-1) < y.ySz);
-                y.addAssign(y.uProgress,
-                            &s.result[0],
-                            N);
-                break;
-            }
-            case GrainType::MultiplicationGroup:
-            {
-                auto const fft_length = get_fft_length();
-                auto const & ffts = x_and_ffts.find_ffts(fft_length);
-                
-                do_some_multiply_add(s, ffts);
-                break;
-            }
-            case GrainType::IFFT:
-            {
-                {
-                    unsigned int const N = getBlockSize();
-                    
-                    Assert(is_power_of_two(N));
-                    
-                    int const blockProgress = s.grain_number * getGranularity() + s.grain_counter;
-                    int yFutureLocation2 = y.uProgress + N - (blockProgress + 1);
-                    if(yFutureLocation2 >= y.ySz) {
-                        yFutureLocation2 -= y.ySz;
-                    }
-                    /*
-                    unsigned int yFutureLocation = (y.uProgress + N - 1) & ~(N-1);
-                    Assert(yFutureLocation <= y.ySz);
-                    if(yFutureLocation >= y.ySz) {
-                        yFutureLocation -= y.ySz;
-                    }
-                    Assert(yFutureLocation + N <= y.zeroed_up_to);
-                    Assert(yFutureLocation == yFutureLocation2);
-                    */
-                    y.addAssign(yFutureLocation2,
-                                &s.result[N],
-                                N);
-                }
-                
-                auto const fft_length = get_fft_length();
-                
-                auto const & ffts = x_and_ffts.find_ffts(fft_length);
-                
-                ffts.fft.inverse(s.multiply_add_result.data(), s.result, fft_length);
-                break;
-            }
-        }
-    }
-};
-
-/*
- */
-
-
-template <typename T, template<typename> typename Allocator, typename FFTTag>
-struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP;
-
-template <typename T, template<typename> typename Allocator, typename FFTTag>
-struct StateFinegrainedPartitionnedFFTConvolutionCRTP {
-    using Algo = AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag>;
-    
-    using FPT = T;
-    using Tag = FFTTag;
-    
-    using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
-    using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
-    
-    static constexpr auto scale = fft::RealFBins_<Tag, FPT, Allocator>::scale;
-    static constexpr auto zero = fft::RealFBins_<Tag, FPT, Allocator>::zero;
-
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
-    
-    bool empty() const {
-        return ffts_of_partitionned_h.empty();
-    }
-    void clear() {
-        ffts_of_partitionned_h.clear();
-    }
-    
-    double getEpsilon(Algo const & algo) const {
-        return algo.countPartitions() * (fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
-    }
-    void doLogComputeState(Algo const & algo, std::ostream & os) const {
-        os << " grain " << grain_number << "/" << algo.countGrains() << std::endl;
-        os << algo.countPartitions() << " partitions "
-        << algo.getMultiplicationsGroupMaxSize() << " multGroupMaxSize" << std::endl;
-    }
-
-public:
-    static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
-        return p.get_fft_length() * (1 + p.partition_count);
-    }
-    
-    void doSetCoefficients(Algo const & algo,
-                           a64::vector<T> coeffs_)
-    {
-
         ffts_of_partitionned_h.clear();
         multiply_add_result.clear();
         
@@ -308,7 +64,7 @@ public:
         if(n_partitions != algo.countPartitions()) {
             throw std::logic_error("wrong number of partitions");
         }
-        // if one partition is partial, it will be padded with zeroes.
+        // if one partition is partial, pad with zeroes.
         coeffs_.resize(n_partitions * N);
         
         ffts_of_partitionned_h.resize(n_partitions);
@@ -347,14 +103,21 @@ public:
         Assert(fft_length > 1);
     }
     
-    void doFlushToSilence() {
+    template<typename F>
+    void onContextFronteer(F f) {
+    }
+    
+    void reset() {
+        reset_states();
+        ffts_of_partitionned_h.clear();
+    }
+    
+    void flushToSilence() {
+        reset_states();
+
         if(!multiply_add_result.empty()) {
             zero(multiply_add_result);
         }
-    }
-
-    template<typename F>
-    void doOnContextFronteer(F f) {
     }
     
     void updatePostGrain(GrainType g) {
@@ -366,50 +129,93 @@ public:
         }
     }
     
-protected:
-    void reset_base_states() {
-        grain_number = 0;
+    bool isZero() const {
+        return ffts_of_partitionned_h.empty();
     }
     
-public:
-    int grain_number = 0;
+    double getEpsilon(Algo const & algo) const {
+        return algo.countPartitions() * (fft::getFFTEpsilon<FPT>(algo.get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
+    }
+    
+    int32_t grain_counter = 0;
+    int32_t grain_number = 0;
     std::vector<CplxFreqs> ffts_of_partitionned_h;
-    CplxFreqs multiply_add_result; // needs to be in the state, not in algo because the results will accumulate over several steps
+    CplxFreqs multiply_add_result; // the results accumulate over several steps
+    
+private:
+    void reset_states() {
+        grain_number = 0;
+        grain_counter = 0;
+    }
 };
 
-
 template <typename T, template<typename> typename Alloc, typename FFTTag>
-struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
-    template<typename TT>
-    using Allocator = Alloc<TT>;
-    
-    using State = StateFinegrainedPartitionnedFFTConvolutionCRTP<T, Alloc, FFTTag>;
+struct AlgoFinegrainedPartitionnedFFTConvolution {
+    using State = StateFinegrainedPartitionnedFFTConvolution<T, Alloc, FFTTag>;
     
     using FPT = T;
     using Tag = FFTTag;
-
+    using Desc = DescFinegrainedFFTConvolution;
+        
     using SetupParam = FinegrainedSetupParam;
-
-    using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
-    using Signal_value_type = typename fft::RealSignal_<Tag, FPT>::value_type;
     
-    using CplxFreqs = typename fft::RealFBins_<Tag, FPT, Allocator>::type;
-
+    template<typename TT>
+    using Allocator = Alloc<TT>;
+    
+    using RealSignal = typename fft::RealSignal_<Tag, FPT>::type;
+    
     void setup(SetupParam const & p) {
         assert(p.partition_size == 0 || is_power_of_two(p.partition_size));
 
         // sz = 0 or count = 0 means that it will not be used.
         partition_count = p.partition_count;
-        partition_size = p.partition_size;
+        partition_size_minus_one = p.partition_size - 1;
 
-        setMultiplicationGroupLength(p.multiplication_group_size);
+        mult_grp_len = p.multiplication_group_size;
+        count_multiplicative_grains = p.countMultiplicativeGrains();
+        granularity = p.getGranularity();
     }
-    auto get_fft_length() const { return 2 * partition_size; }
+    auto get_fft_length() const { return 2 * (1+partition_size_minus_one); }
     
-    auto getBlockSize() const { return partition_size; }
+    auto getBlockSize() const { return 1+partition_size_minus_one; }
+    
+    auto getMultiplicationsGroupMaxSize() const { return mult_grp_len; }
+    auto countMultiplicativeGrains() const {
+        return count_multiplicative_grains;
+    }
+    
+    auto countGrains() const {
+        return count_multiplicative_grains + SetupParam::countNonMultiplicativeGrains();
+    }
+    int getGranularity() const { return granularity; }
+    
+    int getLowestValidMultiplicationsGroupSize() const {
+        // lowest valid mult_grp_len verifies:
+        
+        // countGrains() == getBlockSize()
+        // 2 + 1 + (ffts_of_partitionned_h.size() - 1)/mult_grp_len == partition_size
+        
+        auto constexpr min_number_grains = SetupParam::countNonMultiplicativeGrains() + 1;
+        auto diff = getBlockSize() - min_number_grains;
+        if(diff < 0) {
+            // invalid configuration
+            return getHighestValidMultiplicationsGroupSize();
+        }
+        if(countPartitions() == 0) {
+            return 0;
+        }
+        for(int i=1;; ++i) {
+            if( (countPartitions() - 1)/i <= diff) {
+                return i;
+            }
+        }
+    }
+    
+    int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
+    
     Latency getLatency() const {
         Assert(handlesCoefficients());
-        return FinegrainedSetupParam::getLatencyForPartitionSize(partition_size);
+        return FinegrainedSetupParam::getLatencyForPartitionSize(getBlockSize());
     }
     bool isValid() const {
         if(mult_grp_len == 0) {
@@ -427,85 +233,140 @@ struct AlgoFinegrainedPartitionnedFFTConvolutionCRTP {
         return countPartitions() * (fft::getFFTEpsilon<FPT>(get_fft_length()) + 2 * std::numeric_limits<FPT>::epsilon());
     }
     
-protected:
-    void setMultiplicationGroupLength(int length) {
-        mult_grp_len = length;
-        count_multiplicative_grains = mult_grp_len ? (1 + (partition_count - 1)/mult_grp_len) : 0;
-        granularity = getBlockSize()/countGrains();
+    void dephaseStep(State & s,
+                     int const x_progress) const {
+        //LG(INFO, "dephase by %d", n_steps);
+        if(s.isZero()) {
+            return;
+        }
+        if(unlikely(countPartitions() == 0)) {
+            return;
+        }
+        ++s.grain_counter;
+        // Note that the high bits of x_progress will be ignored (& mask with block_size-1)
+        auto g = nextGrain(s, x_progress);
+        if(g.first == 0) {
+            s.updatePostGrain(g.second);
+            s.grain_counter = 0;
+        }
     }
+
+    template<template<typename> typename Allocator2, typename WorkData>
+    void step(State & s,
+              XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+              Y<T, Tag> & y,
+              WorkData * workData) const {
+        if(s.isZero()) {
+            return;
+        }
+        if(unlikely(countPartitions() == 0)) {
+            return;
+        }
+        assert(isValid());
+        ++s.grain_counter;
+        auto g = nextGrain(s, x_and_ffts.progress);
+        assert(g.first >= 0);
         
-public:
-    auto getMultiplicationsGroupMaxSize() const { return mult_grp_len; }
-    auto countMultiplicativeGrains() const {
-        return count_multiplicative_grains;
+        //int const progress = s.grain_number * getGranularity() + s.grain_counter;
+        //std::cout << y.uProgress << "\t" << progress << "\t" << s.grain_number << "\t" << s.grain_counter << "\t" << getGranularity() << std::endl;
+        if(unlikely(g.first == 0)) {
+            doGrain(s, x_and_ffts, y, g.second, workData);
+            s.updatePostGrain(g.second);
+            s.grain_counter = 0;
+        }
+    }
+
+    void flushToSilence(State & s) const {
+        s.flushToSilence();
+    }
+
+private:
+
+    std::pair<int, GrainType> nextGrain(State const & s,
+                                        int const x_progress) const {
+        
+        auto const n_mult_grains_remaining = count_multiplicative_grains - s.grain_number;
+        
+        if(unlikely(n_mult_grains_remaining < 0)) {
+            int distToFFTGrain = partition_size_minus_one - (x_progress & partition_size_minus_one);
+            assert(distToFFTGrain >= 0);
+            return {distToFFTGrain, GrainType::FFT};
+        }
+        
+        int const dist = getGranularity() - s.grain_counter;
+        
+        assert(dist >= 0);
+        if(unlikely(n_mult_grains_remaining == 0)) {
+            return {dist, GrainType::IFFT};
+        }
+        else {
+            Assert(n_mult_grains_remaining > 0);
+            return {dist, GrainType::MultiplicationGroup};
+        }
     }
     
-    static constexpr auto countNonMultiplicativeGrains() { return 2; }
-    auto countGrains() const {
-        return countMultiplicativeGrains() + countNonMultiplicativeGrains();
-    }
-    int getGranularity() const { return granularity; }
-    
-    int getLowestValidMultiplicationsGroupSize() const {
-        // lowest valid mult_grp_len verifies:
-        
-        // countGrains() == getBlockSize()
-        // 2 + 1 + (ffts_of_partitionned_h.size() - 1)/mult_grp_len == partition_size
-        
-        auto constexpr min_number_grains = countNonMultiplicativeGrains() + 1;
-        auto diff = partition_size - min_number_grains;
-        if(diff < 0) {
-            // invalid configuration
-            return getHighestValidMultiplicationsGroupSize();
+    template<template<typename> typename Allocator2, typename WorkData>
+    void doGrain(State & s,
+                 XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+                 Y<T, Tag> & y,
+                 GrainType g,
+                 WorkData * workData) const
+    {
+        if(g == GrainType::FFT) {
+            // the fft is implicit (in x_and_ffts)
+            Assert(0 == ((x_and_ffts.progress+1) & partition_size_minus_one)); // make sure 'rythm is good'
         }
-        if(countPartitions() == 0) {
-            return 0;
-        }
-        for(int i=1;; ++i) {
-            if( (countPartitions() - 1)/i <= diff) {
-                return i;
+        else {
+            auto const fft_length = get_fft_length();
+            auto const & ffts = x_and_ffts.find_ffts(fft_length);
+
+            if(g == GrainType::MultiplicationGroup) {
+                auto const M = getMultiplicationsGroupMaxSize();
+                auto const offset_base = M * s.grain_number;
+                assert(offset_base >= 0);
+                assert(offset_base < s.ffts_of_partitionned_h.size());
+
+                int offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
+                int offset = offset_base;
+                if(offset == 0) {
+                    fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result.data() /* = */,
+                                                                   ffts.get_by_age(0), /* x */
+                                                                   s.ffts_of_partitionned_h[0].data(),
+                                                                   1+partition_size_minus_one);
+                    offset = 1;
+                }
+                for(; offset != offset_end; ++offset)
+                {
+                    fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(s.multiply_add_result.data() /* += */,
+                                                                       ffts.get_by_age(offset), /* x  */
+                                                                       s.ffts_of_partitionned_h[offset].data(),
+                                                                       1+partition_size_minus_one);
+                }
+            }
+            else {
+                Assert(g==GrainType::IFFT);
+
+                ffts.fft.inverse(s.multiply_add_result.data(),
+                                 workData,
+                                 fft_length);
+
+                Assert(s.grain_counter == getGranularity());
+                Assert(s.grain_number == count_multiplicative_grains);
+                int const blockProgress = (count_multiplicative_grains+1) * getGranularity();
+                int const yFutureLocation = y.progress + getBlockSize() - blockProgress;
+                y.addAssign(yFutureLocation,
+                            workData,
+                            fft_length);
             }
         }
     }
     
-    int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
-    
-protected:
-    template<template<typename> typename Allocator2>
-    void do_some_multiply_add(State & s,
-                              FFTs<T, Allocator2, Tag> const & ffts) const {
-        auto const M = getMultiplicationsGroupMaxSize();
-        auto const offset_base = M * s.grain_number;
-        assert(offset_base >= 0);
-        assert(offset_base < s.ffts_of_partitionned_h.size());
-
-        int offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
-        int offset = offset_base;
-        if(offset == 0) {
-            fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result.data() /* = */,
-                                                           ffts.get_by_age(0), /* x */ s.ffts_of_partitionned_h[0].data(),
-                                                           partition_size);
-            offset = 1;
-        }
-        for(; offset != offset_end; ++offset)
-        {
-            fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(s.multiply_add_result.data() /* += */,
-                                                               ffts.get_by_age(offset), /* x  */ s.ffts_of_partitionned_h[offset].data(),
-                                                               partition_size);
-        }
-    }
-    
-    
 private:
     int32_t mult_grp_len = 0;
-    int32_t partition_size = -1;
+    uint32_t partition_size_minus_one = -1;
     int32_t granularity = 0;
     int32_t count_multiplicative_grains = 0;
     int32_t partition_count = 0; // is accessed less frequently, hence at the end.
 };
-
-template <typename T, template<typename> typename Allocator, typename FFTTag>
-using AlgoFinegrainedPartitionnedFFTConvolution =
-AlgoFinegrainedFFTConvolutionBase< AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >;
 
 }

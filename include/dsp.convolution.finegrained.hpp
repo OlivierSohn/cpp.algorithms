@@ -122,17 +122,37 @@ struct FinegrainedSetupParam : public Cost {
     int get_fft_length() const {
         return 2 * partition_size;
     }
+
+    int getGranularity() const {
+        return partition_size / countGrains();
+    }
     
+    static constexpr int countNonMultiplicativeGrains() { return 2; }
+
+    int countMultiplicativeGrains() const
+    {
+        return multiplication_group_size ?
+        (1 + (partition_count - 1) / multiplication_group_size) :
+        0;
+    }
+    
+    int countGrains() const {
+        return countMultiplicativeGrains() + countNonMultiplicativeGrains();
+    }
+
     MinSizeRequirement getMinSizeRequirement() const
     {
+        int const blockProgressForIFFTGrain = (countMultiplicativeGrains()+1) * getGranularity();
+        Assert(blockProgressForIFFTGrain <= partition_size);
+        int const gap = partition_size - blockProgressForIFFTGrain;
+
         return {
             0, // x block size
-            static_cast<int>(get_fft_length()/2), // y block size
-            static_cast<int>(get_fft_length()/2), // y anticipated writes (because we write "in the future" of y in the ifft step)
+            static_cast<int>(get_fft_length() + gap), // y block size
             {
                 {get_fft_length(), partition_count}
             },
-            0 // work size
+            get_fft_length() // work size
         };
     }
     
@@ -157,7 +177,21 @@ struct FinegrainedSetupParam : public Cost {
     }
 };
 
-
+template<typename T, typename FFTTag>
+struct FinegrainedPartitionnedFFTConvolutionSimulation {
+    using SetupParam = FinegrainedSetupParam;
+    
+    void setup(SetupParam const & p) {
+        this->p = p;
+    }
+    
+    SetupParam p;
+};
+    
+template<typename T, typename FFTTag>
+struct Simulation_<FinegrainedSetupParam, T, FFTTag> {
+    using type = FinegrainedPartitionnedFFTConvolutionSimulation<T, FFTTag>;
+};
 
 template <typename Parent>
 struct FinegrainedFFTConvolutionBase : public Parent {
@@ -503,8 +537,8 @@ private:
                 // store second part of result for later
                 //
                 // 'second part of y' = 'second part of result'
-                copy(it_y   + block_size,
-                     it_res + block_size,
+                copy(&y[block_size],
+                     &result[block_size],
                      block_size);
                 
                 increment_grain();
@@ -519,7 +553,7 @@ private:
             case GrainType::IFFT:
             {
                 fft.inverse(get_multiply_add_result().data(),
-                            result,
+                            result.data(),
                             get_fft_length());
                 increment_grain();
                 break;
@@ -1130,12 +1164,12 @@ struct PartitionAlgo< FinegrainedSetupParam, T, FFTTag > {
         GradientDescent<SetupParam> gd;
         constexpr auto n_iterations = 1;
         std::optional<SetupParam> res = find_optimal_partition_size<Convolution>(gd,
-                                                          n_iterations,
-                                                          n_channels,
-                                                          n_scales,
-                                                          n_audio_frames_per_cb,
-                                                          zero_latency_response_size,
-                                                          os);
+                                                                                 n_iterations,
+                                                                                 n_channels,
+                                                                                 n_scales,
+                                                                                 n_audio_frames_per_cb,
+                                                                                 zero_latency_response_size,
+                                                                                 os);
         constexpr auto debug_gradient_descent = false;
         if constexpr (debug_gradient_descent) {
             os << "Gradient descent report :" << std::endl;

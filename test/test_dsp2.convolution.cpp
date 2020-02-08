@@ -288,7 +288,7 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
             type != TestFinegrained::End;
             increment(type))
         {
-            SelfContainedXYConvolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>> conv;
+            SelfContainedXYConvolution<AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>> conv;
             auto const n_partitions = imajuscule::countPartitions(coefficients.size(), part_size);
             
             typename decltype(conv)::SetupParam p {
@@ -394,7 +394,7 @@ void testDirac() {
             partition_sz <= ceil_power_of_two(countCoeffs);
             partition_sz *= 2)
         {
-            auto c = SelfContainedXYConvolution<AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>{};
+            auto c = SelfContainedXYConvolution<AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>>{};
             auto const n_partitions = imajuscule::countPartitions(countCoeffs, partition_sz);
             
             testDirac2(i, c, {
@@ -483,7 +483,7 @@ void testDirac() {
             for(int firstSz=1; firstSz<32; firstSz *= 2) {
                 auto c = SelfContainedXYConvolution<AlgoSplitConvolution<
                 AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>>,
-                AlgoFinegrainedFFTConvolutionBase<AlgoFinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>
+                AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>
                 >>{};
                 using ScalingParam = typename decltype(c)::SetupParam::AParam::ScalingParam;
                 std::vector<ScalingParam> paramsFull;

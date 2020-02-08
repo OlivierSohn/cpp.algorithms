@@ -66,7 +66,7 @@ struct FFTs {
     }
     
     int size() const {
-        return ffts.size();
+        return static_cast<int>(ffts.size());
     }
 private:
     cyclic<FBins> ffts;
@@ -81,7 +81,7 @@ struct XSegments {
     // The invariant is that if size_from_zero is not 0, then size_from_zero is not 0.
 };
 
-template<typename T, template<typename> typename Allocator, typename Tag, typename WorkCplxFreqs>
+template<typename T, template<typename> typename Allocator, typename Tag>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
 
@@ -113,7 +113,7 @@ struct XAndFFTS {
         return sz;
     }
 
-    void resize(int const sz, FftSpecs const & fftSpecs, int const workSz) {
+    void resize(int const sz, FftSpecs const & fftSpecs) {
         x_ffts.clear();
         x_ffts.reserve(fftSpecs.size());
         fftHalfSizesBits = 0;
@@ -128,7 +128,7 @@ struct XAndFFTS {
             x_ffts.emplace_back(fftSz,
                                 history_sz);
         }
-        Assert(count_set_bits(fftHalfSizesBits) == x_ffts.size());
+        Assert(count_set_bits(fftHalfSizesBits) == static_cast<int>(x_ffts.size()));
         int const maxHalfFFTSz = floor_power_of_two(fftHalfSizesBits);
 
         x_unpadded_size = std::max(maxHalfFFTSz,
@@ -138,10 +138,49 @@ struct XAndFFTS {
         x.clear();
         x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
         
-        padding = x.size();
+        padding = static_cast<int>(x.size());
         progress = x_unpadded_size-1;
+    }
+    
+    template<typename SetupParam>
+    void setPhasePeriod(SetupParam const & p) {
+        phase_period.reset();
         
-        work.reserve(workSz);
+        auto f = [this] (auto const & innerP ){
+            std::optional<float> const ph = innerP.getPhase();
+            if(ph) {
+                // There is at most one phase specification
+                // within a set of params depending on the same context.
+                Assert(!phase_period);
+                phase_period = *ph;
+            }
+        };
+        
+        p.forEachUsingSameContext(f);
+    }
+    
+    std::optional<float> getPhasePeriod() const {
+        if(phase_period) {
+            return phase_period;
+        }
+        int const maxHalfFFTSz = floor_power_of_two(fftHalfSizesBits);
+        if(maxHalfFFTSz) {
+            return maxHalfFFTSz;
+        }
+        return {};
+    }
+    
+    template<typename F>
+    void dephase(F f) {
+        auto per = getPhasePeriod();
+        if(per) {
+            const int n_steps = static_cast<int>(0.5f + phase_group_ratio * *per);
+
+            for(int i=0; i<n_steps; ++i) {
+                push(0);
+                f(progress);
+            }
+        }
     }
     
     void push(T v) {
@@ -211,8 +250,9 @@ struct XAndFFTS {
     
     std::vector<FFTs<T, Allocator, Tag>> x_ffts;
 
-    WorkCplxFreqs & work; // temporary work buffer
-    
+    float phase_group_ratio = 0.; // in [0,1[
+    std::optional<float> phase_period;
+
     auto const & find_ffts(int sz) const {
         for(auto const & f : x_ffts) {
             if(sz == f.fft_length) {
@@ -230,11 +270,19 @@ struct XAndFFTS {
             os << f.size() << "x" << f.fft_length << " ";
         }
         os << std::endl;
+
+        os << "phase: ";
+        auto per = getPhasePeriod();
+        if(per) {
+            os << *per;
+        }
+        else {
+            os << "none";
+        }
+        os << std::endl;
+
+        os << "phase group ratio: " << phase_group_ratio << std::endl;
     }
-    
-    XAndFFTS(WorkCplxFreqs & work)
-    : work(work)
-    {}
 };
 
 struct YSegments {
@@ -247,71 +295,212 @@ struct YSegments {
 template<typename T, typename Tag>
 struct Y {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
+    static constexpr auto get_signal = fft::RealSignal_<Tag, T>::get_signal;
+    static constexpr auto copy = fft::RealSignal_<Tag, T>::copy;
+    static constexpr auto add_assign = fft::RealSignal_<Tag, T>::add_assign;
 
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
+    using RealValue = typename RealSignal::value_type;
 
-    YSegments getFutureSegments(int progress, int const future) const {
+    T getCurrentSignal() const
+    {
+        return get_signal(y[progress]);
+    }
+
+    void addAssign(int unbounded_future_progress, // >= uProgress anb maybe > ySz
+                   typename RealSignal::value_type * x,
+                   int N)
+    {
+        // zero from
+        //  uProgress + write_sz
+        // to
+        //  futureProgress
+
+        int const unbounded_first_old = progress + write_sz;
+        int write_sz_from_future_progress = unbounded_first_old - unbounded_future_progress;
+        {
+            if(write_sz_from_future_progress < 0) {
+                int const first_old = (unbounded_first_old < ySz) ? unbounded_first_old : (unbounded_first_old - ySz);
+                Assert(first_old < ySz);
+                int const diff = first_old - write_sz_from_future_progress - ySz;
+                if(diff > 0) {
+                    zero_n_raw(&y[first_old],
+                               (-write_sz_from_future_progress)-diff);
+                    zero_n_raw(&y[0],
+                               diff);
+                }
+                else {
+                    zero_n_raw(&y[first_old],
+                               -write_sz_from_future_progress);
+                }
+                write_sz_from_future_progress = 0;
+            }
+        }
+        
+        int const future_progress = (unbounded_future_progress < ySz) ? unbounded_future_progress : (unbounded_future_progress - ySz);
+        Assert(future_progress < ySz);
+
+        auto s = getFutureSegments(future_progress, N);
+        if(likely(s.size_from_progress)) {
+            
+            if(write_sz_from_future_progress >= s.size_from_progress) {
+                add_assign(&y[future_progress],
+                           &x[0],
+                           s.size_from_progress);
+            }
+            else if(write_sz_from_future_progress == 0) {
+                copy(&y[future_progress],
+                     &x[0],
+                     s.size_from_progress);
+            }
+            else {
+                Assert(write_sz_from_future_progress < s.size_from_progress);
+                add_assign(&y[future_progress],
+                           &x[0],
+                           write_sz_from_future_progress);
+                copy(&y[future_progress + write_sz_from_future_progress],
+                     &x[write_sz_from_future_progress],
+                     s.size_from_progress-write_sz_from_future_progress);
+            }
+            
+            if(unlikely(s.size_from_zero)) {
+                if(write_sz_from_future_progress >= N) {
+                    add_assign(&y[0],
+                               &x[s.size_from_progress],
+                               s.size_from_zero);
+                }
+                else {
+                    int const write_sz_from_zero = std::max(0,
+                                                            future_progress + write_sz_from_future_progress - ySz);
+                    x += s.size_from_progress;
+                    if(write_sz_from_zero == 0) {
+                        copy(y.data(),
+                             x,
+                             s.size_from_zero);
+                    }
+                    else {
+                        Assert(write_sz_from_future_progress < N);
+                        add_assign(&y[0],
+                                   x,
+                                   write_sz_from_zero);
+                        copy(&y[write_sz_from_zero],
+                             x + write_sz_from_zero,
+                             s.size_from_zero - write_sz_from_zero);
+                    }
+                }
+            }
+            int const minWriteSz = unbounded_future_progress + N - progress;
+            write_sz = std::max(write_sz, minWriteSz);
+        }
+    }
+    
+    void addAssignPresent(typename RealSignal::value_type * x,
+                          int N)
+    {
+        auto s = getFutureSegments(N);
+        if(likely(s.size_from_progress)) {
+            
+            if(write_sz >= s.size_from_progress) {
+                add_assign(&y[progress],
+                           &x[0],
+                           s.size_from_progress);
+            }
+            else {
+                if(write_sz == 0) {
+                    copy(&y[progress],
+                         &x[0],
+                         s.size_from_progress);
+                }
+                else {
+                    Assert(write_sz < s.size_from_progress);
+                    add_assign(&y[progress],
+                               &x[0],
+                               write_sz);
+                    copy(&y[progress + write_sz],
+                         &x[write_sz],
+                         s.size_from_progress-write_sz);
+                }
+            }
+            
+            if(unlikely(s.size_from_zero)) {
+                if(write_sz >= N) {
+                    add_assign(&y[0],
+                               &x[s.size_from_progress],
+                               s.size_from_zero);
+                }
+                else {
+                    int const write_sz_from_zero = std::max(0,
+                                                            progress + write_sz - ySz);
+                    x += s.size_from_progress;
+                    if(write_sz_from_zero == 0) {
+                        copy(y.data(),
+                             x,
+                             s.size_from_zero);
+                    }
+                    else {
+                        Assert(write_sz < N);
+                        add_assign(&y[0],
+                                   x,
+                                   write_sz_from_zero);
+                        copy(&y[write_sz_from_zero],
+                             x + write_sz_from_zero,
+                             s.size_from_zero - write_sz_from_zero);
+                    }
+                }
+            }
+
+            write_sz = std::max(write_sz, N);
+        }
+    }
+    
+private:
+    YSegments getFutureSegments(int const future) const {
         int const end = progress + future;
         int const szFromZero = std::max(0,
-                                        end - static_cast<int>(ySz));
+                                        end - ySz);
         return {
             future - szFromZero,
             szFromZero
         };
     }
-
-    static constexpr auto add_assign = fft::RealSignal_<Tag, T>::add_assign;
-
-    void addAssign(int yProgress,
-                   typename RealSignal::value_type * x,
-                   int N) {
-        auto s = getFutureSegments(yProgress, N);
-        if(likely(s.size_from_progress)) {
-            add_assign(&y[yProgress],
-                       &x[0],
-                       s.size_from_progress);
-            if(unlikely(s.size_from_zero)) {
-                add_assign(&y[0],
-                           &x[s.size_from_progress],
-                           s.size_from_zero);
-            }
+    YSegments getFutureSegments(int const from, int const future) const {
+        int const end = from + future;
+        int const szFromZero = std::max(0,
+                                        end - ySz);
+        return {
+            future - szFromZero,
+            szFromZero
+        };
+    }
+public:
+    
+    void writeOne(RealValue val)
+    {
+        if(write_sz) {
+            y[progress] += val;
+        }
+        else {
+            y[progress] = val;
+            write_sz = 1;
         }
     }
-    
-    void resize(int const blockSz_,
-                int const nAnticipatedWrites) {
-        int const blockSz = std::max(1, blockSz_);
-        blockSizeMinusOne = blockSz-1;
-        int const nAnticipationBlocks = nAnticipatedWrites ? (1 + (nAnticipatedWrites-1) / blockSz) : 0;
-        Assert(nAnticipationBlocks >= 0);
-        int const nBlocks = 1 + nAnticipationBlocks;
 
+    void resize(int const sz_) {
+        ySz = std::max(1, sz_);
         y.clear();
-        ySz = blockSz * nBlocks;
         y.resize(ySz); // intialized at 0
 
-        uProgress = 0;
-        zeroed_up_to = ySz;
+        progress = 0;
+        write_sz = 0;
     }
     
     void increment() {
-        ++uProgress;
-        Assert(uProgress <= ySz);
-        // if a block boundary was crossed, zero the block starting at 'zeroed_up_to'
-        Assert(is_power_of_two(blockSizeMinusOne+1));
-        if(0 == (uProgress & blockSizeMinusOne)) {
-            if(uProgress == ySz) {
-                uProgress = 0;
-            }
-            Assert(zeroed_up_to <= ySz);
-            unsigned int zeroStart = (zeroed_up_to == ySz) ? 0 : zeroed_up_to;
-            auto blockSize = blockSizeMinusOne + 1;
-            zeroed_up_to = zeroStart + blockSize;
-            Assert(zeroStart < ySz);
-            Assert(zeroed_up_to <= ySz);
-            zero_n_raw(&y[zeroStart], blockSize);
+        write_sz = std::max(0, write_sz-1);
+        ++progress;
+        Assert(progress <= ySz);
+        if(progress == ySz) {
+            progress = 0;
         }
-        Assert(uProgress < ySz);
     }
     
     void flushToSilence(int const nStepsForward) {
@@ -326,17 +515,83 @@ struct Y {
 
     void logComputeState(std::ostream & os) const {
         os << "y size " << ySz << std::endl;
-        os << "y progress " << uProgress << std::endl;
+        os << "y progress " << progress << std::endl;
     }
-    
+private:
     RealSignal y;
-    uint32_t uProgress = 0;
-    uint32_t ySz=0;
-    uint32_t blockSizeMinusOne = 0;
-    int32_t zeroed_up_to = 0;
+public:
+    int32_t progress = 0;
+    int32_t ySz=0;
+    int32_t write_sz = 0; // the number of locations, starting from uProgress, that are _not_ old samples.
 };
 
-/* Used to simplify tests */
+// TODO remove, use state directly
+template<typename A>
+struct Convolution {
+    using Algo = A;
+
+    static constexpr bool step_can_error = Algo::Desc::step_can_error;
+    static constexpr bool has_subsampling = Algo::Desc::has_subsampling;
+    
+    using State = typename Algo::State;
+    using FPT = typename Algo::FPT;
+    using Tag = typename Algo::Tag;
+    
+    template<typename TT>
+    using Allocator = typename A::template Allocator<TT>;
+    
+    using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
+    using WorkData = typename WorkCplxFreqs::value_type;
+    
+    using SetupParam = typename Algo::SetupParam;
+
+    static int getAllocationSz_SetCoefficients(SetupParam const & p) {
+        return State::getAllocationSz_SetCoefficients(p);
+    }
+    void setCoefficients(a64::vector<FPT> v, Algo const & algo)
+    {
+        state.setCoefficients(algo, std::move(v));
+    }
+    
+    bool isZero() const {
+        return state.isZero();
+    }
+    double getEpsilon(Algo const & algo) const {
+        return state.getEpsilon(algo);
+    }
+    void logComputeState(std::ostream & os, Algo const & algo) const {
+        IndentingOStreambuf i(os);
+        state.logComputeState(algo, os);
+    }
+
+    template <typename Bool = bool>
+    auto hasStepErrors() const -> std::enable_if_t<step_can_error, Bool> {
+        return state.hasStepErrors();
+    }
+
+    void step(StepType stepType,
+              Algo const & algo,
+              XAndFFTS<FPT, Allocator, Tag> const & x_and_ffts,
+              Y<FPT, Tag> & y,
+              WorkData * workData) {
+        algo.step(state,
+                  x_and_ffts,
+                  y,
+                  workData);
+    }
+    
+    void flushToSilence(Algo const & algo) {
+        algo.flushToSilence(state);
+    }
+
+    template<typename F>
+    void onContextFronteer(F f) {
+        state.onContextFronteer(f);
+    }
+    
+    State state;
+};
+
 template<typename A>
 struct XYConvolution {
     using Algo = A;
@@ -352,46 +607,34 @@ struct XYConvolution {
     using Allocator = typename A::template Allocator<TT>;
     
     using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
+    using WorkData = typename WorkCplxFreqs::value_type;
+    
     using SetupParam = typename Algo::SetupParam;
-
-    XYConvolution(WorkCplxFreqs & work)
-    : x_and_ffts(work)
-    {}
 
     static int getAllocationSz_Setup(SetupParam const & p) {
         MinSizeRequirement req = p.getMinSizeRequirement();
-        return XAndFFTS<FPT, Allocator, Tag, WorkCplxFreqs>::getAllocationSz_Resize(req.xFftSizes);
+        return XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
     }
     
-    void setup(SetupParam const & p) {
+    std::optional<float> getPhasePeriod() const {
+        return x_and_ffts.getPhasePeriod();
+    }
+
+    void setup(SetupParam const & p, WorkCplxFreqs & work)
+    {
         MinSizeRequirement req = p.getMinSizeRequirement();
         
+        work.reserve(req.minWorkSize);
+        
         x_and_ffts.resize(req.minXSize,
-                          req.xFftSizes,
-                          req.minWorkSize);
-        y.resize(req.minYSize,
-                 req.minYAnticipatedWrites);
-
-        int const nSteps = (y.ySz >= 1) ? 1 : 0;
+                          req.xFftSizes);
+        x_and_ffts.setPhasePeriod(p);
+        y.resize(req.minYSize);
 
         // set y progress such that results are written in a single chunk
-        for(int i=0; i<nSteps; ++i) {
+        if(y.ySz >= 1) {
             y.increment();
         }
-        
-        phase_period.reset();
-        
-        auto f = [this] (auto const & innerP ){
-            std::optional<float> const ph = innerP.getPhase();
-            if(ph) {
-                // There is at most one phase specification
-                // within a set of params depending on the same context.
-                Assert(!phase_period);
-                phase_period = *ph;
-            }
-        };
-        
-        p.forEachUsingSameContext(f);
     }
 
     static int getAllocationSz_SetCoefficients(SetupParam const & p) {
@@ -402,20 +645,9 @@ struct XYConvolution {
         state.setCoefficients(algo, std::move(v));
     }
     
-    std::optional<float> getPhasePeriod() const {
-        if(phase_period) {
-            return phase_period;
-        }
-        int const maxHalfFFTSz = floor_power_of_two(x_and_ffts.fftHalfSizesBits);
-        if(maxHalfFFTSz) {
-            return maxHalfFFTSz;
-        }
-        return {};
-    }
-    
     void dephaseByGroupRatio(float r, Algo const & algo)
     {
-        this->phase_group_ratio = r;
+        x_and_ffts.phase_group_ratio = r;
         
         dephase(algo);
         
@@ -434,16 +666,6 @@ struct XYConvolution {
         x_and_ffts.logComputeState(os);
         y.logComputeState(os);
         
-        os << "phase: ";
-        auto per = getPhasePeriod();
-        if(per) {
-            os << *per;
-        }
-        else {
-            os << "none";
-        }
-        os << std::endl;
-        os << "phase group ratio: " << phase_group_ratio << std::endl;
         IndentingOStreambuf i(os);
         state.logComputeState(algo, os);
     }
@@ -454,14 +676,16 @@ struct XYConvolution {
     }
 
     FPT step(FPT val,
-             Algo const & algo) {
+             Algo const & algo,
+             WorkData * workData) {
         x_and_ffts.push(val);
         
         algo.step(state,
                   x_and_ffts,
-                  y);
+                  y,
+                  workData);
         
-        FPT res = fft::RealSignal_<Tag, FPT>::get_signal(y.y[y.uProgress]);
+        FPT res = y.getCurrentSignal();
         y.increment();
         return res;
     }
@@ -501,7 +725,6 @@ struct XYConvolution {
 
         {
             int const n_steps = x_and_ffts.flushToSilence();
-            // in the future it will _not_ be needed to keep the 2 in sync.
             y.flushToSilence(n_steps);
         }
         
@@ -510,33 +733,21 @@ struct XYConvolution {
     
 private:
     // 1 for all inputs
-    XAndFFTS<FPT, Allocator, Tag, WorkCplxFreqs> x_and_ffts;
+    XAndFFTS<FPT, Allocator, Tag> x_and_ffts;
     // 1 for all outputs
     Y<FPT, Tag> y;
 
 public:
     State state;
+
 private:
-    
-    // cette phase lie 'x' a 'y', il faudra ouvrir la possibilité d'écrire dans y de facon non-contigue
-    float phase_group_ratio = 0.; // in [0,1[
-    std::optional<float> phase_period;
-
-    void dephase(Algo const & algo) {
-        auto per = getPhasePeriod();
-        if(per) {
-            const int n_steps = static_cast<int>(0.5f + phase_group_ratio * *per);
-
-            for(int i=0; i<n_steps; ++i) {
-                x_and_ffts.push(0);
-
-                algo.dephaseStep(state,
-                                 x_and_ffts.progress);
-                
-                // in the future it will _not_ be needed to keep x and y in sync
-                y.increment();
-            }
-        }
+    void dephase(Algo const & algo)
+    {
+        x_and_ffts.dephase([&algo, this](int x_progress) {
+            algo.dephaseStep(state,
+                             x_progress);
+            y.increment();
+        });
     }
 };
 
@@ -546,10 +757,6 @@ struct alignas(64) SelfContainedXYConvolution {
     
     using State = XYConvolution<Algo>;
     
-    SelfContainedXYConvolution()
-    : state(async_work)
-    {}
-
     using WorkCplxFreqs = typename XYConvolution<Algo>::WorkCplxFreqs;
     using SetupParam = typename Algo::SetupParam;
     using FPT = typename Algo::FPT;
@@ -570,7 +777,7 @@ struct alignas(64) SelfContainedXYConvolution {
 
             algo.setup(p);
             if(algo.isValid()) {
-                state.setup(p);
+                state.setup(p, work);
                 state.setCoefficients(std::move(v), algo);
             }
         }
@@ -606,7 +813,9 @@ struct alignas(64) SelfContainedXYConvolution {
     }
     
     FPT step(FPT val) {
-        return state.step(val, algo);
+        return state.step(val,
+                          algo,
+                          work.data());
     }
     void flushToSilence()
     {
@@ -637,7 +846,7 @@ struct alignas(64) SelfContainedXYConvolution {
     using FBinsAllocator = typename fft::RealFBins_<FFTTag, FPT, Allocator>::type::allocator_type;
     using MemResource = MemResource<FBinsAllocator>;
 
-    WorkCplxFreqs async_work;
+    WorkCplxFreqs work;
     Algo algo;
     State state;
     typename MemResource::type memory;

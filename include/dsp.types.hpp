@@ -45,12 +45,10 @@ using FftSpecs = std::map<uint32_t, int>; // sz -> historySize
 struct MinSizeRequirement {
     MinSizeRequirement(int minXSize,
                        int minYSize,
-                       int minYAnticipatedWrites,
                        FftSpecs xFftSizes,
                        int minWorkSize)
     : minXSize(minXSize)
     , minYSize(minYSize)
-    , minYAnticipatedWrites(minYAnticipatedWrites)
     , xFftSizes(xFftSizes)
     , minWorkSize(minWorkSize)
     {}
@@ -61,8 +59,6 @@ struct MinSizeRequirement {
     int minXSize;
         
     int minYSize;
-    // "Anticipated" writes touch the block (of size minYSize) after the current block.
-    int minYAnticipatedWrites;
     
     FftSpecs xFftSizes;
     
@@ -73,24 +69,8 @@ struct MinSizeRequirement {
                                o.minWorkSize);
         minXSize = std::max(minXSize,
                             o.minXSize);
-
-        if(!minYSize || !o.minYSize) {
-            minYSize = std::max(minYSize, o.minYSize);
-        }
-        else
-        {
-            int res = static_cast<int>(ppcm(minYSize,
-                                            o.minYSize));
-            
-            // only because in practice we have powers of 2.
-            Assert(std::max(minYSize,
-                            o.minYSize) == res);
-
-            minYSize = res;
-        }
-        
-        minYAnticipatedWrites = std::max(minYAnticipatedWrites,
-                                         o.minYAnticipatedWrites);
+        minYSize = std::max(minYSize,
+                            o.minYSize);
         
         for(auto const & [sz, historySize] : o.xFftSizes) {
             auto [it, emplaced] = xFftSizes.try_emplace(sz, historySize);

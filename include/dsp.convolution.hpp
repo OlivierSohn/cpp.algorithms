@@ -28,10 +28,26 @@ struct FFTConvolutionIntermediateSimulation : public Parent {
     double simuMajorStep(XFFtCostFactors const & xFftCostFactors) {
         if(unlikely(!majorCostExceptXForwardFft)) {
             majorCostExceptXForwardFft =
-            cost_compute_convolution() + // assuming that cost_compute_convolution is CONSTANT;
+            
+            // assuming that cost_compute_convolution is CONSTANT
+            cost_compute_convolution() +
+            
             fft::AlgoCosts<FFTTag, FPT>::cost_fft_inverse(get_fft_length()) +
-            fft::RealSignalCosts<FFTTag, FPT>::cost_add_scalar_multiply(getBlockSize()) +
-            fft::RealSignalCosts<FFTTag, FPT>::cost_copy(getBlockSize()) +
+            
+            // if get_fft_length() has the same order of magnitude than the size of y:
+            // - many 'add_assign' will be replaced by 'copy'
+            // - many 'add_assign' will be done in 2 separate passes
+            //
+            // To take these effects fully into account we would need to know
+            // - the size of y
+            // - the phase at which we will write in y
+            // - the rythm of other convolution parts (and other channels) writing in the same y
+            //
+            // "This is complicated to do" and we tend to think that the magnitude of the error
+            // will be small compared to the overall sum, hence we simulate using a single 'add_assign':
+            
+            fft::RealSignalCosts<FFTTag, FPT>::cost_add_assign(get_fft_length()) +
+            
             costReadNConsecutive<FPT>(1);
         }
         if(unlikely(!costXForwardFft)) {
@@ -137,7 +153,7 @@ struct FFTConvolutionIntermediate : public Parent {
         auto const N = getBlockSize();
         auto const & frequencies = compute_convolution(fft, xBegin);
         
-        fft.inverse(frequencies.data(), result, get_fft_length());
+        fft.inverse(frequencies.data(), result.data(), get_fft_length());
         
         auto factor = 1 / (Algo::scale * Algo::scale * static_cast<T>(get_fft_length()));
         
@@ -155,8 +171,8 @@ struct FFTConvolutionIntermediate : public Parent {
         // store second part of result for later
         //
         // 'second part of y' = 'second part of result'
-        copy(it_y   + N,
-             it_res + N,
+        copy(&y[N],
+             &result[N],
              N);
         
         assert(it == y.begin() + N-1); // make sure 'rythm is good', i.e we exhausted the first half of the y vector
@@ -255,16 +271,15 @@ struct FFTConvolutionCRTPSetupParam : public Cost
     
     MinSizeRequirement getMinSizeRequirement() const
     {
-        auto const fft_length = 2 * blockSize;
+        int const fft_length = 2 * blockSize;
         
         return {
             0, // x block size
-            static_cast<int>(fft_length/2), // y block size
-            0, // no y anticipated writes
+            fft_length, // y block size
             {
                 {fft_length, 1}
             },
-            static_cast<int>(fft_length) // work size
+            2*fft_length // work size
         };
     }
     
@@ -467,16 +482,15 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
     
     MinSizeRequirement getMinSizeRequirement() const
     {
-        auto const fft_length = 2 * partition_size;
+        int const fft_length = 2 * partition_size;
         
         return {
             0, // x block size
-            static_cast<int>(fft_length/2), // y block size
-            0, // no y anticipated writes
+            fft_length, // y block size
             {
                 {fft_length, partition_count}
             },
-            fft_length // work size
+            2*fft_length // work size
         };
     }
     
@@ -598,7 +612,7 @@ struct PartitionnedFFTConvolutionCRTP {
     
     static int getAllocationSz_SetCoefficients(SetupParam const & p) {
         int const fft_length = 2 * p.partition_size;
-        return fft_length * (2 * p.partition_count + 1);
+        return fft_length * (2 * p.partition_count);
     }
     
     void setup(SetupParam const & p) {

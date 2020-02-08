@@ -235,6 +235,8 @@ void forEachCost(F f) {
     using RealFBinsCosts = RealFBinsCosts<Tag, T>;
     using AlgoCosts = AlgoCosts<Tag, T>;
 
+    f("RealSignalCosts::cost_add_assign ",
+      RealSignalCosts::cost_add_assign);
     f("RealSignalCosts::cost_add_scalar_multiply ",
       RealSignalCosts::cost_add_scalar_multiply);
     f("RealSignalCosts::cost_copy ",
@@ -310,7 +312,7 @@ void analyzeCostsCoherence(int const szBegin,
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
-    //analyzeCostsCoherence<double>(1, 40000);
+    analyzeCostsCoherence<double>(1, 40000);
     /*
     printCosts<double>(64);
     printCosts<double>(128);

@@ -106,47 +106,80 @@ struct Reverbs {
     using Algo = typename State::Algo;
 
     static int getAllocationSz(SetupParam const & p,
+                               int const n_sources,
                                int const n_channels) {
-        return n_channels * (State::getAllocationSz_Setup(p) + State::getAllocationSz_SetCoefficients(p));
+        MinSizeRequirement req = p.getMinSizeRequirement();
+        int const input_req = XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
+
+        return
+        n_sources * input_req +
+        n_channels * State::getAllocationSz_SetCoefficients(p);
     }
 
     // for wir files of wave, it seems the order is by "ears" then by "source":
     // ear Left source 1
     // ...
-    // ear Left source N
+    // ear Left source nConvolutionsPerEar
     // ear Right source 1
     // ...
-    // ear Right source N
+    // ear Right source nConvolutionsPerEar
     
     void setSources(int n_sources,
                     std::vector<a64::vector<T>> const & deinterlaced_coeffs,
-                    SetupParam const & setup,
+                    SetupParam const & p,
                     WorkCplxFreqs & work) {
-        algo.setup(setup);
+        algo.setup(p);
 
-        states.clear();
-        states.reserve(deinterlaced_coeffs.size());
-        for(auto & coeffs : deinterlaced_coeffs) {
-            states.push_back(std::make_unique<State>(work));
-            auto & c = states.back();
-            c->setup(setup);
-            c->setCoefficients(std::move(coeffs), algo);
-        }
-        int const nConvolutionsPerSource = states.size() / n_sources;
-        if((n_sources * nConvolutionsPerSource) != states.size()) {
+        input_states.clear();
+        
+        int const n_channels = deinterlaced_coeffs.size();
+        int const nConvolutionsPerSource = n_channels / n_sources;
+        if((n_sources * nConvolutionsPerSource) != n_channels) {
             throw std::runtime_error("inconsistent number of audio sources / channels");
         }
-        nConvolutionsPerEar = states.size() / nEars;
-        Assert((nEars * nConvolutionsPerEar) == states.size());
+        nConvolutionsPerEar = n_channels / nEars;
+        Assert((nEars * nConvolutionsPerEar) == n_channels);
+
+        input_states.resize(n_sources);
         
-        int n = 0;
-        int const total = states.size();
-        for(auto & c : states) {
-            dephase(total, n, *c, algo);
-            ++n;
+        MinSizeRequirement req = p.getMinSizeRequirement();
+        
+        work.reserve(req.minWorkSize);
+        
+        for(auto & i : input_states) {
+            auto & x_and_ffts = i.x_and_ffts;
+            x_and_ffts.resize(req.minXSize,
+                              req.xFftSizes);
+            
+            x_and_ffts.setPhasePeriod(p);
         }
+        
+        for(auto & y : outputs) {
+            y.resize(req.minYSize);
+            // set y progress such that results are written in a single chunk
+            if(y.ySz >= 1) {
+                y.increment();
+            }
+        }
+        
+        auto it = input_states.begin();
+        
+        for(auto & coeffs : deinterlaced_coeffs) {
+            it->channels.push_back(std::make_unique<State>());
+            auto & c = it->channels.back();
+            c->setCoefficients(std::move(coeffs), algo);
+
+            ++it;
+            if(it == input_states.end()) {
+                it = input_states.begin();
+            }
+        }
+        
+        this->work = &work;
+
+        handlePhases();
     }
-    
+
     void logReport(std::ostream & os) const
     {
         os << "States:" << std::endl;
@@ -162,11 +195,11 @@ struct Reverbs {
     }
     
     int countScales() {
-        if (states.empty()) {
+        if (input_states.empty() || input_states[0].channels.empty()) {
             return 0;
         }
         if constexpr(State::has_subsampling) {
-            return imajuscule::countScales(*states[0]);
+            return imajuscule::countScales(*(input_states[0].channels[0]));
         }
         else {
             return 1;
@@ -174,7 +207,7 @@ struct Reverbs {
     }
     
     bool handlesCoefficients() const {
-        if(states.empty()) {
+        if(input_states.empty()) {
             return false;
         }
         return algo.handlesCoefficients();
@@ -182,15 +215,18 @@ struct Reverbs {
     
     Latency getLatency() const {
         Assert(handlesCoefficients());
-        return states.empty() ? Latency(0) : algo.getLatency();
+        return input_states.empty() ? Latency(0) : algo.getLatency();
     }
     
     double getEpsilon() const {
-        return epsilonOfNaiveSummation(states, algo) / nEars;
+        if(input_states.empty() || input_states[0].channels.empty()) {
+            return 0;
+        }
+        return nConvolutionsPerEar * input_states[0].channels[0]->getEpsilon(algo);
     }
     
     bool isValid() const {
-        if(states.empty()) {
+        if(input_states.empty()) {
             return true;
         }
         return algo.isValid();
@@ -198,73 +234,82 @@ struct Reverbs {
     
     template<typename F>
     void foreachConvReverb(F f) const {
-        for(auto const & c : states) {
-            f(*c);
+        for(auto const & i : input_states) {
+            for(auto const & c:i.channels) {
+                f(*c);
+            }
         }
     }
     
     template<typename F>
     void foreachConvReverb(F f) {
-        for(auto & c : states) {
-            f(*c);
+        for(auto & i : input_states) {
+            for(auto & c:i.channels) {
+                f(*c);
+            }
         }
     }
     
     template<typename FPT2>
     bool assignWetVectorized(FPT2 const * const * const input_buffers,
-                             int nInputBuffers,
+                             int const nInputBuffers,
                              FPT2 ** output_buffers,
-                             int nOutputBuffers,
-                             int nFramesToCompute,
-                             int vectorLength) {
+                             int const nOutputBuffers,
+                             int const nFramesToCompute,
+                             int const vectorLength) {
         assert(vectorLength > 0);
-        bool success = true;
         
-        int i_in = 0;
-        auto itConv = states.begin();
-        
-        Assert(nOutputBuffers == nEars);
-        for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
-            FPT2 * out = output_buffers[i_out];
-            
-            bool assign = true;
-            for(auto end = i_in+nConvolutionsPerEar;
-                i_in < end;
-                ++i_in, ++itConv) {
-                Assert(i_in < nInputBuffers);
-                
-                /*std::cout << "out " << i_out << " in " << i_in << std::endl;
-                IndentingOStreambuf ind(std::cout);*/
+        if(unlikely(nConvolutionsPerEar == 0)) {
+            for(int o=0; o<nOutputBuffers; ++o) {
+                fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffers[o], nFramesToCompute);
+            }
+            return true;
+        }
 
-                auto & c = *itConv;
-                FPT2 const * const in = input_buffers[i_in];
-                for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                    if(assign) {
-                        c->stepAssignVectorized(in + i,
-                                                out + i,
-                                                std::min(vectorLength, nFramesToCompute-i),
-                                                algo);
-                    }
-                    else {
-                        c->stepAddVectorized(in + i,
-                                             out + i,
-                                             std::min(vectorLength, nFramesToCompute-i),
-                                             algo);
+        Assert(nInputBuffers == input_states.size());
+        Assert(nOutputBuffers == outputs.size());
+
+        auto * workData = work->data();
+
+        for(int f=0; f<nFramesToCompute; ++f) {
+            int o=0;
+            
+            for(int i=0; i<nInputBuffers; ++i) {
+                auto & input_state = input_states[i];
+                input_state.x_and_ffts.push(input_buffers[i][f]);
+                
+                for(auto & c : input_state.channels) {
+                    algo.step(c->state,
+                              input_state.x_and_ffts,
+                              outputs[o],
+                              workData);
+
+                    ++o;
+                    if(o==nOutputBuffers) {
+                        o=0;
                     }
                 }
-                assign = false;
-                if constexpr (State::step_can_error) {
-                    success = !c->hasStepErrors() && success;
-                }
             }
-            if(unlikely(assign)) {
-                fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(out, nFramesToCompute);
-            }
-            if(i_in == nInputBuffers) {
-                i_in = 0;
+            
+            Assert(o == 0);
+            
+            for(; o<nOutputBuffers; ++o) {
+                output_buffers[o][f] = outputs[o].getCurrentSignal();
+                outputs[o].increment();
             }
         }
-        return success;
+        
+        if constexpr (State::step_can_error) {
+            for(auto const & i : input_states) {
+                for(auto const & c : i.channels) {
+                    if(c->hasStepErrors()) {
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        return true;
     }
     
     template<typename FPT2>
@@ -273,46 +318,153 @@ struct Reverbs {
                                    int nFramesToCompute,
                                    int vectorLength) {
         assert(vectorLength > 0);
-        bool success = true;
         
-        Assert(nOutputBuffers == nEars);
-        for(int i_out=0; i_out < nOutputBuffers; ++i_out) {
-            FPT2 * out = output_buffers[i_out];
-            for(int i=0; i<nFramesToCompute; i += vectorLength) {
-                for(int i_in = 0; i_in < nConvolutionsPerEar; ++i_in) {
-                    auto & c = states[nConvolutionsPerEar*i_out + i_in];
-                    c->stepAddInputZeroVectorized(out+i,
-                                                  std::min(vectorLength, nFramesToCompute-i),
-                                                  algo);
-                    if constexpr (State::step_can_error) {
-                        success = !c->hasStepErrors() && success;
+        Assert(nOutputBuffers == outputs.size());
+
+        if(unlikely(nConvolutionsPerEar == 0)) {
+            return true;
+        }
+        
+        auto * workData = work->data();
+        
+        // ignore vectorization for now.
+        // (To vectorize, we would need to modify x and y so that they have bigger buffers, and modify states)
+        for(int f=0; f<nFramesToCompute; ++f) {
+            int o=0;
+            
+            for(auto & input_state : input_states) {
+                input_state.x_and_ffts.push(0);
+                
+                for(auto & c : input_state.channels) {
+                    algo.step(c->state,
+                              input_state.x_and_ffts,
+                              outputs[o],
+                              workData);
+
+                    ++o;
+                    if(o==nOutputBuffers) {
+                        o=0;
+                    }
+                }
+            }
+            
+            Assert(o == 0);
+            
+            for(; o<nOutputBuffers; ++o) {
+                output_buffers[o][f] += outputs[o].getCurrentSignal();
+                outputs[o].increment();
+            }
+        }
+        
+        if constexpr (State::step_can_error) {
+            for(auto const & i : input_states) {
+                for(auto const & c : i.channels) {
+                    if(c->hasStepErrors()) {
+                        return false;
                     }
                 }
             }
         }
-        return success;
+        
+        return true;
     }
     
     
     void clear() {
-        states.clear();
+        input_states.clear();
         nConvolutionsPerEar = 0;
     }
     
     void flushToSilence() {
-        for(auto & c : states) {
-            c->flushToSilence(algo);
+        bool xy_linked = XYLinked();
+        int n = 0;
+
+        for(auto & i : input_states) {
+            for(auto & state : i.channels) {
+                algo.flushToSilence(state->state);
+            }
+            
+            int const n_steps = i.x_and_ffts.flushToSilence();
+            
+            // if a single x corresponds to a single y, we keep the corresponding y in phase with x.
+            // else, we keep every y in phase with the first x
+            if(xy_linked) {
+                outputs[n].flushToSilence(n_steps);
+            }
+            else if (n==0) {
+                for(auto & o : outputs) {
+                    o.flushToSilence(n_steps);
+                }
+            }
+
+            ++n;
         }
+
+        handlePhases();
     }
     
 private:
     
     int nConvolutionsPerEar = 0;
-    std::vector<std::unique_ptr<State>> states;
+    WorkCplxFreqs * work = nullptr;
     Algo algo;
+    struct InputAndChannels {
+        XAndFFTS<FPT, Allocator, Tag> x_and_ffts;
+        std::vector<std::unique_ptr<State>> channels;
+    };
+    std::vector<InputAndChannels> input_states;
+    std::array<Y<FPT, Tag>, nEars> outputs;
+
 
     bool empty() const {
         return nConvolutionsPerEar == 0;
+    }
+    
+    bool XYLinked() const {
+        if(outputs.size() != input_states.size()) {
+            return false;
+        }
+        for(auto & i : input_states) {
+            if(i.channels.size() != 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    void handlePhases() {
+        bool xy_linked = XYLinked();
+        int n = 0;
+        int const total = input_states.size();
+        for(auto & i : input_states) {
+            float const ratio = n / static_cast<float>(total);
+            
+            i.x_and_ffts.phase_group_ratio = ratio;
+            i.x_and_ffts.dephase([&i, this, xy_linked, n](int x_progress){
+                for(auto & state : i.channels) {
+                    algo.dephaseStep(state->state,
+                                     x_progress);
+                }
+
+                // if a single x corresponds to a single y, we keep the corresponding y in phase with x.
+                // else, we keep every y in phase with the first x
+                if(xy_linked) {
+                    outputs[n].increment();
+                }
+                else if (n==0) {
+                    for(auto & o : outputs) {
+                        o.increment();
+                    }
+                }
+            });
+
+            for(auto & state : i.channels) {
+                state->onContextFronteer([ratio](auto & s, auto const & fronteerAlgo){
+                    s.dephaseByGroupRatio(ratio, fronteerAlgo);
+                });
+            }
+            ++n;
+        }
     }
     
 };
@@ -330,8 +482,6 @@ void padForScales(SetupParam const & spec,
         }
     }
     
-    int total_response_size_padded = 0;
-    
     if constexpr (SetupParam::has_subsampling) {
         int const n_scales = count_scales(spec);
         assert(n_scales >= 1);
@@ -341,6 +491,8 @@ void padForScales(SetupParam const & spec,
         int const late_response_sz = std::max(0
                                               ,total_response_size - n_coeffs_early_handler);
         int const scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
+        
+        int total_response_size_padded = 0;
         
         if(n_scales > 1) {
             // pad the coefficients so that all scales have the same rythm.
@@ -355,9 +507,6 @@ void padForScales(SetupParam const & spec,
         for(auto & v : deinterlaced_coeffs) {
             v.resize(total_response_size_padded);
         }
-    }
-    else {
-        total_response_size_padded = total_response_size;
     }
 }
 
@@ -446,7 +595,9 @@ void applyBestParams(Reverb & rev,
                                     os,
                                     args...);
     
-    int const sz = Reverb::getAllocationSz(p, deinterlaced.countChannels());
+    int const sz = Reverb::getAllocationSz(p,
+                                           n_sources,
+                                           deinterlaced.countChannels());
     
     memory.clear();
     memory.reserve(sz);

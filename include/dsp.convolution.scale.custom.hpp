@@ -88,7 +88,7 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         if(res) {
             return *res;
         }
-        return {0,0,0,{},0};
+        return {0,0,{},0};
     }
 
     Latency getImpliedLatency() const {

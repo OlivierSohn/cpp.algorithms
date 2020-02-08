@@ -185,7 +185,7 @@ namespace imajuscule {
             
             { verifyFrequencies<Tag, T>(output, N); }
             
-            fft_algo.inverse(output.data(), reconstructed_input, N);
+            fft_algo.inverse(output.data(), reconstructed_input.data(), N);
             
             for(auto & v : reconstructed_input) {
                 v *= 1/(Algo::scale * static_cast<T>(N));
@@ -223,7 +223,7 @@ namespace imajuscule {
             
             fft_algo.forward(input.begin(), output.data(), N);
             
-            fft_algo.inverse(output.data(), reconstructed_input, N);
+            fft_algo.inverse(output.data(), reconstructed_input.data(), N);
             
             for(auto & v : reconstructed_input) {
                 v *= 1/(Algo::scale * static_cast<T>(N));

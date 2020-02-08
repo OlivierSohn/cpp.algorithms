@@ -310,6 +310,42 @@ namespace imajuscule::fft {
             return duration;
         }};
         
+        
+        inline static CallCost cost_add_assign { [](std::function<void(double&)> fBeforeMeasure,
+                                                    int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::array<type, 2>> va;
+            va.resize(ntests);
+            double d = 1.;
+            for(auto & a:va)
+            {
+                for(auto & v:a) {
+                    v.resize(sz,
+                             value_type{static_cast<T>(d)});
+                    ++d;
+                }
+            }
+            
+            using namespace profiling;
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & a:va) {
+                    Impl::add_assign(a[0].data(),
+                                     a[1].data(),
+                                     sz);
+                }
+            });
+            for(auto & a:va)
+            {
+                using std::abs; // so that abs can be std::abs or imajuscule::abs (for complex)
+                sideEffect += abs(std::accumulate(a[0].begin(),
+                                                  a[0].end(),
+                                                  value_type{})) / static_cast<T>(a[0].size());
+            }
+            return duration;
+        }};
+        
         inline static CallCost cost_copy { [](std::function<void(double&)> fBeforeMeasure,
                                               int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 2>> va;
@@ -330,8 +366,8 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a : va) {
-                    Impl::copy(a[0].begin(),
-                               a[1].begin(),
+                    Impl::copy(a[0].data(),
+                               a[1].data(),
                                sz);
                 }
             });
@@ -531,7 +567,7 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&a, &vf, &vinput, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
-                    a.inverse(vf[i].data(), vinput[i], sz);
+                    a.inverse(vf[i].data(), vinput[i].data(), sz);
                 }
             });
             

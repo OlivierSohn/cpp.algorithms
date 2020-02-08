@@ -67,12 +67,14 @@ namespace imajuscule {
                 }
             }
 
-            static void copy(iter dest_, const_iter from_, int N) {
-                value_type * __restrict dest = dest_.base();
-                value_type const * __restrict from = from_.base();
+            static void copy(value_type * __restrict dest,
+                             value_type const * __restrict from,
+                             int N) {
 
                 // TODO optimize ?
-                memcpy(dest, from, N * sizeof(value_type));
+                memcpy(dest,
+                       from,
+                       N * sizeof(value_type));
             }
 
             static void zero_n_raw(complex<T> * p, int n) {
@@ -277,6 +279,7 @@ namespace imajuscule {
             using FPT = T;
 
             using RealInput  = typename RealSignal_ <imj::Tag, T>::type;
+            using RealValue = typename RealInput::value_type;
             
             template<template<typename> typename Allocator>
             using RealFBins  = typename RealFBins_<imj::Tag, T, Allocator>::type;
@@ -308,7 +311,7 @@ namespace imajuscule {
           }
 
             void inverse(complex<T> const * input,
-                         RealInput & output,
+                         RealValue * output,
                          unsigned int N) const
             {
               auto * const rootPtr = context.getRoots()->begin().base();
@@ -316,7 +319,7 @@ namespace imajuscule {
               algo{rootPtr};
               
               algo.run(input,
-                       output.begin().base(),
+                       output,
                        N);
 
                 // in theory for inverse fft we should convert_to_conjugate the result
@@ -324,15 +327,16 @@ namespace imajuscule {
 
 #ifndef NDEBUG
                 T M {};
-                std::for_each(output.begin(), output.end(),
-                              [&M](auto v) { M = std::max(M, std::abs(v.real())); } );
+                for(int i=0; i<N; ++i) {
+                    M = std::max(M, std::abs(output[i].real()));
+                }
                 constexpr auto epsilon = 1000 * std::numeric_limits<T>::epsilon();
-                for(auto const & r : output) {
+                for(int i=0; i<N; ++i) {
                     if(M) {
-                        assert(std::abs(r.imag()/M) < epsilon);
+                        assert(std::abs(output[i].imag()/M) < epsilon);
                     }
                     else {
-                        assert(std::abs(r.imag()) < epsilon);
+                        assert(std::abs(output[i].imag()) < epsilon);
                     }
                 }
 #endif

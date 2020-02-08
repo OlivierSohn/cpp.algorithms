@@ -31,7 +31,6 @@ struct FIRSetupParam : public Cost {
         return {
             static_cast<int>(n_coeffs), // x block size
             1, // y block size
-            0, // anticipated y writes
             {},
             0 // work size
         };

@@ -157,10 +157,11 @@ struct AlgoCustomScaleConvolution {
         // nothing. For justification, see comment in step()
     }
 
-    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
+    template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
-              XAndFFTS<FPT, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
-              Y<FPT, Tag> & y) const
+              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+              Y<FPT, Tag> & y,
+              WorkData * workData) const
     {
         Assert(s.v.size() <= v.size());
         
@@ -189,7 +190,8 @@ struct AlgoCustomScaleConvolution {
             
             algo.forceStep(state,
                            x_and_ffts,
-                           y);
+                           y,
+                           workData);
         }
     }
     

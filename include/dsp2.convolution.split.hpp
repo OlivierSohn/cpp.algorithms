@@ -180,17 +180,23 @@ struct AlgoSplitConvolution {
         b.dephaseStep(s.b, x_progress);
     }
     
-    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
+    template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
-              XAndFFTS<FPT, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
-              Y<FPT, Tag> & y) const
+              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+              Y<FPT, Tag> & y,
+              WorkData * workData) const
     {
-        a.step(s.a,
-               x_and_ffts,
-               y);
+        // We step the latehandler before the early handler to minimize
+        // the number of splits done in Y::addAssign and Y::addAssignPersent
+        // (as latehandlers writes bigger chunks than early handlers)
         b.step(s.b,
                x_and_ffts,
-               y);
+               y,
+               workData);
+        a.step(s.a,
+               x_and_ffts,
+               y,
+               workData);
     }
     
     void flushToSilence(State & s) const {

@@ -98,17 +98,17 @@ struct AlgoFIRFilter {
                      int x_progress) const {
     }
 
-    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
+    template<template<typename> typename Allocator2, typename WorkData>
     void step(State & state,
-              XAndFFTS<T, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
-              Y<T, Tag> & y) const
+              XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+              Y<T, Tag> & y,
+              WorkData * workData) const
     {
         auto s = x_and_ffts.getPastSegments(n_coeffs);
 
         if(likely(s.size_from_start)) {
             using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
-            E res; // no need to zero-initialize, dotpr will write it.
-            
+            E res;
             auto * coeff = state.getReversedCoeffs().data();
             dotpr(&x_and_ffts.x[s.start],
                   coeff,
@@ -122,7 +122,7 @@ struct AlgoFIRFilter {
                       s.size_from_zero);
                 res += res2;
             }
-            y.y[y.uProgress] += res;
+            y.writeOne(res);
         }
     }
 

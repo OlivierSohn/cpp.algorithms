@@ -539,17 +539,18 @@ struct AlgoAsyncCPUConvolution {
         // Note that dephasing in the async part is taken care of by async_conv->setCoefficients and async_conv->flushToSilence
     }
 
-    template<template<typename> typename Allocator2, typename WorkCplxFreqs>
+    template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
-              XAndFFTS<FPT, Allocator2, Tag, WorkCplxFreqs> const & x_and_ffts,
-              Y<FPT, Tag> & y) const
+              XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+              Y<FPT, Tag> & y,
+              WorkData *) const
     {
         if(unlikely(s.signal == s.previous_result)) {
             return;
         }
         if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
             if(unlikely(s.error_worker_too_slow)) {
-                y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress];
+                y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress];
                 return;
             }
         }
@@ -561,7 +562,7 @@ struct AlgoAsyncCPUConvolution {
             while(unlikely(!s.try_submit_signal(s.signal))) {
                 s.error_worker_too_slow = true;
                 if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
-                    y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress];
+                    y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress];
                     return;
                 }
                 else {
@@ -572,7 +573,7 @@ struct AlgoAsyncCPUConvolution {
             while(unlikely(!s.try_receive_result(s.previous_result))) {
                 s.error_worker_too_slow = true;
                 if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
-                    y.y[y.uProgress] += x_and_ffts.x[x_and_ffts.progress];
+                    y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress];
                     return;
                 }
                 else {
@@ -583,7 +584,7 @@ struct AlgoAsyncCPUConvolution {
             Assert(s.signal == s.previous_result-N || (s.previous_result==0 && s.signal==(s.buffer.size()-N)));
 
         }
-        y.y[y.uProgress] += typename RealSignal::value_type(s.buffer[s.previous_result + s.curIndex]);
+        y.writeOne(typename RealSignal::value_type(s.buffer[s.previous_result + s.curIndex]));
     }
     
     void flushToSilence(State & s) const

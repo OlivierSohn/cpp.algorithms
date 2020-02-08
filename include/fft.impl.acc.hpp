@@ -56,13 +56,15 @@ namespace imajuscule {
 
             }
             
-            static void copy(iter dest, const_iter from, int N) {
+            static void copy(value_type * __restrict dest,
+                             value_type const * const __restrict from,
+                             int N) {
                 // these 2 are equivalent:
                 /*accelerate::API<T>::f_vcpy(N,
                                            &*from, 1,
                                            &*dest, 1);
                 */
-                accelerate::API<T>::f_mmov(&*from, &*dest, 1, N, 1, 1);
+                accelerate::API<T>::f_mmov(from, dest, 1, N, 1, 1);
             }
             
             static void zero_n_raw(T * p, int n) {
@@ -372,7 +374,8 @@ namespace imajuscule {
 
             using FPT = T;
             using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
-            
+            using RealValue  = typename RealInput::value_type;
+
             template<template<typename> typename Allocator>
             using RealFBins  = typename RealFBins_<accelerate::Tag, T, Allocator>::type;
             
@@ -433,7 +436,7 @@ namespace imajuscule {
             }
 
             void inverse(T const * const_output,
-                         RealInput & input,
+                         RealValue * input,
                          unsigned int N) const
             {
                 using namespace accelerate;
@@ -470,7 +473,7 @@ namespace imajuscule {
                 constexpr auto inputStride = 1;
                 API<T>::f_ztoc(&Output,
                                1,
-                               reinterpret_cast<Complex<T> *>(&input[0]),
+                               reinterpret_cast<Complex<T> *>(input),
                                inputStride * 2,
                                N/2);
 

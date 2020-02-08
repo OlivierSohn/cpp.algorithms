@@ -61,7 +61,7 @@ namespace imajuscule {
             auto source = Sig::make({{ 1, 2, 3 }});
             auto dest = Sig::make({{ 0, 0, 0 }});
             
-            Sig::copy(dest.begin(), source.begin(), N);
+            Sig::copy(dest.data(), source.data(), N);
             
             auto const res = unwrap_signal<Tag>(dest, N);
             

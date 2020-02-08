@@ -18,7 +18,7 @@ void dephase(int const total_instances,
     }
 }
 
-// legacy, for PartitionAlgo:
+// for async PartitionAlgo, to dephase the simulated async parts
 template<typename C>
 void dephase(int const total_instances,
              int const index_instance,

@@ -139,7 +139,33 @@ struct FinegrainedSetupParam : public Cost {
     int countGrains() const {
         return countMultiplicativeGrains() + countNonMultiplicativeGrains();
     }
-
+    
+    int getLowestValidMultiplicationsGroupSize() const {
+        // lowest valid mult_grp_len verifies:
+        
+        // countGrains() == getBlockSize()
+        // 2 + 1 + (ffts_of_partitionned_h.size() - 1)/mult_grp_len == partition_size
+        
+        auto constexpr min_number_grains = countNonMultiplicativeGrains() + 1;
+        auto diff = partition_size - min_number_grains;
+        if(diff < 0) {
+            // invalid configuration
+            return getHighestValidMultiplicationsGroupSize();
+        }
+        if(partition_count == 0) {
+            return 0;
+        }
+        for(int i=1;; ++i) {
+            if( (partition_count - 1)/i <= diff) {
+                return i;
+            }
+        }
+    }
+    
+    int getHighestValidMultiplicationsGroupSize() const {
+        return partition_count;
+    }
+    
     MinSizeRequirement getMinSizeRequirement() const
     {
         int const blockProgressForIFFTGrain = (countMultiplicativeGrains()+1) * getGranularity();
@@ -177,15 +203,176 @@ struct FinegrainedSetupParam : public Cost {
     }
 };
 
-template<typename T, typename FFTTag>
+template<typename T, typename Tag>
 struct FinegrainedPartitionnedFFTConvolutionSimulation {
     using SetupParam = FinegrainedSetupParam;
     
     void setup(SetupParam const & p) {
+        reset();
         this->p = p;
+
+        partition_size_minus_one = p.partition_size - 1;
+
+        count_multiplicative_grains = p.countMultiplicativeGrains();
+        granularity = p.getGranularity();
+        
+        costXForwardFft = fft::AlgoCosts<Tag,T>::cost_fft_forward(get_fft_length());
+        costXInverseFft = fft::AlgoCosts<Tag,T>::cost_fft_inverse(get_fft_length());
+        cost_mult = fft::RealFBinsCosts<Tag,T>::cost_multiply(p.partition_size);
+        cost_mult_add = fft::RealFBinsCosts<Tag,T>::cost_multiply_add(p.partition_size);
+        cost_add_assign = fft::RealSignalCosts<Tag,T>::cost_add_assign(get_fft_length());
     }
     
+    auto const & getParam() const {
+        return p;
+    }
+    
+    void setMultiplicationGroupLength(int l) {
+        auto p2 = p;
+        p2.multiplication_group_size = l;
+        setup(p2);
+    }
+    
+    int getBlockSize() const {
+        return 1+partition_size_minus_one;
+    }
+
+    bool isValid() const {
+        if(p.multiplication_group_size == 0) {
+            return p.partition_count == 0;
+        }
+        return p.countGrains() <= p.partition_size;
+    }
+    
+    bool isZero() const {
+        return p.partition_count == 0;
+    }
+
+    void reset() {
+        count_multiplicative_grains = 0;
+        granularity = 0;
+        
+        reset_states();
+    }
+    
+    /*
+     Dual method of FinegrainedPartitionnedFFTConvolutionSimulation::step()
+     */
+    double simuStep(XFFtCostFactors const & xFftCostFactors) {
+        double cost = 0.;
+        if(unlikely(isZero())) {
+            return cost;
+        }
+        ++grain_counter;
+        auto g = nextGrain();
+        assert(g.first >= 0);
+        if(unlikely(g.first == 0)) {
+            cost += simuDoGrain(g.second,
+                                xFftCostFactors);
+            updatePostGrain(g.second);
+            grain_counter = 0;
+        }
+        ++x_progress; // progress may overflow, that's ok because we use only its lower bits.
+
+        return cost;
+    }
+    
+private:
+    int32_t grain_counter = 0;
+    int32_t grain_number = 0;
+    uint32_t x_progress = 0;
+
     SetupParam p;
+    
+    int32_t count_multiplicative_grains = 0;
+    int32_t granularity = 0;
+    uint32_t partition_size_minus_one = -1;
+
+    double costXForwardFft = 0.;
+    double costXInverseFft = 0.;
+    double cost_mult = 0.;
+    double cost_mult_add = 0.;
+    double cost_add_assign = 0;
+    
+    void reset_states() {
+        grain_counter = 0;
+        grain_number = 0;
+        x_progress = 0;
+    }
+    
+    void updatePostGrain(GrainType g) {
+        if(g==GrainType::FFT) {
+            this->grain_number = 0;
+        }
+        else {
+            ++this->grain_number;
+        }
+    }
+    
+    std::pair<int, GrainType> nextGrain() const {
+        
+        auto const n_mult_grains_remaining = count_multiplicative_grains - grain_number;
+        
+        if(unlikely(n_mult_grains_remaining < 0)) {
+            int distToFFTGrain = partition_size_minus_one - (x_progress & partition_size_minus_one);
+            assert(distToFFTGrain >= 0);
+            return {distToFFTGrain, GrainType::FFT};
+        }
+        
+        int const dist = granularity - grain_counter;
+        
+        assert(dist >= 0);
+        if(unlikely(n_mult_grains_remaining == 0)) {
+            return {dist, GrainType::IFFT};
+        }
+        else {
+            Assert(n_mult_grains_remaining > 0);
+            return {dist, GrainType::MultiplicationGroup};
+        }
+    }
+    
+    double simuDoGrain(GrainType g,
+                       XFFtCostFactors const & xFftCostFactors) const
+    {
+        double cost {};
+
+        auto const fft_length = get_fft_length();
+
+        if(g == GrainType::FFT) {
+            Assert(0 == ((x_progress+1) & partition_size_minus_one)); // make sure 'rythm is good'
+
+            // the fft is done by x_and_ffts
+            cost += costXForwardFft * xFftCostFactors.getCostMultiplicator(fft_length);
+        }
+        else {
+            if(g == GrainType::MultiplicationGroup) {
+                auto const M = getMultiplicationsGroupMaxSize();
+                int offset = M * grain_number;
+                assert(offset >= 0);
+                assert(offset < p.partition_count);
+
+                int offset_end = std::min(offset + M,
+                                          p.partition_count);
+                if(offset == 0) {
+                    cost += cost_mult;
+                    offset = 1;
+                }
+                int const nRemaining = std::max(0,
+                                                offset_end-offset);
+                cost += nRemaining * cost_mult_add;
+            }
+            else {
+                Assert(g==GrainType::IFFT);
+
+                cost += costXInverseFft;
+                cost += cost_add_assign;
+            }
+        }
+        return cost;
+    }
+    
+    auto get_fft_length() const { return 2 * (1+partition_size_minus_one); }
+    auto getMultiplicationsGroupMaxSize() const { return p.multiplication_group_size; }
 };
     
 template<typename T, typename FFTTag>
@@ -814,7 +1001,7 @@ using FinegrainedPartitionnedFFTConvolution =
    deducing 'number of multiplications per grain' by finding the parameter that leads to grain computations time just below max(fft, ifft),
    with the constraint that one computation at most occurs per 'equivalent' audio callback.
    */
-template<typename Convolution, typename SetupParam = typename Convolution::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
+template<typename Sim, typename SetupParam = typename Sim::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
 auto find_optimal_partition_size(GradientDescent & gradient_descent,
                                  int const n_iterations,
                                  int const n_channels,
@@ -851,17 +1038,16 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
         }
         return {scale_sz};
     };
-    
-    gradient_descent.setFunction( [sz_audio_cb, n_coeffs_for_latency, n_scales, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val){
+
+    if(n_scales != 1) {
+        throw std::runtime_error("optimization with scales not implemented");
+    }
+
+    gradient_descent.setFunction( [sz_audio_cb, n_coeffs_for_latency, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val)
+    {
         using namespace profiling;
         using namespace std;
         using namespace std::chrono;
-        
-        // repeat 3 times (and take the min duration):
-        // - first time used to cache things,
-        // - then we do 2 others so that if one is preempted, the other is (likely) not
-        constexpr auto n_atoms_repeat = 3;
-        constexpr auto n_atoms_repeat_warmup = 0; // no need to warmup, because we take the _minimum_ duration
         
         if(lg2_partition_size < 0) {
             return ParamState::OutOfRange;
@@ -878,243 +1064,130 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
         }
         int const length_impulse = *maybe_impulse_sz;
         
-        struct Test {
-            using T = typename Convolution::FPT;
-            Test(int partition_size, int length_impulse) {
-                a64::vector<T> coeffs;
-                coeffs.reserve(length_impulse);
-                std::array<T,4> values {0.9,0.5,-0.2,-0.5};
-                for(int i=0; i<length_impulse; ++i) {
-                    coeffs.push_back(values[i%values.size()]);
-                }
-                
-                // the value for multiplication group size is not very important (it will be overriden later on)
-                // but needs to lead to a valid convolution. We use the highest valid number:
-                int const n_partitions = countPartitions(coeffs.size(), partition_size);
-                pfftcv.setup({
-                    partition_size,
-                    n_partitions,
-                    n_partitions,
-                    0
-                });
-                pfftcv.setCoefficients(std::move(coeffs));
-            }
-            
-            bool isValid() const { return pfftcv.isValid(); }
-            
-            int getGranularMinPeriod() const { return pfftcv.getGranularMinPeriod(); }
-            int countMultiplicativeGrains() const { return pfftcv.countMultiplicativeGrains(); }
-            int getHighestValidMultiplicationsGroupSize() const { return pfftcv.getHighestValidMultiplicationsGroupSize(); }
-            int getLowestValidMultiplicationsGroupSize() const { return pfftcv.getLowestValidMultiplicationsGroupSize(); }
-            
-            void setMultiplicationGroupLength(int mult_grp_length) {
-                pfftcv.setMultiplicationGroupLength(mult_grp_length);
-            }
-            
-            void prepare(GrainType g) {
-                pfftcv.fastForwardToComputation(g);
-            }
-            void run() {
-                assert(pfftcv.willComputeNextStep());
-                pfftcv.step(1.f);
-            }
-        private:
-            Convolution pfftcv;
-        };
+        // the value for multiplication group size is not very important (it will be overriden later on)
+        // but needs to lead to a valid FinegrainedSetupParam. We use the highest valid number:
+        int const n_partitions = countPartitions(length_impulse,
+                                                 partition_size);
         
-        // prepare tests
+        Sim sim;
+        sim.setup({
+            partition_size,
+            n_partitions,
+            n_partitions,
+            0
+        });
+        
+        Assert(sim.getBlockSize() == partition_size);
         
         // TODO [early coefficients cost] substract the early coefficients from length_impulse
-        Test test(partition_size, length_impulse);
-        if(!test.isValid()) {
+        if(!sim.isValid()) {
             return ParamState::OutOfRange;
         }
         
-        constexpr auto n_non_multiplicative_grains = Convolution::countNonMultiplicativeGrains();
-        static_assert(2 == n_non_multiplicative_grains);
-        static constexpr auto index_fft = 0;
-        static constexpr auto index_ifft = 1;
-        array<GrainType, n_non_multiplicative_grains> grain_types{{ GrainType::FFT, GrainType::IFFT }};
-        array<float, n_non_multiplicative_grains> times;
-        int index = 0;
-        for(auto g : grain_types)
-        {
-            times[index] = min_(measure_thread_cpu_n(n_atoms_repeat_warmup,
-                                                     n_atoms_repeat,
-                                                     [&test, g] () { test.prepare(g);},
-                                                     [&test   ] () { test.run();}));
-            ++index;
-        }
+        cyclic<double> frames_costs{static_cast<size_t>(partition_size)};
+        cyclic<double> phased_grains_costs(static_cast<size_t>(partition_size));
         
-        struct PhasedCost : public Cost {
-            GrainsCosts grains_costs;
-            
-            void logSubReport(std::ostream & os) const override {
-                os << "grain fft  : " << grains_costs.fft << std::endl;
-                os << "grain ifft : " << grains_costs.ifft << std::endl;
-                os << "grain mult : " << grains_costs.mult << std::endl;
+        struct CostForPhase {
+            double getCost() const {
+                return cost;
             }
+            double cost = 0.;
+            double phase = 0.;
         };
         
-        struct CostEvaluator {
-            array<float, n_non_multiplicative_grains> fft_times;
-            int n_scales;
-            int nAudioCbFrames;
-            int n_channels;
+        RangedGradientDescent<CostForPhase> rgd([sz_audio_cb, n_channels, &frames_costs, &phased_grains_costs, &sim](int multiplication_group_size, auto & result)
+        {
+            sim.setMultiplicationGroupLength(multiplication_group_size);
+            if(!sim.isValid()) {
+                return ParamState::OutOfRange;
+            }
+
+            XFFtCostFactors emptyCostFactors; // in the future we wil take the number of sources into account here.
             
-            void evaluate(float multiplication_grain_time, int n_multiplicative_grains, int grain_period,
-                          PhasedCost & result) const
-            {
-                // factor 2 because the unit is half grain in 'grains_costs'.
-                auto max_n_halfgrains_per_cb = 2 * nAudioCbFrames / grain_period;
-                if(max_n_halfgrains_per_cb * grain_period != 2 * nAudioCbFrames) {
-                    ++max_n_halfgrains_per_cb; // worst case, not avg
+            for(int i=0, end=frames_costs.size(); i<end; ++i) {
+                *(frames_costs.begin() + i) = sim.simuStep(emptyCostFactors);
+            }
+            result.cost = computeMaxSlidingSum(frames_costs,
+                                               sz_audio_cb);
+            result.phase = 0.;
+            //LG(INFO,"phase=0 half grains cost %f", cost);
+            result.cost *= n_channels;
+            // now cost is the 'phase == 0' cost
+
+            if(n_channels >= 2) {
+                int const nMinFullCbInGranularity = sim.getParam().getGranularity() / sz_audio_cb;
+                if(nMinFullCbInGranularity >= n_channels) {
+                    // naive phasing leads to an optimal solution : with a phase of 'sz_audio_cb',
+                    // during every callback call there will be _at most_ one grain among all channels
+                    // that will be computed.
+                    result.phase = sz_audio_cb;
+
+                    compute_phased_sum(frames_costs,
+                                       result.phase,
+                                       n_channels,
+                                       phased_grains_costs);
+                    result.cost = computeMaxSlidingSum(phased_grains_costs,
+                                                       sz_audio_cb);
                 }
-                
-                int const n_half_grains = pow2(n_scales-1) * 2*(n_multiplicative_grains + n_non_multiplicative_grains);
-                
-                cyclic<float> grains_costs(n_half_grains);
-                
-                {
-                    // The order is:
-                    // fft, m1, m2, ... mn, ifft
-                    std::vector<float> costs;
-                    costs.push_back(fft_times[index_fft]);
-                    for(int i=0; i<n_multiplicative_grains; ++i) {
-                        costs.push_back(multiplication_grain_time);
-                    }
-                    costs.push_back(fft_times[index_ifft]);
+                else {
+                    // naive phasing is not enough to have an optimal solution
+                    // because the grains are too close to each other
                     
-                    std::vector<int> scale_offset; // position of first computation in grains_costs
-                    for(int i=0; i<n_scales; ++i) {
-                        // ensures that for any number of scale, we will have
-                        // at most twice the density of computations for single scale
-                        scale_offset.push_back(pow2(i)-1);
-                    }
-                    for(int i=0; i<n_half_grains; ++i) {
-                        float cost = 0.f;
-                        for(int s=0; s<n_scales; ++s) {
-                            int ii = i-scale_offset[s];
-                            if(ii < 0) {
+                    for(int i=0; i<2; ++i) {
+                        int base_phase = 0;
+                        if(i) {
+                            base_phase = sim.getParam().getGranularity() / n_channels;
+                            if(base_phase == 0) {
+                                // redundant with i==0
                                 continue;
                             }
-                            int div = ii / pow2(1+s);
-                            
-                            if(ii == div * pow2(1+s)) {
-                                cost += costs[div % costs.size()];
-                            }
                         }
-                        *(grains_costs.begin() + i) = cost;
-                    }
-                }
-                
-                // TODO [early coefficients cost] we should have a sample-unit cyclic, and put one grain cost
-                // every period
-                
-                result.setPhase(0.);
-                
-                float cost = computeMaxSlidingSum(grains_costs,
-                                                  max_n_halfgrains_per_cb);
-                if(n_channels >= 2) {
-                    int n_samples_between_grains = n_scales <= 1 ? grain_period : (grain_period/2);
-                    
-                    auto n_min_empty_cb_between_consecutive_grains = -1 + n_samples_between_grains / nAudioCbFrames;
-                    if(n_min_empty_cb_between_consecutive_grains >= n_channels - 1) {
-                        // There is enough room between grains so that each callback can handle at most
-                        //   a single grain of a single channel.
-                        /*LG(INFO,
-                           "easy %d %d : %d / %d",
-                           n_samples_between_grains,
-                           n_min_empty_cb_between_consecutive_grains,
-                           grain_period,
-                           n_channels);*/
-                        result.setPhase(grain_period / static_cast<float>(n_channels));
-                    }
-                    else {
-                        // Grains are close to one another so we will find the phase that minimizes
-                        // the worst callback cost.
                         
-                        cost *= n_channels;
-                        // now cost is the 'phase == 0' cost
-                        result.setPhase(0.);
-                        //LG(INFO,"phase=0 half grains cost %f", cost);
-                        
-                        cyclic<float> phased_grains_costs(grains_costs.size());
-                        for(int phase = 1; phase < grains_costs.size(); ++phase) {
-                            compute_phased_sum(grains_costs,
+                        int const maxPhase = 1 + (frames_costs.size() / n_channels);
+                        int const phaseIncrement = sim.getParam().getGranularity();
+                        for(int phase = base_phase;
+                            phase <= maxPhase;
+                            phase += phaseIncrement)
+                        {
+                            if(0 == phase) {
+                                continue;
+                            }
+                            compute_phased_sum(frames_costs,
                                                phase,
                                                n_channels,
                                                phased_grains_costs);
                             
                             auto phased_cost = computeMaxSlidingSum(phased_grains_costs,
-                                                                    max_n_halfgrains_per_cb);
-                            if(phased_cost < cost) {
-                                cost = phased_cost;
-                                result.setPhase(phase); // unit is "half of grain period"
-                                //LG(INFO,"phase=%d half grains cost %f", phase, cost);
+                                                                    sz_audio_cb);
+                            if(phased_cost < result.cost) {
+                                result.cost = phased_cost;
+                                result.phase = phase;
                             }
                         }
-                        
-                        // convert phase units from "half of grain period" to "frames"
-                        float const phaseInGrainPeriod = result.getPhase().value() / 2.f;
-                        float const phaseInFrames = phaseInGrainPeriod * grain_period;
-                        result.setPhase(phaseInFrames);
-                        //LG(INFO,"phase=%f frames", *result.getPhase());
                     }
-                    // cost is now the sum of costs of each channel
-                    // but cost should be per sample, not per frame, so
-                    // we divide by the number of channels
-                    cost /= static_cast<float>(n_channels);
                 }
-                
-                cost /= nAudioCbFrames;
-                // cost == 'worst computation time over one callback, averaged per sample'
-                
-                result.grains_costs.fft  = fft_times[index_fft];
-                result.grains_costs.ifft = fft_times[index_ifft];
-                result.grains_costs.mult = multiplication_grain_time;
-                
-                result.setCost(cost);
             }
-        } cost_evaluator{times, n_scales, sz_audio_cb, n_channels};
-        
-        RangedGradientDescent<PhasedCost> rgd([ &cost_evaluator, &test ](int multiplication_group_size, auto & cost) {
-            // compute multiplication time for the group
             
-            test.setMultiplicationGroupLength(multiplication_group_size);
-            
-            if(!test.isValid()) {
-                return ParamState::OutOfRange;
-            }
-            auto multiplication_grain_time = min_(measure_thread_cpu_n(n_atoms_repeat_warmup,
-                                                                       n_atoms_repeat,
-                                                                       [&test](){ test.prepare(GrainType::MultiplicationGroup); },
-                                                                       [&test](){ test.run(); }));
-            
-            // TODO [early coefficients cost] we should pass a vector of additional costs (where we take into account the early coefficient handling)
-            
-            cost_evaluator.evaluate(multiplication_grain_time,
-                                    test.countMultiplicativeGrains(),
-                                    test.getGranularMinPeriod(),
-                                    cost);
-            
-            //cout
-            //<< "mult time for group size '" << multiplication_group_size << "' : " << multiplication_grain_time
-            //<< " cost : '" << cost << "'" << endl;
-            
+            // cost is now the sum of costs of each channel
+            // but cost should be per sample, not per frame, so
+            // we divide by the number of channels
+            result.cost /= static_cast<float>(n_channels);
+
+            result.cost /= sz_audio_cb;
+            // cost == 'worst computation time over one callback, averaged per sample'
+
             return ParamState::Ok;
         });
         
         range<int> const multiplication_group_length {
-            test.getLowestValidMultiplicationsGroupSize(),
-            test.getHighestValidMultiplicationsGroupSize()
+            sim.getParam().getLowestValidMultiplicationsGroupSize(),
+            sim.getParam().getHighestValidMultiplicationsGroupSize()
         };
         
-        PhasedCost phased_cost;
-        val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, phased_cost);
-        val.setCost(phased_cost.getCost());
-        val.setGrainsCosts(phased_cost.grains_costs);
-        val.setPhase(phased_cost.getPhase().value_or(0.));
+        CostForPhase best;
+        val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, best);
+        val.setCost(best.cost);
+        val.setPhase(best.phase);
         val.partition_size = partition_size;
         val.partition_count = countPartitions(length_impulse, partition_size);
         
@@ -1124,11 +1197,6 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
             rgd.make_exhaustive(multiplication_group_length, os);
             rgd.plot(true, os);
         }
-        
-        //            os
-        //            << "optimal group size : " << val.multiplication_group_size
-        //            << " cost : '" << cost << "'" << endl;
-        
         return ParamState::Ok;
     });
     
@@ -1146,9 +1214,9 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
     return min_val;
 }
     
-template<typename T, typename FFTTag>
-struct PartitionAlgo< FinegrainedSetupParam, T, FFTTag > {
-    using Convolution = FinegrainedPartitionnedFFTConvolution<T, a64::Alloc, FFTTag>;
+template<typename T, typename Tag>
+struct PartitionAlgo< FinegrainedSetupParam, T, Tag > {
+    using Sim = FinegrainedPartitionnedFFTConvolutionSimulation<T, Tag>;
     using SetupParam = FinegrainedSetupParam;
     
     static std::optional<SetupParam> run(int const n_channels,
@@ -1163,13 +1231,13 @@ struct PartitionAlgo< FinegrainedSetupParam, T, FFTTag > {
         assert(n_channels > 0);
         GradientDescent<SetupParam> gd;
         constexpr auto n_iterations = 1;
-        std::optional<SetupParam> res = find_optimal_partition_size<Convolution>(gd,
-                                                                                 n_iterations,
-                                                                                 n_channels,
-                                                                                 n_scales,
-                                                                                 n_audio_frames_per_cb,
-                                                                                 zero_latency_response_size,
-                                                                                 os);
+        std::optional<SetupParam> res = find_optimal_partition_size<Sim>(gd,
+                                                                         n_iterations,
+                                                                         n_channels,
+                                                                         n_scales,
+                                                                         n_audio_frames_per_cb,
+                                                                         zero_latency_response_size,
+                                                                         os);
         constexpr auto debug_gradient_descent = false;
         if constexpr (debug_gradient_descent) {
             os << "Gradient descent report :" << std::endl;

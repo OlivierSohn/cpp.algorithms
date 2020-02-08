@@ -189,30 +189,6 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
     }
     int getGranularity() const { return granularity; }
     
-    int getLowestValidMultiplicationsGroupSize() const {
-        // lowest valid mult_grp_len verifies:
-        
-        // countGrains() == getBlockSize()
-        // 2 + 1 + (ffts_of_partitionned_h.size() - 1)/mult_grp_len == partition_size
-        
-        auto constexpr min_number_grains = SetupParam::countNonMultiplicativeGrains() + 1;
-        auto diff = getBlockSize() - min_number_grains;
-        if(diff < 0) {
-            // invalid configuration
-            return getHighestValidMultiplicationsGroupSize();
-        }
-        if(countPartitions() == 0) {
-            return 0;
-        }
-        for(int i=1;; ++i) {
-            if( (countPartitions() - 1)/i <= diff) {
-                return i;
-            }
-        }
-    }
-    
-    int getHighestValidMultiplicationsGroupSize() const { return countPartitions(); }
-    
     Latency getLatency() const {
         Assert(handlesCoefficients());
         return FinegrainedSetupParam::getLatencyForPartitionSize(getBlockSize());
@@ -236,9 +212,6 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
     void dephaseStep(State & s,
                      int const x_progress) const {
         //LG(INFO, "dephase by %d", n_steps);
-        if(s.isZero()) {
-            return;
-        }
         if(unlikely(countPartitions() == 0)) {
             return;
         }
@@ -256,9 +229,6 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
               XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
               Y<T, Tag> & y,
               WorkData * workData) const {
-        if(s.isZero()) {
-            return;
-        }
         if(unlikely(countPartitions() == 0)) {
             return;
         }
@@ -266,9 +236,6 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
         ++s.grain_counter;
         auto g = nextGrain(s, x_and_ffts.progress);
         assert(g.first >= 0);
-        
-        //int const progress = s.grain_number * getGranularity() + s.grain_counter;
-        //std::cout << y.uProgress << "\t" << progress << "\t" << s.grain_number << "\t" << s.grain_counter << "\t" << getGranularity() << std::endl;
         if(unlikely(g.first == 0)) {
             doGrain(s, x_and_ffts, y, g.second, workData);
             s.updatePostGrain(g.second);
@@ -322,12 +289,12 @@ private:
 
             if(g == GrainType::MultiplicationGroup) {
                 auto const M = getMultiplicationsGroupMaxSize();
-                auto const offset_base = M * s.grain_number;
-                assert(offset_base >= 0);
-                assert(offset_base < s.ffts_of_partitionned_h.size());
+                int offset = M * s.grain_number;
+                assert(offset >= 0);
+                assert(offset < s.ffts_of_partitionned_h.size());
 
-                int offset_end = std::min((offset_base+M), static_cast<int>(s.ffts_of_partitionned_h.size()));
-                int offset = offset_base;
+                int offset_end = std::min(offset + M,
+                                          partition_count);
                 if(offset == 0) {
                     fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result.data() /* = */,
                                                                    ffts.get_by_age(0), /* x */
@@ -362,11 +329,11 @@ private:
     }
     
 private:
-    int32_t mult_grp_len = 0;
-    uint32_t partition_size_minus_one = -1;
-    int32_t granularity = 0;
+    int32_t partition_count = 0;
     int32_t count_multiplicative_grains = 0;
-    int32_t partition_count = 0; // is accessed less frequently, hence at the end.
+    int32_t granularity = 0;
+    uint32_t partition_size_minus_one = -1;
+    int32_t mult_grp_len = 0; // accessed least frequently
 };
 
 }

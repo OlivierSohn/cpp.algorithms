@@ -304,8 +304,8 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
             }
             
             range<int> r {
-                conv.algo.getLowestValidMultiplicationsGroupSize(),
-                conv.algo.getHighestValidMultiplicationsGroupSize()
+                p.getLowestValidMultiplicationsGroupSize(),
+                p.getHighestValidMultiplicationsGroupSize()
             };
             
             switch(type) {

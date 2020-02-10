@@ -52,6 +52,7 @@ struct AsyncSetupParam : public Cost {
         }
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const
     {
         return {

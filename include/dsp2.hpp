@@ -73,19 +73,52 @@ private:
 };
 
 
-struct XSegments {
+template<Overlap overlap>
+struct XSegments;
+
+template<>
+struct XSegments<Overlap::Add> {
     int start;
-    int size_from_start; // from start
-    int size_from_zero; // from 0
+    int size_from_start;
+    int size_from_zero;
     
     // The invariant is that if size_from_zero is not 0, then size_from_zero is not 0.
 };
 
+template<>
+struct XSegments<Overlap::Save> {
+    int start;
+    int size_from_start;
+};
+
+
+template<Overlap overlap, typename T, template<typename> typename Allocator, typename Tag>
+struct FFTsComputation;
+
+template<typename T, template<typename> typename Allocator, typename Tag>
+struct FFTsComputation<Overlap::Add, T, Allocator, Tag> {
+    int32_t padding = 0; // the position of the first non-zero (non-padded) element
+    std::vector<FFTs<T, Allocator, Tag>> x_ffts;
+};
+
+template<typename T, template<typename> typename Allocator, typename Tag>
+struct FFTsComputation<Overlap::Save, T, Allocator, Tag> {
+    std::vector<FFTs<T, Allocator, Tag>> x_ffts;
+};
+
+constexpr auto overlapMode = Overlap::Save;
+
 template<typename T, template<typename> typename Allocator, typename Tag>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
+    static constexpr auto copy = fft::RealSignal_<Tag, T>::copy;
 
-    XSegments getPastSegments(int const pastSize) const {
+    template <Overlap Mode>
+    auto getPastSegments(int const pastSize) const
+    -> typename std::enable_if_t<
+    Mode == Overlap::Add,
+    XSegments<Overlap::Add>>
+    {
         int start = progress + 1 - pastSize;
         while(start < 0) {
             start += x_unpadded_size;
@@ -98,6 +131,20 @@ struct XAndFFTS {
             start,
             pastSize-szFromZero,
             szFromZero
+        };
+    }
+
+    template <Overlap Mode>
+    auto getPastSegments(int const pastSize) const
+    -> typename std::enable_if_t<
+    Mode == Overlap::Save,
+    XSegments<Overlap::Save>>
+    {
+        int const start = progress + 1 - pastSize;
+        Assert(start >= 0);
+        return {
+            start,
+            pastSize
         };
     }
 
@@ -114,8 +161,8 @@ struct XAndFFTS {
     }
 
     void resize(int const sz, FftSpecs const & fftSpecs) {
-        x_ffts.clear();
-        x_ffts.reserve(fftSpecs.size());
+        x_ffts.x_ffts.clear();
+        x_ffts.x_ffts.reserve(fftSpecs.size());
         fftHalfSizesBits = 0;
         fftsHalfSizesBitsToCompute = 0;
         for(auto const & [fftSz, history_sz] : fftSpecs) {
@@ -125,10 +172,10 @@ struct XAndFFTS {
             Assert(is_power_of_two(fftSz));
             fftHalfSizesBits |= (fftSz/2);
 
-            x_ffts.emplace_back(fftSz,
-                                history_sz);
+            x_ffts.x_ffts.emplace_back(fftSz,
+                                      history_sz);
         }
-        Assert(count_set_bits(fftHalfSizesBits) == static_cast<int>(x_ffts.size()));
+        Assert(count_set_bits(fftHalfSizesBits) == static_cast<int>(x_ffts.x_ffts.size()));
         int const maxHalfFFTSz = floor_power_of_two(fftHalfSizesBits);
 
         x_unpadded_size = std::max(maxHalfFFTSz,
@@ -136,16 +183,20 @@ struct XAndFFTS {
                                                                                sz))));
 
         x.clear();
-        x.resize(x_unpadded_size + maxHalfFFTSz); // add padding for biggest fft
         
-        padding = static_cast<int>(x.size());
-        progress = x_unpadded_size-1;
+        // this could be 'x_unpadded_size + maxHalfFFTSz' instead
+        // but in practice there is little difference.
+        x.resize(2*x_unpadded_size); // pad for biggest fft
+        
+        progress = x_unpadded_size-1; // for overlap save this works also (it optimizes the first push because there is no need to copy)
+
+        if constexpr (overlapMode == Overlap::Add) {
+            x_ffts.padding = static_cast<int>(x.size());
+        }
     }
     
     template<typename SetupParam>
     void setPhasePeriod(SetupParam const & p) {
-        Assert(countPhaseable > 0);
-        
         phase_period.reset();
         
         auto f = [this] (auto const & innerP ){
@@ -187,76 +238,121 @@ struct XAndFFTS {
     
     void push(T v) {
         ++progress;
-        if(unlikely(progress == x_unpadded_size)) {
-            progress = 0;
-            padding = 0;
+        if constexpr (overlapMode == Overlap::Add) {
+            // New x values live in the _first_ half of x.
+            // The second half of x will always be zeroes
+            if(unlikely(progress == x_unpadded_size)) {
+                progress = 0;
+                x_ffts.padding = 0;
+            }
         }
+        else {
+            // New x values live in the _second_ half of x.
+            // The first half of x contains the previous values
+            if(unlikely(progress == 2*x_unpadded_size)) {
+                progress = x_unpadded_size;
+                copy(&x[0],
+                     &x[x_unpadded_size],
+                     x_unpadded_size);
+            }
+        }
+
         x[progress] = typename RealSignal::value_type(v);
         int const next_progress = progress+1;
-        padding = std::max(padding, next_progress);
-        if(unlikely(padding == x_unpadded_size)) {
-            padding = static_cast<int>(x.size());
-        }
         
         uint32_t nZeroes = count_trailing_zeroes(next_progress);
         uint32_t mask = (1 << (nZeroes+1)) - 1;
         fftsHalfSizesBitsToCompute = fftHalfSizesBits & mask;
+
+        if constexpr (overlapMode == Overlap::Add) {
+            x_ffts.padding = std::max(x_ffts.padding, next_progress);
+            if(unlikely(x_ffts.padding == x_unpadded_size)) {
+                x_ffts.padding = static_cast<int>(x.size());
+            }
+        }
+        
         for(int i=0, nComputedFFTs = count_set_bits(fftsHalfSizesBitsToCompute);
             i<nComputedFFTs;
             ++i)
         {
-            auto & f = x_ffts[i];
-            int halfFftSize = f.fft_length/2;
-            int xStart = next_progress - halfFftSize;
-            Assert(xStart >= 0);
-
-            int const xEnd = next_progress + halfFftSize;
-            int const countPadding = xEnd - padding;
-            if(countPadding > 0) {
-                zero_n_raw(&x[padding], countPadding);
-                padding = xEnd;
+            auto & f = x_ffts.x_ffts[i];
+            int xStart;
+            if constexpr (overlapMode == Overlap::Add) {
+                int const halfFftSize = f.fft_length/2;
+                xStart = next_progress - halfFftSize;
+                int const xEnd = next_progress + halfFftSize;
+                int const countPadding = xEnd - x_ffts.padding;
+                if(countPadding > 0) {
+                    zero_n_raw(&x[x_ffts.padding], countPadding);
+                    x_ffts.padding = xEnd;
+                }
             }
+            else {
+                Assert(next_progress >= f.fft_length);
+                xStart = next_progress - f.fft_length;
+            }
+            Assert(xStart >= 0);
+            
             auto & oldest_fft_of_delayed_x = f.go_back();
             Assert(f.fft_length == static_cast<int>(oldest_fft_of_delayed_x.size()));
             // we could omit that fft computation if:
             //   - there are only 0s in the input
             //   - all the ffts in the ring buffer are only 0s.
-            f.fft.forward(x.begin() + xStart, oldest_fft_of_delayed_x.data(), f.fft_length);
+            f.fft.forward(x.begin() + xStart,
+                          oldest_fft_of_delayed_x.data(),
+                          f.fft_length);
         }
     }
     
     int flushToSilence() {
-        for(auto & fft:x_ffts) {
+        for(auto & fft:x_ffts.x_ffts) {
             fft.flushToSilence();
         }
         if(!x.empty()) {
             zero_n_raw(&x[0], x.size());
         }
-        Assert(progress < x_unpadded_size);
-        int const progressBackup = progress;
-        progress = x_unpadded_size-1;
-        padding = x.size();
+        int const progressBackup = [this](){
+            if constexpr (overlapMode == Overlap::Add) {
+                Assert(progress < x_unpadded_size);
+                return progress;
+            }
+            else {
+                if(progress >= x_unpadded_size) {
+                    Assert(progress < 2*x_unpadded_size);
+                    return progress - x_unpadded_size;
+                }
+                else {
+                    // when no step has ever been done
+                    Assert(progress == x_unpadded_size-1);
+                    return progress;
+                }
+            }
+        }();
+        progress = x_unpadded_size-1; // for overlap save this works also (it optimizes the first push because there is no need to copy)
+        if constexpr (overlapMode == Overlap::Add) {
+            x_ffts.padding = x.size();
+        }
         fftsHalfSizesBitsToCompute = 0;
         Assert(progressBackup <= x_unpadded_size);
         return progress - progressBackup;
     }
     
+    int32_t progress = 0; // the last position that has been written to
+    int32_t x_unpadded_size = 0;
+
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal x;
     
-    int32_t progress = 0; // the last position that has been written to
-    int32_t padding = 0; // the position of the first non-zero (non-padded) element
-    int32_t x_unpadded_size = 0;
     uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^(n+1), the nth bit is set
     uint32_t fftsHalfSizesBitsToCompute = 0;
     
-    std::vector<FFTs<T, Allocator, Tag>> x_ffts;
+    FFTsComputation<overlapMode, T, Allocator, Tag> x_ffts;
 
     float phase_group_ratio = 0.; // in [0,1[
     std::optional<float> phase_period;
 
     auto const & find_ffts(int sz) const {
-        for(auto const & f : x_ffts) {
+        for(auto const & f : x_ffts.x_ffts) {
             if(sz == f.fft_length) {
                 return f;
             }
@@ -265,13 +361,13 @@ struct XAndFFTS {
     }
 
     void logComputeState(std::ostream & os) const {
-        os << "Source:" << std::endl;
+        os << "Source:" << std::endl;
         IndentingOStreambuf in(os);
         
         os << "x size:" << x.size() <<  " unpadded:" << x_unpadded_size << " progress:" << progress << std::endl;
         
         os << "ffts: ";
-        for(auto const & f:x_ffts) {
+        for(auto const & f:x_ffts.x_ffts) {
             os << f.size() << "x" << f.fft_length << " ";
         }
         os << std::endl;
@@ -541,7 +637,7 @@ struct XYConvolution {
     using SetupParam = typename Algo::SetupParam;
 
     static int getAllocationSz_Setup(SetupParam const & p) {
-        MinSizeRequirement req = p.getMinSizeRequirement();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
         return XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
     }
     
@@ -552,7 +648,7 @@ struct XYConvolution {
     void setup(SetupParam const & p,
                WorkCplxFreqs & work)
     {
-        MinSizeRequirement req = p.getMinSizeRequirement();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
         
         work.reserve(req.minWorkSize);
         

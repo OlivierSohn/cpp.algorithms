@@ -269,13 +269,23 @@ struct FFTConvolutionCRTPSetupParam : public Cost
         return blockSize > 0;
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const
     {
         int const fft_length = 2 * blockSize;
         
+        int const y_size = [fft_length](){
+            if constexpr(Mode == Overlap::Add) {
+                return fft_length;
+            }
+            else {
+                return fft_length/2;
+            }
+        }();
+        
         return {
             0, // x block size
-            fft_length, // y block size
+            y_size, // y block size
             {
                 {fft_length, 1}
             },
@@ -480,13 +490,23 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
         }
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const
     {
         int const fft_length = 2 * partition_size;
         
+        int const y_size = [fft_length](){
+            if constexpr(Mode == Overlap::Add) {
+                return fft_length;
+            }
+            else {
+                return fft_length/2;
+            }
+        }();
+        
         return {
             0, // x block size
-            fft_length, // y block size
+            y_size, // y block size
             {
                 {fft_length, partition_count}
             },

@@ -58,10 +58,11 @@ struct SplitSetupParam : public Cost {
         }
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const
     {
-        auto res = a.getMinSizeRequirement();
-        res.mergeWith(b.getMinSizeRequirement());
+        auto res = a.template getMinSizeRequirement<Mode>();
+        res.mergeWith(b.template getMinSizeRequirement<Mode>());
         return res;
     }
 };

@@ -152,15 +152,24 @@ struct FinegrainedSetupParam : public Cost {
         return partition_count;
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const
     {
-        int const blockProgressForIFFTGrain = (countMultiplicativeGrains()+1) * getGranularity();
-        Assert(blockProgressForIFFTGrain <= partition_size);
-        int const gap = partition_size - blockProgressForIFFTGrain;
-
+        int const y_size = [this](){
+            int const blockProgressForIFFTGrain = (countMultiplicativeGrains()+1) * getGranularity();
+            Assert(blockProgressForIFFTGrain <= partition_size);
+            int const gap = partition_size - blockProgressForIFFTGrain;
+            if constexpr(Mode == Overlap::Add) {
+                return gap + static_cast<int>(get_fft_length());
+            }
+            else {
+                return gap + static_cast<int>(get_fft_length())/2;
+            }
+        }();
+        
         return {
             0, // x block size
-            static_cast<int>(get_fft_length() + gap), // y block size
+            y_size, // y block size
             {
                 {get_fft_length(), partition_count}
             },

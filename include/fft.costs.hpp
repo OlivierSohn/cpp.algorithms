@@ -380,6 +380,40 @@ namespace imajuscule::fft {
             }
             return duration;
         }};
+        
+        inline static CallCost cost_dotpr { [](std::function<void(double&)> fBeforeMeasure,
+                                              int64_t sz, int64_t ntests, double & sideEffect) {
+            std::vector<std::pair<std::array<type, 2>, typename type::value_type>> va;
+            va.resize(ntests);
+            {
+                int i=0;
+                for(auto & a : va)
+                {
+                    for(auto & v:a.first) {
+                        ++i;
+                        v.resize(sz, value_type{static_cast<T>(i)});
+                    }
+                }
+            }
+            using namespace profiling;
+            if(fBeforeMeasure) {
+                fBeforeMeasure(sideEffect);
+            }
+            auto duration = measure_thread_cpu_one([&va, sz](){
+                for(auto & [a, res] : va) {
+                    Impl::dotpr(a[0].data(),
+                                a[1].data(),
+                                &res,
+                                sz);
+                }
+            });
+            for(auto & a : va)
+            {
+                using std::abs;
+                sideEffect += abs(a.second);
+            }
+            return duration;
+        }};
 
         inline static CallCost cost_zero_n_raw { [](std::function<void(double&)> fBeforeMeasure,
                                                     int64_t sz, int64_t ntests, double & sideEffect) {
@@ -620,12 +654,44 @@ namespace imajuscule::fft {
 
 namespace imajuscule {
 
-    struct XFFtCostFactors {
-        XFFtCostFactors(std::map<int, float> const & multiplicators = {})
+    struct XFFTsCostsFactors {
+        XFFTsCostsFactors(std::map<int, double> const & multiplicators = {})
         : multiplicators(multiplicators)
         {}
         
-        float getCostMultiplicator(int fftSize) const {
+        double get(int fftSize) const {
+            return getLocalCostMultiplicator(fftSize) * getGlobalMultiplicator();
+        }
+        
+        XFFTsCostsFactors& local(int sz, double factor) {
+            setMultiplicator(sz, factor);
+            return *this;
+        }
+        XFFTsCostsFactors& global(double factor) {
+            setGlobalMultiplicator(factor);
+            return *this;
+        }
+
+    private:
+        std::optional<double> globalMult;
+        // fft half-size -> multiplicator
+        std::map<int, double> multiplicators;
+
+        void setMultiplicator(int sz, double factor) {
+            Assert(!globalMult); // would that be a bug?
+            Assert(0==multiplicators.count(sz)); // would that be a bug?
+            multiplicators[sz] = factor;
+        }
+        void setGlobalMultiplicator(double factor) {
+            Assert(multiplicators.empty()); // would that be a bug?
+            Assert(!globalMult); // would that be a bug?
+            globalMult = factor;
+        }
+
+        double getGlobalMultiplicator() const {
+            return globalMult.value_or(1.);
+        }
+        double getLocalCostMultiplicator(int fftSize) const {
             Assert(!fftSize || is_power_of_two(fftSize));
             auto it = multiplicators.find(fftSize/2);
             if(it == multiplicators.end()) {
@@ -633,13 +699,6 @@ namespace imajuscule {
             }
             return it->second;
         }
-        
-        void setMultiplicator(int sz, float factor) {
-            multiplicators[sz] = factor;
-        }
-    private:
-        // fft half-size -> multiplicator
-        std::map<int, float> multiplicators;
     };
 } // NS imajuscule
 

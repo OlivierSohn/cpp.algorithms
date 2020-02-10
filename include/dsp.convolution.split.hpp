@@ -66,6 +66,47 @@ struct SplitSetupParam : public Cost {
     }
 };
 
+
+template<typename A, typename B, typename T, typename Tag>
+struct SplitConvolutionSimulation {
+    using SimA = Simulation<A, T, Tag>;
+    using SimB = Simulation<B, T, Tag>;
+    
+    void setup(SplitSetupParam<A,B> const & p) {
+        a.setup(p.a);
+        b.setup(p.b);
+    }
+    double simuStep(XFFTsCostsFactors const & xFFTCostFactors) {
+        return b.simuStep(xFFTCostFactors) + a.simuStep(xFFTCostFactors);
+    }
+    
+    int getBiggestScale() const {
+        int const sa = a.getBiggestScale();
+        int const sb = b.getBiggestScale();
+        if(!sb) {
+            return sa;
+        }
+        if(!sa) {
+            return sb;
+        }
+        int64_t const p = ppcm(sa, sb);
+        if(p > std::numeric_limits<int>::max()) {
+            throw std::runtime_error("biggest scale overflows int");
+        }
+        Assert(p == std::max(sa, sb)); // out of curiosity
+        return static_cast<int>(p);
+    }
+private:
+    SimA a;
+    SimB b;
+};
+
+template<typename A, typename B, typename T, typename Tag>
+struct Simulation_<SplitSetupParam<A, B>, T, Tag> {
+    using type = SplitConvolutionSimulation<A, B, T, Tag>;
+};
+
+
 /*
  * Creates a convolution scheme by combining 2 convolution schemes,
  * where A handles ** early ** coefficients, and B handles ** late ** coefficients.

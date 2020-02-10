@@ -67,17 +67,6 @@ enum class GrainType {
     MultiplicationGroup
 };
 
-struct GrainsCosts {
-    float fft, ifft, mult;
-    
-    bool operator == (GrainsCosts const & o) const {
-        return fft == o.fft &&
-        ifft == o.ifft &&
-        mult == o.mult;
-    }
-};
-    
-
 struct FinegrainedSetupParam : public Cost {
     static constexpr int nCoefficientsFadeIn = 0;
     static constexpr bool has_subsampling = false;
@@ -94,12 +83,9 @@ struct FinegrainedSetupParam : public Cost {
     , partition_count(partition_count)
     {}
     
-    void setGrainsCosts(GrainsCosts gcosts) { grains_costs = gcosts; }
-    
     int multiplication_group_size = 0;
     int partition_size = 0;
     int partition_count = 0;
-    GrainsCosts grains_costs;
     
     void logSubReport(std::ostream & os) const override {
         os << "Finegrained, " << partition_count << " partitions of size " << partition_size << ", mult group size: " << multiplication_group_size << std::endl;
@@ -258,7 +244,7 @@ struct FinegrainedPartitionnedFFTConvolutionSimulation {
     /*
      Dual method of FinegrainedPartitionnedFFTConvolutionSimulation::step()
      */
-    double simuStep(XFFtCostFactors const & xFftCostFactors) {
+    double simuStep(XFFTsCostsFactors const & xFftCostFactors) {
         double cost = 0.;
         if(unlikely(isZero())) {
             return cost;
@@ -332,7 +318,7 @@ private:
     }
     
     double simuDoGrain(GrainType g,
-                       XFFtCostFactors const & xFftCostFactors) const
+                       XFFTsCostsFactors const & xFftCostFactors) const
     {
         double cost {};
 
@@ -342,7 +328,7 @@ private:
             Assert(0 == ((x_progress+1) & partition_size_minus_one)); // make sure 'rythm is good'
 
             // the fft is done by x_and_ffts
-            cost += costXForwardFft * xFftCostFactors.getCostMultiplicator(fft_length);
+            cost += costXForwardFft * xFftCostFactors.get(fft_length);
         }
         else {
             if(g == GrainType::MultiplicationGroup) {
@@ -989,61 +975,72 @@ template <typename T, template<typename> typename Allocator, typename FFTTag>
 using FinegrainedPartitionnedFFTConvolution =
     FinegrainedFFTConvolutionBase< FinegrainedPartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >;
 
-  /*
-   input parameters :
-   - sz_audio_cb, n_channels
-   - impulse response length
+template<typename C1, typename C2>
+void add_cyclic(C1 & c1, C2 const & c2) {
+    // verify that there is a n >= 1 such that c..size() == n*c2.size()
+    Assert((c1.size() / c2.size()) * c2.size() == c1.size());
 
-   output parameters:
-   - lg(partition size)
+    auto it2 = c2.begin();
+    auto end2 = c2.end();
+    for(auto it=c1.begin(), end = c1.end(); it!=end; ++it, ++it2) {
+        if(it2 == end2) {
+            it2 = c2.begin();
+        }
+        *it += *it2;
+    }
+}
 
-   1D - Gradient descent according to cost 'max grain computation time' with variable parameters 'lg(partition_size)'
-   deducing 'number of multiplications per grain' by finding the parameter that leads to grain computations time just below max(fft, ifft),
-   with the constraint that one computation at most occurs per 'equivalent' audio callback.
-   */
+/*
+ input parameters :
+ - sz_audio_cb, n_phaseable_channels
+ - impulse response length
+ 
+ output parameters:
+ - lg(partition size)
+ 
+ 1D - Gradient descent according to cost 'max grain computation time' with variable parameters 'lg(partition_size)'
+ deducing 'number of multiplications per grain' by finding the parameter that leads to grain computations time just below max(fft, ifft),
+ with the constraint that one computation at most occurs per 'equivalent' audio callback.
+ */
 template<typename Sim, typename SetupParam = typename Sim::SetupParam, typename GradientDescent = GradientDescent<SetupParam>>
 auto find_optimal_partition_size(GradientDescent & gradient_descent,
                                  int const n_iterations,
-                                 int const n_channels,
+                                 int const n_phaseable_channels,
                                  int const n_scales,
                                  int const sz_audio_cb,
                                  int const zero_latency_response_size,
+                                 XFFTsCostsFactors const & xFFTCostFactors,
+                                 std::function<int(int, std::vector<double> & )> const & get_early_monochannel_costs,
                                  std::ostream & os) -> std::optional<SetupParam>
 {
-    auto n_coeffs_for_latency = [zero_latency_response_size, n_scales](Latency const latency) -> std::optional<int> {
-        if( latency < minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter) {
-            // invalid case. We pass 'getMinLg2PartitionSz()' to 'run' so that
-            // this case doesn't happen on the first try.
-            return {};
-        }
-        // we substract the count of coefficients handled by the early coefficients handler.
-        // it favors long partitions because we don't take into account
-        // the cost of the early coefficient handler, but for long responses, where optimization matters,
-        // the induced bias is negligible.
-        
-        auto late_response_sz = std::max(0,
-                                         zero_latency_response_size - latency.toInteger());
-        
-        auto scale_sz = SameSizeScales::get_scale_sz(late_response_sz, n_scales);
-        if(scale_sz <= 0) {
-            return {};
-        }
-        if(n_scales > 1) {
-            // verify that we can have more than one scale (i.e the delay needed to scale is strictly positive)
-            // in theory we could relax the constraint (0 delays are ok but the implementation
-            // doesn't support that).
-            if(SameSizeScales::getDelays(scale_sz, latency) <= 0) {
-                return {};
-            }
-        }
-        return {scale_sz};
-    };
-
     if(n_scales != 1) {
         throw std::runtime_error("optimization with scales not implemented");
     }
 
-    gradient_descent.setFunction( [sz_audio_cb, n_coeffs_for_latency, n_iterations, n_channels, &os] (int const lg2_partition_size, auto & val)
+    std::vector<double> frames_costs, early_monochannel_costs;
+    std::vector<double> phased_sums;
+    int const sz_reserve = std::min(32768,
+                                    static_cast<int>(ceil_power_of_two(zero_latency_response_size)));
+    early_monochannel_costs.reserve(sz_reserve);
+    frames_costs.reserve(sz_reserve);
+    phased_sums.reserve(sz_reserve);
+    
+    // inclusive upper bound
+    int const max_lg2_partition_size = power_of_two_exponent(ceil_power_of_two(zero_latency_response_size));
+
+    auto bestMultiplicationGroupSizeForPartitionSize =
+    [sz_audio_cb,
+     n_iterations,
+     n_phaseable_channels,
+     &os,
+     &xFFTCostFactors,
+     &frames_costs,
+     &phased_sums,
+     &early_monochannel_costs,
+     &get_early_monochannel_costs,
+     zero_latency_response_size,
+     max_lg2_partition_size]
+    (int const lg2_partition_size, auto & val)
     {
         using namespace profiling;
         using namespace std;
@@ -1052,17 +1049,16 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
         if(lg2_partition_size < 0) {
             return ParamState::OutOfRange;
         }
-        if(lg2_partition_size > 20) {
-            throw logic_error("Gradient descent is not working?");
+        if(lg2_partition_size > max_lg2_partition_size) {
+            return ParamState::OutOfRange;
         }
         int const partition_size = pow2(lg2_partition_size);
         //            cout << "partition size : " << partition_size << endl;
         
-        auto maybe_impulse_sz = n_coeffs_for_latency(SetupParam::getLatencyForPartitionSize(partition_size));
-        if(!maybe_impulse_sz) {
-            return ParamState::OutOfRange;
-        }
-        int const length_impulse = *maybe_impulse_sz;
+        Assert(partition_size <= ceil_power_of_two(zero_latency_response_size));
+        int const n_early_coeffs = get_early_monochannel_costs(partition_size,
+                                                               early_monochannel_costs);
+        int const length_impulse = zero_latency_response_size - n_early_coeffs;
         
         // the value for multiplication group size is not very important (it will be overriden later on)
         // but needs to lead to a valid FinegrainedSetupParam. We use the highest valid number:
@@ -1079,44 +1075,59 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
         
         Assert(sim.getBlockSize() == partition_size);
         
-        // TODO [early coefficients cost] substract the early coefficients from length_impulse
         if(!sim.isValid()) {
             return ParamState::OutOfRange;
         }
         
-        cyclic<double> frames_costs{static_cast<size_t>(partition_size)};
-        cyclic<double> phased_grains_costs(static_cast<size_t>(partition_size));
-        
+        frames_costs.resize(partition_size);
+        phased_sums.resize(partition_size);
+
         struct CostForPhase {
+            /*
+             We favor bigger multiplication groups because in reality,
+             they lead to better performances due to instruction cache / data cache / prefetching
+             (these effects are not taken into account in virtual simulation)
+             */
             double getCost() const {
-                return cost;
+                constexpr double grp_sz_max_influence = 0.01;
+                
+                double const normalized_grp_sz = mult_grp_sz / static_cast<double>(std::max(1, count_partitions));
+                Assert(normalized_grp_sz >= 0.);
+                Assert(normalized_grp_sz <= 1.);
+                return virtual_simulation_cost * (1. - grp_sz_max_influence * normalized_grp_sz);
             }
-            double cost = 0.;
+            double virtual_simulation_cost = 0.;
             double phase = 0.;
+            int mult_grp_sz = 0;
+            int count_partitions = 0;
         };
         
-        RangedGradientDescent<CostForPhase> rgd([sz_audio_cb, n_channels, &frames_costs, &phased_grains_costs, &sim](int multiplication_group_size, auto & result)
+        RangedGradientDescent<CostForPhase> rgd([sz_audio_cb, n_phaseable_channels, &frames_costs, &phased_sums, &sim, &xFFTCostFactors, &early_monochannel_costs](int multiplication_group_size, auto & result)
         {
             sim.setMultiplicationGroupLength(multiplication_group_size);
             if(!sim.isValid()) {
                 return ParamState::OutOfRange;
             }
 
-            XFFtCostFactors emptyCostFactors; // in the future we wil take the number of sources into account here.
+            result.mult_grp_sz = multiplication_group_size;
+            result.count_partitions = sim.getParam().partition_count;
             
             for(int i=0, end=frames_costs.size(); i<end; ++i) {
-                *(frames_costs.begin() + i) = sim.simuStep(emptyCostFactors);
+                frames_costs[i] = sim.simuStep(xFFTCostFactors);
             }
-            result.cost = computeMaxSlidingSum(frames_costs,
-                                               sz_audio_cb);
+            add_cyclic(frames_costs, early_monochannel_costs);
+            
+            result.virtual_simulation_cost = computeMaxSlidingSum(frames_costs,
+                                                                  sz_audio_cb);
             result.phase = 0.;
-            //LG(INFO,"phase=0 half grains cost %f", cost);
-            result.cost *= n_channels;
+            result.virtual_simulation_cost *= n_phaseable_channels;
             // now cost is the 'phase == 0' cost
 
-            if(n_channels >= 2) {
-                int const nMinFullCbInGranularity = sim.getParam().getGranularity() / sz_audio_cb;
-                if(nMinFullCbInGranularity >= n_channels) {
+            int const granularity = sim.getParam().getGranularity();
+            
+            if(n_phaseable_channels >= 2) {
+                int const nMinFullCbInGranularity = granularity / sz_audio_cb;
+                if(nMinFullCbInGranularity >= n_phaseable_channels) {
                     // naive phasing leads to an optimal solution : with a phase of 'sz_audio_cb',
                     // during every callback call there will be _at most_ one grain among all channels
                     // that will be computed.
@@ -1124,43 +1135,52 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
 
                     compute_phased_sum(frames_costs,
                                        result.phase,
-                                       n_channels,
-                                       phased_grains_costs);
-                    result.cost = computeMaxSlidingSum(phased_grains_costs,
-                                                       sz_audio_cb);
+                                       n_phaseable_channels,
+                                       phased_sums);
+                    result.virtual_simulation_cost = computeMaxSlidingSum(phased_sums,
+                                                                          sz_audio_cb);
                 }
                 else {
                     // naive phasing is not enough to have an optimal solution
                     // because the grains are too close to each other
+
+                    // the peaks of the finegrained part have a period of "granularity"
+                    // the _main_ peaks of the early part have a period of "early_monochannel_costs.size()" (aka getBiggestScale)
+                    // so we use these base phases:
                     
-                    for(int i=0; i<2; ++i) {
-                        int base_phase = 0;
-                        if(i) {
-                            base_phase = sim.getParam().getGranularity() / n_channels;
-                            if(base_phase == 0) {
-                                // redundant with i==0
-                                continue;
-                            }
-                        }
+                    float const base_phase_early = static_cast<float>(early_monochannel_costs.size()) / n_phaseable_channels;
+                    float const base_phase_late = static_cast<float>(granularity) / n_phaseable_channels;
+                    float const base_phase_mix = 0.5f * (base_phase_late + base_phase_early);
+                    float const base_phase_zero = 0.f;
+                    
+                    std::set<int> base_phases {
+                        static_cast<int>(0.5f + base_phase_early),
+                        static_cast<int>(0.5f + base_phase_late),
+                        static_cast<int>(0.5f + base_phase_mix),
+                        static_cast<int>(0.5f + base_phase_zero)
+                    };
+                    
+                    for(auto base_phase : base_phases) {
                         
-                        int const maxPhase = 1 + (frames_costs.size() / n_channels);
-                        int const phaseIncrement = sim.getParam().getGranularity();
+                        int const maxPhase = 1 + (frames_costs.size() / n_phaseable_channels);
+                        int const phaseStep = std::max(1, granularity);
                         for(int phase = base_phase;
                             phase <= maxPhase;
-                            phase += phaseIncrement)
+                            phase += phaseStep)
                         {
                             if(0 == phase) {
+                                // already tested
                                 continue;
                             }
                             compute_phased_sum(frames_costs,
                                                phase,
-                                               n_channels,
-                                               phased_grains_costs);
+                                               n_phaseable_channels,
+                                               phased_sums);
                             
-                            auto phased_cost = computeMaxSlidingSum(phased_grains_costs,
+                            auto phased_cost = computeMaxSlidingSum(phased_sums,
                                                                     sz_audio_cb);
-                            if(phased_cost < result.cost) {
-                                result.cost = phased_cost;
+                            if(phased_cost < result.virtual_simulation_cost) {
+                                result.virtual_simulation_cost = phased_cost;
                                 result.phase = phase;
                             }
                         }
@@ -1168,44 +1188,74 @@ auto find_optimal_partition_size(GradientDescent & gradient_descent,
                 }
             }
             
-            // cost is now the sum of costs of each channel
+            // the phase is now the difference between two close phaseable,
+            // but we need it to be multiplied by the number of phaseable:
+            result.phase *= n_phaseable_channels;
+            
+            // cost is now the sum of costs of each phaseable_channel
             // but cost should be per sample, not per frame, so
             // we divide by the number of channels
-            result.cost /= static_cast<float>(n_channels);
+            result.virtual_simulation_cost /= static_cast<float>(n_phaseable_channels);
 
-            result.cost /= sz_audio_cb;
-            // cost == 'worst computation time over one callback, averaged per sample'
+            result.virtual_simulation_cost /= sz_audio_cb;
+            // cost == 'worst computation time over one callback, averaged per frame of phaseable channels'
+            constexpr bool display = true;
+            if constexpr (display) {
+                std::cout <<
+                "n_phaseable_channels:      " << n_phaseable_channels << std::endl <<
+                "sz_audio_cb:     " << sz_audio_cb << std::endl <<
+                "partition_sz:    " << sim.getParam().partition_size << std::endl <<
+                "partition_count: " << sim.getParam().partition_count << std::endl <<
+                "mult_sz:         " << multiplication_group_size << std::endl <<
+                "granularity:     " << granularity << std::endl <<
+                "phase:           " << result.phase << std::endl <<
+                "cost:            (" << result.virtual_simulation_cost << ") " << result.getCost() << std::endl <<
+                std::endl;
+                {
+                    StringPlot plot(20, frames_costs.size());
+                    plot.draw(frames_costs, '+');
+                    plot.log();
+                }
+                {
+                    StringPlot plot(20, early_monochannel_costs.size());
+                    plot.draw(early_monochannel_costs, '+');
+                    plot.log();
+                }
+            }
 
             return ParamState::Ok;
         });
         
-        range<int> const multiplication_group_length {
+        range<int> const range_multiplication_group_length {
             sim.getParam().getLowestValidMultiplicationsGroupSize(),
             sim.getParam().getHighestValidMultiplicationsGroupSize()
         };
         
         CostForPhase best;
-        val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, multiplication_group_length, best);
-        val.setCost(best.cost);
+        val.multiplication_group_size = rgd.findLocalMinimum(n_iterations, range_multiplication_group_length, best);
+        val.setCost(best.getCost());
         val.setPhase(best.phase);
         val.partition_size = partition_size;
         val.partition_count = countPartitions(length_impulse, partition_size);
         
         constexpr auto debug = false;
         if(debug) {
+            std::cout << "partition_size:" << partition_size << std::endl;
             rgd.plot(true, os);
-            rgd.make_exhaustive(multiplication_group_length, os);
+            rgd.make_exhaustive(range_multiplication_group_length, os);
             rgd.plot(true, os);
         }
         return ParamState::Ok;
-    });
+    };
     
     // must yield a valid result:
-    int const min_lg2_partitionsz = getMinLg2PartitionSz<SetupParam>();
-    
+    int const first_lg2_partitionsz = std::min(max_lg2_partition_size,
+                                               getMinLg2PartitionSz<SetupParam>());
+    gradient_descent.setFunction(bestMultiplicationGroupSizeForPartitionSize);
+
     Optional<SetupParam> min_val;
     auto res = gradient_descent.findLocalMinimum(n_iterations,
-                                                 min_lg2_partitionsz,
+                                                 first_lg2_partitionsz,
                                                  min_val);
     if(res) {
         assert(min_val);
@@ -1219,24 +1269,28 @@ struct PartitionAlgo< FinegrainedSetupParam, T, Tag > {
     using Sim = FinegrainedPartitionnedFFTConvolutionSimulation<T, Tag>;
     using SetupParam = FinegrainedSetupParam;
     
-    static std::optional<SetupParam> run(int const n_channels,
+    static std::optional<SetupParam> run(int const n_phaseable_channels,
                                          int const n_scales,
                                          int const n_audio_frames_per_cb,
                                          int const zero_latency_response_size,
-                                         std::ostream & os)
+                                         std::ostream & os,
+                                         XFFTsCostsFactors const & xFftCostFactors,
+                                         std::function<int(int, std::vector<double> &)> const & get_early_monochannel_costs)
     {
         os << "Optimization of FinegrainedPartitionnedFFTConvolution for " << n_scales << " scale(s)" << std::endl;
         IndentingOStreambuf i(os);
         
-        assert(n_channels > 0);
+        Assert(n_phaseable_channels > 0);
         GradientDescent<SetupParam> gd;
         constexpr auto n_iterations = 1;
         std::optional<SetupParam> res = find_optimal_partition_size<Sim>(gd,
                                                                          n_iterations,
-                                                                         n_channels,
+                                                                         n_phaseable_channels,
                                                                          n_scales,
                                                                          n_audio_frames_per_cb,
                                                                          zero_latency_response_size,
+                                                                         xFftCostFactors,
+                                                                         get_early_monochannel_costs,
                                                                          os);
         constexpr auto debug_gradient_descent = false;
         if constexpr (debug_gradient_descent) {
@@ -1248,20 +1302,10 @@ struct PartitionAlgo< FinegrainedSetupParam, T, Tag > {
 };
 
 
-static std::ostream& operator<<(std::ostream& os, const GrainsCosts& g)
-{
-    using namespace std;
-    os << "grain 'fft'  : " << g.fft << endl;
-    os << "grain 'ifft' : " << g.ifft << endl;
-    os << "grain 'mult' : " << g.mult << endl;
-    return os;
-}
-
 static inline std::ostream& operator<<(std::ostream& os, const FinegrainedSetupParam& p)
 {
     using namespace std;
     os
-    << p.grains_costs
     << "multiplication group size : " << p.multiplication_group_size << endl;
     return os;
 }

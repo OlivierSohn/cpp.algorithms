@@ -18,6 +18,7 @@ TEST(Power_of_2, funcs) {
     EXPECT_EQ(8, pow2(3));
     EXPECT_EQ(1024, pow2(10));
 
+    EXPECT_EQ(0, power_of_two_exponent(0));
     EXPECT_EQ(0, power_of_two_exponent(1));
     EXPECT_EQ(1, power_of_two_exponent(2));
     EXPECT_EQ(2, power_of_two_exponent(4));

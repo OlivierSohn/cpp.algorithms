@@ -216,7 +216,7 @@ struct CustomScaleConvolutionSimulation {
         int const phase_period = x_halfSize;
         Assert(phase_period == getBiggestScale());
         
-        XFFtCostFactors dummy; // not important because we don't use the return value of simuStep.
+        XFFTsCostsFactors dummy; // not important because we don't use the return value of simuStep.
         int nsteps = static_cast<int>(0.5f + phase_group_ratio * phase_period);
         for(int i=0; i<nsteps; ++i) {
             simuStep(dummy);
@@ -226,7 +226,7 @@ struct CustomScaleConvolutionSimulation {
     /*
      Dual method of CustomScaleConvolution::step()
      */
-    double simuStep(XFFtCostFactors const & xFftCostFactors) {
+    double simuStep(XFFTsCostsFactors const & xFftCostFactors) {
         if(unlikely(isZero())) {
             return {};
         }
@@ -271,7 +271,7 @@ struct CustomScaleConvolutionSimulation {
     }
     
     double simuBatch(int64_t nRemainingSteps,
-                     XFFtCostFactors const & xFftCostFactors) {
+                     XFFTsCostsFactors const & xFftCostFactors) {
         double cost{};
         
         while(progress != 0 && nRemainingSteps) {
@@ -318,7 +318,7 @@ private:
         endPadding = 0;
     }
     
-    double simuBiggestPeriod(XFFtCostFactors const & xFftCostFactors) {
+    double simuBiggestPeriod(XFFTsCostsFactors const & xFftCostFactors) {
         // we compute the cost for 'biggestSubmissionPeriod' iterations
         int const biggestSubmissionPeriod = getBiggestScale();
         

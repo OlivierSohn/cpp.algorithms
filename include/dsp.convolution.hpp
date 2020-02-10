@@ -25,7 +25,7 @@ struct FFTConvolutionIntermediateSimulation : public Parent {
         return minorCost;
     }
     
-    double simuMajorStep(XFFtCostFactors const & xFftCostFactors) {
+    double simuMajorStep(XFFTsCostsFactors const & xFftCostFactors) {
         if(unlikely(!majorCostExceptXForwardFft)) {
             majorCostExceptXForwardFft =
             
@@ -56,7 +56,7 @@ struct FFTConvolutionIntermediateSimulation : public Parent {
         //LG(INFO, "*:%f fft: %f", *majorCostExceptXForwardFft, *costXForwardFft);
         return
         *majorCostExceptXForwardFft +
-        *costXForwardFft * xFftCostFactors.getCostMultiplicator(get_fft_length());
+        *costXForwardFft * xFftCostFactors.get(get_fft_length());
     }
 private:
     double minorCost;

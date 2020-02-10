@@ -210,7 +210,7 @@ struct ScalingsIterator {
     
     template<typename Simu>
     double virtualCostPerSample(Simu & sim,
-                                XFFtCostFactors const & xFftCostFactors) {
+                                XFFTsCostsFactors const & xFftCostFactors) {
         int64_t const end = sim.getBiggestScale();
         if(end) {
             return sim.simuBatch(end,
@@ -361,7 +361,7 @@ struct ScalingsIterator {
     template<typename SetupParam, typename T, typename FFTTag>
     auto getOptimalScalingScheme_ForTotalCpu_ByVirtualSimulation(int const firstSz,
                                                                  int const nCoeffs,
-                                                                 XFFtCostFactors const & xFftCostFactors)
+                                                                 XFFTsCostsFactors const & xFftCostFactors)
             -> std::optional<std::pair<std::vector<Scaling>, double>>
     {
          std::optional<std::pair<std::vector<Scaling>, double>> best;

@@ -35,7 +35,7 @@ struct Costs
 };
 
 template<typename T, template<typename> typename Allocator, typename Tag>
-void findCheapest2(int const firstSz, int const nCoeffs, XFFtCostFactors const & factors, double & sideEffect)
+void findCheapest2(int const firstSz, int const nCoeffs, XFFTsCostsFactors const & factors, double & sideEffect)
 {
     using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
     
@@ -94,7 +94,7 @@ void findCheapest2(int const firstSz, int const nCoeffs, XFFtCostFactors const &
 template<typename T, template<typename> typename Allocator, typename Tag>
 void findCheapest2()
 {
-    XFFtCostFactors factors;
+    XFFTsCostsFactors factors;
     double sideEffect{};
     for(int factor = 100; factor <= 10000; factor *=10)
     {
@@ -127,7 +127,7 @@ enum class CostModel {
 };
 
 template<typename T, template<typename> typename Allocator, typename Tag>
-void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFFtCostFactors const & factors, double & sideEffect)
+void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFFTsCostsFactors const & factors, double & sideEffect)
 {
     using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
     
@@ -206,21 +206,18 @@ void smallTest(void) {
                           costmodel = CostModel::RealSimulationCacheFlushes;*/
                 break;
         }
-        XFFtCostFactors factors;
-        
         std::cout << "no factors" << std::endl;
         analyzeSimulated<T, Allocator, fft::Fastest>(scale*64,
                                                      scale*1984,
                                                      costmodel,
-                                                     factors,
+                                                     XFFTsCostsFactors(),
                                                      sideEffect);
         
         std::cout << std::endl << "hs 1024 -> 0" << std::endl;
-        factors.setMultiplicator(1024,0.f);
         analyzeSimulated<T, Allocator, fft::Fastest>(scale*64,
                                                      scale*1984,
                                                      costmodel,
-                                                     factors,
+                                                     XFFTsCostsFactors().local(1024,0.f),
                                                      sideEffect);
     }
     std::cout << "sideEffect " << sideEffect << std::endl;
@@ -235,6 +232,8 @@ void forEachCost(F f) {
     using RealFBinsCosts = RealFBinsCosts<Tag, T>;
     using AlgoCosts = AlgoCosts<Tag, T>;
 
+    f("RealSignalCosts::cost_dotpr ",
+      RealSignalCosts::cost_dotpr);
     f("RealSignalCosts::cost_add_assign ",
       RealSignalCosts::cost_add_assign);
     f("RealSignalCosts::cost_add_scalar_multiply ",

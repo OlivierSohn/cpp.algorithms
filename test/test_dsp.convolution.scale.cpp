@@ -468,13 +468,12 @@ TEST(ConvolutionScale, simulateBatch) {
         std::optional<double> prevBatchCost;
         for(int i=0; i<2; ++i)
         {
-            XFFtCostFactors factors;
+            XFFTsCostsFactors factors;
             if(i) {
                 // disable fft costs
-                for(int sz=2; sz<10000; sz *= 2) {
-                    factors.setMultiplicator(sz, 0.);
-                }
+                factors.global(0.);
             }
+            
             double cost{};
             for(int i=0; i<batchSize; ++i) {
                 cost += sim.simuStep(factors);

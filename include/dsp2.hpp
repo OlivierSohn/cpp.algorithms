@@ -144,6 +144,8 @@ struct XAndFFTS {
     
     template<typename SetupParam>
     void setPhasePeriod(SetupParam const & p) {
+        Assert(countPhaseable > 0);
+        
         phase_period.reset();
         
         auto f = [this] (auto const & innerP ){
@@ -263,6 +265,9 @@ struct XAndFFTS {
     }
 
     void logComputeState(std::ostream & os) const {
+        os << "Source:" << std::endl;
+        IndentingOStreambuf in(os);
+        
         os << "x size:" << x.size() <<  " unpadded:" << x_unpadded_size << " progress:" << progress << std::endl;
         
         os << "ffts: ";
@@ -544,7 +549,8 @@ struct XYConvolution {
         return x_and_ffts.getPhasePeriod();
     }
 
-    void setup(SetupParam const & p, WorkCplxFreqs & work)
+    void setup(SetupParam const & p,
+               WorkCplxFreqs & work)
     {
         MinSizeRequirement req = p.getMinSizeRequirement();
         
@@ -765,7 +771,6 @@ struct alignas(64) SelfContainedXYConvolution {
     int getBiggestScale() const {
         return algo.getBiggestScale();
     }
-
 
     using FBinsAllocator = typename fft::RealFBins_<FFTTag, FPT, Allocator>::type::allocator_type;
     using MemResource = MemResource<FBinsAllocator>;

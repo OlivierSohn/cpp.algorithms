@@ -716,7 +716,10 @@ void printConvolutionCosts2() {
 
     std::cout << std::endl << "sig copy" << std::endl << std::endl;
     compute(RealSignalCosts<Tag, T>::cost_copy);
-
+            
+    std::cout << std::endl << "sig dotpr" << std::endl << std::endl;
+    compute(RealSignalCosts<Tag, T>::cost_dotpr);
+    
     std::cout << std::endl << "freq mult assign" << std::endl << std::endl;
     compute(RealFBinsCosts<Tag, T>::cost_mult_assign);
 }

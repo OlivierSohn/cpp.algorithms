@@ -148,7 +148,8 @@ struct PartitionAlgo<CustomScaleConvolutionSetupParam<A>, T, FFTTag> {
     using SetupParam = CustomScaleConvolutionSetupParam<A>;
     using ScalingParam = typename SetupParam::ScalingParam;
 
-    static std::optional<SetupParam> run(int const n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int const n_channels,
                                          int const n_audio_channels,
                                          int const n_audio_frames_per_cb,
                                          int const zero_latency_response_size,
@@ -156,7 +157,7 @@ struct PartitionAlgo<CustomScaleConvolutionSetupParam<A>, T, FFTTag> {
                                          double const max_avg_time_per_sample,
                                          std::ostream & os,
                                          int const firstSz,
-                                         XFFtCostFactors const & xFftCostFactors)
+                                         XFFTsCostsFactors const & xFftCostFactors)
     {
         os << "Optimization of CustomScaleConvolution" << std::endl;
         IndentingOStreambuf i(os);
@@ -190,14 +191,15 @@ struct PartitionAlgo< OptimizedFIRFilterSetupParam, T, FFTTag > {
     using EarlyHandlerParam = typename SetupParam::AParam;
     using LateHandlerParam = typename SetupParam::BParam;
     
-    static std::optional<SetupParam> run(int n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int n_channels,
                                          int n_audio_channels,
                                          int n_audio_frames_per_cb,
                                          int zero_latency_response_size,
                                          double frame_rate,
                                          double max_avg_time_per_sample,
                                          std::ostream & os,
-                                         XFFtCostFactors const & xFftCostFactors)
+                                         XFFTsCostsFactors const & xFftCostFactors)
     {
         os << "Optimization of OptimizedFIRFilterSetupParam" << std::endl;
         IndentingOStreambuf i(os);
@@ -205,7 +207,8 @@ struct PartitionAlgo< OptimizedFIRFilterSetupParam, T, FFTTag > {
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
                 
-        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_sources,
+                                                                          n_channels,
                                                                           n_audio_channels,
                                                                           n_audio_frames_per_cb,
                                                                           zero_latency_response_size,
@@ -290,7 +293,8 @@ struct PartitionAlgo< AsyncSetupParam<AsyncParam>, T, FFTTag > {
     // to account for a system that is under heavier load at run-time than at optimization time
     static constexpr int safeFactor = 4;
     
-    static std::optional<SetupParam> run(int const n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int const n_channels,
                                          int const n_audio_channels,
                                          int const n_audio_frames_per_cb,
                                          int const zero_latency_response_size,
@@ -319,10 +323,11 @@ struct PartitionAlgo< AsyncSetupParam<AsyncParam>, T, FFTTag > {
 
         if(nAsyncCoeffs <= 0) {
             maybeQueueSz = 0;
+            scalingParams.setCost(0.);
         }
         else {
             int const firstSz = static_cast<int>(pow2(nAsyncScalesDropped.toInteger()));
-            XFFtCostFactors unbiasedXFftCostFactors;
+            XFFTsCostsFactors unbiasedXFftCostFactors;
 
             // Because of the queueing mechanism,
             // the real number of late coeffs will be _less_ than what this is optimal for.
@@ -331,7 +336,8 @@ struct PartitionAlgo< AsyncSetupParam<AsyncParam>, T, FFTTag > {
             //
             // This future adaptation will be minor (we may remove work but _not_ change the structure
             // because we would have to run the simulation again, as the peak computation times could be worse.
-            auto scalingParams2 = PartitionAlgo<AsyncParam, T, FFTTag>::run(n_channels,
+            auto scalingParams2 = PartitionAlgo<AsyncParam, T, FFTTag>::run(n_sources,
+                                                                            n_channels,
                                                                             n_audio_channels,
                                                                             n_audio_frames_per_cb,
                                                                             // so that the actual number of ceofficients handled is nAsyncCoeffs:
@@ -483,7 +489,7 @@ private:
         
         double const submission_period_seconds = submission_period_frames / frame_rate;
         
-        XFFtCostFactors unbiasedXFftCostFactors;
+        XFFTsCostsFactors unbiasedXFftCostFactors;
         int queueSize = computeQueueSize([&simu_convs,
                                           min_allocation_factor,
                                           &unbiasedXFftCostFactors](){
@@ -803,7 +809,8 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionParam, T, FFTTag > {
     using EarlyHandlerParam = typename SetupParam::AParam;
     using LateHandlerParam = typename SetupParam::BParam;
     
-    static std::optional<SetupParam> run(int n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int n_channels,
                                          int n_audio_channels,
                                          int n_audio_frames_per_cb,
                                          int zero_latency_response_size,
@@ -830,7 +837,8 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionParam, T, FFTTag > {
         // So this design choice may be changed in the future.
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         
-        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_sources,
+                                                                          n_channels,
                                                                           n_audio_channels,
                                                                           n_audio_frames_per_cb,
                                                                           zero_latency_response_size,
@@ -842,8 +850,9 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionParam, T, FFTTag > {
         std::optional<SetupParam> ps;
         if(pSpecsLate) {
             int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
-            XFFtCostFactors unbiasedXFftCostFactors;
-            auto pSpecsEarly = PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_channels,
+            XFFTsCostsFactors unbiasedXFftCostFactors;
+            auto pSpecsEarly = PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_sources,
+                                                                                n_channels,
                                                                                 n_audio_channels,
                                                                                 n_audio_frames_per_cb,
                                                                                 nEarlyCoeffs,
@@ -871,7 +880,8 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimizedParam, T, FFTTag
     using EarlyHandlerParam = typename SetupParam::AParam;
     using LateHandlerParam = typename SetupParam::BParam;
 
-    static std::optional<SetupParam> run(int n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int n_channels,
                                          int n_audio_channels,
                                          int n_audio_frames_per_cb,
                                          int zero_latency_response_size,
@@ -898,7 +908,8 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimizedParam, T, FFTTag
         // So this design choice may be changed in the future.
         auto const nAsyncScalesDropped = ScaleConvolution_::nDroppedOptimalFor_Split_Bruteforce_Fft;
         
-        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
+        auto pSpecsLate = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_sources,
+                                                                          n_channels,
                                                                           n_audio_channels,
                                                                           n_audio_frames_per_cb,
                                                                           zero_latency_response_size,
@@ -912,7 +923,8 @@ struct PartitionAlgo< ZeroLatencyScaledAsyncConvolutionOptimizedParam, T, FFTTag
             int nEarlyCoeffs = pSpecsLate->handlesCoefficients() ? pSpecsLate->getImpliedLatency().toInteger() : zero_latency_response_size;
             os << "Deduced early handler coeffs:" << nEarlyCoeffs << std::endl;
             
-            auto pSpecsEarly = PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_channels,
+            auto pSpecsEarly = PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_sources,
+                                                                                n_channels,
                                                                                 n_audio_channels,
                                                                                 n_audio_frames_per_cb,
                                                                                 nEarlyCoeffs,
@@ -1080,15 +1092,16 @@ int count_scales(SetupParam const & p) {
     return n_scales;
 }
 
-template<typename T, typename FFTTag>
-struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedParam, T, FFTTag > {
+template<typename T, typename Tag>
+struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedParam, T, Tag > {
     
     using SetupParam = ZeroLatencyScaledFineGrainedPartitionnedParam;
 
     using EarlyHandlerParam = typename SetupParam::AParam;
     using LateHandlerParam = typename SetupParam::BParam;
 
-    static std::optional<SetupParam> run(int n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int n_channels,
                                          int n_audio_channels,
                                          int n_audio_frames_per_cb,
                                          int zero_latency_response_size,
@@ -1098,60 +1111,76 @@ struct PartitionAlgo< ZeroLatencyScaledFineGrainedPartitionnedParam, T, FFTTag >
     {
         os << "Optimization of ZeroLatencyScaledFineGrainedPartitionnedParam" << std::endl;
         IndentingOStreambuf i(os);
-
-        auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
-                                         XFFtCostFactors const & xFftCostFactors) {
-            return PartitionAlgo<EarlyHandlerParam, T, FFTTag>::run(n_channels,
-                                                                    n_audio_channels,
-                                                                    n_audio_frames_per_cb,
-                                                                    countEarlyHandlerCoeffs,
-                                                                    frame_rate,
-                                                                    max_avg_time_per_sample,
-                                                                    os,
-                                                                    xFftCostFactors);
-            
-        };
         
         std::optional<SetupParam> ps;
+    
+        Assert(n_sources);
+        int const nChannelsPerSource = n_channels / n_sources;
+        Assert(n_sources * nChannelsPerSource == n_channels);
+        Assert(nChannelsPerSource);
+        std::map<int, EarlyHandlerParam> earlyParams;
+        auto lateRes = PartitionAlgo<LateHandlerParam, T, Tag>::run(n_sources,
+                                                                    1,
+                                                                    n_audio_frames_per_cb,
+                                                                    zero_latency_response_size,
+                                                                    os,
+                                                                    XFFTsCostsFactors().global(1./static_cast<double>(nChannelsPerSource)),
+                                                                    [zero_latency_response_size,
+                                                                     &earlyParams,
+                                                                     n_sources,
+                                                                     n_channels,
+                                                                     n_audio_channels,
+                                                                     n_audio_frames_per_cb,
+                                                                     frame_rate,
+                                                                     max_avg_time_per_sample,
+                                                                     &os
+                                                                     ](int partition_sz, std::vector<double> & mono_channel_costs) {
+            Assert(earlyParams.count(partition_sz) == 0); // else need to memoize the results
+            int const n_early_coeffs = std::min(zero_latency_response_size,
+                                                LateHandlerParam::getLatencyForPartitionSize(partition_sz).toInteger());
+            
+            // one fft comes "for free" because the latehandler uses it
+            auto xFFTFactors = XFFTsCostsFactors().local(partition_sz, 0.f);
+            
+            // This optimizes the early handler part for _average_ cost,
+            //  so it might generate strong computational "peaks".
+            // If these peaks are significant wrt the finegrained peaks,
+            //  we might instead need to optimize for _worst_ cost over one callback size here.
+            std::optional<EarlyHandlerParam> earlyRes = PartitionAlgo<EarlyHandlerParam, T, Tag>::run(n_sources,
+                                                                          n_channels,
+                                                                          n_audio_channels,
+                                                                          n_audio_frames_per_cb,
+                                                                          n_early_coeffs,
+                                                                          frame_rate,
+                                                                          max_avg_time_per_sample,
+                                                                          os,
+                                                                          xFFTFactors);
+            Assert(earlyRes);
+            earlyParams.insert_or_assign(partition_sz, *earlyRes);
+            
+            Simulation<EarlyHandlerParam, T, Tag> earlySim;
+            earlySim.setup(*earlyRes);
+            mono_channel_costs.resize(earlySim.getBiggestScale());
+            for(auto it = mono_channel_costs.begin(), end = mono_channel_costs.end(); it!=end; ++it) {
+                *it = earlySim.simuStep(xFFTFactors);
+            }
+            return n_early_coeffs;
+        });
         
-        if(zero_latency_response_size <= minLatencyLateHandlerWhenEarlyHandlerIsDefaultOptimizedFIRFilter.toInteger()) {
-            // in that case there is no late handling at all.
-            XFFtCostFactors unbiasedXFftCostFactors;
-            auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
-                                                  unbiasedXFftCostFactors);
-            if(earlyRes)
-            {
-                ps = {
-                    *earlyRes,
-                    FinegrainedSetupParam::makeInactive()
-                };
-                ps->setCost(earlyRes->getCost());
+        if(lateRes) {
+            auto earlyRes = earlyParams.find(lateRes->partition_size);
+            if(earlyRes == earlyParams.end()) {
+                throw std::logic_error("no early param exists");
             }
+            ps = SetupParam {
+                earlyRes->second,
+                *lateRes
+            };
+            // Note : the cost of lateRes includes the early handler cost (see find_optimal_partition_size)
+            // so we don't sum with earlyRes->getCost
+            ps->setCost(lateRes->getCost());
         }
-        else {
-            auto lateRes = PartitionAlgo<LateHandlerParam, T, FFTTag>::run(n_channels,
-                                                                           1,
-                                                                           n_audio_frames_per_cb,
-                                                                           zero_latency_response_size,
-                                                                           os);
-            if(lateRes) {
-                // this fft comes "for free" because the latehandler uses it:
-                XFFtCostFactors xFftCostFactors{{
-                    {lateRes->partition_size, 0.f}
-                }};
-                auto earlyRes = getEarlyHandlerParams(LateHandlerParam::nCoefficientsFadeIn +
-                                                      LateHandlerParam::getLatencyForPartitionSize(lateRes->partition_size).toInteger(),
-                                                      xFftCostFactors);
-                if(earlyRes) {
-                    ps = SetupParam {
-                        *earlyRes,
-                        *lateRes
-                    };
-                    ps->setCost(earlyRes->getCost() +
-                                lateRes->getCost());
-                }
-            }
-        }
+        
         return ps;
     }
 };
@@ -1226,7 +1255,7 @@ private:
                           std::ostream & os)
     {
         auto getEarlyHandlerParams = [&](int countEarlyHandlerCoeffs,
-                                         XFFtCostFactors const & xFftFactors) {
+                                         XFFTsCostsFactors const & xFftFactors) {
             return PartitionAlgo<EarlyHandler>::run(n_channels,
                                                     n_audio_channels,
                                                     n_audio_frames_per_cb,
@@ -1244,7 +1273,7 @@ private:
                 return {};
             }
             PS o;
-            XFFtCostFactors unbiasedXFftCostFactors;
+            XFFTsCostsFactors unbiasedXFftCostFactors;
             auto earlyRes = getEarlyHandlerParams(zero_latency_response_size,
                                                   unbiasedXFftCostFactors);
             if(earlyRes) {
@@ -1263,7 +1292,7 @@ private:
                                                                      os);
         if(lateRes) {
             // this fft comes "for free" because the latehandler uses it:
-            XFFtCostFactors xFftCostFactors{{
+            XFFTsCostsFactors xFftCostFactors{{
                 {lateRes->partition_size, 0.f}
             }};
             // scaleSz might be a little bigger than the scale used during optimization, to have a round number of partitions:

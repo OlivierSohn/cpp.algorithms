@@ -28,7 +28,7 @@ struct StateFinegrainedPartitionnedFFTConvolution {
     static constexpr auto zero_signal = fft::RealSignal_<Tag, FPT>::zero;
 
     static int getAllocationSz_SetCoefficients(typename Algo::SetupParam const & p) {
-        return p.get_fft_length() * (1 + p.partition_count);
+        return p.partition_count ? (p.get_fft_length() * (1 + p.partition_count)) : 0;
     }
 
     void logComputeState(Algo const & algo, std::ostream & os) const {

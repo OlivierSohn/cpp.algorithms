@@ -466,9 +466,12 @@ namespace imajuscule {
          */
         // TODO test this on a machine that has support for doubles on the gpu (cl_khr_fp64)
         {
+            // clBuildProgram is quite slow so I deactivate this
+            /*
           auto c = PartitionnedFIRFilterGPUAsyncN<T>{};
           c.setup({10});
           testDirac2(i, c);
+             */
         }
         {
           auto c = FFTConvolution<T, Allocator, Tag>{};

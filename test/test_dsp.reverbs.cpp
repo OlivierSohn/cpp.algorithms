@@ -72,7 +72,7 @@ void testReverbDirac(Args ...args) {
                                 args...);
             }
             else if constexpr (reverbType == ReverbType::Offline) {
-                XFFtCostFactors unbiasedXFftCostFactors;
+                XFFTsCostsFactors unbiasedXFftCostFactors;
                 applyBestParams(rs,memory,1,
                                 {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
                                 unbiasedXFftCostFactors,
@@ -199,7 +199,7 @@ void testReverbDirac(Args ...args) {
                                             args...);
                         }
                         else if constexpr (reverbType == ReverbType::Offline) {
-                            XFFtCostFactors unbiasedXFftCostFactors;
+                            XFFTsCostsFactors unbiasedXFftCostFactors;
                             applyBestParams(rs, memory, nIns,
                                             all_coeffs, work, audio_cb_size, 44100., std::cout,
                                             unbiasedXFftCostFactors,
@@ -367,9 +367,9 @@ template<int nOut, int nIns>
 void testReverbDiracNout()
 {
     using namespace imajuscule;
+    testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy, nOut, nIns>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Realtime_Synchronous, nOut, nIns>();
     testReverbDirac<ReverbType::Offline, nOut, nIns>();
-    testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy, nOut, nIns>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Realtime_Asynchronous, nOut, nIns>(SimulationPhasing::no_phasing());
     //testReverbDirac<ReverbType::Realtime_Synchronous_Subsampled, nOut, nIns>();
 }

@@ -27,7 +27,7 @@ TEST(Math, dichotomic_sum) {
     }
 }
 
-TEST(MaxSlidingSum, test) {
+TEST(Math, MaxSlidingSum) {
     using namespace imajuscule;
     constexpr auto cyclic_size = 5;
     cyclic<float> c(cyclic_size);
@@ -70,7 +70,21 @@ TEST(MaxSlidingSum, test) {
     }
 }
 
-TEST(PhasedSum, test) {
+TEST(Math, add_cyclic) {
+    using namespace imajuscule;
+    
+    std::vector<double> v1{1., 2., 3., 4.};
+    std::vector<double> v2{1., 2.};
+    
+    add_cyclic(v1, v2);
+    
+    ASSERT_FLOAT_EQ(v1[0], 2.);
+    ASSERT_FLOAT_EQ(v1[1], 4.);
+    ASSERT_FLOAT_EQ(v1[2], 4.);
+    ASSERT_FLOAT_EQ(v1[3], 6.);
+}
+
+TEST(Math, PhasedSum) {
     using namespace imajuscule;
     constexpr auto cyclic_size = 5;
     cyclic<float> c(cyclic_size);
@@ -183,6 +197,13 @@ TEST(Math, expMean) {
     ASSERT_EQ(16, v);
 }
 
+TEST(Math, ppcm) {
+    
+    using namespace imajuscule;
+
+    ASSERT_EQ(792, ppcm(132, 72));
+}
+
 TEST(Math, IntDiv) {
     for(int i=1; i<10; ++i) {
         for(int j=1; j<10; ++j) {
@@ -192,7 +213,7 @@ TEST(Math, IntDiv) {
 }
 
 
-TEST(UnsignedCyclicDist, simple)
+TEST(Math, UnsignedCyclicDist)
 {
   using namespace imajuscule;
   {

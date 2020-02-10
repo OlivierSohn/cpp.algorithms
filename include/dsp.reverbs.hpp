@@ -187,13 +187,22 @@ struct Reverbs {
         os << "States:" << std::endl;
         IndentingOStreambuf in(os);
         
-        int i=0;
-        foreachConvReverb([&os, &i, this](auto const & r){
-            ++i;
-            os << i << ":" << std::endl;
-            IndentingOStreambuf indent(os);
-            r.logComputeState(algo, os);
-        });
+        int source_idx=0;
+        for(auto const & i : input_states) {
+            ++source_idx;
+            os << source_idx << ":" << std::endl;
+            IndentingOStreambuf in(os);
+            
+            i.x_and_ffts.logComputeState(os);
+            
+            int conv_idx = 0;
+            for(auto & c : i.channels) {
+                ++conv_idx;
+                os << conv_idx << ":" << std::endl;
+                IndentingOStreambuf indent(os);
+                c->logComputeState(algo, os);
+            }
+        }
     }
     
     int countScales() {
@@ -513,7 +522,8 @@ void padForScales(SetupParam const & spec,
 }
 
 template<typename Reverb, typename ...Args>
-auto findBestParams(int const n_response_channels,
+auto findBestParams(int const n_sources,
+                    int const n_response_channels,
                     int const n_frames,
                     int n_audiocb_frames,
                     double sampleRate,
@@ -540,7 +550,8 @@ auto findBestParams(int const n_response_channels,
     double const theoretical_max_ns_per_frame(1e9/sampleRate);
     double const max_avg_time_per_sample(theoretical_max_ns_per_frame * ratio_soft_limit / static_cast<float>(n_response_channels));
     
-    auto partitionning = PartitionAlgo::run(n_response_channels,
+    auto partitionning = PartitionAlgo::run(n_sources,
+                                            n_response_channels,
                                             nEars,
                                             n_audiocb_frames,
                                             n_frames,
@@ -590,7 +601,8 @@ void applyBestParams(Reverb & rev,
                      std::ostream & os,
                      Args... args)
 {
-    auto p = findBestParams<Reverb>(deinterlaced.countChannels(),
+    auto p = findBestParams<Reverb>(n_sources,
+                                    deinterlaced.countChannels(),
                                     deinterlaced.countFrames(),
                                     n_audiocb_frames,
                                     sampleRate,

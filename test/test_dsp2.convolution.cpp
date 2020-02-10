@@ -82,7 +82,7 @@ void testGeneric(Convolution & conv,
     
     auto const period = conv.getPhasePeriod();
     int const maxPhaseInSample = (period && *period) ? (8 * *period) : 1;
-    std::cout << "phases 0 to " << maxPhaseInSample-1 << std::endl;
+    //std::cout << "phases 0 to " << maxPhaseInSample-1 << std::endl;
     // change phases
     for(int phase_in_sample=0; phase_in_sample<maxPhaseInSample; ++phase_in_sample) {
         // fast forward to do less tests

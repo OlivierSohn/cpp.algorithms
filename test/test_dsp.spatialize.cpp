@@ -157,7 +157,7 @@ namespace imajuscule::testspatialize {
             zero_coeffs.resize(coefficients.size());
             int const n_partitions = countPartitions(coefficients.size(), part_size);
             
-            XFFtCostFactors emptyCostFactors;
+            XFFTsCostsFactors emptyCostFactors;
             using WorkCplxFreqs = typename fft::RealFBins_<fft::Fastest, double, aP::Alloc>::type;
             WorkCplxFreqs work;
             

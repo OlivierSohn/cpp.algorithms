@@ -24,11 +24,10 @@ struct Cost {
 
     virtual void logSubReport(std::ostream & os) const = 0;
 
-    void logReport(int n_channels, double theoretical_max_avg_time_per_frame, std::ostream & os)
-    {
-        using namespace std;
-        auto actual = getCost();
-        auto theoretical = theoretical_max_avg_time_per_frame / static_cast<float>(n_channels);
+    void logReport(int n_channels, double theoretical_ns_max_avg_time_per_frame, std::ostream & os)
+    {        
+        auto actual = getCost() * 1e9; // seconds to nanoseconds
+        auto theoretical = theoretical_ns_max_avg_time_per_frame / static_cast<float>(n_channels);
         auto ratio = actual / theoretical;
         
         /*
@@ -55,13 +54,14 @@ struct Cost {
         std::string prefixTheoretical =
         std::string(std::max(0, nActual-nTheoretical), ' ');
         auto const precision = os.precision();
-        os << "Foreseen CPU load (1 core)          : " << std::fixed << std::setprecision(2) << 100.*ratio << "%" << endl;
-        os << "Average computation time per sample : " << std::fixed << std::setprecision(0) << actual << " ns" << endl;
+        // the estimation is pessimistic, because when measuring times of operations, we flush the caches just before.
+        os << "Foreseen pessimistic CPU load (1 core): " << std::fixed << std::setprecision(2) << 100.*ratio << "%" << std::endl;
+        os << "Average computation time per sample   : " << std::fixed << std::setprecision(0) << actual << " ns" << std::endl;
         //os << "- Actual                : " << prefixActual      << actual      << " ns" << endl;
         //os << "- Allowed (theoretical) : " << prefixTheoretical << theoretical << " ns" << endl;
         os.precision(precision);
         if(phase) {
-            os << "Optimized computation phase : " << *phase << endl;
+            os << "Optimized computation phase : " << *phase << std::endl;
         }
 
         os << "Algorithm:" << std::endl;

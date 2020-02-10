@@ -50,6 +50,30 @@ struct FIRSetupParam : public Cost {
     int n_coeffs;
 };
 
+template<typename T, typename Tag>
+struct FIRFilterSimulation {
+    
+    void setup(FIRSetupParam const & p) {
+        stepCost =
+        fft::RealSignalCosts<Tag, T>::cost_dotpr(p.n_coeffs) +
+        costWriteNConsecutive<T>(1);
+    }
+    double simuStep(XFFTsCostsFactors const & xFFTCostFactors) {
+        return stepCost;
+    }
+    
+    int getBiggestScale() const {
+        return 1;
+    }
+private:
+    double stepCost = 0.;
+};
+
+template<typename T, typename Tag>
+struct Simulation_<FIRSetupParam, T, Tag> {
+    using type = FIRFilterSimulation<T, Tag>;
+};
+
   /*
    Brute force filtering (no fft is used).
    */
@@ -178,7 +202,8 @@ template<typename T, typename FFTTag>
 struct PartitionAlgo< FIRSetupParam, T, FFTTag> {
     using SetupParam = FIRSetupParam;
     
-    static std::optional<SetupParam> run(int n_channels,
+    static std::optional<SetupParam> run(int n_sources,
+                                         int n_channels,
                                          int n_audio_channels,
                                          int n_audio_frames_per_cb,
                                          int total_response_size,

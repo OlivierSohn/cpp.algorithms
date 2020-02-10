@@ -71,8 +71,14 @@ namespace imajuscule {
             }
 
             for(auto i=0; i<Width; ++i) {
-                auto fi = static_cast<float>(.5f + (container.size()-1)) / (Width-1);
-                auto v_index = static_cast<size_t>(fi * i);
+                size_t v_index;
+                if(Width > 1) {
+                    auto fi = static_cast<float>(.5f + (container.size()-1)) / (Width-1);
+                    v_index = static_cast<size_t>(fi * i);
+                }
+                else {
+                    v_index = 0;
+                }
                 if(static_cast<int>(container.size()) == Width) {
                     assert(v_index == i);
                 }

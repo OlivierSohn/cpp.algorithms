@@ -110,7 +110,7 @@ struct Reverbs {
     static int getAllocationSz(SetupParam const & p,
                                int const n_sources,
                                int const n_channels) {
-        MinSizeRequirement req = p.getMinSizeRequirement();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
         int const input_req = XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
 
         return
@@ -144,7 +144,7 @@ struct Reverbs {
 
         input_states.resize(n_sources);
         
-        MinSizeRequirement req = p.getMinSizeRequirement();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
         
         work.reserve(req.minWorkSize);
         

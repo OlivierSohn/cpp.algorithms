@@ -27,6 +27,7 @@ struct FIRSetupParam : public Cost {
         }
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const {
         return {
             static_cast<int>(n_coeffs), // x block size

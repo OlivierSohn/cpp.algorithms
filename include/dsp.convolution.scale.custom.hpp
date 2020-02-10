@@ -72,12 +72,13 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         }
     }
     
+    template<Overlap Mode>
     MinSizeRequirement getMinSizeRequirement() const
     {
         std::optional<MinSizeRequirement> res;
         for(auto const & a : scalingParams)
         {
-            auto res2 = a.setupParam.getMinSizeRequirement();
+            auto res2 = a.setupParam.template getMinSizeRequirement<Mode>();
             if(!res) {
                 res = res2;
             }

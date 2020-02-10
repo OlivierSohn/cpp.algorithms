@@ -104,7 +104,7 @@ struct AlgoFIRFilter {
               Y<T, Tag> & y,
               WorkData * workData) const
     {
-        auto s = x_and_ffts.getPastSegments(n_coeffs);
+        auto s = x_and_ffts.template getPastSegments<overlapMode>(n_coeffs);
 
         if(likely(s.size_from_start)) {
             using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
@@ -114,13 +114,15 @@ struct AlgoFIRFilter {
                   coeff,
                   &res,
                   s.size_from_start);
-            if(unlikely(s.size_from_zero)) {
-                E res2;
-                dotpr(&x_and_ffts.x[0],
-                      coeff+s.size_from_start,
-                      &res2,
-                      s.size_from_zero);
-                res += res2;
+            if constexpr (overlapMode == Overlap::Add) {
+                if(unlikely(s.size_from_zero)) {
+                    E res2;
+                    dotpr(&x_and_ffts.x[0],
+                          coeff+s.size_from_start,
+                          &res2,
+                          s.size_from_zero);
+                    res += res2;
+                }
             }
             y.writeOne(res);
         }

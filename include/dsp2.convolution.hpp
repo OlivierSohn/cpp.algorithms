@@ -85,8 +85,15 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
                          &workData[fft_length],
                          fft_length);
         
-        y.addAssignPresent(&workData[fft_length],
-                           fft_length);
+        if constexpr (overlapMode == Overlap::Add) {
+            y.addAssignPresent(&workData[fft_length],
+                               fft_length);
+        }
+        else {
+            y.addAssignPresent(&workData[fft_length+fft_length/2],
+                               fft_length/2);
+        }
+        
     }
     
     void flushToSilence(State & s) const {

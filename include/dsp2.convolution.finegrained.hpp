@@ -321,9 +321,16 @@ private:
                 Assert(s.grain_number == count_multiplicative_grains);
                 int const blockProgress = (count_multiplicative_grains+1) * getGranularity();
                 int const yFutureLocation = y.progress + getBlockSize() - blockProgress;
-                y.addAssign(yFutureLocation,
-                            workData,
-                            fft_length);
+                if constexpr (overlapMode == Overlap::Add) {
+                    y.addAssign(yFutureLocation,
+                                workData,
+                                fft_length);
+                }
+                else {
+                    y.addAssign(yFutureLocation,
+                                &workData[fft_length/2],
+                                fft_length/2);
+                }
             }
         }
     }

@@ -156,6 +156,37 @@ struct AlgoCustomScaleConvolution {
                      int x_progress) const {
         // nothing. For justification, see comment in step()
     }
+    
+    template<template<typename> typename Allocator2, typename WorkData>
+    void stepVectorized(State & s,
+                        XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+                        Y<FPT, Tag> & y,
+                        WorkData * workData,
+                        int const vectorSz) const
+    {
+        for(int i=0, end=v.size();
+            i != end;
+            ++i)
+        {
+            // Note : the const is important here, and this is why the implementation of dephaseSteps is nop.
+            auto const & state = s.v[i];
+            if(unlikely(state.isZero())) {
+                break;
+            }
+            auto & algo = v[i];
+            auto stepsData = algo.getStepsData(x_and_ffts.progress,
+                                               vectorSz);
+            if(!stepsData.nBlockSteps) {
+                // early exit
+                break;
+            }
+            algo.forceSteps(state,
+                            x_and_ffts,
+                            y,
+                            workData,
+                            stepsData);
+        }
+    }
 
     template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
@@ -180,18 +211,13 @@ struct AlgoCustomScaleConvolution {
             Assert(N > 0);
             Assert(is_power_of_two(N));
             
-            if((x_and_ffts.fftsHalfSizesBitsToCompute & static_cast<uint32_t>(N)) != N) {
-                Assert(0 != ((x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1)));
-                // early exit
-                return;
+            if(0 == ((x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1))) {
+                algo.forceSteps(state,
+                                x_and_ffts,
+                                y,
+                                workData,
+                                {1,0});
             }
-            // TODO no need to have fftsHalfSizesBitsToCompute if we can do this instead:
-            Assert(0 == ((x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1)));
-            
-            algo.forceStep(state,
-                           x_and_ffts,
-                           y,
-                           workData);
         }
     }
     

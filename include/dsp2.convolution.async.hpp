@@ -96,6 +96,7 @@ public:
         Assert(algo.asyncParams);
 
         async->setupAndSetCoefficients(*algo.asyncParams,
+                                       algo.getSubmissionPeriod(),
                                        std::move(coeffs));
         Assert(async->isValid());
                 
@@ -286,9 +287,9 @@ public:
                     }
                     // Verify that worker_vec and work represent adjacent blocks in the ring:
                     Assert(worker_vec == work-N || (work==0 && worker_vec==(buffer.size()-N)));
-                    for(int i=0; i<N; ++i) {
-                        bufferData[worker_vec + i] = async->step(bufferData[work + i]);
-                    }
+                    async->stepAssignVectorized(&bufferData[work],
+                                                &bufferData[worker_vec],
+                                                N);
                     auto res = worker_2_rt.try_push(worker_vec);
                     Assert(res);
                     worker_vec = work;
@@ -483,6 +484,7 @@ public:
 
 template <typename Async, PolicyOnWorkerTooSlow OnWorkerTooSlow>
 struct AlgoAsyncCPUConvolution {
+    using This = AlgoAsyncCPUConvolution<Async, OnWorkerTooSlow>;
     using State = StateAsyncCPUConvolution<typename Async::State, OnWorkerTooSlow>;
     using Desc = DescAsyncCPUConvolution<typename Async::Desc>;
 
@@ -533,12 +535,93 @@ struct AlgoAsyncCPUConvolution {
         );
     }
 
+    int getBiggestScale() const {
+        return N;
+    }
+
     void dephaseStep(State & s,
                      int x_progress) const {
         // We don't dephase so that the submissions occur on callback_size boundaries.
         // Note that dephasing in the async part is taken care of by async_conv->setCoefficients and async_conv->flushToSilence
     }
-
+    
+    template<template<typename> typename Allocator2, typename WorkData>
+    void stepVectorized(State & s,
+                        XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+                        Y<FPT, Tag> & y,
+                        WorkData * workData,
+                        int const vectorSz) const {
+        if(unlikely(s.signal == s.previous_result)) {
+            return;
+        }
+        if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
+            if(unlikely(s.error_worker_too_slow)) {
+                return;
+            }
+        }
+        Assert(vectorSz);
+        auto seg = x_and_ffts.template getPastSegments<overlapMode>(x_and_ffts.progress, vectorSz);
+        Assert(seg.size_from_start);
+        
+        int yPhase = N-(s.curIndex+1);
+        
+        struct F {
+            void operator() (FPT const sig) {
+                s.buffer[s.signal + s.curIndex] = sig;
+                ++s.curIndex;
+                if(unlikely(s.curIndex == N))
+                {
+                    s.curIndex = 0;
+                    while(unlikely(!s.try_submit_signal(s.signal))) {
+                        s.error_worker_too_slow = true;
+                        if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
+                            return;
+                        }
+                        else {
+                            s.rt_2_worker_cond.notify_one(); // in case this is because of the race condition
+                        }
+                    }
+                    std::swap(s.signal, s.previous_result);
+                    while(unlikely(!s.try_receive_result(s.previous_result))) {
+                        s.error_worker_too_slow = true;
+                        if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
+                            return;
+                        }
+                        else {
+                            s.rt_2_worker_cond.notify_one(); // in case this is because of the race condition
+                        }
+                    }
+                    // Verify that s.signal and s.previous_result represent adjacent blocks in the ring:
+                    Assert(s.signal == s.previous_result-N || (s.previous_result==0 && s.signal==(s.buffer.size()-N)));
+                    y.addAssign(y.progress + yPhase,
+                                &s.buffer[s.previous_result],
+                                N);
+                    yPhase += N;
+                }
+            }
+            
+            int const N;
+            State & s;
+            Y<FPT, Tag> & y;
+            int & yPhase;
+        } f{this->N, s, y, yPhase};
+        
+        for(int i=seg.start, end=seg.start + seg.size_from_start;
+            i != end;
+            ++i)
+        {
+            f(get_signal(x_and_ffts.x[i]));
+        }
+        if constexpr (overlapMode == Overlap::Add) {
+            for(int i=0, end=seg.size_from_zero;
+                i != end;
+                ++i)
+            {
+                f(get_signal(x_and_ffts.x[i]));
+            }
+        }
+    }
+    
     template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
               XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
@@ -550,7 +633,6 @@ struct AlgoAsyncCPUConvolution {
         }
         if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
             if(unlikely(s.error_worker_too_slow)) {
-                y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress];
                 return;
             }
         }
@@ -562,7 +644,6 @@ struct AlgoAsyncCPUConvolution {
             while(unlikely(!s.try_submit_signal(s.signal))) {
                 s.error_worker_too_slow = true;
                 if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
-                    y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress];
                     return;
                 }
                 else {
@@ -573,7 +654,6 @@ struct AlgoAsyncCPUConvolution {
             while(unlikely(!s.try_receive_result(s.previous_result))) {
                 s.error_worker_too_slow = true;
                 if constexpr (OnWorkerTooSlow == PolicyOnWorkerTooSlow::PermanentlySwitchToDry) {
-                    y.y[y.progress] += x_and_ffts.x[x_and_ffts.progress];
                     return;
                 }
                 else {
@@ -582,9 +662,9 @@ struct AlgoAsyncCPUConvolution {
             }
             // Verify that s.signal and s.previous_result represent adjacent blocks in the ring:
             Assert(s.signal == s.previous_result-N || (s.previous_result==0 && s.signal==(s.buffer.size()-N)));
-
+            y.addAssignPresent(&s.buffer[s.previous_result],
+                               N);
         }
-        y.writeOne(typename RealSignal::value_type(s.buffer[s.previous_result + s.curIndex]));
     }
     
     void flushToSilence(State & s) const

@@ -116,6 +116,10 @@ namespace imajuscule
       return algo;
     }
     
+      int const getBiggestScale() const {
+          return 2*algo.getBiggestScale();
+      }
+      
   private:
     cyclic<FPT> ring;
     Algo algo;

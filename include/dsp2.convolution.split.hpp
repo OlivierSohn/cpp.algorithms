@@ -165,6 +165,11 @@ struct AlgoSplitConvolution {
         return a.getLatency();
     }
     
+    int getBiggestScale() const {
+        return std::max(a.getBiggestScale(),
+                        b.getBiggestScale());
+    }
+    
     int computeSplit() const {
         if(!b.handlesCoefficients()) {
             return noSplit;
@@ -181,14 +186,35 @@ struct AlgoSplitConvolution {
     }
     
     template<template<typename> typename Allocator2, typename WorkData>
+    void stepVectorized(State & s,
+                        XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
+                        Y<FPT, Tag> & y,
+                        WorkData * workData,
+                        int const vectorSz) const {
+        // We step the latehandler before the early handler to minimize
+        // the number of splits done in Y::addAssign and Y::addAssignPresent
+        // (latehandlers write bigger chunks than early handlers)
+        b.stepVectorized(s.b,
+                         x_and_ffts,
+                         y,
+                         workData,
+                         vectorSz);
+        a.stepVectorized(s.a,
+                         x_and_ffts,
+                         y,
+                         workData,
+                         vectorSz);
+    }
+    
+    template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
               XAndFFTS<FPT, Allocator2, Tag> const & x_and_ffts,
               Y<FPT, Tag> & y,
               WorkData * workData) const
     {
         // We step the latehandler before the early handler to minimize
-        // the number of splits done in Y::addAssign and Y::addAssignPersent
-        // (as latehandlers writes bigger chunks than early handlers)
+        // the number of splits done in Y::addAssign and Y::addAssignPresent
+        // (latehandlers write bigger chunks than early handlers)
         b.step(s.b,
                x_and_ffts,
                y,

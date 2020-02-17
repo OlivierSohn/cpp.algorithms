@@ -56,10 +56,10 @@ struct StateFIRFilter {
     void logComputeState(Algo const & algo, std::ostream & os) const {
         os << "Brute [_/" << reversed_coefficients.size() << "]" << std::endl;
     }
-    using RealSignal = typename fft::RealSignal_<Tag, T>::type;
-    RealSignal const & getReversedCoeffs() const { return reversed_coefficients; }
+    using RealSignalOutput = typename fft::RealSignal_<Tag, T>::outputType;
+    RealSignalOutput const & getReversedCoeffs() const { return reversed_coefficients; }
 private:
-    RealSignal reversed_coefficients;
+    RealSignalOutput reversed_coefficients;
 };
 
 
@@ -86,6 +86,10 @@ struct AlgoFIRFilter {
         //Assert(handlesCoefficients());
         return Latency(0);
     }
+
+    int getBiggestScale() const {
+        return 1;
+    }
     
     bool handlesCoefficients() const {
         return n_coeffs > 0;
@@ -97,18 +101,52 @@ struct AlgoFIRFilter {
     void dephaseStep(State &s,
                      int x_progress) const {
     }
+    
+    template<template<typename> typename Allocator2, typename WorkData>
+    void stepVectorized(State & state,
+                        XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+                        Y<T, Tag> & y,
+                        WorkData * workData,
+                        int const vectorSz) const {
+        auto * coeff = state.getReversedCoeffs().data();
+        int const x_progress_earliest = x_and_ffts.progress - vectorSz + 1;
+        for(int future=0; future<vectorSz; ++future) {
+            int const x_unbounded_progress = x_progress_earliest + future;
 
+            auto s = x_and_ffts.template getPastSegments<overlapMode>(x_unbounded_progress, n_coeffs);
+
+            if(likely(s.size_from_start)) {
+                T res;
+                dotpr(&x_and_ffts.x[s.start],
+                      coeff,
+                      &res,
+                      s.size_from_start);
+                if constexpr (overlapMode == Overlap::Add) {
+                    if(unlikely(s.size_from_zero)) {
+                        T res2;
+                        dotpr(&x_and_ffts.x[0],
+                              coeff+s.size_from_start,
+                              &res2,
+                              s.size_from_zero);
+                        res += res2;
+                    }
+                }
+                y.writeOneFuture(future, res);
+            }
+        }
+    }
+    
     template<template<typename> typename Allocator2, typename WorkData>
     void step(State & state,
               XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
               Y<T, Tag> & y,
               WorkData * workData) const
     {
-        auto s = x_and_ffts.template getPastSegments<overlapMode>(n_coeffs);
+        auto s = x_and_ffts.template getPastSegments<overlapMode>(x_and_ffts.progress, n_coeffs);
 
         if(likely(s.size_from_start)) {
             using E = typename fft::RealSignal_<Tag, FPT>::type::value_type;
-            E res;
+            T res;
             auto * coeff = state.getReversedCoeffs().data();
             dotpr(&x_and_ffts.x[s.start],
                   coeff,
@@ -124,7 +162,7 @@ struct AlgoFIRFilter {
                     res += res2;
                 }
             }
-            y.writeOne(res);
+            y.writeOneOutput(res);
         }
     }
 

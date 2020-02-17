@@ -11,19 +11,19 @@ TEST(Cyclic, traversal) {
         c.feed(i++);
     }
     
-    
-    for(int j=0; j<sz; ++j) {
+    for(int startAge = 0; startAge < sz; ++startAge) {
+        for(int j=0; j<sz-startAge; ++j) {
 
-        std::vector<int> fwd;
+            std::vector<int> fwd;
 
-        c.for_some_fwd(j, [&fwd](auto v) {fwd.push_back(v);});
+            c.for_some_fwd(startAge, j, [&fwd](auto v) {fwd.push_back(v);});
 
-        ASSERT_EQ(j, fwd.size());
+            ASSERT_EQ(j, fwd.size());
 
-        for(int k=0;k<j;++k) {
-            ASSERT_EQ(k, fwd[k]);
+            for(int k=0;k<j;++k) {
+                ASSERT_EQ(k+startAge, fwd[k]);
+            }
         }
-
     }
     
     // verify elements are traversed in the right order

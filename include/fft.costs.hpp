@@ -271,6 +271,7 @@ namespace imajuscule::fft {
     struct RealSignalCosts {
         using Impl = RealSignal_<Tag, T>;
         using type = typename Impl::type;
+        using outputType = typename Impl::outputType;
         using value_type = typename type::value_type;
 
         inline static CallCost cost_add_scalar_multiply { [](std::function<void(double&)> fBeforeMeasure,
@@ -313,16 +314,18 @@ namespace imajuscule::fft {
         
         inline static CallCost cost_add_assign { [](std::function<void(double&)> fBeforeMeasure,
                                                     int64_t sz, int64_t ntests, double & sideEffect) {
-            std::vector<std::array<type, 2>> va;
+            std::vector<std::pair<outputType, type>> va;
             va.resize(ntests);
             double d = 1.;
-            for(auto & a:va)
+            for(auto & [o,i]:va)
             {
-                for(auto & v:a) {
-                    v.resize(sz,
-                             value_type{static_cast<T>(d)});
-                    ++d;
-                }
+                o.resize(sz,
+                         d);
+                ++d;
+                i.resize(sz,
+                         value_type{static_cast<T>(d)});
+                ++d;
+
             }
             
             using namespace profiling;
@@ -331,17 +334,17 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
-                    Impl::add_assign(a[0].data(),
-                                     a[1].data(),
+                    Impl::add_assign(a.first.data(),
+                                     a.second.data(),
                                      sz);
                 }
             });
             for(auto & a:va)
             {
                 using std::abs; // so that abs can be std::abs or imajuscule::abs (for complex)
-                sideEffect += abs(std::accumulate(a[0].begin(),
-                                                  a[0].end(),
-                                                  value_type{})) / static_cast<T>(a[0].size());
+                sideEffect += abs(std::accumulate(a.first.begin(),
+                                                  a.first.end(),
+                                                  T{})) / static_cast<T>(a.first.size());
             }
             return duration;
         }};
@@ -383,16 +386,18 @@ namespace imajuscule::fft {
         
         inline static CallCost cost_dotpr { [](std::function<void(double&)> fBeforeMeasure,
                                               int64_t sz, int64_t ntests, double & sideEffect) {
-            std::vector<std::pair<std::array<type, 2>, typename type::value_type>> va;
+            std::vector<std::pair<std::pair<type, outputType>, typename outputType::value_type>> va;
             va.resize(ntests);
             {
                 int i=0;
-                for(auto & a : va)
+                for(auto & [ab, _unused] : va)
                 {
-                    for(auto & v:a.first) {
-                        ++i;
-                        v.resize(sz, value_type{static_cast<T>(i)});
-                    }
+                    auto &[a,b] = ab;
+                    
+                    a.resize(sz, value_type{static_cast<T>(i)});
+                    ++i;
+                    b.resize(sz, static_cast<T>(i));
+                    ++i;
                 }
             }
             using namespace profiling;
@@ -401,8 +406,8 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & [a, res] : va) {
-                    Impl::dotpr(a[0].data(),
-                                a[1].data(),
+                    Impl::dotpr(a.first.data(),
+                                a.second.data(),
                                 &res,
                                 sz);
                 }

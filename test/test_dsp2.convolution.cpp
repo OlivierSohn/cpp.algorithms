@@ -17,7 +17,6 @@ template<LatencySemantic L, typename T>
 struct ConvolutionTraits<SubSampled<L, T>> {
     static constexpr bool supportsOddCountOfCoefficients = false;
     static constexpr bool evenIndexesAreApproximated = true;
-    
 };
 
 #ifdef NDEBUG
@@ -43,7 +42,7 @@ a64::vector<T> makeCoefficients(int coeffs_index) {
         case 10: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1 }};
         case 11: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05 }};
         case 12: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025 }};
-        case 13: return {{ .9,.8,.7,.6,.5,.4,.3,.2,.1,.05,.025,.01 }};
+        case 13: return mkTestCoeffs<T>(30);
         case 14: return mkTestCoeffs<T>(200);
             // this should exceed the GPU capacity to do the fft in one kernel only,
             // and force partitionning:
@@ -52,13 +51,22 @@ a64::vector<T> makeCoefficients(int coeffs_index) {
     throw std::logic_error("coeff index too big");
 }
 
+int debugBreak()
+{
+    static int stop = 0;
+    ++stop;
+    if(stop == 768137) {
+        stop = 768137;
+    }
+    return stop;
+}
 template<typename Convolution, typename Coeffs, typename Input, typename Output>
 void testGeneric(Convolution & conv,
                  typename Convolution::SetupParam const & p,
                  Coeffs const & coefficients,
                  Input const & input,
                  Output const & expectedOutput,
-                 int const vectorLength)
+                 std::optional<int> const vectorLength)
 {
     using T = typename Convolution::FPT;
     using namespace fft;
@@ -68,7 +76,9 @@ void testGeneric(Convolution & conv,
        && 1 == coefficients.size() % 2) {
         return;
     }
-    conv.setupAndSetCoefficients(p, coefficients);
+    conv.setupAndSetCoefficients(p,
+                                 vectorLength?*vectorLength : 1,
+                                 coefficients);
 
     if(!conv.isValid())
     {
@@ -105,7 +115,7 @@ void testGeneric(Convolution & conv,
             auto step = [&idxStep, &input]() {
                 return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
             };
-            
+            int d = debugBreak();
             if(conv.handlesCoefficients()) {
                 for(; idxStep<conv.getLatency().toInteger(); ++idxStep) {
                     auto res = conv.step(step());
@@ -119,18 +129,16 @@ void testGeneric(Convolution & conv,
                 inputVec.push_back(step());
             }
             if(vectorLength) {
-                Assert(0);
-                /*
                  // initialize with zeros
                  output.resize(inputVec.size(), {});
                  
                  // then add
                  int const nFrames = inputVec.size();
-                 for(int i=0; i<nFrames; i += vectorLength) {
-                 conv.stepAddVectorized(inputVec.data()+i,
-                 output.data()+i,
-                 std::min(vectorLength, nFrames-i));
-                 }*/
+                 for(int i=0; i<nFrames; i += *vectorLength) {
+                     conv.stepAddVectorized(&inputVec[i],
+                                            &output[i],
+                                            std::min(*vectorLength, nFrames-i));
+                 }
             }
             else {
                 for(T i : inputVec) {
@@ -162,30 +170,52 @@ template<typename Convolution, typename Coeffs, typename Input, typename Output>
 void testGeneric(Convolution & conv,
                  typename Convolution::SetupParam const & p,
                  Coeffs const & coefficients, Input const & input, Output const & expectedOutput) {
-    int sz = expectedOutput.size();
+    int sz = std::max(1,
+                      static_cast<int>(p.getBiggestScale()));
+    std::set<std::optional<int>> vectorLengths;
     
-    std::set<int> vectorLengths;
+    vectorLengths.insert({});// no vectorization
     
-    vectorLengths.insert(0);// no vectorization
-    /*
-     vectorLengths.insert(1);// minimal vectorization
-     vectorLengths.insert(2);
-     vectorLengths.insert(3);
-     vectorLengths.insert(sz/5);
-     vectorLengths.insert(sz/4);
-     vectorLengths.insert(sz/4-1);
-     vectorLengths.insert(sz/4+1);
-     vectorLengths.insert(sz/2);
-     vectorLengths.insert(sz);
-     vectorLengths.insert(2*sz);*/
-    
+    vectorLengths.insert(1);// minimal vectorization
+    vectorLengths.insert(sz-1);
+    vectorLengths.insert(sz);
+    vectorLengths.insert(sz+1);
+
+    if constexpr (std::is_same_v<fft::Fastest, typename Convolution::Tag>) {
+        if(coefficients.size() < 100) {
+            for(int i=1; i<sz; ++i) {
+                vectorLengths.insert(i);
+            }
+            for(int i=1;; ++i) {
+                int p2 = pow2(i);
+                if(p2 > sz*8) {
+                    break;
+                }
+                vectorLengths.insert(p2);
+                vectorLengths.insert(p2-1);
+                vectorLengths.insert(p2+1);
+            }
+        }
+        
+        //std::cout << sz << " - " << vectorLengths.size() << std::endl;
+    }
     
     for(auto vectorLength: vectorLengths) {
-        if(vectorLength < 0) {
+        if(vectorLength && *vectorLength <= 0) {
             continue;
         }
         testGeneric(conv, p, coefficients, input, expectedOutput, vectorLength);
     }
+}
+
+template<typename T>
+using ResultCache = std::map<a64::vector<T>, std::pair<std::vector<T>, std::vector<T>>>;
+
+
+template<typename T>
+ResultCache<T> & cachedResults() {
+    static ResultCache<T> r;
+    return r;
 }
 
 // we take 'coefficients' by value because we modify it in the function
@@ -212,9 +242,9 @@ void test(Convolution & conv,
     if(!Tr::evenIndexesAreApproximated)
     {
         // brute-force convolution is costly (N^2) for high number of coefficients, hence we use caching
-        static std::map<Coeffs, std::pair<std::vector<T>, std::vector<T>>> cache;
-        
         std::vector<T> randomInput, output;
+        
+        auto & cache = cachedResults<T>();
         
         auto it = cache.find(coefficients);
         if(it == cache.end()) {
@@ -227,8 +257,10 @@ void test(Convolution & conv,
             }
             // produce expected output using brute force convolution
             {
-                FIRFilter<T, a64::Alloc> filter;
-                filter.setCoefficients(coefficients);
+                SelfContainedXYConvolution<AlgoFIRFilter<T, a64::Alloc, fft::Fastest>> filter;
+                filter.setupAndSetCoefficients({static_cast<int>(coefficients.size())},
+                                               1,
+                                               coefficients);
                 if(filter.handlesCoefficients()) {
                     EXPECT_EQ(0, filter.getLatency().toInteger());
                 }
@@ -298,11 +330,6 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
                 0
             };
             
-            conv.setupAndSetCoefficients(p, coefficients);
-            if(!conv.isValid()) {
-                continue;
-            }
-            
             range<int> r {
                 p.getLowestValidMultiplicationsGroupSize(),
                 p.getHighestValidMultiplicationsGroupSize()
@@ -367,14 +394,14 @@ void testDirac() {
     for(int i=-1; i<end; ++i) {
         LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
-        testDiracFinegrainedPartitionned<T, Allocator, Tag>(i);
         testDiracPartitionned<T, Allocator, Tag>(i);
-        
+        testDiracFinegrainedPartitionned<T, Allocator, Tag>(i);
         if(i<10)
         {
             auto c = SelfContainedXYConvolution<AlgoFIRFilter<T, Allocator, Tag>>{};
             testDirac2(i, c, {countCoeffs});
         }
+        /*
         {
             auto c = SelfContainedXYConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Allocator, Tag>>>{};
             testDirac2(i, c, {static_cast<int>(ceil_power_of_two(countCoeffs))});
@@ -477,7 +504,7 @@ void testDirac() {
                 }
                 testDirac2(i, c, {params});
             }
-        }
+        }*/
         // custom scale followed by finegrained with same block size as the last in the scale
         {
             for(int firstSz=1; firstSz<32; firstSz *= 2) {

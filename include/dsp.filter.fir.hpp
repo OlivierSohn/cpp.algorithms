@@ -28,10 +28,10 @@ struct FIRSetupParam : public Cost {
     }
     
     template<Overlap Mode>
-    MinSizeRequirement getMinSizeRequirement() const {
+    MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const {
         return {
-            static_cast<int>(n_coeffs), // x block size
-            1, // y block size
+            static_cast<int>(n_coeffs + maxVectorSz - 1), // x block size
+            maxVectorSz, // y block size
             {},
             0 // work size
         };
@@ -41,6 +41,10 @@ struct FIRSetupParam : public Cost {
         // commented out because not constexpr
         //Assert(handlesCoefficients());
         return Latency(0);
+    }
+    
+    int getBiggestScale() const {
+        return 1;
     }
     
     template<typename F>
@@ -74,130 +78,6 @@ template<typename T, typename Tag>
 struct Simulation_<FIRSetupParam, T, Tag> {
     using type = FIRFilterSimulation<T, Tag>;
 };
-
-  /*
-   Brute force filtering (no fft is used).
-   */
-  template<typename T, template<typename> typename Allocator>
-  struct FIRFilter {
-    using FPT = T;
-    static constexpr int nComputePhaseable = 0;
-    static constexpr int nCoefficientsFadeIn = 0;
-    static constexpr bool has_subsampling = false;
-    static constexpr bool step_can_error = false;
-
-    using SetupParam = FIRSetupParam;
-
-    void logComputeState(std::ostream & os) const {
-        os << "Brute [" << past.getIndex() << "/" << reversed_coefficients.size() << "]" << std::endl;
-    }
-    static constexpr auto dotpr = fft::RealSignal_<fft::Fastest, FPT>::dotpr;
-    
-    void setup(SetupParam const &) const {}
-
-      std::array<int, nComputePhaseable> getComputePeriodicities() const {
-          return {};
-      }
-      // in [0, getComputePeriodicity())
-      std::array<int, nComputePhaseable> getComputeProgresses() const {
-          return {};
-      }
-      void setComputeProgresses(std::array<int, nComputePhaseable> const & progresses) {
-      }
-      
-      void setCoefficients(a64::vector<T> v) {
-          past.resize(v.size());
-          std::reverse(v.begin(), v.end());
-          reversed_coefficients = std::move(v);
-      }
-    
-    bool handlesCoefficients() const {
-        return true;
-    }
-    constexpr bool isValid() const {
-      return true;
-    }
-    
-    constexpr Latency getLatency() const {
-        Assert(handlesCoefficients());
-        return Latency(0);
-    }
-    
-    auto size()  const { return reversed_coefficients.size(); }
-    bool isZero() const { return reversed_coefficients.empty(); }
-
-    void reset() {
-      reversed_coefficients.clear();
-      past.resize(0);
-    }
-    void flushToSilence() {
-      past.reset();
-    }
-    
-    T step(T val) {
-      if(unlikely(isZero())) {
-        return {};
-      }
-      return doStep(val);
-    }
-  private:
-      T doStep(T val) {
-          past.feed(val);
-          
-          auto [s1, s2] = past.forward_traversal();
-          auto * coeff = reversed_coefficients.data();
-          T res1, res2;
-          dotpr(s1.first, coeff,           &res1, s1.second);
-          dotpr(s2.first, coeff+s1.second, &res2, s2.second);
-          return res1 + res2;
-      }
-  public:
-      template<typename FPT2>
-      void stepAssignVectorized(FPT2 const * const input_buffer,
-                                FPT2 * output_buffer,
-                                int nSamples)
-      {
-          if(unlikely(isZero())) {
-              // zero output_buffer
-              fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffer, nSamples);
-              return;
-          }
-          for(int i=0; i<nSamples; ++i) {
-              output_buffer[i] = doStep(input_buffer[i]);
-          }
-      }
-      template<typename FPT2>
-      void stepAddVectorized(FPT2 const * const input_buffer,
-                                FPT2 * output_buffer,
-                                int nSamples)
-      {
-          if(unlikely(isZero())) {
-            return;
-          }
-          for(int i=0; i<nSamples; ++i) {
-              output_buffer[i] += doStep(input_buffer[i]);
-          }
-      }
-      template<typename FPT2>
-      void stepAddInputZeroVectorized(FPT2 * output_buffer,
-                                      int nSamples)
-      {
-          if(unlikely(isZero())) {
-            return;
-          }
-          for(int i=0; i<nSamples; ++i) {
-              output_buffer[i] += doStep({});
-          }
-      }
-
-    double getEpsilon() const {
-      return 2 * std::numeric_limits<FPT>::epsilon() * reversed_coefficients.size();
-    }
-    
-  private:
-    std::vector<T, Allocator<T>> reversed_coefficients;
-    cyclic<T> past;
-  };
 
 template<typename T, typename FFTTag>
 struct PartitionAlgo< FIRSetupParam, T, FFTTag> {

@@ -20,6 +20,7 @@ namespace imajuscule {
         struct RealSignal_<accelerate::Tag, T> {
             using This = RealSignal_<accelerate::Tag, T>;
             using type = a64::vector<T>;
+            using outputType = type;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
             using value_type = typename type::value_type;
@@ -41,6 +42,21 @@ namespace imajuscule {
                                            const_add, 1,
                                            res, 1,
                                            N);
+            }
+            
+            
+            template<typename TDest>
+            static void add_assign_output(TDest * __restrict res,
+                                          value_type const * const __restrict const_add,
+                                          int N) {
+                if constexpr(std::is_same_v<value_type, TDest>) {
+                    add_assign(res, const_add, N);
+                }
+                else {
+                    for(int i=0; i!= N; ++i) {
+                        res[i] += const_add[i];
+                    }
+                }
             }
             
             static void add_scalar_multiply(iter res,
@@ -67,12 +83,44 @@ namespace imajuscule {
                 accelerate::API<T>::f_mmov(from, dest, 1, N, 1, 1);
             }
             
+            static constexpr auto copyOutputToOutput = copy;
+            
+            template<typename TSource>
+            static void copyFromInput(value_type * __restrict dest,
+                                      TSource const * const __restrict src,
+                                      int N) {
+                if constexpr(std::is_same_v<value_type, TSource>) {
+                    copy(dest, src, N);
+                }
+                else {
+                    for(int i=0; i!= N; ++i) {
+                        dest[i] = src[i];
+                    }
+                }
+            }
+            
+            template<typename TDest>
+            static void copyToOutput(TDest * __restrict dest,
+                                     value_type const * const __restrict src,
+                                     int N) {
+                if constexpr(std::is_same_v<value_type, TDest>) {
+                    copy(dest, src, N);
+                }
+                else {
+                    for(int i=0; i!= N; ++i) {
+                        dest[i] = src[i];
+                    }
+                }
+            }
+            
             static void zero_n_raw(T * p, int n) {
                 T zero{};
 
                 accelerate::API<T>::f_vfill(&zero,
                                             p, 1, n);
-            }            
+            }
+            static constexpr auto zero_n_raw_output = zero_n_raw;
+            
             static void zero_n(type & v, int n) {
                 zero_n_raw(&v[0], n);
             }

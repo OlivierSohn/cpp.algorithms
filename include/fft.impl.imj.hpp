@@ -22,6 +22,11 @@ namespace imajuscule {
 
         template<typename T>
         struct RealSignal_<imj::Tag, T> {
+            
+            /* we need complex<T> (type) to do the ftt and ifft, but after that,
+             we can use T (outputType) */
+            
+            using outputType = a64::vector<T>;
             using type = a64::vector<complex<T>>;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
@@ -41,9 +46,10 @@ namespace imajuscule {
                 return c.real();
             }
             
-            static void add_assign(value_type * __restrict res,
-                                   value_type const * __restrict add,
-                                   int const N) {
+            template<typename T2>
+            static void add_assign_output(T2 * __restrict res,
+                                          T const * __restrict add,
+                                          int const N) {
                 for(auto const * resEnd = res + N;
                     res != resEnd;
                     ++res, ++add)
@@ -52,6 +58,17 @@ namespace imajuscule {
                 }
             }
             
+            static void add_assign(T * __restrict res,
+                                   value_type const * __restrict add,
+                                   int const N) {
+                for(auto const * resEnd = res + N;
+                    res != resEnd;
+                    ++res, ++add)
+                {
+                    *res += add->real();
+                }
+            }
+
             static void add_scalar_multiply(iter res_, const_iter add1_, const_iter add2_, T const m, int const N) {
                 // res = m * (add1 + add2)
 
@@ -70,13 +87,42 @@ namespace imajuscule {
             static void copy(value_type * __restrict dest,
                              value_type const * __restrict from,
                              int N) {
-
                 // TODO optimize ?
                 memcpy(dest,
                        from,
                        N * sizeof(value_type));
             }
 
+            static void copyOutputToOutput(T * __restrict dest,
+                                           T const * __restrict from,
+                                           int N) {
+                // TODO optimize ?
+                memcpy(dest,
+                       from,
+                       N * sizeof(T));
+            }
+
+            template<typename TSource>
+            static void copyFromInput(value_type * __restrict dest,
+                                      TSource const * __restrict from,
+                                      int N) {
+                for(int i=0; i!=N; ++i) {
+                    dest[i] = value_type(from[i]);
+                }
+            }
+            
+            template<typename T2>
+            static void copyToOutput(T2 * __restrict dest,
+                                     value_type const * __restrict from,
+                                     int N) {
+                for(int i=0; i!=N; ++i) {
+                    dest[i] = from[i].real();
+                }
+            }
+
+            static void zero_n_raw_output(T * p, int n) {
+                std::fill(p, p+n, T{});
+            }
             static void zero_n_raw(complex<T> * p, int n) {
                 std::fill(p, p+n, value_type{});
             }
@@ -87,10 +133,14 @@ namespace imajuscule {
                 zero_n(v, v.size());
             }
             
-            static void dotpr(complex<T> const * const a, complex<T> const * const b, complex<T> * res, int n) {
-                complex<T> r{};
+            static void dotpr(complex<T> const * const a,
+                              T const * const b,
+                              T * res,
+                              int n) {
+                T r{};
                 for(int i=0; i<n; ++i) {
-                    r += a[i] * b[i];
+                    Assert(0==a->imag());
+                    r += a[i].real() * b[i];
                 }
                 assert(res);
                 *res = r;

@@ -23,7 +23,10 @@ namespace imajuscule::testspatialize {
     }
     
     template<typename Spatialize, typename T = typename Spatialize::FPT>
-    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals, int vectorLength, bool test_zero) {
+    void test(Spatialize & spatialize,
+              std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals,
+              int vectorLength,
+              bool test_zero) {
         using namespace fft;
         constexpr auto nEars = Spatialize::nEars;
         
@@ -42,6 +45,11 @@ namespace imajuscule::testspatialize {
         
         std::vector<std::array<T, nEars>> results;
         
+        /*
+         when test_zero is not set, we feed the entire dirac using assignWetVectorized.
+         when test_zero is set, we feed the first frame of the dirac using assignWetVectorized
+           and subsequent frames using addWetInputZeroVectorized.
+         */
         // feed a dirac
         results.emplace_back();
         std::fill(results.back().begin(), results.back().end(), 1);
@@ -112,19 +120,27 @@ namespace imajuscule::testspatialize {
         }
     }
     template<typename Spatialize, typename T = typename Spatialize::FPT>
-    void test(Spatialize & spatialize, std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals) {
+    void test(Spatialize & spatialize,
+              std::array<a64::vector<T>, Spatialize::nEars> const & ear_signals,
+              int const maxVectorSz) {
+        int sz = std::max(1,
+                          static_cast<int>(spatialize.getBiggestScale()));
+
         std::set<int> vectorLengths;
         vectorLengths.insert(1);
         vectorLengths.insert(2);
         vectorLengths.insert(3);
-        vectorLengths.insert(ear_signals[0].size()/4-1);
-        vectorLengths.insert(ear_signals[0].size()/4+1);
-        vectorLengths.insert(ear_signals[0].size()/4);
-        vectorLengths.insert(ear_signals[0].size()/2);
-        vectorLengths.insert(ear_signals[0].size());
+        vectorLengths.insert(sz/4-1);
+        vectorLengths.insert(sz/4+1);
+        vectorLengths.insert(sz/4);
+        vectorLengths.insert(sz/2);
+        vectorLengths.insert(sz);
         
         for(auto l : vectorLengths) {
             if(l <= 0) {
+                continue;
+            }
+            if(l > maxVectorSz) {
                 continue;
             }
             test(spatialize, ear_signals, l, false);
@@ -153,108 +169,117 @@ namespace imajuscule::testspatialize {
         
         auto f = [](int part_size, auto const & coefficients)
         {
-            typename std::remove_const<typename std::remove_reference<decltype(coefficients)>::type>::type zero_coeffs, opposite_coeffs;
-            zero_coeffs.resize(coefficients.size());
-            int const n_partitions = countPartitions(coefficients.size(), part_size);
-            
-            XFFTsCostsFactors emptyCostFactors;
-            using WorkCplxFreqs = typename fft::RealFBins_<fft::Fastest, double, aP::Alloc>::type;
-            WorkCplxFreqs work;
-            
-            {
-                constexpr auto nOutMono = 1;
-                using Rev = Reverbs<nOutMono, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
-                typename Rev::MemResource::type memory;
-                Rev spatialized;
+            int const max_cb_size = std::max(1,
+                                             static_cast<int>(floor_power_of_two(coefficients.size() / 10)));
+            for(int cb_size = 1; cb_size <= max_cb_size; cb_size*=2) {
+                int const maxVectorSz = maxVectorSizeFromBlockSizeHypothesis(cb_size);
+                typename std::remove_const<typename std::remove_reference<decltype(coefficients)>::type>::type zero_coeffs, opposite_coeffs;
+                zero_coeffs.resize(coefficients.size());
+                int const n_partitions = countPartitions(coefficients.size(), part_size);
                 
-                applyBestParams(spatialized,
-                                memory,
-                                1,
-                                {{coefficients}},
-                                work,
-                                10000,
-                                44100.,
-                                std::cout,
-                                emptyCostFactors
-                                );
+                XFFTsCostsFactors emptyCostFactors;
+                using WorkCplxFreqs = typename fft::RealFBins_<fft::Fastest, double, aP::Alloc>::type;
+                WorkCplxFreqs work;
                 
-                test(spatialized, {{coefficients}});
-            }
-            {
-                constexpr auto nOutStereo = 2;
-                using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
-                typename Rev::MemResource::type memory;
-                Rev spatialized;
-                
-                // no cross-talk :
-                // source1 has only left component
-                // source2 has only right component
-                
-                applyBestParams(spatialized,
-                                memory,
-                                2,
-                                {{coefficients, zero_coeffs, zero_coeffs, coefficients}},
-                                work,
-                                10000,
-                                44100.,
-                                std::cout,
-                                emptyCostFactors
-                                );
-                
-                test(spatialized, {{coefficients, coefficients}});
-            }
-            
-            {
-                constexpr auto nOutStereo = 2;
-                using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
-                typename Rev::MemResource::type memory;
-                Rev spatialized;
-                
-                opposite_coeffs = coefficients;
-                for(auto & o : opposite_coeffs) {
-                    o = -o;
+                {
+                    constexpr auto nOutMono = 1;
+                    using Rev = Reverbs<nOutMono, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                    typename Rev::MemResource::type memory;
+                    Rev spatialized;
+                    
+                    applyBestParams(spatialized,
+                                    memory,
+                                    1,
+                                    {{coefficients}},
+                                    work,
+                                    cb_size,
+                                    maxVectorSz,
+                                    44100.,
+                                    std::cout,
+                                    emptyCostFactors
+                                    );
+                    
+                    test(spatialized, {{coefficients}}, maxVectorSz);
                 }
-                // extreme cross-talk :
-                // source1 right component is the opposite of source 2
-                // source2 right component is the opposite of source 1
-                
-                applyBestParams(spatialized,
-                                memory,
-                                2,
-                                {{coefficients, opposite_coeffs, opposite_coeffs, coefficients}},
-                                work,
-                                10000,
-                                44100.,
-                                std::cout,
-                                emptyCostFactors
-                                );
-                
-                
-                test(spatialized, {{zero_coeffs,zero_coeffs}});
-            }
-            {
-                constexpr auto nOutStereo = 2;
-                using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
-                typename Rev::MemResource::type memory;
-                Rev spatialized;
-                
-                opposite_coeffs = coefficients;
-                for(auto & o : opposite_coeffs) {
-                    o = -o;
+                {
+                    constexpr auto nOutStereo = 2;
+                    using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                    typename Rev::MemResource::type memory;
+                    Rev spatialized;
+                    
+                    // no cross-talk :
+                    // source1 has only left component
+                    // source2 has only right component
+                    
+                    applyBestParams(spatialized,
+                                    memory,
+                                    2,
+                                    {{coefficients, zero_coeffs, zero_coeffs, coefficients}},
+                                    work,
+                                    cb_size,
+                                    maxVectorSz,
+                                    44100.,
+                                    std::cout,
+                                    emptyCostFactors
+                                    );
+                    
+                    test(spatialized, {{coefficients, coefficients}}, maxVectorSz);
                 }
                 
-                applyBestParams(spatialized,
-                                memory,
-                                2,
-                                {{coefficients, opposite_coeffs, zero_coeffs, coefficients}},
-                                work,
-                                10000,
-                                44100.,
-                                std::cout,
-                                emptyCostFactors
-                                );
-                
-                test(spatialized, {{zero_coeffs,coefficients}});
+                {
+                    constexpr auto nOutStereo = 2;
+                    using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                    typename Rev::MemResource::type memory;
+                    Rev spatialized;
+                    
+                    opposite_coeffs = coefficients;
+                    for(auto & o : opposite_coeffs) {
+                        o = -o;
+                    }
+                    // extreme cross-talk :
+                    // source1 right component is the opposite of source 2
+                    // source2 right component is the opposite of source 1
+                    
+                    applyBestParams(spatialized,
+                                    memory,
+                                    2,
+                                    {{coefficients, opposite_coeffs, opposite_coeffs, coefficients}},
+                                    work,
+                                    cb_size,
+                                    maxVectorSz,
+                                    44100.,
+                                    std::cout,
+                                    emptyCostFactors
+                                    );
+                    
+                    
+                    test(spatialized, {{zero_coeffs,zero_coeffs}}, maxVectorSz);
+                }
+                {
+                    constexpr auto nOutStereo = 2;
+                    using Rev = Reverbs<nOutStereo, ReverbType::Offline, PolicyOnWorkerTooSlow::Wait>;
+                    typename Rev::MemResource::type memory;
+                    Rev spatialized;
+                    
+                    opposite_coeffs = coefficients;
+                    for(auto & o : opposite_coeffs) {
+                        o = -o;
+                    }
+                    
+                    applyBestParams(spatialized,
+                                    memory,
+                                    2,
+                                    {{coefficients, opposite_coeffs, zero_coeffs, coefficients}},
+                                    work,
+                                    cb_size,
+                                    maxVectorSz,
+                                    44100.,
+                                    std::cout,
+                                    emptyCostFactors
+                                    );
+                    
+                    test(spatialized, {{zero_coeffs,coefficients}}, maxVectorSz);
+                }
             }
         };
         

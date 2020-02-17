@@ -50,13 +50,15 @@ struct FFTs {
         return *ffts.cycleEnd();
     }
     auto * get_by_age(int age) const {
+        Assert(age >= 0);
+        Assert(age < ffts.size());
         return ffts.get_forward(age).data();
     }
     
     // This method will need to be replaced by rawindex-based iteration to support the async worker case.
     template<typename F>
-    void for_some_recent(int count, F f) const {
-        ffts.for_some_fwd(count, f);
+    void for_some_recent(int startAge, int count, F f) const {
+        ffts.for_some_fwd(startAge, count, f);
     }
     
     void flushToSilence() {
@@ -72,6 +74,16 @@ private:
     cyclic<FBins> ffts;
 };
 
+
+template<typename V>
+auto const & find_ffts(V const & x_ffts, int sz) {
+    for(auto const & f : x_ffts) {
+        if(sz == f.fft_length) {
+            return f;
+        }
+    }
+    throw std::runtime_error("fft not found");
+}
 
 template<Overlap overlap>
 struct XSegments;
@@ -112,14 +124,21 @@ template<typename T, template<typename> typename Allocator, typename Tag>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
     static constexpr auto copy = fft::RealSignal_<Tag, T>::copy;
+    
+    template<typename TT>
+    static constexpr auto copyFromInput = fft::RealSignal_<Tag, T>::template copyFromInput<TT>;
+
+    using RealSignal = typename fft::RealSignal_<Tag, T>::type;
+    using RealValue = typename RealSignal::value_type;
 
     template <Overlap Mode>
-    auto getPastSegments(int const pastSize) const
+    auto getPastSegments(int const prog, int const pastSize) const
     -> typename std::enable_if_t<
     Mode == Overlap::Add,
     XSegments<Overlap::Add>>
     {
-        int start = progress + 1 - pastSize;
+        Assert(pastSize <= x_unpadded_size);
+        int start = prog + 1 - pastSize;
         while(start < 0) {
             start += x_unpadded_size;
         }
@@ -135,12 +154,13 @@ struct XAndFFTS {
     }
 
     template <Overlap Mode>
-    auto getPastSegments(int const pastSize) const
+    auto getPastSegments(int const prog, int const pastSize) const
     -> typename std::enable_if_t<
     Mode == Overlap::Save,
     XSegments<Overlap::Save>>
     {
-        int const start = progress + 1 - pastSize;
+        Assert(pastSize <= x_unpadded_size);
+        int const start = prog + 1 - pastSize;
         Assert(start >= 0);
         return {
             start,
@@ -164,7 +184,6 @@ struct XAndFFTS {
         x_ffts.x_ffts.clear();
         x_ffts.x_ffts.reserve(fftSpecs.size());
         fftHalfSizesBits = 0;
-        fftsHalfSizesBitsToCompute = 0;
         for(auto const & [fftSz, history_sz] : fftSpecs) {
             if(history_sz == 0 || fftSz == 0) {
                 continue;
@@ -237,6 +256,94 @@ struct XAndFFTS {
     }
     
     void push(T v) {
+        prePush();
+
+        x[progress] = typename RealSignal::value_type(v);
+        
+        int const next_progress = progress+1;
+        
+        if constexpr (overlapMode == Overlap::Add) {
+            x_ffts.padding = std::max(x_ffts.padding, next_progress);
+            if(unlikely(x_ffts.padding == x_unpadded_size)) {
+                x_ffts.padding = static_cast<int>(x.size());
+            }
+        }
+
+        tryComputeFfts(next_progress);
+    }
+
+    template<typename T2>
+    void pushVectorized(T2 const * const vals,
+                        int vectorSz) {
+        Assert(vectorSz);
+        int i = 0;
+        if(unlikely(!fftHalfSizesBits)) {
+            while(true) {
+                prePush(); // increments progress
+
+                int distToEnd;
+                if constexpr (overlapMode == Overlap::Add) {
+                    distToEnd = x_unpadded_size - progress;
+                }
+                else {
+                    distToEnd = 2 * x_unpadded_size - progress;
+                }
+                Assert(distToEnd);
+                
+                int const nPush = std::min(vectorSz,
+                                           distToEnd);
+                copyFromInput<T2>(&x[progress],
+                                  &vals[i],
+                                  nPush);
+                progress += nPush-1;
+                vectorSz -= nPush;
+                if constexpr (overlapMode == Overlap::Add) {
+                    x_ffts.padding = std::max(x_ffts.padding, progress);
+                }
+                if(!vectorSz) {
+                    return;
+                }
+                i += nPush;
+            }
+        }
+        else {
+            unsigned int const firstFftHalfSize = x_ffts.x_ffts[0].fft_length/2;
+            do {
+                prePush(); // increments progress
+                unsigned int const distToNextFft = firstFftHalfSize - (progress & (firstFftHalfSize-1));
+                if(unlikely(!distToNextFft)) {
+                    x[progress] = typename RealSignal::value_type(vals[i]);
+                    ++i;
+                    --vectorSz;
+                }
+                else {
+                    if(vectorSz < distToNextFft) {
+                        copyFromInput<T2>(&x[progress],
+                                          &vals[i],
+                                          vectorSz);
+                        progress += vectorSz-1;
+                        if constexpr (overlapMode == Overlap::Add) {
+                            x_ffts.padding = std::max(x_ffts.padding, progress);
+                        }
+                        return;
+                    }
+                    copyFromInput<T2>(&x[progress],
+                                      &vals[i],
+                                      distToNextFft);
+                    progress += distToNextFft-1;
+                    i += distToNextFft;
+                    vectorSz -= distToNextFft;
+                    if constexpr (overlapMode == Overlap::Add) {
+                        x_ffts.padding = std::max(x_ffts.padding, progress);
+                    }
+                }
+                tryComputeFfts(progress+1);
+            } while(vectorSz);
+        }
+    }
+
+private:
+    void prePush() {
         ++progress;
         if constexpr (overlapMode == Overlap::Add) {
             // New x values live in the _first_ half of x.
@@ -256,21 +363,14 @@ struct XAndFFTS {
                      x_unpadded_size);
             }
         }
+    }
+    
+    void tryComputeFfts(int const next_progress)
+    {
+        unsigned int nZeroes = count_trailing_zeroes(next_progress);
+        unsigned int mask = (1 << (nZeroes+1)) - 1;
+        unsigned int fftsHalfSizesBitsToCompute = fftHalfSizesBits & mask;
 
-        x[progress] = typename RealSignal::value_type(v);
-        int const next_progress = progress+1;
-        
-        uint32_t nZeroes = count_trailing_zeroes(next_progress);
-        uint32_t mask = (1 << (nZeroes+1)) - 1;
-        fftsHalfSizesBitsToCompute = fftHalfSizesBits & mask;
-
-        if constexpr (overlapMode == Overlap::Add) {
-            x_ffts.padding = std::max(x_ffts.padding, next_progress);
-            if(unlikely(x_ffts.padding == x_unpadded_size)) {
-                x_ffts.padding = static_cast<int>(x.size());
-            }
-        }
-        
         for(int i=0, nComputedFFTs = count_set_bits(fftsHalfSizesBitsToCompute);
             i<nComputedFFTs;
             ++i)
@@ -304,6 +404,8 @@ struct XAndFFTS {
         }
     }
     
+public:
+    
     int flushToSilence() {
         for(auto & fft:x_ffts.x_ffts) {
             fft.flushToSilence();
@@ -311,53 +413,62 @@ struct XAndFFTS {
         if(!x.empty()) {
             zero_n_raw(&x[0], x.size());
         }
-        int const progressBackup = [this](){
-            if constexpr (overlapMode == Overlap::Add) {
-                Assert(progress < x_unpadded_size);
-                return progress;
-            }
-            else {
-                if(progress >= x_unpadded_size) {
-                    Assert(progress < 2*x_unpadded_size);
-                    return progress - x_unpadded_size;
-                }
-                else {
-                    // when no step has ever been done
-                    Assert(progress == x_unpadded_size-1);
-                    return progress;
-                }
-            }
-        }();
-        progress = x_unpadded_size-1; // for overlap save this works also (it optimizes the first push because there is no need to copy)
         if constexpr (overlapMode == Overlap::Add) {
             x_ffts.padding = x.size();
         }
-        fftsHalfSizesBitsToCompute = 0;
-        Assert(progressBackup <= x_unpadded_size);
-        return progress - progressBackup;
+        int const progressBackup = progress;
+        progress = x_unpadded_size-1; // for overlap save this works also (it optimizes the first push because there is no need to copy)
+        if constexpr (overlapMode == Overlap::Add) {
+            Assert(progressBackup <= x_unpadded_size);
+            return progress - progressBackup;;
+        }
+        else {
+            return 2*x_unpadded_size - progressBackup - 1;
+        }
     }
     
     int32_t progress = 0; // the last position that has been written to
     int32_t x_unpadded_size = 0;
 
-    using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     RealSignal x;
     
     uint32_t fftHalfSizesBits = 0; // if we use the fft of sz 2^(n+1), the nth bit is set
-    uint32_t fftsHalfSizesBitsToCompute = 0;
     
     FFTsComputation<overlapMode, T, Allocator, Tag> x_ffts;
 
     float phase_group_ratio = 0.; // in [0,1[
     std::optional<float> phase_period;
 
-    auto const & find_ffts(int sz) const {
-        for(auto const & f : x_ffts.x_ffts) {
-            if(sz == f.fft_length) {
-                return f;
+    // when last write was on 'prog', was there a fft of size 2*'halfSize' ?
+    bool hasDoneFFTAtProgressForHalfSize(int prog, unsigned int halfSize) const {
+        Assert(is_power_of_two(halfSize));
+        Assert(halfSize & fftHalfSizesBits);
+        if constexpr (overlapMode == Overlap::Add) {
+            Assert(0);
+        }
+        else {
+            while(prog < 0) {
+                prog += x_unpadded_size;
+            }
+            while(prog >= x_unpadded_size) {
+                prog -= x_unpadded_size;
+            }
+            unsigned int const p = prog;
+            return (p+1) & halfSize;
+        }
+    }
+    
+    int countFftsSinceForhalfSize(int const since,
+                                  unsigned int halfSize) const {
+        Assert(since > 0);
+        int res = 0;
+        for(int i=0; i<since; ++i) {
+            if(hasDoneFFTAtProgressForHalfSize(progress - i,
+                                               halfSize)) {
+                res += 1;
             }
         }
-        throw std::runtime_error("fft not found");
+        return res;
     }
 
     void logComputeState(std::ostream & os) const {
@@ -395,22 +506,94 @@ struct YSegments {
 
 template<typename T, typename Tag>
 struct Y {
+    static constexpr auto zero_n_raw_output= fft::RealSignal_<Tag, T>::zero_n_raw_output;
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
     static constexpr auto get_signal = fft::RealSignal_<Tag, T>::get_signal;
-    static constexpr auto copy = fft::RealSignal_<Tag, T>::copy;
+    
     static constexpr auto add_assign = fft::RealSignal_<Tag, T>::add_assign;
+    template<typename TT>
+    static constexpr auto add_assign_output= fft::RealSignal_<Tag, T>::template add_assign_output<TT>;
+
+    static constexpr auto copyOutputToOutput = fft::RealSignal_<Tag, T>::copyOutputToOutput;
+    template<typename TT>
+    static constexpr auto copyToOutput = fft::RealSignal_<Tag, T>::template copyToOutput<TT>;
 
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
+    using RealOutputSignal = typename fft::RealSignal_<Tag, T>::outputType;
     using RealValue = typename RealSignal::value_type;
+    using RealOutputValue = typename RealOutputSignal::value_type;
 
     T getCurrentSignal() const
     {
-        return get_signal(y[progress]);
+        return y[progress];
     }
 
-    void addAssign(int unbounded_future_progress, // >= uProgress anb maybe > ySz
-                   typename RealSignal::value_type * x,
-                   int N)
+    template<typename T2>
+    void assignSignalVectorized(T2 * output_buffer,
+                                int vectorSize) {
+        Assert(vectorSize);
+        write_sz = std::max(0,
+                            write_sz-vectorSize);
+        int const distFromEnd = ySz-progress;
+        if(vectorSize < distFromEnd) {
+            copyOutputToOutput(&output_buffer[0],
+                               &y[progress],
+                               vectorSize);
+            progress += vectorSize;
+        }
+        else {
+            copyOutputToOutput(&output_buffer[0],
+                               &y[progress],
+                               distFromEnd);
+            Assert(progress+distFromEnd == ySz);
+            progress = 0;
+            vectorSize -= distFromEnd;
+            if(vectorSize) {
+                Assert(vectorSize <= ySz);
+                copyOutputToOutput(&output_buffer[distFromEnd],
+                                   &y[0],
+                                   vectorSize);
+                progress += vectorSize;
+            }
+        }
+    }
+    
+    template<typename T2>
+    void addSignalVectorized(T2 * output_buffer,
+                             int vectorSize) {
+        Assert(vectorSize);
+        write_sz = std::max(0,
+                            write_sz-vectorSize);
+        int const distFromEnd = ySz-progress;
+        if(vectorSize < distFromEnd) {
+            add_assign_output<T2>(&output_buffer[0],
+                                  &y[progress],
+                                  vectorSize);
+            progress += vectorSize;
+        }
+        else {
+            add_assign_output<T2>(&output_buffer[0],
+                                  &y[progress],
+                                  distFromEnd);
+            Assert(progress+distFromEnd == ySz);
+            progress = 0;
+            vectorSize -= distFromEnd;
+            if(vectorSize) {
+                Assert(vectorSize < ySz);
+                add_assign_output<T2>(&output_buffer[distFromEnd],
+                                      &y[0],
+                                      vectorSize);
+                progress += vectorSize;
+            }
+        }
+    }
+    
+    template<typename Input, typename FAddAssign, typename FCopyToOutput>
+    void addAssign_(int unbounded_future_progress, // >= uProgress anb maybe > ySz
+                    Input * x,
+                    FAddAssign fAddAssign,
+                    FCopyToOutput fCopyToOutput,
+                    int N)
     {
         // zero from
         //  uProgress + write_sz
@@ -425,14 +608,14 @@ struct Y {
                 Assert(first_old < ySz);
                 int const diff = first_old - write_sz_from_future_progress - ySz;
                 if(diff > 0) {
-                    zero_n_raw(&y[first_old],
-                               (-write_sz_from_future_progress)-diff);
-                    zero_n_raw(&y[0],
-                               diff);
+                    zero_n_raw_output(&y[first_old],
+                                      (-write_sz_from_future_progress)-diff);
+                    zero_n_raw_output(&y[0],
+                                      diff);
                 }
                 else {
-                    zero_n_raw(&y[first_old],
-                               -write_sz_from_future_progress);
+                    zero_n_raw_output(&y[first_old],
+                                      -write_sz_from_future_progress);
                 }
                 write_sz_from_future_progress = 0;
             }
@@ -440,33 +623,33 @@ struct Y {
         
         int const future_progress = (unbounded_future_progress < ySz) ? unbounded_future_progress : (unbounded_future_progress - ySz);
         Assert(future_progress < ySz);
-
+        
         auto s = getFutureSegments(future_progress, N);
         if(likely(s.size_from_progress)) {
             
             if(write_sz_from_future_progress >= s.size_from_progress) {
-                add_assign(&y[future_progress],
+                fAddAssign(&y[future_progress],
                            &x[0],
                            s.size_from_progress);
             }
             else if(write_sz_from_future_progress == 0) {
-                copy(&y[future_progress],
-                     &x[0],
-                     s.size_from_progress);
+                fCopyToOutput(&y[future_progress],
+                              &x[0],
+                              s.size_from_progress);
             }
             else {
                 Assert(write_sz_from_future_progress < s.size_from_progress);
-                add_assign(&y[future_progress],
+                fAddAssign(&y[future_progress],
                            &x[0],
                            write_sz_from_future_progress);
-                copy(&y[future_progress + write_sz_from_future_progress],
-                     &x[write_sz_from_future_progress],
-                     s.size_from_progress-write_sz_from_future_progress);
+                fCopyToOutput(&y[future_progress + write_sz_from_future_progress],
+                              &x[write_sz_from_future_progress],
+                              s.size_from_progress-write_sz_from_future_progress);
             }
             
             if(unlikely(s.size_from_zero)) {
                 if(write_sz_from_future_progress >= N) {
-                    add_assign(&y[0],
+                    fAddAssign(&y[0],
                                &x[s.size_from_progress],
                                s.size_from_zero);
                 }
@@ -475,18 +658,18 @@ struct Y {
                                                             future_progress + write_sz_from_future_progress - ySz);
                     x += s.size_from_progress;
                     if(write_sz_from_zero == 0) {
-                        copy(y.data(),
-                             x,
-                             s.size_from_zero);
+                        fCopyToOutput(y.data(),
+                                      x,
+                                      s.size_from_zero);
                     }
                     else {
                         Assert(write_sz_from_future_progress < N);
-                        add_assign(&y[0],
+                        fAddAssign(&y[0],
                                    x,
                                    write_sz_from_zero);
-                        copy(&y[write_sz_from_zero],
-                             x + write_sz_from_zero,
-                             s.size_from_zero - write_sz_from_zero);
+                        fCopyToOutput(&y[write_sz_from_zero],
+                                      x + write_sz_from_zero,
+                                      s.size_from_zero - write_sz_from_zero);
                     }
                 }
             }
@@ -495,37 +678,40 @@ struct Y {
         }
     }
     
-    void addAssignPresent(typename RealSignal::value_type * x,
-                          int N)
+    template<typename Input, typename FAddAssign, typename FCopyToOutput>
+    void addAssignPresent_(Input * x,
+                           FAddAssign fAddAssign,
+                           FCopyToOutput fCopyToOutput,
+                           int N)
     {
         auto s = getFutureSegments(progress, N);
         if(likely(s.size_from_progress)) {
             
             if(write_sz >= s.size_from_progress) {
-                add_assign(&y[progress],
+                fAddAssign(&y[progress],
                            &x[0],
                            s.size_from_progress);
             }
             else {
                 if(write_sz == 0) {
-                    copy(&y[progress],
-                         &x[0],
-                         s.size_from_progress);
+                    fCopyToOutput(&y[progress],
+                                  &x[0],
+                                  s.size_from_progress);
                 }
                 else {
                     Assert(write_sz < s.size_from_progress);
-                    add_assign(&y[progress],
+                    fAddAssign(&y[progress],
                                &x[0],
                                write_sz);
-                    copy(&y[progress + write_sz],
-                         &x[write_sz],
-                         s.size_from_progress-write_sz);
+                    fCopyToOutput(&y[progress + write_sz],
+                                  &x[write_sz],
+                                  s.size_from_progress-write_sz);
                 }
             }
             
             if(unlikely(s.size_from_zero)) {
                 if(write_sz >= N) {
-                    add_assign(&y[0],
+                    fAddAssign(&y[0],
                                &x[s.size_from_progress],
                                s.size_from_zero);
                 }
@@ -534,26 +720,57 @@ struct Y {
                                                             progress + write_sz - ySz);
                     x += s.size_from_progress;
                     if(write_sz_from_zero == 0) {
-                        copy(y.data(),
-                             x,
-                             s.size_from_zero);
+                        fCopyToOutput(y.data(),
+                                      x,
+                                      s.size_from_zero);
                     }
                     else {
                         Assert(write_sz < N);
-                        add_assign(&y[0],
+                        fAddAssign(&y[0],
                                    x,
                                    write_sz_from_zero);
-                        copy(&y[write_sz_from_zero],
-                             x + write_sz_from_zero,
-                             s.size_from_zero - write_sz_from_zero);
+                        fCopyToOutput(&y[write_sz_from_zero],
+                                      x + write_sz_from_zero,
+                                      s.size_from_zero - write_sz_from_zero);
                     }
                 }
             }
-
+            
             write_sz = std::max(write_sz, N);
         }
     }
     
+    void addAssignPresent(typename RealSignal::value_type * x,
+                          int N) {
+        addAssignPresent_(x, add_assign, copyToOutput<T>, N);
+    }
+
+    template <typename T2>
+    auto addAssignPresent(T2 * x,
+                          int N)
+    -> std::enable_if_t<std::is_same_v<T, T2> &&
+                        !std::is_same_v<T2, typename RealSignal::value_type>, void>
+    {
+        addAssignPresent_(x, add_assign_output<T>, copyOutputToOutput, N);
+    }
+
+    
+    void addAssign(int unbounded_future_progress,
+                   typename RealSignal::value_type * x,
+                   int N) {
+        addAssign_(unbounded_future_progress, x, add_assign, copyToOutput<T>, N);
+    }
+    
+    template <typename T2>
+    auto addAssign(int unbounded_future_progress,
+                   T2 * x,
+                   int N)
+    -> std::enable_if_t<std::is_same_v<T, T2> &&
+    !std::is_same_v<T2, typename RealSignal::value_type>, void>
+    {
+        addAssign_(unbounded_future_progress, x, add_assign_output<T>, copyOutputToOutput, N);
+    }
+
 private:
     YSegments getFutureSegments(int const from, int const future) const {
         int const end = from + future;
@@ -569,11 +786,39 @@ public:
     void writeOne(RealValue val)
     {
         if(write_sz) {
+            y[progress] += get_signal(val);
+        }
+        else {
+            y[progress] = get_signal(val);
+            write_sz = 1;
+        }
+    }
+    
+    void writeOneOutput(RealOutputValue val)
+    {
+        if(write_sz) {
             y[progress] += val;
         }
         else {
             y[progress] = val;
             write_sz = 1;
+        }
+    }
+    
+    void writeOneFuture(unsigned int const future,
+                        RealOutputValue const val)
+    {
+        unsigned int i = progress+future;
+        if(i >= ySz) {
+            i -= ySz; // if ySz was a power of 2 we could use a bitwise operation for this (set the bit to 0)
+        }
+        if(write_sz == future) {
+            y[i] = val;
+            write_sz = future+1;
+        }
+        else {
+            Assert(write_sz > future);
+            y[i] += val;
         }
     }
 
@@ -596,13 +841,14 @@ public:
     }
     
     void flushToSilence(int const nStepsForward) {
-        zero_n_raw(&y[0], ySz);
+        zero_n_raw_output(&y[0], ySz);
         
         Assert(nStepsForward >= 0);
         
         for(int i=0; i<nStepsForward; ++i) {
             increment();
         }
+        write_sz = 0;
     }
 
     void logComputeState(std::ostream & os) const {
@@ -610,9 +856,9 @@ public:
         os << "y progress " << progress << std::endl;
     }
 private:
-    RealSignal y;
+    RealOutputSignal y;
 public:
-    int32_t progress = 0;
+    int32_t progress = 0; // the location that will be written to next
     int32_t ySz=0;
     int32_t write_sz = 0; // the number of locations, starting from uProgress, that are _not_ old samples.
 };
@@ -636,8 +882,8 @@ struct XYConvolution {
     
     using SetupParam = typename Algo::SetupParam;
 
-    static int getAllocationSz_Setup(SetupParam const & p) {
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
+    static int getAllocationSz_Setup(SetupParam const & p, int const maxVectorSz) {
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
         return XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
     }
     
@@ -646,9 +892,10 @@ struct XYConvolution {
     }
 
     void setup(SetupParam const & p,
-               WorkCplxFreqs & work)
+               WorkCplxFreqs & work,
+               int const maxVectorSz)
     {
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
         
         work.reserve(req.minWorkSize);
         
@@ -717,33 +964,43 @@ struct XYConvolution {
     }
     
     template<typename FPT2>
-    void stepAssignVectorized(FPT2 const * const input_buffer,
-                              FPT2 * output_buffer,
-                              int nSamples,
-                              Algo const & algo)
-    {
-        for(int i=0; i<nSamples; ++i) {
-            output_buffer[i] = step(input_buffer[i], algo);
-        }
-    }
-    template<typename FPT2>
     void stepAddVectorized(FPT2 const * const input_buffer,
                            FPT2 * output_buffer,
-                           int nSamples,
-                           Algo const & algo)
+                           int const vectorSize,
+                           Algo const & algo,
+                           WorkData * workData)
     {
-        for(int i=0; i<nSamples; ++i) {
-            output_buffer[i] += step(input_buffer[i], algo);
-        }
+        x_and_ffts.pushVectorized(input_buffer,
+                                  vectorSize);
+        
+        algo.stepVectorized(state,
+                            x_and_ffts,
+                            y,
+                            workData,
+                            vectorSize);
+        
+        y.addSignalVectorized(output_buffer,
+                              vectorSize);
     }
+    
     template<typename FPT2>
-    void stepAddInputZeroVectorized(FPT2 * output_buffer,
-                                    int nSamples,
-                                    Algo const & algo)
+    void stepAssignVectorized(FPT2 const * const input_buffer,
+                              FPT2 * output_buffer,
+                              int const vectorSize,
+                              Algo const & algo,
+                              WorkData * workData)
     {
-        for(int i=0; i<nSamples; ++i) {
-            output_buffer[i] += step({}, algo);
-        }
+        x_and_ffts.pushVectorized(input_buffer,
+                                  vectorSize);
+        
+        algo.stepVectorized(state,
+                            x_and_ffts,
+                            y,
+                            workData,
+                            vectorSize);
+        
+        y.assignSignalVectorized(output_buffer,
+                                 vectorSize);
     }
     
     void flushToSilence(Algo const & algo) {
@@ -786,14 +1043,16 @@ struct alignas(64) SelfContainedXYConvolution {
     using WorkCplxFreqs = typename XYConvolution<Algo>::WorkCplxFreqs;
     using SetupParam = typename Algo::SetupParam;
     using FPT = typename Algo::FPT;
-    using FFTTag = typename Algo::Tag;
+    using Tag = typename Algo::Tag;
     
     template<typename TT>
     using Allocator = typename State::template Allocator<TT>;
     
-    void setupAndSetCoefficients(SetupParam const & p, a64::vector<FPT> v) {
+    void setupAndSetCoefficients(SetupParam const & p,
+                                 int const maxVectorSz,
+                                 a64::vector<FPT> v) {
         memory.clear();
-        int const requiredSetup = State::getAllocationSz_Setup(p);
+        int const requiredSetup = State::getAllocationSz_Setup(p, maxVectorSz);
         int const requiredCoeffs = State::getAllocationSz_SetCoefficients(p);
         int const required = requiredCoeffs + requiredSetup;
         memory.reserve(required);
@@ -803,7 +1062,7 @@ struct alignas(64) SelfContainedXYConvolution {
 
             algo.setup(p);
             if(algo.isValid()) {
-                state.setup(p, work);
+                state.setup(p, work, maxVectorSz);
                 state.setCoefficients(std::move(v), algo);
             }
         }
@@ -843,6 +1102,32 @@ struct alignas(64) SelfContainedXYConvolution {
                           algo,
                           work.data());
     }
+    
+    // vectorLength is expected to be no greater than maxVectorSz passed to setupAndSetCoefficients
+    template<typename FPT2>
+    void stepAddVectorized(FPT2 const * const input_buffer,
+                           FPT2 * output_buffer,
+                           int const vectorLength)
+    {
+        return state.stepAddVectorized(input_buffer,
+                                       output_buffer,
+                                       vectorLength,
+                                       algo,
+                                       work.data());
+    }
+    // vectorLength is expected to be no greater than maxVectorSz passed to setupAndSetCoefficients
+    template<typename FPT2>
+    void stepAssignVectorized(FPT2 const * const input_buffer,
+                              FPT2 * output_buffer,
+                              int const vectorLength)
+    {
+        return state.stepAssignVectorized(input_buffer,
+                                          output_buffer,
+                                          vectorLength,
+                                          algo,
+                                          work.data());
+    }
+
     void flushToSilence()
     {
         state.flushToSilence(algo);
@@ -868,7 +1153,7 @@ struct alignas(64) SelfContainedXYConvolution {
         return algo.getBiggestScale();
     }
 
-    using FBinsAllocator = typename fft::RealFBins_<FFTTag, FPT, Allocator>::type::allocator_type;
+    using FBinsAllocator = typename fft::RealFBins_<Tag, FPT, Allocator>::type::allocator_type;
     using MemResource = MemResource<FBinsAllocator>;
 
     WorkCplxFreqs work;

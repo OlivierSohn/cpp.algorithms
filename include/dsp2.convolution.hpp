@@ -1,6 +1,20 @@
 
 namespace imajuscule {
 
+/*
+ Notations for complexity:
+ 
+ H : length of impulse response
+ 
+ A : number of frames computed during one audio callback
+ 
+ PART_N : Number of partitions
+ PART_L : Length of one partition
+ ( H == PART_N * PART_L )
+ 
+ The computations are based on the fact that an fft of an S-long signal costs S*lg(S)
+ */
+
 template<typename Algo>
 auto scaleFactor(typename Algo::FPT fft_length) -> typename Algo::FPT {
     return 1. / (Algo::scale * Algo::scale * fft_length);
@@ -10,6 +24,17 @@ struct DescFFTConvolutionIntermediate {
     static constexpr int nCoefficientsFadeIn = 0;
     static constexpr bool has_subsampling = false;
     static constexpr bool step_can_error = false;
+};
+
+struct StepsData {
+    StepsData(int nBlockSteps,
+              int yPhase)
+    : nBlockSteps(nBlockSteps)
+    , yPhase(yPhase)
+    {}
+    
+    int nBlockSteps;
+    int yPhase;
 };
 
 template <typename Parent>
@@ -38,7 +63,49 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     void dephaseStep(State & s, int x_progress) const {
         doDephaseStep(s, x_progress);
     }
-
+    
+    StepsData getStepsData(int const x_progress,
+                           int const vectorSz) const
+    {
+        auto const N = getBlockSize();
+        int const h = static_cast<unsigned int>(x_progress + 1) & ~(N-1);
+        int const l = static_cast<unsigned int>(x_progress + 1 - vectorSz) & ~(N-1);
+        int const log2Blocksize = count_trailing_zeroes(N);
+        
+        return {
+            (h-l) >> log2Blocksize,
+            static_cast<int>((N - ((static_cast<unsigned int>(x_progress + 2 - vectorSz)) & (N-1))) & (N-1))
+        };
+        
+        /*
+        int nForceSteps2 = x_and_ffts.countFftsSinceForhalfSize(vectorSz,
+                                                               N);
+        Assert(nForceSteps==nForceSteps2);
+        */
+    }
+    
+    template<template<typename> typename Allocator2, typename WorkData>
+    void stepVectorized(State & s,
+                        XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+                        Y<T, Tag> & y,
+                        WorkData * workData,
+                        int const vectorSz) const
+    {
+        if(unlikely(s.isZero())) {
+            return;
+        }
+        auto stepsData = getStepsData(x_and_ffts.progress,
+                                      vectorSz);
+        if(!stepsData.nBlockSteps) {
+            return;
+        }
+        forceSteps(s,
+                   x_and_ffts,
+                   y,
+                   workData,
+                   stepsData);
+    }
+    
     template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
               XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
@@ -53,47 +120,61 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
         if(unlikely(!N)) {
             return;
         }
-        auto fft_length = get_fft_length();
-        Assert(fft_length == 2*N);
         Assert(is_power_of_two(N));
         
-        if((x_and_ffts.fftsHalfSizesBitsToCompute & static_cast<uint32_t>(N)) != N) {
-            return;
+        if((static_cast<uint32_t>(x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1)) == 0) {
+            forceSteps(s,
+                       x_and_ffts,
+                       y,
+                       workData,
+                       {1, 0});
         }
-        
-        Assert((static_cast<uint32_t>(x_and_ffts.progress + 1) & static_cast<uint32_t>(getBlockSize()-1)) == 0);
-        
-        forceStep(s,
-                  x_and_ffts,
-                  y,
-                  workData);
     }
     
     template<template<typename> typename Allocator2, typename WorkData>
-    void forceStep(State const & s,
-                   XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
-                   Y<T, Tag> & y,
-                   WorkData * workData) const
+    void forceSteps(State const & s,
+                    XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+                    Y<T, Tag> & y,
+                    WorkData * workData,
+                    StepsData const & d) const
     {
+        Assert(d.nBlockSteps);
+        
         auto const fft_length = get_fft_length();
 
-        auto const & ffts = x_and_ffts.find_ffts(fft_length);
+        auto const & ffts = find_ffts(x_and_ffts.x_ffts.x_ffts,
+                                      fft_length);
         
-        compute_convolution(s, ffts, workData);
-        
-        ffts.fft.inverse(&workData[0],
-                         &workData[fft_length],
-                         fft_length);
-        
-        if constexpr (overlapMode == Overlap::Add) {
-            y.addAssignPresent(&workData[fft_length],
-                               fft_length);
+        for(int i=0; i<d.nBlockSteps; ++i) {
+            compute_convolution(s, ffts, workData, d.nBlockSteps-i-1);
+            
+            ffts.fft.inverse(&workData[0],
+                             &workData[fft_length],
+                             fft_length);
+            
+            if(i==0 && d.yPhase == 0) {
+                if constexpr (overlapMode == Overlap::Add) {
+                    y.addAssignPresent(&workData[fft_length],
+                                       fft_length);
+                }
+                else {
+                    y.addAssignPresent(&workData[fft_length+fft_length/2],
+                                       fft_length/2);
+                }
+            }
+            else {
+                if constexpr (overlapMode == Overlap::Add) {
+                    y.addAssign(y.progress + d.yPhase + i*getBlockSize(),
+                                &workData[fft_length],
+                                fft_length);
+                }
+                else {
+                    y.addAssign(y.progress + d.yPhase + i*getBlockSize(),
+                                &workData[fft_length+fft_length/2],
+                                fft_length/2);
+                }
+            }
         }
-        else {
-            y.addAssignPresent(&workData[fft_length+fft_length/2],
-                               fft_length/2);
-        }
-        
     }
     
     void flushToSilence(State & s) const {
@@ -103,9 +184,20 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
 
 
 /*
+ * runtime complexity:
+ *
+ *   every H frames  ............... O( H * lg(H) )
+ *
+ *   every frame  .................. O( lg(H) )       [amortized]
+ *
+ *   when 'H < A':
+ *     worst audio callback call ... O( A * lg(H) )    (= A/H * O( H * lg(H) ))
+ *
+ *   when 'A < H ':
+ *     worst audio callback call ... O( H * lg(H) )
+ *
+ * optimization : H and A are fixed so we cannot optimize this algorithm
  */
-
-
 template <typename T, template<typename> typename Allocator, typename Tag>
 struct AlgoFFTConvolutionCRTP;
 
@@ -227,10 +319,11 @@ protected:
     template<template<typename> typename Allocator2>
     void compute_convolution(State const & s,
                              FFTs<T, Allocator2, Tag> const & ffts,
-                             CplxFreqsValueType * workData) const
+                             CplxFreqsValueType * workData,
+                             int const futureBlock) const
     {
         fft::RealFBins_<Tag, FPT, Allocator2>::multiply(workData,
-                                                        ffts.get_by_age(0),
+                                                        ffts.get_by_age(futureBlock),
                                                         s.fft_of_h.data(),
                                                         N);
     }
@@ -239,10 +332,56 @@ private:
     int N;
 };
 
+
 /*
+ * Partitionned convolution, cf. http://www.ericbattenberg.com/school/partconvDAFx2011.pdf
+ *
+ * The impulse response h is split in parts of equal length h1, h2, ... hn
+ *
+ *                     FFT(h1)
+ *                        v
+ *       +-----+    +-----------+  +-----+  +------+
+ * x +-->| FFT |-|->| cplx mult |->| Add |->| IFFT |--> y
+ *       +-----+ v  +-----------+  +-----+  +------+
+ *          +--------+               ^
+ *          |Delay(N)| FFT(h2)       |
+ *          +--------+    v          |
+ *               |  +-----------+    |
+ *               |->| cplx mult |----|
+ *               |  +-----------+    |
+ *               .         .         .
+ *               .         .         .
+ *               .                   .
+ *               v                   |
+ *          +--------+               |
+ *          |Delay(N)| FFT(hn)       |
+ *          +----+---+    v          |
+ *               |  +-----------+    |
+ *               -->| cplx mult |----|
+ *                  +-----------+
+ *
+ * Notes : Convolution in "time" space is the same as multiplication in "frequency" space.
+ *
+ * runtime complexity:
+ *
+ *   every PART_L frames                :   O( PART_L * (PART_N + lg(PART_L) ) )
+ *
+ *   every frame                        :   O( PART_N + lg(PART_L) )      [amortized]
+ *
+ *   with 'PART_L < A':
+ *     worst audio callback call ... O(     A  * (part_N + lg(PART_L)) )       (= A/PART_L *  O( PART_L * (PART_N + lg(PART_L) ) )
+ *
+ *   with 'A < PART_L '
+ *     worst audio callback call ... O( PART_L * (PART_N + lg(PART_L) ) )
+ *                                 = O( PART_L * (H/PART_L + lg(PART_L) ) )
+ *                                 = O( H + PART_L * lg(PART_L) ) )
+ *
+ * optimization : PART_L is not fixed so we can optimize this algorithm by trying different powers of 2
+ *                also we can optimize more globally, taking into account that we have one reverb per channel:
+ *                when N_Channel * A < PART_L we can distribute the computes over the different callbacks calls, provided the "phases"
+ *                of the different algorithms are well-spaced.
+ *
  */
-
-
 template <typename T, template<typename> typename Allocator, typename Tag>
 struct AlgoPartitionnedFFTConvolutionCRTP;
 
@@ -396,7 +535,8 @@ protected:
     template<template<typename> typename Allocator2>
     void compute_convolution(State const & s,
                              FFTs<T, Allocator2, Tag> const & ffts,
-                             CplxFreqsValueType * workData) const
+                             CplxFreqsValueType * workData,
+                             int futureBlock) const
     {
         int index = 0;
         using CplxFreqs2 = typename fft::RealFBins_<Tag, FPT, Allocator2>::type;
@@ -421,7 +561,7 @@ protected:
             int partition_size;
         } f{index, s.ffts_of_partitionned_h, workData, partition_size};
         
-        ffts.for_some_recent(s.ffts_of_partitionned_h.size(), f);
+        ffts.for_some_recent(futureBlock, s.ffts_of_partitionned_h.size(), f);
     }
     
 private:

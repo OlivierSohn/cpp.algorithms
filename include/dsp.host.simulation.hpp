@@ -81,11 +81,14 @@ private:
     };
 };
 
+template<typename T>
 struct AudioHostSimulator {
+    using FPT = T;
+    
     double const frame_rate;
     int const n_audio_frames_per_cb;
 private:
-    std::vector<a64::vector<float>> inputs, outputs;
+    std::vector<a64::vector<T>> inputs, outputs;
     int curFrame = 0;
     int maxSz;
 public:
@@ -111,8 +114,8 @@ public:
     
     AudioHostSimulator(double const frame_rate,
                        int const n_audio_frames_per_cb,
-                       std::vector<a64::vector<float>> inputs,
-                       std::vector<a64::vector<float>> outputs)
+                       std::vector<a64::vector<T>> inputs,
+                       std::vector<a64::vector<T>> outputs)
     : frame_rate(frame_rate)
     , n_audio_frames_per_cb(n_audio_frames_per_cb)
     , inputs(std::move(inputs))

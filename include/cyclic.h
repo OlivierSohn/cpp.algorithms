@@ -166,21 +166,32 @@ namespace imajuscule
             std::for_each(begin(), start, f);
         }
         template<typename F>
-        int for_some_fwd(int n, F f) const {
+        void for_some_fwd(int startAge, int n, F f) const {
             auto start = cycleEnd();
             for(auto i = start, end_ = end();
                 i != end_ && n > 0;
-                ++i, --n)
+                ++i)
             {
-                f(*i);
+                if(startAge) {
+                    --startAge;
+                }
+                else {
+                    f(*i);
+                    --n;
+                }
             }
             for(auto i = begin();
                 i != start && n > 0;
-                ++i, --n)
+                ++i)
             {
-                f(*i);
+                if(startAge) {
+                    --startAge;
+                }
+                else {
+                    f(*i);
+                    --n;
+                }
             }
-            return n;
         }
         
         template<typename F>

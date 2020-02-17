@@ -178,6 +178,9 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
     auto get_fft_length() const { return 2 * (1+partition_size_minus_one); }
     
     auto getBlockSize() const { return 1+partition_size_minus_one; }
+    int getBiggestScale() const {
+        return getBlockSize();
+    }
     
     auto getMultiplicationsGroupMaxSize() const { return mult_grp_len; }
     auto countMultiplicativeGrains() const {
@@ -210,7 +213,7 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
     }
     
     void dephaseStep(State & s,
-                     int const x_progress) const {
+                     unsigned int const x_progress) const {
         //LG(INFO, "dephase by %d", n_steps);
         if(unlikely(countPartitions() == 0)) {
             return;
@@ -224,11 +227,80 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
         }
     }
 
+    
+    template<template<typename> typename Allocator2, typename WorkData>
+    void stepVectorized(State & s,
+                        XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
+                        Y<T, Tag> & y,
+                        WorkData * workData,
+                        int vectorSz) const
+    {
+        if(unlikely(countPartitions() == 0)) {
+            return;
+        }
+        assert(isValid());
+
+        int const N = getBlockSize();
+        
+        int const log2Blocksize = count_trailing_zeroes(N);
+        int const h = static_cast<unsigned int>(x_and_ffts.progress+1) & ~(N-1);
+        
+        int yPhase = 0;
+        //int const yPhase = (N - ((static_cast<unsigned int>(x_and_ffts.progress+2-vectorSz)) & (N-1))) & (N-1);
+
+        unsigned int x_progress_simu = x_and_ffts.progress + 1 - vectorSz;
+
+        int const l = static_cast<unsigned int>(x_progress_simu) & ~(N-1);
+        int nForceSteps = (h-l) >> log2Blocksize;
+
+        do {
+            Assert(vectorSz > 0);
+                        
+            /*
+            int nForceSteps2 = x_and_ffts.countFftsSinceForhalfSize(vectorSz,
+                                                                   N);
+            Assert(nForceSteps==nForceSteps2);
+             */
+            
+            ++s.grain_counter;
+            auto g = nextGrain(s, x_progress_simu);
+            x_progress_simu += g.first + 1;
+            assert(g.first >= 0);
+            if(g.first <= vectorSz-1) {
+                yPhase += g.first;
+                vectorSz -= g.first + 1;
+#ifndef NDEBUG
+                s.grain_counter += g.first; // just to satisfy an assert, but since we don't use grain_counter there is no need to do this in release.
+#endif
+                doGrain(s,
+                        x_and_ffts,
+                        y,
+                        g.second,
+                        workData,
+                        nForceSteps,
+                        yPhase);
+                if(g.second == GrainType::FFT) {
+                    --nForceSteps;
+                }
+                ++yPhase;
+                s.updatePostGrain(g.second);
+                s.grain_counter = 0;
+            }
+            else {
+                s.grain_counter += vectorSz-1;
+                break;
+            }
+        } while (vectorSz);
+        
+        Assert(nForceSteps==0);
+    }
+    
     template<template<typename> typename Allocator2, typename WorkData>
     void step(State & s,
               XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
               Y<T, Tag> & y,
-              WorkData * workData) const {
+              WorkData * workData) const
+    {
         if(unlikely(countPartitions() == 0)) {
             return;
         }
@@ -237,7 +309,13 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
         auto g = nextGrain(s, x_and_ffts.progress);
         assert(g.first >= 0);
         if(unlikely(g.first == 0)) {
-            doGrain(s, x_and_ffts, y, g.second, workData);
+            doGrain(s,
+                    x_and_ffts,
+                    y,
+                    g.second,
+                    workData,
+                    0,
+                    0);
             s.updatePostGrain(g.second);
             s.grain_counter = 0;
         }
@@ -250,7 +328,7 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
 private:
 
     std::pair<int, GrainType> nextGrain(State const & s,
-                                        int const x_progress) const {
+                                        unsigned int const x_progress) const {
         
         auto const n_mult_grains_remaining = count_multiplicative_grains - s.grain_number;
         
@@ -277,15 +355,18 @@ private:
                  XAndFFTS<T, Allocator2, Tag> const & x_and_ffts,
                  Y<T, Tag> & y,
                  GrainType g,
-                 WorkData * workData) const
+                 WorkData * workData,
+                 int const futureBlock,
+                 int const yPhase) const
     {
         if(g == GrainType::FFT) {
             // the fft is implicit (in x_and_ffts)
-            Assert(0 == ((x_and_ffts.progress+1) & partition_size_minus_one)); // make sure 'rythm is good'
+            //Assert(0 == ((x_and_ffts.progress+1) & partition_size_minus_one)); // make sure 'rythm is good'
         }
         else {
             auto const fft_length = get_fft_length();
-            auto const & ffts = x_and_ffts.find_ffts(fft_length);
+            auto const & ffts = find_ffts(x_and_ffts.x_ffts.x_ffts,
+                                          fft_length);
 
             if(g == GrainType::MultiplicationGroup) {
                 auto const M = getMultiplicationsGroupMaxSize();
@@ -297,7 +378,7 @@ private:
                                           partition_count);
                 if(offset == 0) {
                     fft::RealFBins_<Tag, FPT, Allocator>::multiply(s.multiply_add_result.data() /* = */,
-                                                                   ffts.get_by_age(0), /* x */
+                                                                   ffts.get_by_age(futureBlock), /* x */
                                                                    s.ffts_of_partitionned_h[0].data(),
                                                                    1+partition_size_minus_one);
                     offset = 1;
@@ -305,7 +386,7 @@ private:
                 for(; offset != offset_end; ++offset)
                 {
                     fft::RealFBins_<Tag, FPT, Allocator>::multiply_add(s.multiply_add_result.data() /* += */,
-                                                                       ffts.get_by_age(offset), /* x  */
+                                                                       ffts.get_by_age(futureBlock+offset), /* x  */
                                                                        s.ffts_of_partitionned_h[offset].data(),
                                                                        1+partition_size_minus_one);
                 }
@@ -320,7 +401,7 @@ private:
                 Assert(s.grain_counter == getGranularity());
                 Assert(s.grain_number == count_multiplicative_grains);
                 int const blockProgress = (count_multiplicative_grains+1) * getGranularity();
-                int const yFutureLocation = y.progress + getBlockSize() - blockProgress;
+                int const yFutureLocation = y.progress + yPhase + getBlockSize() - blockProgress;
                 if constexpr (overlapMode == Overlap::Add) {
                     y.addAssign(yFutureLocation,
                                 workData,

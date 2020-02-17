@@ -3,7 +3,8 @@ namespace imajuscule {
 
 template<typename T, template<typename> typename Allocator, typename Tag>
 auto mkConvolution(std::vector<Scaling> const & v,
-                   a64::vector<T> const & coeffs) {
+                   a64::vector<T> const & coeffs,
+                   int const maxVectorSize) {
     using CLegacy = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
     using CNew = SelfContainedXYConvolution<
     AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>
@@ -19,7 +20,7 @@ auto mkConvolution(std::vector<Scaling> const & v,
     
     SetupParam p({scalingParams});
 
-    c->setupAndSetCoefficients(p, coeffs);
+    c->setupAndSetCoefficients(p, maxVectorSize, coeffs);
     
     return std::move(c);
 }
@@ -35,7 +36,11 @@ struct Costs
 };
 
 template<typename T, template<typename> typename Allocator, typename Tag>
-void findCheapest2(int const firstSz, int const nCoeffs, XFFTsCostsFactors const & factors, double & sideEffect)
+void findCheapest2(int const firstSz,
+                   int const nCoeffs,
+                   int const maxVectorSize,
+                   XFFTsCostsFactors const & factors,
+                   double & sideEffect)
 {
     using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
     
@@ -47,8 +52,8 @@ void findCheapest2(int const firstSz, int const nCoeffs, XFFTsCostsFactors const
         ScalingsIterator{
             firstSz,
             static_cast<int>(coeffs.size())
-        }.forEachScaling([&coeffs, &count, &results, &factors, &sideEffect](auto const & v){
-            auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs);
+        }.forEachScaling([maxVectorSize, &coeffs, &count, &results, &factors, &sideEffect](auto const & v){
+            auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs, maxVectorSize);
             constexpr int cache_flush_period_samples = 128;
             auto sim = mkSimulation<typename C::SetupParam, T, Tag>(v, coeffs.size());
             results.emplace(v,
@@ -92,7 +97,7 @@ void findCheapest2(int const firstSz, int const nCoeffs, XFFTsCostsFactors const
      */
 }
 template<typename T, template<typename> typename Allocator, typename Tag>
-void findCheapest2()
+void findCheapest2(int const maxVectorSize)
 {
     XFFTsCostsFactors factors;
     double sideEffect{};
@@ -104,7 +109,7 @@ void findCheapest2()
             if(nCoeffs > 2000000) {
                 continue;
             }
-            findCheapest2<T, Allocator, Tag>(firstSz, nCoeffs, factors, sideEffect);
+            findCheapest2<T, Allocator, Tag>(firstSz, nCoeffs, maxVectorSize, factors, sideEffect);
         }
     }
     std::cout << "sideEffect " << sideEffect << std::endl;
@@ -112,12 +117,12 @@ void findCheapest2()
 
 
 template<typename T, template<typename> typename Allocator>
-void findCheapest()
+void findCheapest(int const maxVectorSize)
 {
-    for_each(fft::Tags, [](auto t) {
+    for_each(fft::Tags, [maxVectorSize](auto t) {
         using Tag = decltype(t);
         COUT_TYPE(Tag); std::cout << std::endl;
-        findCheapest2<T, Allocator, Tag>();
+        findCheapest2<T, Allocator, Tag>(maxVectorSize);
     });
 }
 enum class CostModel {
@@ -127,7 +132,12 @@ enum class CostModel {
 };
 
 template<typename T, template<typename> typename Allocator, typename Tag>
-void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFFTsCostsFactors const & factors, double & sideEffect)
+void analyzeSimulated(int const firstSz,
+                      int const nCoeffs,
+                      int const maxVectorSize,
+                      CostModel model,
+                      XFFTsCostsFactors const & factors,
+                      double & sideEffect)
 {
     using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
     
@@ -139,7 +149,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
         ScalingsIterator{
             firstSz,
             static_cast<int>(coeffs.size())
-        }.forEachScaling([model, &coeffs, &count, &results, &factors, &sideEffect](auto const & v){
+        }.forEachScaling([model, maxVectorSize, &coeffs, &count, &results, &factors, &sideEffect](auto const & v){
             //displayScalingNumerically(v, std::cout); std::cout << std::endl;
             /*if(v.size() != 1) {
                 return;
@@ -154,7 +164,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
                     break;
                 case CostModel::RealSimulation:
                 {
-                    auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs);
+                    auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs, maxVectorSize);
                     results.emplace(v,
                                     realCostPerSample(*conv, sideEffect));
                     
@@ -162,7 +172,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
                     break;
                 case CostModel::RealSimulationCacheFlushes:
                 {
-                    auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs);
+                    auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs, maxVectorSize);
                     constexpr int cache_flush_period_samples = 128;
                     results.emplace(v,
                                     realCostPerSampleWithCacheFlushes(*conv, cache_flush_period_samples, sideEffect));
@@ -186,7 +196,7 @@ void analyzeSimulated(int const firstSz, int const nCoeffs, CostModel model, XFF
 }
 
 template<typename T, template<typename> typename Allocator>
-void smallTest(void) {
+void smallTest() {
     double sideEffect{};
     int const scale = 1;
     for(int i=0; i<3; ++i) {
@@ -209,16 +219,21 @@ void smallTest(void) {
         std::cout << "no factors" << std::endl;
         analyzeSimulated<T, Allocator, fft::Fastest>(scale*64,
                                                      scale*1984,
+                                                     1,
                                                      costmodel,
                                                      XFFTsCostsFactors(),
                                                      sideEffect);
         
-        std::cout << std::endl << "hs 1024 -> 0" << std::endl;
-        analyzeSimulated<T, Allocator, fft::Fastest>(scale*64,
-                                                     scale*1984,
-                                                     costmodel,
-                                                     XFFTsCostsFactors().local(1024,0.f),
-                                                     sideEffect);
+        for(int i=0; i<10; ++i) {
+            int const maxVectorSize = pow2(i);
+            std::cout << std::endl << "hs 1024 -> 0, vector " << maxVectorSize << std::endl;
+            analyzeSimulated<T, Allocator, fft::Fastest>(scale*64,
+                                                         scale*1984,
+                                                         maxVectorSize,
+                                                         costmodel,
+                                                         XFFTsCostsFactors().local(1024,0.f),
+                                                         sideEffect);
+        }
     }
     std::cout << "sideEffect " << sideEffect << std::endl;
 }
@@ -321,8 +336,8 @@ TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
      */
     smallTest<double, monotonic::aP::Alloc>();
     smallTest<double, a64::Alloc>();
-    findCheapest<float, a64::Alloc>();
-    findCheapest<double, a64::Alloc>();
+    findCheapest<float, a64::Alloc>(1);
+    findCheapest<double, a64::Alloc>(1);
 }
 
 namespace imajuscule {

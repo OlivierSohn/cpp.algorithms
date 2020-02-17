@@ -1,7 +1,7 @@
 namespace imajuscule {
 static inline float randf(float high = 1.f, float low = 0.f)
 {
-  return low + ((high-low) * ((float)std::rand() / (float)(RAND_MAX + 1.f)));
+    return low + ((high-low) * ((float)std::rand() / (float)(RAND_MAX + 1.f)));
 }
 
 std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs) {

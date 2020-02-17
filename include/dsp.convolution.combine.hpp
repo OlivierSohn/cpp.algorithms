@@ -82,21 +82,6 @@ SplitSetupParam <
 /*  */CustomScaleConvolutionSetupParam <
 /*    */PartitionnedFFTConvolutionCRTPSetupParam >>>;
 
-
-
-template<typename T, template<typename> typename Allocator, typename FFTTag>
-using OptimizedFIRFilter =
-SplitConvolution <
-/**/FIRFilter<T, Allocator>,
-/**/CustomScaleConvolution<
-/*  */FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, FFTTag> >>>;
-
-template<typename T, template<typename> typename Allocator, typename FFTTag>
-using ZeroLatencyScaledFineGrainedPartitionnedConvolution =
-SplitConvolution<
-/**/OptimizedFIRFilter<T, Allocator, FFTTag>,
-/**/FinegrainedPartitionnedFFTConvolution<T, Allocator, FFTTag>>;
-
 /*
 template<typename T, template<typename> typename Allocator, typename FFTTag, LatencySemantic Lat = LatencySemantic::DiracPeak>
 using ZeroLatencyScaledFineGrainedPartitionnedSubsampledConvolution =
@@ -953,7 +938,7 @@ struct EarlyestDeepest {
 };
 
 template<typename A, typename B>
-struct EarlyestDeepest< SplitConvolution<A,B> > {
+struct EarlyestDeepest< SplitSetupParam<A,B> > {
     using type = typename EarlyestDeepest<A>::type;
 };
 

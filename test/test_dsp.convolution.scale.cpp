@@ -454,7 +454,7 @@ TEST(ConvolutionScale, simulateBatch) {
 
     using T = double;
     using Tag = fft::Fastest;
-    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, a64::Alloc, Tag> >>;
+    using SetupParam = CustomScaleConvolutionSetupParam< PartitionnedFFTConvolutionCRTPSetupParam >;
 
     int const firstSz = 4;
     int const nCoeffs = 65;
@@ -463,7 +463,7 @@ TEST(ConvolutionScale, simulateBatch) {
         nCoeffs
     };
     it.forEachScaling([nCoeffs](auto const & v){
-        auto sim = mkSimulation<C::SetupParam, T, Tag>(v, nCoeffs);
+        auto sim = mkSimulation<SetupParam, T, Tag>(v, nCoeffs);
         auto const batchSize = sim.getBiggestScale();
         std::optional<double> prevBatchCost;
         for(int i=0; i<2; ++i)

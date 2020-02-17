@@ -134,180 +134,6 @@ namespace imajuscule {
         }
       }
     }
-        
-  template<typename Convolution, typename Coeffs, typename Input, typename Output>
-  void testGeneric(Convolution & conv, Coeffs const & coefficients, Input const & input, Output const & expectedOutput) {
-      int sz = expectedOutput.size();
-      
-      std::set<int> vectorLengths;
-      
-      vectorLengths.insert(0);// no vectorization
-      vectorLengths.insert(1);// minimal vectorization
-      vectorLengths.insert(2);
-      vectorLengths.insert(3);
-      vectorLengths.insert(sz/5);
-      vectorLengths.insert(sz/4);
-      vectorLengths.insert(sz/4-1);
-      vectorLengths.insert(sz/4+1);
-      vectorLengths.insert(sz/2);
-      vectorLengths.insert(sz);
-      vectorLengths.insert(2*sz);
-
-      
-      for(auto vectorLength: vectorLengths) {
-          if(vectorLength < 0) {
-              continue;
-          }
-          testGeneric(conv, coefficients, input, expectedOutput, vectorLength);
-      }
-  }
-
-    // we take 'coefficients' by value because we modify it in the function
-    template<typename Convolution, typename Coeffs>
-    void test(Convolution & conv, Coeffs const coefficients)
-    {
-      using T = typename Convolution::FPT;
-      using Tr = ConvolutionTraits<Convolution>;
-
-      // test using a dirac
-      {
-        auto diracInput = mkDirac<T>(coefficients.size());
-        auto output = coefficients;
-        Tr::adaptCoefficients(output);
-        testGeneric(conv, coefficients, diracInput, output);
-      }
-      
-      // test using a random (but reproducible) signal
-      if(!Tr::evenIndexesAreApproximated)
-      {
-        // brute-force convolution is costly (N^2) for high number of coefficients, hence we use caching
-        static std::map<Coeffs, std::pair<std::vector<T>, std::vector<T>>> cache;
-        
-        std::vector<T> randomInput, output;
-
-        auto it = cache.find(coefficients);
-        if(it == cache.end()) {
-          const int sz = 5*coefficients.size();
-          output.reserve(sz);
-          randomInput.reserve(sz);
-          std::srand(0); // to have reproducible random numbers
-          for(int i=0; i<sz; ++i) {
-            randomInput.push_back(randf(1.f, -1.f));
-          }
-          // produce expected output using brute force convolution
-          {
-            FIRFilter<T, a64::Alloc> filter;
-            filter.setCoefficients(coefficients);
-            EXPECT_EQ(0, filter.getLatency().toInteger());
-            for(int i=0; i<randomInput.size(); ++i) {
-              output.push_back(filter.step(randomInput[i]));
-            }
-            // "flush" the reverb
-            for(int i=0; i<coefficients.size(); ++i) {
-              output.push_back(filter.step(0.));
-            }
-          }
-          
-          cache.emplace(coefficients, std::make_pair(randomInput, output));
-        }
-        else {
-          randomInput = it->second.first;
-          output = it->second.second;
-        }
-        
-        Tr::adaptCoefficients(output);
-        testGeneric(conv, coefficients, randomInput, output);
-      }
-    }
-    
-    template<typename T, typename F>
-    void testPartitionned(int coeffs_index, F f) {
-      const auto coefficients = makeCoefficients<T>(coeffs_index);
-      
-      if(coefficients.size() < 1024) {
-        for(int i=0; i<5;i++)
-        {
-          const auto part_size = pow2(i);
-          f(part_size, coefficients);
-        }
-      }
-      else {
-        constexpr auto part_size = 256;
-        f(part_size, coefficients);
-      }
-    }
-    
-    enum class TestFinegrained {
-      Begin,
-      
-      Low = Begin,
-      Med,
-      High,
-      
-      End
-    };
-    
-    template<typename T, template<typename> typename Allocator, typename Tag>
-    void testDiracFinegrainedPartitionned(int coeffs_index) {
-      
-      auto f = [](int part_size, auto & coefficients)
-      {
-        for(auto type = TestFinegrained::Begin;
-            type != TestFinegrained::End;
-            increment(type))
-        {
-          FinegrainedPartitionnedFFTConvolution<T, Allocator, Tag> conv;
-          int const n_partitions = countPartitions(coefficients.size(), part_size);
-
-          conv.setup({part_size, n_partitions, 1000, 0});
-          if(!conv.isValid()) {
-            continue;
-          }
-          conv.setCoefficients(coefficients);
-          
-          range<int> r {
-            conv.getLowestValidMultiplicationsGroupSize(),
-            conv.getHighestValidMultiplicationsGroupSize()
-          };
-          
-          switch(type) {
-            case TestFinegrained::Low:
-              conv.setMultiplicationGroupLength(r.getMin());
-              break;
-            case TestFinegrained::High:
-              conv.setMultiplicationGroupLength(r.getMax());
-              break;
-            case TestFinegrained::Med:
-              conv.setMultiplicationGroupLength(r.getExpCenter());
-              break;
-            default:
-              throw std::logic_error("not supported");
-          }
-          test(conv, coefficients);
-        }
-      };
-      
-      testPartitionned<T>(coeffs_index, f);
-    }
-    
-    template<typename T, template<typename> typename Allocator, typename Tag>
-    void testDiracPartitionned(int coeffs_index) {
-      
-      auto f = [](int part_size, auto & coefficients){
-        PartitionnedFFTConvolution<T,Allocator,Tag> conv;
-        
-        conv.setup({
-            part_size,
-            countPartitions(coefficients.size(),
-                            part_size)
-        });
-
-        test(conv, coefficients);
-      };
-      
-      testPartitionned<T>(coeffs_index, f);
-    }
-    
     
     template<typename Convolution>
     void testDirac2(int coeffs_index, Convolution & conv) {
@@ -332,12 +158,14 @@ namespace imajuscule {
       for(int i=0; i<end; ++i) {
           LG(INFO,"index %d", i);
         int const countCoeffs = makeCoefficients<T>(i).size();
-        testDiracFinegrainedPartitionned<T, Allocator, Tag>(i);
-        if(i<10)
-        {
-          auto c = FIRFilter<T, Allocator>{};
-          testDirac2(i, c);
-        }
+          /*
+          {
+            auto c = FFTConvolution<T, Allocator, Tag>{};
+            c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
+            testDirac2(i, c);
+          }
+           */
+/*
           {
               for(int firstSz=1; firstSz<32; firstSz *= 2) {
                   auto c = CustomScaleConvolution<FFTConvolutionCore<T, Allocator, Tag>>{};
@@ -441,13 +269,15 @@ namespace imajuscule {
                     testDirac2(i, c);
                 }
             }
-        }
+        }*/
+          /*
         if(i<10)
         {
           auto c = Delayed<FIRFilter<T, Allocator>>{};
           c.setup({10,{countCoeffs}});
           testDirac2(i, c);
         }
+           */
         /*
         // TODO test T=double on a machine that has support for doubles on the gpu (cl_khr_fp64)
         {
@@ -473,11 +303,6 @@ namespace imajuscule {
           testDirac2(i, c);
              */
         }
-        {
-          auto c = FFTConvolution<T, Allocator, Tag>{};
-          c.setup({static_cast<int>(ceil_power_of_two(countCoeffs))});
-          testDirac2(i, c);
-        }
           /*
         {
             // min partition size of 4 else it is not valid (countGrains() < blockSize())
@@ -492,7 +317,6 @@ namespace imajuscule {
                                                                         nLateCoeffs);
             testDirac2(i, c);
         }*/
-        testDiracPartitionned<T, Allocator, Tag>(i);
       }
     }
   }

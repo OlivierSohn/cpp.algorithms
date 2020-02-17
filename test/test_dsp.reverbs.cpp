@@ -27,6 +27,7 @@ void testReverbDirac(Args ...args) {
     using Desc = typename Convolution::Desc;
 
     constexpr int audio_cb_size = 99;
+    constexpr int maxVectorSz = maxVectorSizeFromBlockSizeHypothesis(audio_cb_size);
     
     std::vector<double const *> a_inputs;
     a_inputs.resize(nIns);
@@ -56,7 +57,7 @@ void testReverbDirac(Args ...args) {
                                a_outputs.data(),
                                nOut,
                                input.size(),
-                               input.size());
+                               1);
         ASSERT_EQ(output, prevOutput);
     }
     
@@ -67,20 +68,20 @@ void testReverbDirac(Args ...args) {
                 applyBestParams(rs,
                                 memory,
                                 1,
-                                {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
+                                {a64::vector<double>{}, 1}, work, audio_cb_size, maxVectorSz, 44100., std::cout,
                                 ResponseTailSubsampling::HighestAffordableResolution,
                                 args...);
             }
             else if constexpr (reverbType == ReverbType::Offline) {
                 XFFTsCostsFactors unbiasedXFftCostFactors;
                 applyBestParams(rs,memory,1,
-                                {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
+                                {a64::vector<double>{}, 1}, work, audio_cb_size, maxVectorSz, 44100., std::cout,
                                 unbiasedXFftCostFactors,
                                 args...);
             }
             else {
                 applyBestParams(rs,memory,1,
-                                {a64::vector<double>{}, 1}, work, audio_cb_size, 44100., std::cout,
+                                {a64::vector<double>{}, 1}, work, audio_cb_size, maxVectorSz, 44100., std::cout,
                                 args...);
             }
             ASSERT_TRUE(false);
@@ -109,7 +110,7 @@ void testReverbDirac(Args ...args) {
                                a_outputs.data(),
                                nOut,
                                input.size(),
-                               input.size());
+                               maxVectorSz);
         ASSERT_EQ(output, prevOutput);
     }
     
@@ -194,20 +195,20 @@ void testReverbDirac(Args ...args) {
                     try {
                         if constexpr (Desc::has_subsampling) {
                             applyBestParams(rs, memory, nIns,
-                                            all_coeffs, work, audio_cb_size, 44100., std::cout,
+                                            all_coeffs, work, audio_cb_size, maxVectorSz, 44100., std::cout,
                                             rts,
                                             args...);
                         }
                         else if constexpr (reverbType == ReverbType::Offline) {
                             XFFTsCostsFactors unbiasedXFftCostFactors;
                             applyBestParams(rs, memory, nIns,
-                                            all_coeffs, work, audio_cb_size, 44100., std::cout,
+                                            all_coeffs, work, audio_cb_size, maxVectorSz, 44100., std::cout,
                                             unbiasedXFftCostFactors,
                                             args...);
                         }
                         else {
                             applyBestParams(rs, memory, nIns,
-                                            all_coeffs, work, audio_cb_size, 44100., std::cout,
+                                            all_coeffs, work, audio_cb_size, maxVectorSz, 44100., std::cout,
                                             
                                             args...);
                         }
@@ -252,7 +253,7 @@ void testReverbDirac(Args ...args) {
                                            a_outputs.data(),
                                            nOut,
                                            input.size(),
-                                           input.size());
+                                           maxVectorSz);
                     
                     for(int k=0; k<output.size(); ++k)
                     {
@@ -323,7 +324,7 @@ void testReverbDirac(Args ...args) {
                                                    a_outputs.data(),
                                                    nOut,
                                                    nOnes,
-                                                   nOnes);
+                                                   maxVectorSz);
                         }
                     }
                     
@@ -357,7 +358,7 @@ void testReverbDirac(Args ...args) {
                                a_outputs.data(),
                                nOut,
                                input.size(),
-                               input.size());
+                               maxVectorSz);
         ASSERT_EQ(output, prevOutput);
     }
 }
@@ -425,6 +426,7 @@ TEST(Reverbs, reproQueueSizeGarageband) {
                             {vcoeffs},
                             work,
                             audio_cb_size,
+                            maxVectorSizeFromBlockSizeHypothesis(audio_cb_size),
                             44100.,
                             std::cout,
                             SimulationPhasing::phasing_with_group_size(2));

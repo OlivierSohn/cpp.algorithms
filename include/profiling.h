@@ -97,12 +97,12 @@ namespace imajuscule
     }
     
     template<typename Iterator, typename T = typename Iterator::value_type>
-    void loadInCache(Iterator it, Iterator end, T & dummy)
+    void loadInCache(Iterator it, Iterator end, double & sideEffect)
     {
-        dummy = std::accumulate(it,
-                                end,
-                                dummy,
-                                [](T acc, T val) {
+        sideEffect = std::accumulate(it,
+                                     end,
+                                     sideEffect,
+                                     [](T acc, T val) {
             if(val & 1) {
                 acc *= val;
             }

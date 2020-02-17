@@ -108,9 +108,10 @@ struct Reverbs {
     using WorkCplxFreqs = typename fft::RealFBins_<Tag, FPT, aP::Alloc>::type;
     
     static int getAllocationSz(SetupParam const & p,
+                               int const maxVectorSz,
                                int const n_sources,
                                int const n_channels) {
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
         int const input_req = XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
 
         return
@@ -129,6 +130,7 @@ struct Reverbs {
     void setSources(int n_sources,
                     std::vector<a64::vector<T>> const & deinterlaced_coeffs,
                     SetupParam const & p,
+                    int const maxVectorSz,
                     WorkCplxFreqs & work) {
         algo.setup(p);
 
@@ -144,7 +146,7 @@ struct Reverbs {
 
         input_states.resize(n_sources);
         
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>();
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
         
         work.reserve(req.minWorkSize);
         
@@ -205,6 +207,10 @@ struct Reverbs {
         }
     }
     
+    int getBiggestScale() const {
+        return algo.getBiggestScale();
+    }
+    
     int countScales() {
         if (input_states.empty() || input_states[0].channels.empty()) {
             return 0;
@@ -261,15 +267,13 @@ struct Reverbs {
         }
     }
     
+    
     template<typename FPT2>
-    bool assignWetVectorized(FPT2 const * const * const input_buffers,
-                             int const nInputBuffers,
-                             FPT2 ** output_buffers,
-                             int const nOutputBuffers,
-                             int const nFramesToCompute,
-                             int const vectorLength) {
-        assert(vectorLength > 0);
-        
+    bool assignWet(FPT2 const * const * const input_buffers,
+                   int const nInputBuffers,
+                   FPT2 ** output_buffers,
+                   int const nOutputBuffers,
+                   int const nFramesToCompute) {
         if(unlikely(nConvolutionsPerEar == 0)) {
             for(int o=0; o<nOutputBuffers; ++o) {
                 fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffers[o], nFramesToCompute);
@@ -324,6 +328,73 @@ struct Reverbs {
     }
     
     template<typename FPT2>
+    bool assignWetVectorized(FPT2 const * const * const input_buffers,
+                             int const nInputBuffers,
+                             FPT2 ** output_buffers,
+                             int const nOutputBuffers,
+                             int const nFramesToCompute,
+                             int const vectorLength) {
+        assert(vectorLength > 0);
+        
+        if(unlikely(nConvolutionsPerEar == 0)) {
+            for(int o=0; o<nOutputBuffers; ++o) {
+                fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(output_buffers[o], nFramesToCompute);
+            }
+            return true;
+        }
+
+        Assert(nInputBuffers == input_states.size());
+        Assert(nOutputBuffers == outputs.size());
+
+        auto * workData = work->data();
+
+        for(int f=0; f<nFramesToCompute; f += vectorLength) {
+            int const localVecSz = std::min(vectorLength,
+                                            nFramesToCompute-f);
+            
+            int o=0;
+            
+            for(int i=0; i<nInputBuffers; ++i) {
+                auto & input_state = input_states[i];
+                input_state.x_and_ffts.pushVectorized(&input_buffers[i][f],
+                                                      localVecSz);
+                
+                for(auto & c : input_state.channels) {
+                    algo.stepVectorized(*c,
+                                        input_state.x_and_ffts,
+                                        outputs[o],
+                                        workData,
+                                        localVecSz);
+
+                    ++o;
+                    if(o==nOutputBuffers) {
+                        o=0;
+                    }
+                }
+            }
+            
+            Assert(o == 0);
+            
+            for(; o<nOutputBuffers; ++o) {
+                outputs[o].assignSignalVectorized(&output_buffers[o][f],
+                                                  localVecSz);
+            }
+        }
+        
+        if constexpr (Desc::step_can_error) {
+            for(auto const & i : input_states) {
+                for(auto const & c : i.channels) {
+                    if(c->hasStepErrors()) {
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    template<typename FPT2>
     bool addWetInputZeroVectorized(FPT2 ** output_buffers,
                                    int nOutputBuffers,
                                    int nFramesToCompute,
@@ -340,17 +411,22 @@ struct Reverbs {
         
         // ignore vectorization for now.
         // (To vectorize, we would need to modify x and y so that they have bigger buffers, and modify states)
-        for(int f=0; f<nFramesToCompute; ++f) {
+        for(int f=0; f<nFramesToCompute; f += vectorLength) {
+            int const localVecSz = std::min(vectorLength,
+                                            nFramesToCompute-f);
             int o=0;
             
             for(auto & input_state : input_states) {
-                input_state.x_and_ffts.push(0);
+                for(int i=0; i<localVecSz; ++i) {
+                    input_state.x_and_ffts.push(0);
+                }
                 
                 for(auto & c : input_state.channels) {
-                    algo.step(*c,
-                              input_state.x_and_ffts,
-                              outputs[o],
-                              workData);
+                    algo.stepVectorized(*c,
+                                        input_state.x_and_ffts,
+                                        outputs[o],
+                                        workData,
+                                        localVecSz);
 
                     ++o;
                     if(o==nOutputBuffers) {
@@ -362,8 +438,8 @@ struct Reverbs {
             Assert(o == 0);
             
             for(; o<nOutputBuffers; ++o) {
-                output_buffers[o][f] += outputs[o].getCurrentSignal();
-                outputs[o].increment();
+                outputs[o].addSignalVectorized(&output_buffers[o][f],
+                                               localVecSz);
             }
         }
         
@@ -412,6 +488,10 @@ struct Reverbs {
         }
 
         handlePhases();
+    }
+    
+    Algo const & getAlgo() const {
+        return algo;
     }
     
 private:
@@ -576,6 +656,7 @@ void applyParams(Reverb & rev,
                  DeinterlacedBuffers<typename Reverb::FPT> const & deinterlaced,
                  typename Reverb::WorkCplxFreqs & work,
                  typename Reverb::SetupParam const & p,
+                 int const maxVectorSz,
                  std::ostream & os)
 {
     // buffers are copied here:
@@ -586,6 +667,7 @@ void applyParams(Reverb & rev,
     rev.setSources(n_sources,
                    buffers,
                    p,
+                   maxVectorSz,
                    work);
     rev.logReport(os);
 }
@@ -596,8 +678,9 @@ void applyBestParams(Reverb & rev,
                      int const n_sources,
                      DeinterlacedBuffers<typename Reverb::FPT> const & deinterlaced,
                      typename Reverb::WorkCplxFreqs & work,
-                     int n_audiocb_frames,
-                     double sampleRate,
+                     int const n_audiocb_frames,
+                     int const maxVectorSize,
+                     double const sampleRate,
                      std::ostream & os,
                      Args... args)
 {
@@ -610,6 +693,7 @@ void applyBestParams(Reverb & rev,
                                     args...);
     
     int const sz = Reverb::getAllocationSz(p,
+                                           maxVectorSize,
                                            n_sources,
                                            deinterlaced.countChannels());
     
@@ -626,6 +710,7 @@ void applyBestParams(Reverb & rev,
                     deinterlaced,
                     work,
                     p,
+                    maxVectorSize,
                     os);
     }
     

@@ -8,6 +8,20 @@ auto lerp(T1 from, T2 to, T3 ratio) {
     return from + ratio * (to-from);
 }
 
+static inline constexpr int maxVectorSizeFromBlockSizeHypothesis(int const blockSzHypothesis) {
+    /*
+     When using 'blockSzHypothesis':
+     . Callbacks that have a "power of 2" size will use a single vector call.
+     . Callbacks that are _not_ a "power of 2" will use 2 vector calls.
+     
+     When using 'blockSzHypothesis * 2':
+     . All callbacks use a single vector call
+     (at the cost of a _slighty_ higher overhead)
+     */
+    return blockSzHypothesis * 2;
+}
+
+
 template<typename Rev>
 struct ConvReverbsByBlockSize {
     
@@ -54,6 +68,7 @@ struct ConvReverbsByBlockSize {
                                             deinterlaced,
                                             work,
                                             max2,
+                                            maxVectorSizeFromBlockSizeHypothesis(max2),
                                             sampleRate,
                                             os,
                                             args...);
@@ -137,7 +152,7 @@ struct ConvReverbsByBlockSize {
                                                                        work_buffers,
                                                                        nWorkBuffers,
                                                                        nFramesToCompute,
-                                                                       nFramesToCompute);
+                                                                       maxVectorSizeFromBlockSizeHypothesis(current->blockSizeHypothesys()));
            // by design, deprecated is non empty only if current is non empty
             for(auto & d : deprecated) {
                 int const nApply = std::min(d.numFramesToGo, nFramesToCompute);
@@ -145,7 +160,7 @@ struct ConvReverbsByBlockSize {
                 has_step_errors = !d.getReverb().addWetInputZeroVectorized(work_buffers,
                                                                            nWorkBuffers,
                                                                            nApply,
-                                                                           nApply) || has_step_errors;
+                                                                           maxVectorSizeFromBlockSizeHypothesis(d.blockSizeHypothesys())) || has_step_errors;
             }
 
             // clean up deprecated
@@ -198,7 +213,6 @@ private:
         int blockSizeHypothesys() const {
             return reverbIt->first;
         }
-
         int getKey() const {
             return reverbIt->first;
         }
@@ -209,7 +223,7 @@ private:
             return *reverbIt->second.get();
         }
 
-        int hostBlockSize;
+        int hostBlockSize; // may not be a power of two
         ConstIterator reverbIt;
     };
     Map reverbsByBlockSize;
@@ -223,6 +237,9 @@ private:
         ConstIterator reverbIt;
         int numFramesToGo;
 
+        int blockSizeHypothesys() const {
+            return reverbIt->first;
+        }
         int getKey() const {
             return reverbIt->first;
         }

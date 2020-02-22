@@ -93,13 +93,21 @@ namespace imajuscule {
                        N * sizeof(value_type));
             }
 
-            static void copyOutputToOutput(T * __restrict dest,
+            template<typename T2>
+            static void copyOutputToOutput(T2 * __restrict dest,
                                            T const * __restrict from,
                                            int N) {
                 // TODO optimize ?
-                memcpy(dest,
-                       from,
-                       N * sizeof(T));
+                if constexpr(std::is_same_v<T, T2>) {
+                    memcpy(dest,
+                           from,
+                           N * sizeof(T));
+                }
+                else {
+                    for(int i=0; i!=N; ++i) {
+                        dest[i] = from[i];
+                    }
+                }
             }
 
             template<typename TSource>
@@ -288,7 +296,22 @@ namespace imajuscule {
           tukeyCooley(input, result, N/2, 1);
         }
       private:
-        
+    
+      /*       
+       Memory acces pattern:
+       
+       r1/i1 r2/ir2 .... r2n/i2n
+       
+       accessed in this order:
+       
+       when N=0
+       
+       r1/i1 rn/in
+       r(n/2)/i(n/2) r(3*n/2)/i(3*n/2)
+       
+       r(n/4)
+       ...
+       */
         void tukeyCooley(complex<T> const * const __restrict it,
                          complex<T> * __restrict result,
                          unsigned int const N,

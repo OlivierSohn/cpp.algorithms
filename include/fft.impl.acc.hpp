@@ -83,7 +83,19 @@ namespace imajuscule {
                 accelerate::API<T>::f_mmov(from, dest, 1, N, 1, 1);
             }
             
-            static constexpr auto copyOutputToOutput = copy;
+            template<typename TDest>
+            static void copyOutputToOutput(TDest * __restrict dest,
+                                           value_type const * const __restrict src,
+                                           int N) {
+                if constexpr(std::is_same_v<TDest, value_type>) {
+                    copy(dest, src, N);
+                }
+                else {
+                    for(int i=0; i!= N; ++i) {
+                        dest[i] = src[i];
+                    }
+                }
+            }
             
             template<typename TSource>
             static void copyFromInput(value_type * __restrict dest,

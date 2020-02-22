@@ -16,13 +16,13 @@
 #include "test_utils.cpp"
 
 //#  include "test_benchmark.convolution.scaling.cpp"
-#include "test_dsp.spatialize.cpp"
 //*
+#include "test_fft_fbins.cpp"
+#include "test_fft_signal.cpp"
+#include "test_dsp.spatialize.cpp"
 #include "test_dsp2.convolution.cpp"
 #include "test_dsp.reverbs.cpp"
 #include "test_dsp.reverbsbycbsize.cpp"
-#include "test_fft_fbins.cpp"
-#include "test_fft_signal.cpp"
 #include "test_vdsp.cpp"
 #include "test_allocators.cpp"
 #include "test_dsp.convolution.scale.cpp"

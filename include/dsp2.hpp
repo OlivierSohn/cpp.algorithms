@@ -514,7 +514,8 @@ struct Y {
     template<typename TT>
     static constexpr auto add_assign_output= fft::RealSignal_<Tag, T>::template add_assign_output<TT>;
 
-    static constexpr auto copyOutputToOutput = fft::RealSignal_<Tag, T>::copyOutputToOutput;
+    template<typename TT>
+    static constexpr auto copyOutputToOutput = fft::RealSignal_<Tag, T>::template copyOutputToOutput<TT>;
     template<typename TT>
     static constexpr auto copyToOutput = fft::RealSignal_<Tag, T>::template copyToOutput<TT>;
 
@@ -536,13 +537,13 @@ struct Y {
                             write_sz-vectorSize);
         int const distFromEnd = ySz-progress;
         if(vectorSize < distFromEnd) {
-            copyOutputToOutput(&output_buffer[0],
+            copyOutputToOutput<T2>(&output_buffer[0],
                                &y[progress],
                                vectorSize);
             progress += vectorSize;
         }
         else {
-            copyOutputToOutput(&output_buffer[0],
+            copyOutputToOutput<T2>(&output_buffer[0],
                                &y[progress],
                                distFromEnd);
             Assert(progress+distFromEnd == ySz);
@@ -550,7 +551,7 @@ struct Y {
             vectorSize -= distFromEnd;
             if(vectorSize) {
                 Assert(vectorSize <= ySz);
-                copyOutputToOutput(&output_buffer[distFromEnd],
+                copyOutputToOutput<T2>(&output_buffer[distFromEnd],
                                    &y[0],
                                    vectorSize);
                 progress += vectorSize;
@@ -751,7 +752,7 @@ struct Y {
     -> std::enable_if_t<std::is_same_v<T, T2> &&
                         !std::is_same_v<T2, typename RealSignal::value_type>, void>
     {
-        addAssignPresent_(x, add_assign_output<T>, copyOutputToOutput, N);
+        addAssignPresent_(x, add_assign_output<T>, copyOutputToOutput<T2>, N);
     }
 
     
@@ -768,7 +769,7 @@ struct Y {
     -> std::enable_if_t<std::is_same_v<T, T2> &&
     !std::is_same_v<T2, typename RealSignal::value_type>, void>
     {
-        addAssign_(unbounded_future_progress, x, add_assign_output<T>, copyOutputToOutput, N);
+        addAssign_(unbounded_future_progress, x, add_assign_output<T>, copyOutputToOutput<T2>, N);
     }
 
 private:

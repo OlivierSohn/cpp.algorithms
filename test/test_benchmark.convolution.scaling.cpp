@@ -243,13 +243,11 @@ void forEachCost(F f) {
     using RealSignalCosts = RealSignalCosts<Tag, T>;
     using RealFBinsCosts = RealFBinsCosts<Tag, T>;
     using AlgoCosts = AlgoCosts<Tag, T>;
-/*
+
     f("RealSignalCosts::cost_dotpr ",
       RealSignalCosts::cost_dotpr);
     f("RealSignalCosts::cost_add_assign ",
       RealSignalCosts::cost_add_assign);
-    f("RealSignalCosts::cost_add_scalar_multiply ",
-      RealSignalCosts::cost_add_scalar_multiply);
     f("RealSignalCosts::cost_copy ",
       RealSignalCosts::cost_copy);
     f("RealSignalCosts::cost_zero_n_raw ",
@@ -259,7 +257,7 @@ void forEachCost(F f) {
     f("RealFBinsCosts::cost_multiply ",
       RealFBinsCosts::cost_multiply);
     f("RealFBinsCosts::cost_multiply_add ",
-      RealFBinsCosts::cost_multiply_add);*/
+      RealFBinsCosts::cost_multiply_add);
     f("AlgoCosts::cost_fft_forward ",
       AlgoCosts::cost_fft_forward);
     f("AlgoCosts::cost_fft_inverse ",

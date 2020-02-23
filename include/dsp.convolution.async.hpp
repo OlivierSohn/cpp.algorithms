@@ -56,7 +56,7 @@ struct AsyncSetupParam : public Cost {
         }
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const
     {
         // we write y by chunks of submissionPeriod :

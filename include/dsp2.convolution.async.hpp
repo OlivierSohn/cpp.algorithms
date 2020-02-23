@@ -593,9 +593,9 @@ struct AlgoAsyncCPUConvolution {
                     }
                     // Verify that s.signal and s.previous_result represent adjacent blocks in the ring:
                     Assert(s.signal == s.previous_result-N || (s.previous_result==0 && s.signal==(s.buffer.size()-N)));
-                    y.addAssign(y.progress + yPhase,
-                                &s.buffer[s.previous_result],
-                                N);
+                    y.addAssignFromContiguous(y.progress + yPhase,
+                                              &s.buffer[s.previous_result],
+                                              N);
                     yPhase += N;
                 }
             }
@@ -662,8 +662,8 @@ struct AlgoAsyncCPUConvolution {
             }
             // Verify that s.signal and s.previous_result represent adjacent blocks in the ring:
             Assert(s.signal == s.previous_result-N || (s.previous_result==0 && s.signal==(s.buffer.size()-N)));
-            y.addAssignPresent(&s.buffer[s.previous_result],
-                               N);
+            y.addAssignPresentFromContiguous(&s.buffer[s.previous_result],
+                                             N);
         }
     }
     

@@ -17,6 +17,7 @@
 
 //#  include "test_benchmark.convolution.scaling.cpp"
 //*
+#include "test_fft.cpp"
 #include "test_fft_fbins.cpp"
 #include "test_fft_signal.cpp"
 #include "test_dsp.spatialize.cpp"
@@ -53,7 +54,6 @@
 #include "test_peaks.cpp"
 #include "test_cast.cpp"
 #include "test_cyclic.cpp"
-#include "test_fft.cpp"
 #include "test_markov_chain.cpp"
 #include "test_scoped.cpp"
 #include "test_freelist.cpp"

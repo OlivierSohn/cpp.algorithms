@@ -274,6 +274,12 @@ namespace imajuscule::fft {
         using outputType = typename Impl::outputType;
         using value_type = typename type::value_type;
 
+        using RealFBins = RealFBins_<Tag, T, a64::Alloc>;
+        using RealFBinsVector = a64::vector<typename RealFBins::type::value_type>;
+
+        using FFTAlgo = typename fft::Algo_<Tag, T>;
+        static constexpr bool inplace = FFTAlgo::inplace_dft;
+
         inline static CallCost cost_add_scalar_multiply { [](std::function<void(double&)> fBeforeMeasure,
                                                              int64_t sz, int64_t ntests, double & sideEffect) {
             std::vector<std::array<type, 3>> va;
@@ -314,7 +320,7 @@ namespace imajuscule::fft {
         
         inline static CallCost cost_add_assign { [](std::function<void(double&)> fBeforeMeasure,
                                                     int64_t sz, int64_t ntests, double & sideEffect) {
-            std::vector<std::pair<outputType, type>> va;
+            std::vector<std::pair<outputType, RealFBinsVector>> va;
             va.resize(ntests);
             double d = 1.;
             for(auto & [o,i]:va)
@@ -323,7 +329,7 @@ namespace imajuscule::fft {
                          d);
                 ++d;
                 i.resize(sz,
-                         value_type{static_cast<T>(d)});
+                         typename RealFBins::type::value_type{static_cast<T>(d)});
                 ++d;
 
             }
@@ -334,9 +340,19 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
-                    Impl::add_assign(a.first.data(),
-                                     a.second.data(),
-                                     sz);
+                    if constexpr (inplace) {
+                        Impl::add_assign(a.first.data(),
+                                         a.second.data(),
+                                         sz,
+                                         0,
+                                         sz);
+                    }
+                    else {
+                        Impl::add_assign(a.first.data(),
+                                         a.second.data(),
+                                         0,
+                                         sz);
+                    }
                 }
             });
             for(auto & a:va)
@@ -606,13 +622,29 @@ namespace imajuscule::fft {
             }
             auto duration = measure_thread_cpu_one([&a, &vf, &vinput, sz, ntests](){
                 for(int i=0; i<ntests; ++i) {
-                    a.inverse(vf[i].data(), vinput[i].data(), sz);
+                    if constexpr (Algo::inplace_dft) {
+                        a.inverse(vf[i].data(),
+                                  sz);
+                    }
+                    else {
+                        a.inverse(vf[i].data(),
+                                  vinput[i].data(),
+                                  sz);
+                    }
                 }
             });
             
-            for(auto &input:vinput) {
-                using std::abs;
-                sideEffect += abs(input[0]);
+            if constexpr (Algo::inplace_dft) {
+                for(auto &f:vf) {
+                    using std::abs;
+                    sideEffect += abs(f[0]);
+                }
+            }
+            else {
+                for(auto &input:vinput) {
+                    using std::abs;
+                    sideEffect += abs(input[0]);
+                }
             }
             return duration;
         }};

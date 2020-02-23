@@ -12,7 +12,8 @@ namespace imajuscule {
          */
 
         constexpr std::tuple<
-        imj::Tag            // cross-platform, 'straightforward', slow, large memory footprint
+        imj::Tag,            // cross-platform, 'straightforward', slow, large memory footprint
+        imj2::Tag            // cross-platform, faster, smaller memory footprint
 #if __APPLE__
 #  ifndef IMJ_USE_SLOW_FFT
         , accelerate::Tag // osx / ios only, vectorized, fast, small memory footprint

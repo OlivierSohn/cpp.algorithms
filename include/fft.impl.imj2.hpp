@@ -6,44 +6,27 @@
 
 namespace imajuscule {
 
-    // imajuscule's fft implementation
-
-    namespace imj {
+    namespace imj2 {
         struct Tag {};
     }
 
     namespace fft {
 
-        /*
-         * Space complexity, for forward fft of real input of size N:
-         *
-         * input : 2*N
-         */
-
         template<typename T>
-        struct RealSignal_<imj::Tag, T> {
-            
-            /* we need complex<T> (type) to do the ftt and ifft, but after that,
-             we can use T (outputType) */
-            
-            using outputType = a64::vector<T>;
-            using type = a64::vector<complex<T>>;
+        struct RealSignal_<imj2::Tag, T> {
+
+            using type = a64::vector<T>;
+            using outputType = type;
             using iter = typename type::iterator;
             using const_iter = typename type::const_iterator;
             using value_type = typename type::value_type;
-
+            
             static type make(a64::vector<T> reals) {
-                type ret;
-                ret.reserve(reals.size());
-                for(auto r : reals) {
-                    ret.emplace_back(r);
-                }
-                return std::move(ret);
+                return reals;
             }
 
             static T get_signal(value_type const & c) {
-                assert(std::abs(c.imag()) < 0.0001f);
-                return c.real();
+                return c;
             }
             
             template<typename T2>
@@ -59,15 +42,31 @@ namespace imajuscule {
             }
             
             static void add_assign(T * __restrict res,
-                                   value_type const * __restrict add,
-                                   int const start,
-                                   int const N) {
-                add += start;
-                for(auto const * resEnd = res + N;
-                    res != resEnd;
-                    ++res, ++add)
-                {
-                    *res += add->real();
+                                   complex<T> const * __restrict add,
+                                   unsigned int const addSz,
+                                   unsigned int const start,
+                                   unsigned int const N) {
+                unsigned int const log2addSz = [addSz]() {
+                    assert(addSz);
+                    if constexpr (overlapMode == Overlap::Add) {
+                        return power_of_two_exponent(addSz);
+                    }
+                    else {
+                        return 1 + power_of_two_exponent(addSz);
+                    }
+                }();
+                
+                for(unsigned int i=start, end=start+N; i!=end; ++i, ++res) {
+                    unsigned int b = i;
+                    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
+                    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
+                    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
+                    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
+                    b = ((b >> 16) | (b << 16)) >> (32 - log2addSz);
+
+                    assert(std::abs(add[b].imag()) < 0.0001f);
+
+                    *res += add[b].real();
                 }
             }
 
@@ -117,25 +116,44 @@ namespace imajuscule {
                                       TSource const * __restrict from,
                                       int N) {
                 for(int i=0; i!=N; ++i) {
-                    dest[i] = value_type(from[i]);
+                    dest[i] = from[i];
                 }
             }
             
             static void copyToOutput(T * __restrict dest,
-                                     value_type const * __restrict from,
-                                     int const start,
-                                     int const N) {
-                from += start;
-                for(int i=0; i!=N; ++i) {
-                    dest[i] = from[i].real();
+                                     complex<T> const * __restrict from,
+                                     unsigned int const fromSz,
+                                     unsigned int const start,
+                                     unsigned int const N) {
+                unsigned int const log2fromSz = [fromSz]() {
+                    assert(fromSz);
+                    if constexpr (overlapMode == Overlap::Add) {
+                        return power_of_two_exponent(fromSz);
+                    }
+                    else {
+                        return 1 + power_of_two_exponent(fromSz);
+                    }
+                }();
+                
+                for(unsigned int i=start, end=start+N; i!=end; ++i, ++dest) {
+                    unsigned int b = i;
+                    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
+                    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
+                    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
+                    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
+                    b = ((b >> 16) | (b << 16)) >> (32 - log2fromSz);
+
+                    assert(std::abs(from[b].imag()) < 0.0001f);
+
+                    *dest = from[b].real();
                 }
             }
 
             static void zero_n_raw_output(T * p, int n) {
                 std::fill(p, p+n, T{});
             }
-            static void zero_n_raw(complex<T> * p, int n) {
-                std::fill(p, p+n, value_type{});
+            static void zero_n_raw(T * p, int n) {
+                std::fill(p, p+n, T{});
             }
             static void zero_n(type & v, int n) {
                 zero_n_raw(v.data(), n);
@@ -144,14 +162,13 @@ namespace imajuscule {
                 zero_n(v, v.size());
             }
             
-            static void dotpr(complex<T> const * const a,
+            static void dotpr(T const * const a,
                               T const * const b,
                               T * res,
                               int n) {
                 T r{};
                 for(int i=0; i<n; ++i) {
-                    Assert(0==a->imag());
-                    r += a[i].real() * b[i];
+                    r += a[i] * b[i];
                 }
                 assert(res);
                 *res = r;
@@ -159,8 +176,8 @@ namespace imajuscule {
         };
 
         template<typename T, template<typename> typename Allocator>
-        struct RealFBins_<imj::Tag, T, Allocator> {
-            using Tag = imj::Tag;
+        struct RealFBins_<imj2::Tag, T, Allocator> {
+            using Tag = imj2::Tag;
             using type = std::vector<complex<T>, Allocator<complex<T>>>;
 
             static type make(type cplx) {
@@ -246,204 +263,156 @@ namespace imajuscule {
 
         };
 
-        template<typename T>
-        struct ImjContext {
-            using vec_roots = a64::vector<complex<T>>;
-
-            ImjContext() : roots(nullptr) {}
-            ImjContext(vec_roots * roots) : roots(roots) {}
-
-            operator bool() const {
-                return !empty();
-            }
-            bool empty() const { return !roots; }
-            void clear() { roots = nullptr; }
-
-            vec_roots * getRoots() const { return roots; }
-            vec_roots * editRoots() { return roots; }
-        private:
-            vec_roots * roots;
-        };
 
         template<typename T>
-        struct Context_<imj::Tag, T> {
-            using type = ImjContext<T>;
-            using InnerCtxt = typename type::vec_roots;
+        struct Context_<imj2::Tag, T> {
+            using type = int;
 
             static auto create(int size) {
-                auto pv = new InnerCtxt();
-                compute_roots_of_unity(size, *pv);
-                return type(pv);
+                return int(0);
             }
 
             static void destroy(type c) {
-                delete c.editRoots();
             }
         };
-
-        // https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm
-
-        enum class FftType {
-            FORWARD,
-            INVERSE
-        };
-
-      template<FftType TYPE, typename T>
-      struct TukeyCooley {
-        complex<T> * const root;
-        
-        // N is 'result' size
-        void run(complex<T> const * const __restrict input,
-                 complex<T> * __restrict result,
-                 unsigned int const N) const {
-          tukeyCooley(input, result, N/2, 1);
-        }
-      private:
-    
-      /*       
-       Memory acces pattern:
-       
-       r1/i1 r2/ir2 .... r2n/i2n
-       
-       accessed in this order:
-       
-       when N=0
-       
-       r1/i1 rn/in
-       r(n/2)/i(n/2) r(3*n/2)/i(3*n/2)
-       
-       r(n/4)
-       ...
-       */
-        void tukeyCooley(complex<T> const * const __restrict it,
-                         complex<T> * __restrict result,
-                         unsigned int const N,
-                         unsigned int const stride) const {
-          if(N==0) {
-            if constexpr (TYPE == FftType::FORWARD) {
-              *result = *it;
-            }
-            else {
-              *result = conj(*it);
-            }
-            return;
-          }
-          auto const double_stride = 2*stride;
-          auto const half_N = N/2;
-          // computes first half of result
-          // using input with offset 0
-          tukeyCooley(it         , result , half_N, double_stride );
-          auto * __restrict result2 = result + N;
-          // computes second half of result
-          // using input with offset stride
-          tukeyCooley(it + stride, result2, half_N, double_stride );
-          
-          // full result by mixing the 2 halves
-          complex<T> * __restrict root_it = root;
-          for(;result != result2;
-              ++result, root_it += stride)
-          {
-            auto const t = result[N] * *root_it;
-            result[N] = result[0] - t;
-            result[0] += t;
-          }
-        }
-      };
 
         template<typename T>
-        struct Algo_<imj::Tag, T> {
-            static constexpr bool inplace_dft = false;
-
+        struct Algo_<imj2::Tag, T> {
+            static constexpr bool inplace_dft = true;
+            
             using FPT = T;
 
-            using RealInput  = typename RealSignal_ <imj::Tag, T>::type;
+            using RealInput  = typename RealSignal_ <imj2::Tag, T>::type;
             using RealValue = typename RealInput::value_type;
             
             template<template<typename> typename Allocator>
-            using RealFBins  = typename RealFBins_<imj::Tag, T, Allocator>::type;
+            using RealFBins  = typename RealFBins_<imj2::Tag, T, Allocator>::type;
 
-            using Context    = typename Context_   <imj::Tag, T>::type;
+            using Context    = typename Context_   <imj2::Tag, T>::type;
 
             using Tr = NumTraits<T>;
 
             static constexpr auto scale = Tr::one();
 
             Algo_() = default;
-            Algo_(Context c) : context(c) {}
+            Algo_(Context c) {}
 
-            void setContext(Context c) {
-                context = c;
+            void setContext(Context c) const {
             }
-
-          void forward(typename RealInput::const_iterator inputBegin,
-                         complex<T> * output,
-                         unsigned int N) const
-          {
-            auto * const rootPtr = context.getRoots()->begin().base();
-            TukeyCooley<FftType::FORWARD, T>
-            algo{rootPtr};
             
-            algo.run(inputBegin.base(),
-                     output,
-                     N);
-          }
-
-            void inverse(complex<T> const * input,
-                         RealValue * output,
+            void forward(typename RealInput::const_iterator inputBegin,
+                         complex<T> * x,
+                         unsigned int const N) const
+            {
+                // copy input to output
+                
+                for(int i=0; i<N; ++inputBegin, ++i) {
+                    x[i] = complex<T>{*inputBegin};
+                }
+                
+                dft_inplace(x, N);
+                bit_reverse(x, N);
+            }
+            void inverse(complex<T> * x,
                          unsigned int N) const
             {
-              auto * const rootPtr = context.getRoots()->begin().base();
-              TukeyCooley<FftType::INVERSE, T>
-              algo{rootPtr};
-              
-              algo.run(input,
-                       output,
-                       N);
-
-                // in theory for inverse fft we should convert_to_conjugate the result
-                // but it is supposed to be real numbers so the conjugation would have no effect
-
-#ifndef NDEBUG
-                T M {};
+                // conjugate input
+                
                 for(int i=0; i<N; ++i) {
-                    M = std::max(M, std::abs(output[i].real()));
+                    x[i].convert_to_conjugate();
                 }
-                constexpr auto epsilon = 1000 * std::numeric_limits<T>::epsilon();
-                for(int i=0; i<N; ++i) {
-                    if(M) {
-                        assert(std::abs(output[i].imag()/M) < epsilon);
-                    }
-                    else {
-                        assert(std::abs(output[i].imag()) < epsilon);
-                    }
-                }
-#endif
+
+                dft_inplace(x, N);
             }
+            
+            static T getBitreversedRealOutput(complex<T> * x,
+                                              unsigned int b,
+                                              unsigned int log2N)
+            {
+                // inverse did not bit-reverse the output, so we do it here:
+                
+                b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
+                b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
+                b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
+                b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
+                b = ((b >> 16) | (b << 16)) >> (32 - log2N);
 
-            Context context;
+                return x[b].real();
+            }
+            
+        private:
+            void dft_inplace(complex<T> * x,
+                             unsigned int const N) const
+            {
+                // https://rosettacode.org/wiki/Fast_Fourier_transform#C.2B.2B
+                
+                // DFT
+                unsigned int k = N, n;
+                double thetaT = 3.14159265358979323846264338328L / N;
+                complex<T> phiT = complex<T>(cos(thetaT), -sin(thetaT)), T2;
+                while (k > 1)
+                {
+                    n = k;
+                    k >>= 1;
+                    phiT = phiT * phiT;
+                    T2 = complex<T>{1.0};
+                    for (unsigned int l = 0; l < k; l++)
+                    {
+                        for (unsigned int a = l; a < N; a += n)
+                        {
+                            unsigned int b = a + k;
+                            complex<T> t = x[a] - x[b];
+                            x[a] += x[b];
+                            x[b] = t * T2;
+                        }
+                        T2 *= phiT;
+                    }
+                }
+            }
+            
+            template<typename TT>
+            void bit_reverse(TT * x, unsigned int const N) const
+            {
+                // Reverse bits
+                unsigned int m = power_of_two_exponent(N);
+                for(unsigned int i=0; i<N; ++i) {
+                    unsigned int b = i;
+                    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
+                    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
+                    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
+                    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
+                    b = ((b >> 16) | (b << 16)) >> (32 - m);
+                    
+                    if(b<i) {
+                        std::swap(x[i], x[b]);
+                    }
+                }
+            }
         };
 
 
         namespace slow_debug {
 
             template<typename CONTAINER>
-            struct UnwrapFrequenciesRealFBins<imj::Tag, CONTAINER> {
+            struct UnwrapFrequenciesRealFBins<imj2::Tag, CONTAINER> {
                 static auto run(CONTAINER container, int N) {
-                    return std::move(container);
+                    return container;
                 }
             };
 
             template<typename CONTAINER>
-            struct UnwrapSignal<imj::Tag, CONTAINER> {
-                static auto run(CONTAINER container, int N) {
-                    return std::move(container);
+            struct UnwrapSignal<imj2::Tag, CONTAINER> {
+                using T = typename CONTAINER::value_type;
+                static auto run(CONTAINER const & container, int N) {
+                    assert(container.end() == container.begin() + N);
+                    return complexify<T>(container.begin(), container.begin() + N);
                 }
             };
 
         } // NS slow_debug
     } // NS fft
 
-    namespace imj {
+    namespace imj2 {
         namespace fft {
             using namespace imajuscule::fft;
 
@@ -464,5 +433,5 @@ namespace imajuscule {
             template<typename T>
             using Algo = Algo_<Tag, T>;
         } // NS fft
-    } // NS imj
+    } // NS imj2
 } // NS imajuscule

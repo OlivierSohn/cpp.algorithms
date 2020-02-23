@@ -156,7 +156,9 @@ struct AlgoFinegrainedPartitionnedFFTConvolution {
     using FPT = T;
     using Tag = FFTTag;
     using Desc = DescFinegrainedFFTConvolution;
-        
+    
+    using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+
     using SetupParam = FinegrainedSetupParam;
     
     template<typename TT>
@@ -394,23 +396,44 @@ private:
             else {
                 Assert(g==GrainType::IFFT);
 
-                ffts.fft.inverse(s.multiply_add_result.data(),
-                                 workData,
-                                 fft_length);
-
                 Assert(s.grain_counter == getGranularity());
                 Assert(s.grain_number == count_multiplicative_grains);
                 int const blockProgress = (count_multiplicative_grains+1) * getGranularity();
                 int const yFutureLocation = y.progress + yPhase + getBlockSize() - blockProgress;
-                if constexpr (overlapMode == Overlap::Add) {
-                    y.addAssign(yFutureLocation,
-                                workData,
-                                fft_length);
+                
+                if constexpr (FFTAlgo::inplace_dft)
+                {
+                    ffts.fft.inverse(s.multiply_add_result.data(),
+                                     fft_length);
+
+                    if constexpr (overlapMode == Overlap::Add) {
+                        y.inplace_addAssign(yFutureLocation,
+                                            s.multiply_add_result.data(),
+                                            0,
+                                            fft_length);
+                    }
+                    else {
+                        y.inplace_addAssign(yFutureLocation,
+                                            s.multiply_add_result.data(),
+                                            fft_length/2,
+                                            fft_length/2);
+                    }
                 }
                 else {
-                    y.addAssign(yFutureLocation,
-                                &workData[fft_length/2],
-                                fft_length/2);
+                    ffts.fft.inverse(s.multiply_add_result.data(),
+                                     &workData[0],
+                                     fft_length);
+                
+                    if constexpr (overlapMode == Overlap::Add) {
+                        y.addAssign(yFutureLocation,
+                                    &workData[0],
+                                    fft_length);
+                    }
+                    else {
+                        y.addAssign(yFutureLocation,
+                                    &workData[fft_length/2],
+                                    fft_length/2);
+                    }
                 }
             }
         }

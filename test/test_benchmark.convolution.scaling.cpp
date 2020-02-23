@@ -5,7 +5,6 @@ template<typename T, template<typename> typename Allocator, typename Tag>
 auto mkConvolution(std::vector<Scaling> const & v,
                    a64::vector<T> const & coeffs,
                    int const maxVectorSize) {
-    using CLegacy = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
     using CNew = SelfContainedXYConvolution<
     AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate < AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>
     >;
@@ -42,7 +41,7 @@ void findCheapest2(int const firstSz,
                    XFFTsCostsFactors const & factors,
                    double & sideEffect)
 {
-    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
+    using C = CustomScaleConvolutionSetupParam<PartitionnedFFTConvolutionCRTPSetupParam>;
     
     auto coeffs = mkTestCoeffs<T>(nCoeffs);
     
@@ -55,7 +54,7 @@ void findCheapest2(int const firstSz,
         }.forEachScaling([maxVectorSize, &coeffs, &count, &results, &factors, &sideEffect](auto const & v){
             auto conv = mkConvolution<T, Allocator, Tag>(v, coeffs, maxVectorSize);
             constexpr int cache_flush_period_samples = 128;
-            auto sim = mkSimulation<typename C::SetupParam, T, Tag>(v, coeffs.size());
+            auto sim = mkSimulation<C, T, Tag>(v, coeffs.size());
             results.emplace(v,
                             Costs{
                 virtualCostPerSample(sim, factors),
@@ -139,7 +138,7 @@ void analyzeSimulated(int const firstSz,
                       XFFTsCostsFactors const & factors,
                       double & sideEffect)
 {
-    using C = CustomScaleConvolution<FFTConvolutionIntermediate < PartitionnedFFTConvolutionCRTP<T, Allocator, Tag> >>;
+    using C = CustomScaleConvolutionSetupParam<PartitionnedFFTConvolutionCRTPSetupParam>;
     
     auto coeffs = mkTestCoeffs<T>(nCoeffs);
     
@@ -157,7 +156,7 @@ void analyzeSimulated(int const firstSz,
             switch(model) {
                 case CostModel::VirtualSimulation:
                 {
-                    auto sim = mkSimulation<typename C::SetupParam, T, Tag>(v, coeffs.size());
+                    auto sim = mkSimulation<C, T, Tag>(v, coeffs.size());
                     results.emplace(v,
                                     virtualCostPerSample(sim, factors));
                 }
@@ -238,15 +237,13 @@ void smallTest() {
     std::cout << "sideEffect " << sideEffect << std::endl;
 }
 
-template<typename T, typename F>
+template<typename T, typename Tag, typename F>
 void forEachCost(F f) {
     using namespace fft;
-    //using Tag = imj::Tag;
-    using Tag = Fastest;
     using RealSignalCosts = RealSignalCosts<Tag, T>;
     using RealFBinsCosts = RealFBinsCosts<Tag, T>;
     using AlgoCosts = AlgoCosts<Tag, T>;
-
+/*
     f("RealSignalCosts::cost_dotpr ",
       RealSignalCosts::cost_dotpr);
     f("RealSignalCosts::cost_add_assign ",
@@ -262,28 +259,30 @@ void forEachCost(F f) {
     f("RealFBinsCosts::cost_multiply ",
       RealFBinsCosts::cost_multiply);
     f("RealFBinsCosts::cost_multiply_add ",
-      RealFBinsCosts::cost_multiply_add);
+      RealFBinsCosts::cost_multiply_add);*/
     f("AlgoCosts::cost_fft_forward ",
       AlgoCosts::cost_fft_forward);
     f("AlgoCosts::cost_fft_inverse ",
       AlgoCosts::cost_fft_inverse);
 }
 
-template<typename T>
+template<typename T, typename Tag>
 void printCosts(int const sz) {
     
     std::cout << "- for size " << sz << std::endl;
-    forEachCost<T>([sz](std::string const & name,
+    forEachCost<T, Tag>([sz](std::string const & name,
                         auto & cost){
         std::cout << name << " " << cost(sz) << std::endl;
     });
 }
 
-template<typename T>
+template<typename T, typename Tag>
 void analyzeCostsCoherence(int const szBegin,
                            int const szEnd)
 {
-    forEachCost<T>([szBegin, szEnd](std::string const & name,
+    COUT_TYPE(Tag); std::cout << std::endl;
+    
+    forEachCost<T, Tag>([szBegin, szEnd](std::string const & name,
                                     auto & cost){
         std::cout << name << std::endl;
         for(int i=0; i<2; ++i) {
@@ -326,7 +325,9 @@ void analyzeCostsCoherence(int const szBegin,
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
-    analyzeCostsCoherence<double>(1, 40000);
+    analyzeCostsCoherence<double, fft::Fastest>(1, 40000);
+    analyzeCostsCoherence<double, imj::Tag>(1, 40000);
+    analyzeCostsCoherence<double, imj2::Tag>(1, 40000);
     /*
     printCosts<double>(64);
     printCosts<double>(128);

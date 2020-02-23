@@ -112,10 +112,9 @@ namespace imajuscule {
     }
 
     // count trailing zeroes
-    static inline uint32_t count_trailing_zeroes(uint32_t x)
+    static inline unsigned count_trailing_zeroes(unsigned x)
     {
       return __builtin_ctz(x);
-//        return 32 - count_leading_zeroes(~x & (x-1));
     }
 
 static inline int count_set_bits(uint32_t x) {

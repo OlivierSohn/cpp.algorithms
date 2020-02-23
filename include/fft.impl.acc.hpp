@@ -35,11 +35,12 @@ namespace imajuscule {
             
             static void add_assign(value_type * __restrict res,
                                    value_type const * const __restrict const_add,
-                                   int N) {
+                                   int const start,
+                                   int const N) {
                 // res += add
 
                 accelerate::API<T>::f_vadd(res, 1,
-                                           const_add, 1,
+                                           const_add+start, 1,
                                            res, 1,
                                            N);
             }
@@ -50,7 +51,7 @@ namespace imajuscule {
                                           value_type const * const __restrict const_add,
                                           int N) {
                 if constexpr(std::is_same_v<value_type, TDest>) {
-                    add_assign(res, const_add, N);
+                    add_assign(res, const_add, 0, N);
                 }
                 else {
                     for(int i=0; i!= N; ++i) {
@@ -74,7 +75,7 @@ namespace imajuscule {
             
             static void copy(value_type * __restrict dest,
                              value_type const * const __restrict from,
-                             int N) {
+                             unsigned int N) {
                 // these 2 are equivalent:
                 /*accelerate::API<T>::f_vcpy(N,
                                            &*from, 1,
@@ -86,12 +87,12 @@ namespace imajuscule {
             template<typename TDest>
             static void copyOutputToOutput(TDest * __restrict dest,
                                            value_type const * const __restrict src,
-                                           int N) {
+                                           unsigned int N) {
                 if constexpr(std::is_same_v<TDest, value_type>) {
                     copy(dest, src, N);
                 }
                 else {
-                    for(int i=0; i!= N; ++i) {
+                    for(unsigned int i=0; i!= N; ++i) {
                         dest[i] = src[i];
                     }
                 }
@@ -100,32 +101,25 @@ namespace imajuscule {
             template<typename TSource>
             static void copyFromInput(value_type * __restrict dest,
                                       TSource const * const __restrict src,
-                                      int N) {
+                                      unsigned int N) {
                 if constexpr(std::is_same_v<value_type, TSource>) {
                     copy(dest, src, N);
                 }
                 else {
-                    for(int i=0; i!= N; ++i) {
+                    for(unsigned int i=0; i!= N; ++i) {
                         dest[i] = src[i];
                     }
                 }
             }
             
-            template<typename TDest>
-            static void copyToOutput(TDest * __restrict dest,
-                                     value_type const * const __restrict src,
-                                     int N) {
-                if constexpr(std::is_same_v<value_type, TDest>) {
-                    copy(dest, src, N);
-                }
-                else {
-                    for(int i=0; i!= N; ++i) {
-                        dest[i] = src[i];
-                    }
-                }
+            static void copyToOutput(T * __restrict dest,
+                                     value_type const * __restrict src,
+                                     unsigned int const start,
+                                     unsigned int const N) {
+                copy(dest, src+start, N);
             }
             
-            static void zero_n_raw(T * p, int n) {
+            static void zero_n_raw(T * p, unsigned int n) {
                 T zero{};
 
                 accelerate::API<T>::f_vfill(&zero,
@@ -133,14 +127,14 @@ namespace imajuscule {
             }
             static constexpr auto zero_n_raw_output = zero_n_raw;
             
-            static void zero_n(type & v, int n) {
+            static void zero_n(type & v, unsigned int n) {
                 zero_n_raw(&v[0], n);
             }
             static void zero(type & v) {
                 zero_n(v, v.size());
             }
             
-            static void dotpr(T const * const a, T const * const b, T * res, int n) {
+            static void dotpr(T const * const a, T const * const b, T * res, unsigned int n) {
                 accelerate::API<T>::f_dotpr(a, 1, b, 1, res, n);
             }
         };
@@ -424,6 +418,7 @@ namespace imajuscule {
 
         template<typename T>
         struct Algo_<accelerate::Tag, T> {
+            static constexpr bool inplace_dft = false;
 
             // it's not clear what I should use :
             // on ios it seems to be a little faster with a tmp buffer,

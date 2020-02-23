@@ -72,13 +72,13 @@ struct CustomScaleConvolutionSetupParam : public Cost {
         }
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const
     {
         std::optional<MinSizeRequirement> res;
         for(auto const & a : scalingParams)
         {
-            auto res2 = a.setupParam.template getMinSizeRequirement<Mode>(maxVectorSz);
+            auto res2 = a.setupParam.template getMinSizeRequirement<Mode, FFTAlgo>(maxVectorSz);
             if(!res) {
                 res = res2;
             }

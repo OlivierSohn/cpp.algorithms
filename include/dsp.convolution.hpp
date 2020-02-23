@@ -81,7 +81,7 @@ struct FFTConvolutionCRTPSetupParam : public Cost
         return blockSize > 0;
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const
     {
         if(!blockSize) {
@@ -120,7 +120,7 @@ struct FFTConvolutionCRTPSetupParam : public Cost
                     n_partitions_in_vec
                 }
             },
-            2*fft_length // work size
+            fft_length + (FFTAlgo::inplace_dft ? 0 : fft_length) // work size
         };
     }
     
@@ -197,7 +197,7 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
         }
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const
     {
         if(!partition_size) {
@@ -236,7 +236,7 @@ struct PartitionnedFFTConvolutionCRTPSetupParam : public Cost {
                     partition_count + n_partitions_in_vec - 1
                 }
             },
-            2*fft_length // work size
+            fft_length + (FFTAlgo::inplace_dft ? 0 : fft_length) // work size
         };
     }
     

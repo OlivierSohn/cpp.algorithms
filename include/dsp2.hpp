@@ -118,8 +118,6 @@ struct FFTsComputation<Overlap::Save, T, Allocator, Tag> {
     std::vector<FFTs<T, Allocator, Tag>> x_ffts;
 };
 
-constexpr auto overlapMode = Overlap::Save;
-
 template<typename T, template<typename> typename Allocator, typename Tag>
 struct XAndFFTS {
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
@@ -506,6 +504,10 @@ struct YSegments {
 
 template<typename T, typename Tag>
 struct Y {
+    using FFTAlgo = fft::Algo_<Tag, T>;
+
+    static constexpr bool inplace = FFTAlgo::inplace_dft;
+
     static constexpr auto zero_n_raw_output= fft::RealSignal_<Tag, T>::zero_n_raw_output;
     static constexpr auto zero_n_raw = fft::RealSignal_<Tag, T>::zero_n_raw;
     static constexpr auto get_signal = fft::RealSignal_<Tag, T>::get_signal;
@@ -516,8 +518,8 @@ struct Y {
 
     template<typename TT>
     static constexpr auto copyOutputToOutput = fft::RealSignal_<Tag, T>::template copyOutputToOutput<TT>;
-    template<typename TT>
-    static constexpr auto copyToOutput = fft::RealSignal_<Tag, T>::template copyToOutput<TT>;
+
+    static constexpr auto copyToOutput = fft::RealSignal_<Tag, T>::copyToOutput;
 
     using RealSignal = typename fft::RealSignal_<Tag, T>::type;
     using RealOutputSignal = typename fft::RealSignal_<Tag, T>::outputType;
@@ -591,7 +593,8 @@ struct Y {
     
     template<typename Input, typename FAddAssign, typename FCopyToOutput>
     void addAssign_(int unbounded_future_progress, // >= uProgress anb maybe > ySz
-                    Input * x,
+                    Input * x0,
+                    int start,
                     FAddAssign fAddAssign,
                     FCopyToOutput fCopyToOutput,
                     int N)
@@ -630,46 +633,54 @@ struct Y {
             
             if(write_sz_from_future_progress >= s.size_from_progress) {
                 fAddAssign(&y[future_progress],
-                           &x[0],
+                           x0,
+                           start,
                            s.size_from_progress);
             }
             else if(write_sz_from_future_progress == 0) {
                 fCopyToOutput(&y[future_progress],
-                              &x[0],
+                              x0,
+                              start,
                               s.size_from_progress);
             }
             else {
                 Assert(write_sz_from_future_progress < s.size_from_progress);
                 fAddAssign(&y[future_progress],
-                           &x[0],
+                           x0,
+                           start,
                            write_sz_from_future_progress);
                 fCopyToOutput(&y[future_progress + write_sz_from_future_progress],
-                              &x[write_sz_from_future_progress],
+                              x0,
+                              start + write_sz_from_future_progress,
                               s.size_from_progress-write_sz_from_future_progress);
             }
             
             if(unlikely(s.size_from_zero)) {
                 if(write_sz_from_future_progress >= N) {
                     fAddAssign(&y[0],
-                               &x[s.size_from_progress],
+                               x0,
+                               start + s.size_from_progress,
                                s.size_from_zero);
                 }
                 else {
                     int const write_sz_from_zero = std::max(0,
                                                             future_progress + write_sz_from_future_progress - ySz);
-                    x += s.size_from_progress;
+                    start += s.size_from_progress;
                     if(write_sz_from_zero == 0) {
                         fCopyToOutput(y.data(),
-                                      x,
+                                      x0,
+                                      start,
                                       s.size_from_zero);
                     }
                     else {
                         Assert(write_sz_from_future_progress < N);
                         fAddAssign(&y[0],
-                                   x,
+                                   x0,
+                                   start,
                                    write_sz_from_zero);
                         fCopyToOutput(&y[write_sz_from_zero],
-                                      x + write_sz_from_zero,
+                                      x0,
+                                      start + write_sz_from_zero,
                                       s.size_from_zero - write_sz_from_zero);
                     }
                 }
@@ -680,7 +691,8 @@ struct Y {
     }
     
     template<typename Input, typename FAddAssign, typename FCopyToOutput>
-    void addAssignPresent_(Input * x,
+    void addAssignPresent_(Input * x0,
+                           int start,
                            FAddAssign fAddAssign,
                            FCopyToOutput fCopyToOutput,
                            int N)
@@ -690,22 +702,26 @@ struct Y {
             
             if(write_sz >= s.size_from_progress) {
                 fAddAssign(&y[progress],
-                           &x[0],
+                           x0,
+                           start,
                            s.size_from_progress);
             }
             else {
                 if(write_sz == 0) {
                     fCopyToOutput(&y[progress],
-                                  &x[0],
+                                  x0,
+                                  start,
                                   s.size_from_progress);
                 }
                 else {
                     Assert(write_sz < s.size_from_progress);
                     fAddAssign(&y[progress],
-                               &x[0],
+                               x0,
+                               start,
                                write_sz);
                     fCopyToOutput(&y[progress + write_sz],
-                                  &x[write_sz],
+                                  x0,
+                                  start+write_sz,
                                   s.size_from_progress-write_sz);
                 }
             }
@@ -713,25 +729,29 @@ struct Y {
             if(unlikely(s.size_from_zero)) {
                 if(write_sz >= N) {
                     fAddAssign(&y[0],
-                               &x[s.size_from_progress],
+                               x0,
+                               start+s.size_from_progress,
                                s.size_from_zero);
                 }
                 else {
                     int const write_sz_from_zero = std::max(0,
                                                             progress + write_sz - ySz);
-                    x += s.size_from_progress;
+                    start += s.size_from_progress;
                     if(write_sz_from_zero == 0) {
                         fCopyToOutput(y.data(),
-                                      x,
+                                      x0,
+                                      start,
                                       s.size_from_zero);
                     }
                     else {
                         Assert(write_sz < N);
                         fAddAssign(&y[0],
-                                   x,
+                                   x0,
+                                   start,
                                    write_sz_from_zero);
                         fCopyToOutput(&y[write_sz_from_zero],
-                                      x + write_sz_from_zero,
+                                      x0,
+                                      start + write_sz_from_zero,
                                       s.size_from_zero - write_sz_from_zero);
                     }
                 }
@@ -741,35 +761,68 @@ struct Y {
         }
     }
     
+    void inplace_addAssignPresent(complex<T> * x,
+                                  int const start,
+                                  int const N) {
+        addAssignPresent_(x, start,
+                          [N](auto * pY, auto * pX, int start, int N2){
+            add_assign(pY, pX, N, start, N2);
+        },
+                          [N](auto * pY, auto * pX, int start, int N2){
+            copyToOutput(pY, pX, N, start, N2);
+        }, N);
+    }
+    
     void addAssignPresent(typename RealSignal::value_type * x,
                           int N) {
-        addAssignPresent_(x, add_assign, copyToOutput<T>, N);
+        addAssignPresent_(x, 0, add_assign, copyToOutput, N);
     }
-
-    template <typename T2>
-    auto addAssignPresent(T2 * x,
-                          int N)
-    -> std::enable_if_t<std::is_same_v<T, T2> &&
-                        !std::is_same_v<T2, typename RealSignal::value_type>, void>
-    {
-        addAssignPresent_(x, add_assign_output<T>, copyOutputToOutput<T2>, N);
-    }
-
     
+    template <typename T2>
+    void addAssignPresentFromContiguous(T2 * x,
+                                        int N)
+    {
+        addAssignPresent_(x, 0,
+                          [](auto * pY, auto * pX, int start, int N){
+            add_assign_output<T>(pY, pX+start, N);
+        },
+                          [](auto * pY, auto * pX, int start, int N){
+            copyOutputToOutput<T2>(pY, pX+start, N);
+        }, N);
+    }
+
+    void inplace_addAssign(int unbounded_future_progress,
+                           complex<T> * x,
+                           int const start,
+                           int const N) {
+        addAssign_(unbounded_future_progress, x, start,
+                   [N](auto * pY, auto * pX, int start, int N2){
+            add_assign(pY, pX, N, start, N2);
+        },
+                   [N](auto * pY, auto * pX, int start, int N2){
+            copyToOutput(pY, pX, N, start, N2);
+        },
+                   N);
+    }
+
     void addAssign(int unbounded_future_progress,
                    typename RealSignal::value_type * x,
                    int N) {
-        addAssign_(unbounded_future_progress, x, add_assign, copyToOutput<T>, N);
+        addAssign_(unbounded_future_progress, x, 0, add_assign, copyToOutput, N);
     }
-    
+
     template <typename T2>
-    auto addAssign(int unbounded_future_progress,
-                   T2 * x,
-                   int N)
-    -> std::enable_if_t<std::is_same_v<T, T2> &&
-    !std::is_same_v<T2, typename RealSignal::value_type>, void>
+    void addAssignFromContiguous(int unbounded_future_progress,
+                                 T2 * x,
+                                 int N)
     {
-        addAssign_(unbounded_future_progress, x, add_assign_output<T>, copyOutputToOutput<T2>, N);
+        addAssign_(unbounded_future_progress, x, 0,
+                   [](auto * pY, auto * pX, int start, int N){
+            add_assign_output<T>(pY, pX+start, N);
+        },
+                   [](auto * pY, auto * pX, int start, int N){
+            copyOutputToOutput<T2>(pY, pX+start, N);
+        }, N);
     }
 
 private:
@@ -874,7 +927,8 @@ struct XYConvolution {
     using State = typename Algo::State;
     using FPT = typename Algo::FPT;
     using Tag = typename Algo::Tag;
-    
+    using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+
     template<typename TT>
     using Allocator = typename A::template Allocator<TT>;
     
@@ -884,7 +938,7 @@ struct XYConvolution {
     using SetupParam = typename Algo::SetupParam;
 
     static int getAllocationSz_Setup(SetupParam const & p, int const maxVectorSz) {
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode, FFTAlgo>(maxVectorSz);
         return XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
     }
     
@@ -896,9 +950,9 @@ struct XYConvolution {
                WorkCplxFreqs & work,
                int const maxVectorSz)
     {
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode, FFTAlgo>(maxVectorSz);
         
-        work.reserve(req.minWorkSize);
+        work.resize(req.minWorkSize);
         
         x_and_ffts.resize(req.minXSize,
                           req.xFftSizes);

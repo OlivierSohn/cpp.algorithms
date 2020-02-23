@@ -167,6 +167,7 @@
 
 #if __APPLE__
 # include "fft.impl.acc.hpp"
+# include "fft.impl.acc2.hpp"
 #endif
 
 #include "fft.roots.hpp"

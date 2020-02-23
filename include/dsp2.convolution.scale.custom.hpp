@@ -218,6 +218,10 @@ struct AlgoCustomScaleConvolution {
                                 workData,
                                 {1,0});
             }
+            else {
+                // early exit
+                break;
+            }
         }
     }
     

@@ -118,13 +118,10 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
             return;
         }
 
-        auto const N = getBlockSize();
-        if(unlikely(!N)) {
-            return;
-        }
-        Assert(is_power_of_two(N));
+        unsigned int const N = getBlockSize();
+        Assert(!N || is_power_of_two(N));
         
-        if((static_cast<uint32_t>(x_and_ffts.progress + 1) & static_cast<uint32_t>(N-1)) == 0) {
+        if((static_cast<unsigned int>(x_and_ffts.progress + 1) & (N-1)) == 0) {
             forceSteps(s,
                        x_and_ffts,
                        y,

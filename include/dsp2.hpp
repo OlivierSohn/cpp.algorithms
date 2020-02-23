@@ -761,7 +761,8 @@ struct Y {
         }
     }
     
-    void inplace_addAssignPresent(complex<T> * x,
+    template<typename T2>
+    void inplace_addAssignPresent(T2 * x,
                                   int const start,
                                   int const N) {
         addAssignPresent_(x, start,
@@ -791,8 +792,9 @@ struct Y {
         }, N);
     }
 
+    template<typename T2>
     void inplace_addAssign(int unbounded_future_progress,
-                           complex<T> * x,
+                           T2 * x,
                            int const start,
                            int const N) {
         addAssign_(unbounded_future_progress, x, start,

@@ -6,9 +6,20 @@
 
 namespace imajuscule {
 
-    namespace imj2 {
-        struct Tag {};
-    }
+namespace imj2 {
+struct Tag {};
+}
+
+static inline unsigned int bitReverse(unsigned int b,
+                               unsigned int log2N)
+{
+    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
+    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
+    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
+    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
+    b = ((b >> 16) | (b << 16)) >> (32 - log2N);
+    return b;
+}
 
     namespace fft {
 
@@ -57,31 +68,11 @@ namespace imajuscule {
                 }();
                 
                 for(unsigned int i=start, end=start+N; i!=end; ++i, ++res) {
-                    unsigned int b = i;
-                    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
-                    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
-                    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
-                    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
-                    b = ((b >> 16) | (b << 16)) >> (32 - log2addSz);
+                    unsigned int b = bitReverse(i, log2addSz);
 
                     assert(std::abs(add[b].imag()) < 0.0001f);
 
                     *res += add[b].real();
-                }
-            }
-
-            static void add_scalar_multiply(iter res_, const_iter add1_, const_iter add2_, T const m, int const N) {
-                // res = m * (add1 + add2)
-
-                value_type * __restrict res = res_.base();
-                value_type const * __restrict add1 = add1_.base();
-                value_type const * __restrict add2 = add2_.base();
-
-                for(value_type const * __restrict resEnd = res + N;
-                    res != resEnd;
-                    ++res, ++add1, ++add2)
-                {
-                    *res = m * (*add1 + *add2);
                 }
             }
 
@@ -136,12 +127,7 @@ namespace imajuscule {
                 }();
                 
                 for(unsigned int i=start, end=start+N; i!=end; ++i, ++dest) {
-                    unsigned int b = i;
-                    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
-                    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
-                    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
-                    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
-                    b = ((b >> 16) | (b << 16)) >> (32 - log2fromSz);
+                    unsigned int b = bitReverse(i, log2fromSz);
 
                     assert(std::abs(from[b].imag()) < 0.0001f);
 
@@ -325,17 +311,13 @@ namespace imajuscule {
                 dft_inplace(x, N);
             }
             
-            static T getBitreversedRealOutput(complex<T> * x,
-                                              unsigned int b,
-                                              unsigned int log2N)
+            static T extractRealOutput(complex<T> * x,
+                                       unsigned int b,
+                                       unsigned int N)
             {
-                // inverse did not bit-reverse the output, so we do it here:
-                
-                b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
-                b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
-                b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
-                b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
-                b = ((b >> 16) | (b << 16)) >> (32 - log2N);
+                unsigned int log2N = power_of_two_exponent(N);
+
+                b = bitReverse(b, log2N);
 
                 return x[b].real();
             }
@@ -376,12 +358,7 @@ namespace imajuscule {
                 // Reverse bits
                 unsigned int m = power_of_two_exponent(N);
                 for(unsigned int i=0; i<N; ++i) {
-                    unsigned int b = i;
-                    b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
-                    b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));
-                    b = (((b & 0xf0f0f0f0) >> 4) | ((b & 0x0f0f0f0f) << 4));
-                    b = (((b & 0xff00ff00) >> 8) | ((b & 0x00ff00ff) << 8));
-                    b = ((b >> 16) | (b << 16)) >> (32 - m);
+                    unsigned int b = bitReverse(i, m);
                     
                     if(b<i) {
                         std::swap(x[i], x[b]);

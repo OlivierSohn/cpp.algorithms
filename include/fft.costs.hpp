@@ -279,44 +279,6 @@ namespace imajuscule::fft {
 
         using FFTAlgo = typename fft::Algo_<Tag, T>;
         static constexpr bool inplace = FFTAlgo::inplace_dft;
-
-        inline static CallCost cost_add_scalar_multiply { [](std::function<void(double&)> fBeforeMeasure,
-                                                             int64_t sz, int64_t ntests, double & sideEffect) {
-            std::vector<std::array<type, 3>> va;
-            va.resize(ntests);
-            double d = 1.;
-            for(auto & a:va)
-            {
-                for(auto & v:a) {
-                    v.resize(sz,
-                             value_type{static_cast<T>(d)});
-                    ++d;
-                }
-            }
-            
-            using namespace profiling;
-            if(fBeforeMeasure) {
-                fBeforeMeasure(sideEffect);
-            }
-            auto duration = measure_thread_cpu_one([&va, sz](){
-                for(auto & a:va) {
-                    Impl::add_scalar_multiply(a[0].begin(),
-                                              a[1].begin(),
-                                              a[2].begin(),
-                                              0.7,
-                                              sz);
-                }
-            });
-            for(auto & a:va)
-            {
-                using std::abs; // so that abs can be std::abs or imajuscule::abs (for complex)
-                sideEffect += abs(std::accumulate(a[0].begin(),
-                                                  a[0].end(),
-                                                  value_type{})) / static_cast<T>(a[0].size());
-            }
-            return duration;
-        }};
-        
         
         inline static CallCost cost_add_assign { [](std::function<void(double&)> fBeforeMeasure,
                                                     int64_t sz, int64_t ntests, double & sideEffect) {
@@ -637,7 +599,7 @@ namespace imajuscule::fft {
             if constexpr (Algo::inplace_dft) {
                 for(auto &f:vf) {
                     using std::abs;
-                    sideEffect += abs(f[0]);
+                    sideEffect += abs(*(f.data()));
                 }
             }
             else {

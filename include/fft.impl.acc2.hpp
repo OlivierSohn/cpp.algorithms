@@ -3,8 +3,22 @@
 namespace imajuscule {
     // implementation of Accelerate vDSP fft
 
-    namespace accelerate {
+    namespace accelerate2 {
         struct Tag {};
+
+        static inline unsigned int interlacedIndex(unsigned int b,
+                                            unsigned int halfN) {
+            assert(halfN);
+            unsigned int halfB = b/2;
+            unsigned int remainder = b - 2*halfB;
+            assert(remainder == 0 || remainder == 1);
+            if(remainder) {
+                return halfN+halfB;
+            }
+            else {
+                return halfB;
+            }
+        }
     }
 
     namespace fft {
@@ -17,8 +31,8 @@ namespace imajuscule {
          */
 
         template<typename T>
-        struct RealSignal_<accelerate::Tag, T> {
-            using This = RealSignal_<accelerate::Tag, T>;
+        struct RealSignal_<accelerate2::Tag, T> {
+            using This = RealSignal_<accelerate2::Tag, T>;
             using type = a64::vector<T>;
             using outputType = type;
             using iter = typename type::iterator;
@@ -35,14 +49,24 @@ namespace imajuscule {
             
             static void add_assign(value_type * __restrict res,
                                    value_type const * const __restrict const_add,
-                                   int const start,
-                                   int const N) {
-                // res += add
+                                   unsigned int const addSz,
+                                   unsigned int const start,
+                                   unsigned int const N) {
+                using accelerate2::interlacedIndex;
+                unsigned int const halfAddSz = [addSz]() {
+                    if constexpr (overlapMode == Overlap::Add) {
+                        assert(addSz >= 2);
+                        return addSz/2;
+                    }
+                    else {
+                        assert(addSz >= 1);
+                        return addSz;
+                    }
+                }();
 
-                accelerate::API<T>::f_vadd(res, 1,
-                                           const_add+start, 1,
-                                           res, 1,
-                                           N);
+                for(unsigned int i=start, end=start+N; i!=end; ++i, ++res) {
+                    *res += const_add[interlacedIndex(i, halfAddSz)];
+                }
             }
             
             
@@ -51,7 +75,10 @@ namespace imajuscule {
                                           value_type const * const __restrict const_add,
                                           int N) {
                 if constexpr(std::is_same_v<value_type, TDest>) {
-                    add_assign(res, const_add, 0, N);
+                    accelerate::API<T>::f_vadd(res, 1,
+                                               const_add, 1,
+                                               res, 1,
+                                               N);
                 }
                 else {
                     for(int i=0; i!= N; ++i) {
@@ -100,10 +127,32 @@ namespace imajuscule {
             }
             
             static void copyToOutput(T * __restrict dest,
-                                     value_type const * __restrict src,
+                                     value_type const * __restrict from,
+                                     unsigned int const fromSz,
                                      unsigned int const start,
                                      unsigned int const N) {
-                copy(dest, src+start, N);
+                
+                unsigned int const halfFromSz = [fromSz]() {
+                    if constexpr (overlapMode == Overlap::Add) {
+                        assert(fromSz >= 2);
+                        return fromSz/2;
+                    }
+                    else {
+                        assert(fromSz >= 1);
+                        return fromSz;
+                    }
+                }();
+                
+                using accelerate2::interlacedIndex;
+                
+                for(unsigned int i=start, end=start+N; i!=end; ++i, ++dest) {
+                    unsigned int b = interlacedIndex(i, halfFromSz);
+                    assert(i < 2*halfFromSz);
+                    assert(b < 2*halfFromSz);
+                    //assert(b == interlacedIndex(i + 2*halfFromSz, halfFromSz));
+
+                    *dest = from[b];
+                }
             }
             
             static void zero_n_raw(T * p, unsigned int n) {
@@ -126,73 +175,10 @@ namespace imajuscule {
             }
         };
 
-
-        /*
-         Represents the first half of the spectrum (the second half is the conjugate)
-         and the nyquist frequency (real) is encoded in the 0th index imag.
-         cf. packing here : https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html
-         */
-        template<typename T, template<typename> typename A>
-        struct RealFBinsImpl {
-            using SC = accelerate::SplitComplex<T>;
-
-            using value_type = T;
-            using allocator_type = A<T>;
-
-            RealFBinsImpl() = default;
-
-            RealFBinsImpl(int size) : buffer(size) {
-            }
-
-            void reserve(int sz) {
-                buffer.reserve(sz);
-            }
-            void resize(size_t sz) {
-                buffer.resize(sz);
-            }
-            void clear() {
-                buffer.clear();
-            }
-            
-            auto size() const { return buffer.size(); }
-            auto empty() const { return buffer.empty(); }
-            
-            auto vector_size() const {
-                return buffer.size() / 2;
-            }
-            
-            auto data() {
-                return buffer.data();
-            }
-            auto data() const {
-                return buffer.data();
-            }
-
-            auto get_hybrid_split() {
-                Assert(buffer.size() >= 2);
-                Assert(0 == buffer.size() % 2);
-                return SC {
-                    // 64 byte aligned:
-                    &buffer[0],
-                    // for doubles, and a buffer size of at least 4, this is at least 16 bytes aligned:
-                    &buffer[0] + buffer.size()/2
-                };
-            }
-
-        private:
-            std::vector<T, allocator_type> buffer;
-        };
-
-        template<typename ComplexSplit>
-        void advance(ComplexSplit & cs) {
-            ++cs.realp;
-            ++cs.imagp;
-        }
-
         template<typename T, template<typename> typename Allocator>
-        struct RealFBins_<accelerate::Tag, T, Allocator> {
-            using This = RealFBins_<accelerate::Tag, T, Allocator>;
-            using Tag = accelerate::Tag;
+        struct RealFBins_<accelerate2::Tag, T, Allocator> {
+            using This = RealFBins_<accelerate2::Tag, T, Allocator>;
+            using Tag = accelerate2::Tag;
             using type = RealFBinsImpl<T, Allocator>;
 
             // this is slow, it is used for tests only
@@ -328,11 +314,11 @@ namespace imajuscule {
                         const_cast<T *>(&const_m2[N+1])
                     };
 
-                    accelerate::API<T>::f_zvma(&M1, 1,
-                                               &M2, 1,
-                                               &Ac, 1,
-                                               &Ac, 1,
-                                               N - 1);
+                    API<T>::f_zvma(&M1, 1,
+                                   &M2, 1,
+                                   &Ac, 1,
+                                   &Ac, 1,
+                                   N - 1);
                 }
             }
 
@@ -387,7 +373,7 @@ namespace imajuscule {
         };
 
         template<typename T>
-        struct Context_<accelerate::Tag, T> {
+        struct Context_<accelerate2::Tag, T> {
             using type = accelerate::FFTSetup_<T>;
 
             static auto create(int size) {
@@ -396,16 +382,9 @@ namespace imajuscule {
             static constexpr auto destroy = accelerate::API<T>::f_destroy_fftsetup;
         };
 
-        enum class FFTType {
-            Normal,
-            WithTmpBuffer
-        };
-
-        a64::vector<int8_t> & getFFTTmp();
-
         template<typename T>
-        struct Algo_<accelerate::Tag, T> {
-            static constexpr bool inplace_dft = false;
+        struct Algo_<accelerate2::Tag, T> {
+            static constexpr bool inplace_dft = true;
 
             // it's not clear what I should use :
             // on ios it seems to be a little faster with a tmp buffer,
@@ -415,14 +394,14 @@ namespace imajuscule {
             static constexpr auto ffttype = FFTType::Normal;
 
             using FPT = T;
-            using RealInput  = typename RealSignal_ <accelerate::Tag, T>::type;
+            using RealInput  = typename RealSignal_ <accelerate2::Tag, T>::type;
             using RealValue  = typename RealInput::value_type;
 
             template<template<typename> typename Allocator>
-            using RealFBins  = typename RealFBins_<accelerate::Tag, T, Allocator>::type;
+            using RealFBins  = typename RealFBins_<accelerate2::Tag, T, Allocator>::type;
             
-            using Context    = typename Context_   <accelerate::Tag, T>::type;
-            using Contexts = fft::Contexts_<accelerate::Tag, T>;
+            using Context    = typename Context_   <accelerate2::Tag, T>::type;
+            using Contexts = fft::Contexts_<accelerate2::Tag, T>;
             using Tr = NumTraits<T>;
 
             // https://developer.apple.com/library/content/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html#//apple_ref/doc/uid/TP40005147-CH202-16195
@@ -478,7 +457,6 @@ namespace imajuscule {
             }
 
             void inverse(T const * const_output,
-                         RealValue * input,
                          unsigned int N) const
             {
                 using namespace accelerate;
@@ -511,23 +489,24 @@ namespace imajuscule {
                                        power_of_two_exponent(N),
                                        FFT_INVERSE);
                 }
-
-                constexpr auto inputStride = 1;
-                API<T>::f_ztoc(&Output,
-                               1,
-                               reinterpret_cast<Complex<T> *>(input),
-                               inputStride * 2,
-                               N/2);
-
             }
-            
+                        
+            static T extractRealOutput(T const * x,
+                                       unsigned int b,
+                                       unsigned int N)
+            {
+                using accelerate2::interlacedIndex;
+                return x[interlacedIndex(b,
+                                         N/2)];
+            }
+
             Context context;
         };
 
         namespace slow_debug {
 
             template<typename CONTAINER>
-            struct UnwrapFrequenciesRealFBins<accelerate::Tag, CONTAINER> {
+            struct UnwrapFrequenciesRealFBins<accelerate2::Tag, CONTAINER> {
                 using T = typename CONTAINER::value_type;
                 static auto run(CONTAINER const & const_container, int N) {
 
@@ -560,7 +539,7 @@ namespace imajuscule {
             };
 
             template<typename CONTAINER>
-            struct UnwrapSignal<accelerate::Tag, CONTAINER> {
+            struct UnwrapSignal<accelerate2::Tag, CONTAINER> {
                 using T = typename CONTAINER::value_type;
                 static auto run(CONTAINER const & container, int N) {
                     assert(container.end() == container.begin() + N);
@@ -570,7 +549,7 @@ namespace imajuscule {
         } // NS slow_debug
     }// NS fft
 
-    namespace accelerate {
+    namespace accelerate2 {
         namespace fft {
             using namespace imajuscule::fft;
 
@@ -589,7 +568,7 @@ namespace imajuscule {
             template<typename T>
             using Algo = Algo_<Tag, T>;
         } // NS fft
-    }// NS accelerate
+    }// NS accelerate2
 }// NS imajuscule
 
 #endif

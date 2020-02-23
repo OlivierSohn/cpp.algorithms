@@ -71,21 +71,6 @@ namespace imajuscule {
                 }
             }
 
-            static void add_scalar_multiply(iter res_, const_iter add1_, const_iter add2_, T const m, int const N) {
-                // res = m * (add1 + add2)
-
-                value_type * __restrict res = res_.base();
-                value_type const * __restrict add1 = add1_.base();
-                value_type const * __restrict add2 = add2_.base();
-
-                for(value_type const * __restrict resEnd = res + N;
-                    res != resEnd;
-                    ++res, ++add1, ++add2)
-                {
-                    *res = m * (*add1 + *add2);
-                }
-            }
-
             static void copy(value_type * __restrict dest,
                              value_type const * __restrict from,
                              int N) {

@@ -325,7 +325,8 @@ void analyzeCostsCoherence(int const szBegin,
 
 TEST(BenchmarkConvolutionsScaling, iterateScales_findCheapest) {
     using namespace imajuscule;
-    analyzeCostsCoherence<double, fft::Fastest>(1, 40000);
+    analyzeCostsCoherence<double, accelerate::Tag>(1, 40000);
+    analyzeCostsCoherence<double, accelerate2::Tag>(1, 40000);
     analyzeCostsCoherence<double, imj::Tag>(1, 40000);
     analyzeCostsCoherence<double, imj2::Tag>(1, 40000);
     /*

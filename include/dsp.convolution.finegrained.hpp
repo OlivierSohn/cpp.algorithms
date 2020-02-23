@@ -152,7 +152,7 @@ struct FinegrainedSetupParam : public Cost {
         return partition_count;
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const
     {
         if(!partition_size) {
@@ -193,7 +193,7 @@ struct FinegrainedSetupParam : public Cost {
                              partition_count + (n_max_partitions_touched_by_vector-1) + (multiplication_group_size - 1))
                 }
             },
-            get_fft_length() // work size
+            FFTAlgo::inplace_dft ? 0 : get_fft_length() // work size
         };
     }
     

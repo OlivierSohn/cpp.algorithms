@@ -27,7 +27,7 @@ struct FIRSetupParam : public Cost {
         }
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const {
         return {
             static_cast<int>(n_coeffs + maxVectorSz - 1), // x block size

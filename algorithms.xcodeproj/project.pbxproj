@@ -194,6 +194,7 @@
 		096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_global_search.cpp; path = test/test_global_search.cpp; sourceTree = "<group>"; };
 		096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.ranged.hpp; path = include/optimization.local.ranged.hpp; sourceTree = "<group>"; };
 		096C7DBC1EB2140F00DDEB20 /* slidingsum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = slidingsum.h; path = include/slidingsum.h; sourceTree = "<group>"; };
+		097085CE240165250099B2BB /* fft.impl.imj2.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.impl.imj2.hpp; path = include/fft.impl.imj2.hpp; sourceTree = "<group>"; };
 		0972455020DC76BF005003B9 /* fifo.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.lockfree.scmp.hpp; path = include/fifo.lockfree.scmp.hpp; sourceTree = "<group>"; };
 		0972455120DC7D4B005003B9 /* test_fifo_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo_lockfree_scmp.cpp; path = test/test_fifo_lockfree_scmp.cpp; sourceTree = "<group>"; };
 		0972455220DFBDBA005003B9 /* forward.list.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = forward.list.lockfree.scmp.hpp; path = include/forward.list.lockfree.scmp.hpp; sourceTree = "<group>"; };
@@ -572,11 +573,10 @@
 		09EF8F311DB3E8AD00DC7342 /* include */ = {
 			isa = PBXGroup;
 			children = (
-				09CF356723D905BE00732BE8 /* allocator.monotonic.hpp */,
-				097E14E923D2270500E1D06A /* dsp.types.hpp */,
 				091AF71B1E27A295004B554F /* allocated_containers.h */,
 				0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */,
 				091F80911E2B72F800A0DD2D /* allocator.aligned.hpp */,
+				09CF356723D905BE00732BE8 /* allocator.monotonic.hpp */,
 				0983C7361F254BF100EE86C1 /* angles.h */,
 				09A2EC2A1EA2E48200D94138 /* api.accelerate.h */,
 				0937B3C823B4E0710037CCDF /* array.utils.hpp */,
@@ -618,6 +618,7 @@
 				09D0464F217F285A00A00F70 /* dsp.reverb.hpp */,
 				09D04651217F2AE400A00F70 /* dsp.reverbs.hpp */,
 				09D0464B2178C46E00A00F70 /* dsp.subsampled.hpp */,
+				097E14E923D2270500E1D06A /* dsp.types.hpp */,
 				0933120323C2585B00A52817 /* dsp2.convolution.async.hpp */,
 				097E14E723CBCD2C00E1D06A /* dsp2.convolution.combine.hpp */,
 				0933120223C003B000A52817 /* dsp2.convolution.finegrained.hpp */,
@@ -632,6 +633,7 @@
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
 				09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */,
 				09A2EC2D1EA2F77500D94138 /* fft.impl.imj.hpp */,
+				097085CE240165250099B2BB /* fft.impl.imj2.hpp */,
 				09A2EC2B1EA2F1FE00D94138 /* fft.interface.hpp */,
 				092AB1231EA4C9A800BE4F5D /* fft.roots.hpp */,
 				09F1578E20C6B7B900662939 /* fifo.hpp */,

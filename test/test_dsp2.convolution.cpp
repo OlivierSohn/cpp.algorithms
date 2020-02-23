@@ -55,8 +55,8 @@ int debugBreak()
 {
     static int stop = 0;
     ++stop;
-    if(stop == 768137) {
-        stop = 768137;
+    if(stop == 5473) {
+        stop = 5473;
     }
     return stop;
 }
@@ -76,6 +76,8 @@ void testGeneric(Convolution & conv,
        && 1 == coefficients.size() % 2) {
         return;
     }
+    int d = debugBreak();
+
     conv.setupAndSetCoefficients(p,
                                  vectorLength?*vectorLength : 1,
                                  coefficients);
@@ -115,7 +117,7 @@ void testGeneric(Convolution & conv,
             auto step = [&idxStep, &input]() {
                 return (idxStep < input.size()) ? input[idxStep] : ((T)0.);
             };
-            int d = debugBreak();
+            //int d = debugBreak();
             if(conv.handlesCoefficients()) {
                 for(; idxStep<conv.getLatency().toInteger(); ++idxStep) {
                     auto res = conv.step(step());

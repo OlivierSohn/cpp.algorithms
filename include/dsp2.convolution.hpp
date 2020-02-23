@@ -45,6 +45,8 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
     using FPT = T;
     using Tag = typename Parent::Tag;
     
+    using FFTAlgo = fft::Algo_<Tag, T>;
+    
     template<typename TT>
     using Allocator = typename Parent::template Allocator<TT>;
     
@@ -148,30 +150,64 @@ struct AlgoFFTConvolutionIntermediate : public Parent {
         for(int i=0; i<d.nBlockSteps; ++i) {
             compute_convolution(s, ffts, workData, d.nBlockSteps-i-1);
             
-            ffts.fft.inverse(&workData[0],
-                             &workData[fft_length],
-                             fft_length);
-            
-            if(i==0 && d.yPhase == 0) {
-                if constexpr (overlapMode == Overlap::Add) {
-                    y.addAssignPresent(&workData[fft_length],
-                                       fft_length);
+            if constexpr (FFTAlgo::inplace_dft)
+            {
+                ffts.fft.inverse(&workData[0],
+                                 fft_length);
+
+                if(i==0 && d.yPhase == 0) {
+                    if constexpr (overlapMode == Overlap::Add) {
+                        y.inplace_addAssignPresent(&workData[0],
+                                                   0,
+                                                   fft_length);
+                    }
+                    else {
+                        y.inplace_addAssignPresent(&workData[0],
+                                                   fft_length/2,
+                                                   fft_length/2);
+                    }
                 }
                 else {
-                    y.addAssignPresent(&workData[fft_length+fft_length/2],
-                                       fft_length/2);
+                    if constexpr (overlapMode == Overlap::Add) {
+                        y.inplace_addAssign(y.progress + d.yPhase + i*getBlockSize(),
+                                            &workData[0],
+                                            0,
+                                            fft_length);
+                    }
+                    else {
+                        y.inplace_addAssign(y.progress + d.yPhase + i*getBlockSize(),
+                                            &workData[0],
+                                            fft_length/2,
+                                            fft_length/2);
+                    }
                 }
             }
             else {
-                if constexpr (overlapMode == Overlap::Add) {
-                    y.addAssign(y.progress + d.yPhase + i*getBlockSize(),
-                                &workData[fft_length],
-                                fft_length);
+                ffts.fft.inverse(&workData[0],
+                                 &workData[fft_length],
+                                 fft_length);
+                
+                if(i==0 && d.yPhase == 0) {
+                    if constexpr (overlapMode == Overlap::Add) {
+                        y.addAssignPresent(&workData[fft_length],
+                                           fft_length);
+                    }
+                    else {
+                        y.addAssignPresent(&workData[fft_length+fft_length/2],
+                                           fft_length/2);
+                    }
                 }
                 else {
-                    y.addAssign(y.progress + d.yPhase + i*getBlockSize(),
-                                &workData[fft_length+fft_length/2],
-                                fft_length/2);
+                    if constexpr (overlapMode == Overlap::Add) {
+                        y.addAssign(y.progress + d.yPhase + i*getBlockSize(),
+                                    &workData[fft_length],
+                                    fft_length);
+                    }
+                    else {
+                        y.addAssign(y.progress + d.yPhase + i*getBlockSize(),
+                                    &workData[fft_length+fft_length/2],
+                                    fft_length/2);
+                    }
                 }
             }
         }

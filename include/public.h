@@ -171,6 +171,7 @@
 
 #include "fft.roots.hpp"
 #include "fft.impl.imj.hpp"
+#include "fft.impl.imj2.hpp"
 #include "fft.hpp"
 
 #include "smooth.hpp"

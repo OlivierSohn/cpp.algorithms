@@ -70,12 +70,11 @@ struct Reverbs {
     static constexpr auto nEars = nAudioOut;
     
     using Tag = fft::Fastest;
-    
-    template<typename TT>
-    using Allocator = monotonic::aP::Alloc<TT>;
-    
     using FPT = double;
-    using T = FPT;
+    using FFTAlgo = typename fft::Algo_<Tag, FPT>;
+
+    template<typename TT>
+    using Allocator = monotonic::aP::Alloc<TT>;    
 
     using FBinsAllocator = typename fft::RealFBins_<Tag, FPT, Allocator>::type::allocator_type;
     using MemResource = MemResource<FBinsAllocator>;
@@ -111,7 +110,7 @@ struct Reverbs {
                                int const maxVectorSz,
                                int const n_sources,
                                int const n_channels) {
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode, FFTAlgo>(maxVectorSz);
         int const input_req = XAndFFTS<FPT, Allocator, Tag>::getAllocationSz_Resize(req.xFftSizes);
 
         return
@@ -128,7 +127,7 @@ struct Reverbs {
     // ear Right source nConvolutionsPerEar
     
     void setSources(int n_sources,
-                    std::vector<a64::vector<T>> const & deinterlaced_coeffs,
+                    std::vector<a64::vector<FPT>> const & deinterlaced_coeffs,
                     SetupParam const & p,
                     int const maxVectorSz,
                     WorkCplxFreqs & work) {
@@ -146,7 +145,7 @@ struct Reverbs {
 
         input_states.resize(n_sources);
         
-        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode>(maxVectorSz);
+        MinSizeRequirement req = p.template getMinSizeRequirement<overlapMode, FFTAlgo>(maxVectorSz);
         
         work.reserve(req.minWorkSize);
         

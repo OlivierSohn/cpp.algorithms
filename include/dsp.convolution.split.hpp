@@ -63,11 +63,11 @@ struct SplitSetupParam : public Cost {
         }
     }
     
-    template<Overlap Mode>
+    template<Overlap Mode, typename FFTAlgo>
     MinSizeRequirement getMinSizeRequirement(int const maxVectorSz) const
     {
-        auto res = a.template getMinSizeRequirement<Mode>(maxVectorSz);
-        res.mergeWith(b.template getMinSizeRequirement<Mode>(maxVectorSz));
+        auto res = a.template getMinSizeRequirement<Mode, FFTAlgo>(maxVectorSz);
+        res.mergeWith(b.template getMinSizeRequirement<Mode, FFTAlgo>(maxVectorSz));
         return res;
     }
 };

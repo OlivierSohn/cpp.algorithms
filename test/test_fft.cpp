@@ -98,7 +98,7 @@ namespace imajuscule {
                         
             auto const res = slow_debug::unwrap_signal<Tag>(signal, N);
             
-            constexpr auto scale = 1;
+            constexpr T scale = 1;
             
             ASSERT_NEAR(scale * 1, res[0].real(), ffteps);
             ASSERT_NEAR(scale * 0, res[0].imag(), ffteps);
@@ -185,7 +185,21 @@ namespace imajuscule {
             
             { verifyFrequencies<Tag, T>(output, N); }
             
-            fft_algo.inverse(output.data(), reconstructed_input.data(), N);
+            if constexpr (Algo::inplace_dft) {
+                fft_algo.inverse(output.data(),
+                                 N);
+                unsigned int log2N = power_of_two_exponent(N);
+                for(int i=0; i<N; ++i) {
+                    reconstructed_input[i] = Algo::getBitreversedRealOutput(output.data(),
+                                                                            i,
+                                                                            log2N);
+                }
+            }
+            else {
+                fft_algo.inverse(output.data(),
+                                 reconstructed_input.data(),
+                                 N);
+            }
             
             for(auto & v : reconstructed_input) {
                 v *= 1/(Algo::scale * static_cast<T>(N));
@@ -223,8 +237,22 @@ namespace imajuscule {
             
             fft_algo.forward(input.begin(), output.data(), N);
             
-            fft_algo.inverse(output.data(), reconstructed_input.data(), N);
-            
+            if constexpr (Algo::inplace_dft) {
+                fft_algo.inverse(output.data(),
+                                 N);
+                unsigned int log2N = power_of_two_exponent(N);
+                for(int i=0; i<N; ++i) {
+                    reconstructed_input[i] = Algo::getBitreversedRealOutput(output.data(),
+                                                                            i,
+                                                                            log2N);
+                }
+            }
+            else {
+                fft_algo.inverse(output.data(),
+                                 reconstructed_input.data(),
+                                 N);
+            }
+
             for(auto & v : reconstructed_input) {
                 v *= 1/(Algo::scale * static_cast<T>(N));
             }

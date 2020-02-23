@@ -5,21 +5,22 @@
  */
 
 namespace imajuscule {
-    namespace fft {
+namespace fft {
 
-        /*
-         on OSX, 'accelerate' fft is 20x faster than 'imj' fft
-         */
+/*
+ on OSX, 'accelerate' fft is 20x faster than 'imj' fft
+ */
 
-        constexpr std::tuple<
-        imj::Tag,            // cross-platform, 'straightforward', slow, large memory footprint
-        imj2::Tag            // cross-platform, faster, smaller memory footprint
+constexpr std::tuple<
 #if __APPLE__
 #  ifndef IMJ_USE_SLOW_FFT
-        , accelerate::Tag // osx / ios only, vectorized, fast, small memory footprint
+accelerate2::Tag,  // inplace
+accelerate::Tag,   // osx / ios only, vectorized, fast, small memory footprint
 #  endif
 #endif // __APPLE__
-        > Tags;
+imj::Tag,  // cross-platform, 'straightforward', slow, large memory footprint
+imj2::Tag  // cross-platform, faster, smaller memory footprint
+> Tags;
 
         using Fastest =
 #ifdef IMJ_USE_SLOW_FFT

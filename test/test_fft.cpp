@@ -188,11 +188,10 @@ namespace imajuscule {
             if constexpr (Algo::inplace_dft) {
                 fft_algo.inverse(output.data(),
                                  N);
-                unsigned int log2N = power_of_two_exponent(N);
                 for(int i=0; i<N; ++i) {
-                    reconstructed_input[i] = Algo::getBitreversedRealOutput(output.data(),
-                                                                            i,
-                                                                            log2N);
+                    reconstructed_input[i] = Algo::extractRealOutput(output.data(),
+                                                                     i,
+                                                                     N);
                 }
             }
             else {
@@ -240,11 +239,10 @@ namespace imajuscule {
             if constexpr (Algo::inplace_dft) {
                 fft_algo.inverse(output.data(),
                                  N);
-                unsigned int log2N = power_of_two_exponent(N);
                 for(int i=0; i<N; ++i) {
-                    reconstructed_input[i] = Algo::getBitreversedRealOutput(output.data(),
-                                                                            i,
-                                                                            log2N);
+                    reconstructed_input[i] = Algo::extractRealOutput(output.data(),
+                                                                     i,
+                                                                     N);
                 }
             }
             else {

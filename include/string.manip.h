@@ -111,6 +111,12 @@ inline std::string justifyRight(int n, std::string s) {
     res += s;
     return res;
 }
+inline std::string justifyLeft(int n, std::string s) {
+    if(s.size() < n) {
+        s += std::string(n-s.size(), ' ');
+    }
+    return s;
+}
 
 std::string stripNewLine(std::string const & s);
     

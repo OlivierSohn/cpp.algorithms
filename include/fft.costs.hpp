@@ -293,7 +293,6 @@ namespace imajuscule::fft {
                 i.resize(sz,
                          typename RealFBins::type::value_type{static_cast<T>(d)});
                 ++d;
-
             }
             
             using namespace profiling;
@@ -303,17 +302,36 @@ namespace imajuscule::fft {
             auto duration = measure_thread_cpu_one([&va, sz](){
                 for(auto & a:va) {
                     if constexpr (inplace) {
-                        Impl::add_assign(a.first.data(),
-                                         a.second.data(),
-                                         sz,
-                                         0,
-                                         sz);
+                        if constexpr (overlapMode == Overlap::Add) {
+                            Impl::add_assign(a.first.data(),
+                                             a.second.data(),
+                                             sz,
+                                             0,
+                                             sz);
+                        }
+                        else {
+                            assert(sz >= 2);
+                            Impl::add_assign(a.first.data(),
+                                             a.second.data(),
+                                             sz/2,
+                                             0,
+                                             sz/2);
+                        }
                     }
                     else {
-                        Impl::add_assign(a.first.data(),
-                                         a.second.data(),
-                                         0,
-                                         sz);
+                        if constexpr (overlapMode == Overlap::Add) {
+                            Impl::add_assign(a.first.data(),
+                                             a.second.data(),
+                                             0,
+                                             sz);
+                        }
+                        else {
+                            assert(sz >= 2);
+                            Impl::add_assign(a.first.data(),
+                                             a.second.data(),
+                                             0,
+                                             sz/2);
+                        }
                     }
                 }
             });

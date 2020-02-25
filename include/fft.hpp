@@ -26,7 +26,7 @@ imj2::Tag  // cross-platform, faster, smaller memory footprint
 #ifdef IMJ_USE_SLOW_FFT
         imj::Tag;
 #elif __APPLE__
-        accelerate::Tag;
+        accelerate2::Tag;
 #else
         imj::Tag;
 #endif

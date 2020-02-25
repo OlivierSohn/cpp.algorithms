@@ -63,13 +63,13 @@ int countScales(C & rev) {
     return 4;
 }
 
-template<int nAudioOut, ReverbType reverbType, PolicyOnWorkerTooSlow OnWorkerTooSlow>
+template<int nAudioOut, ReverbType reverbType, PolicyOnWorkerTooSlow OnWorkerTooSlow, typename Tag_ = fft::Fastest>
 struct Reverbs {
     static constexpr auto nOut = nAudioOut;
     static_assert(nAudioOut > 0);
     static constexpr auto nEars = nAudioOut;
     
-    using Tag = fft::Fastest;
+    using Tag = Tag_;
     using FPT = double;
     using FFTAlgo = typename fft::Algo_<Tag, FPT>;
 

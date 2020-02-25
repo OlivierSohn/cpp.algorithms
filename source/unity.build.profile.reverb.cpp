@@ -30,7 +30,7 @@ namespace imajuscule::bench::vecto {
      
      In this test, input data is aligned on cache line boundaries.
      */
-    template<ReverbType reverbType, int nOut, typename F, typename ...Args>
+    template<ReverbType reverbType, int nOut, typename Tag, typename F, typename ...Args>
     void profile(int const n_sources,
                  int nResponses,
                  int const nCoeffs,
@@ -43,7 +43,13 @@ namespace imajuscule::bench::vecto {
         using namespace imajuscule::profiling;
         using namespace std::chrono;
         
-        using Rev = Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::PermanentlySwitchToDry /* because AudioHostSimulator uses real time simulation*/>;
+        using Rev = Reverbs<
+        nOut,
+        reverbType,
+        PolicyOnWorkerTooSlow::PermanentlySwitchToDry, /* because AudioHostSimulator uses real time simulation*/
+        Tag
+        >;
+        
         using FPT = typename Rev::FPT;
         
         using WorkCplxFreqs = typename Rev::WorkCplxFreqs;
@@ -310,23 +316,38 @@ void getFramesInQueue(SystemLoadModelization slm,
                       F f_foreach_conv,
                       Args&&... args) {
     using namespace imajuscule::bench::vecto;
+    using namespace imajuscule;
 
     IndentingOStreambuf indent{std::cout};
     std::cout << "'" << slm << "' " << system_load << ", ";
-    csv_file.push(slm);
-    csv_file.push(system_load);
     
     double const frame_rate = 44100. * ((slm == SystemLoadModelization::HigherFramerate) ? system_load : 1.);
     int const n_responses = n_input_channels * ((slm == SystemLoadModelization::HigherFramerate) ? 1 : system_load);
-    profile<ReverbType, nOuts>(// n_sources:
-                               n_responses/nOuts,
-                               n_responses,
-                               response_sz,
-                               n_frames_cb,
-                               vector_sz,
-                               frame_rate,
-                               f_foreach_conv,
-                               args...);
+
+    for_each(std::tuple<accelerate::Tag, accelerate2::Tag>{},
+             [&](auto tag)
+    {
+        csv_file.newline();
+        csv_file.push(slm);
+        csv_file.push(system_load);
+        {
+            typedef void(*FT)(decltype(tag));
+            auto tag_str = type_to_string<FT>()(FT());
+            csv_file.push(justifyLeft(12,
+                                       // remove leading  'imajuscule::'
+                                       // remove trailing '::Tag'
+                                       std::string(tag_str.begin() + 12,
+                                                   tag_str.end() - 5)));
+        }
+        profile<ReverbType, nOuts, decltype(tag)>(n_responses/nOuts, // n_sources
+                                                  n_responses,
+                                                  response_sz,
+                                                  n_frames_cb,
+                                                  vector_sz,
+                                                  frame_rate,
+                                                  f_foreach_conv,
+                                                  args...);
+    });
 }
 
 void testCostsReadWrites() {
@@ -723,10 +744,22 @@ void printConvolutionCosts() {
     });
 }
 
+/*
+ Clang bug? We need these to instantiate some undefined templates
+ */
+void explicitInstantiations() {
+    using namespace imajuscule;
+    if(false) {
+        fft::RealSignal_<accelerate::Tag, double>::add_assign_output<double>(nullptr, nullptr, 0);
+        fft::RealSignal_<accelerate2::Tag, double>::add_assign_output<double>(nullptr, nullptr, 0);
+    }
+}
+
 int main(int argc, const char * argv[]) {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::bench::vecto;
+    explicitInstantiations();
 /*
     testAllocationFactors2();
     return 0;
@@ -745,6 +778,7 @@ int main(int argc, const char * argv[]) {
     
     csv_file.push("load_model");
     csv_file.push("load");
+    csv_file.push("tag");
     csv_file.push("n_responses");
     csv_file.push("n_sources");
     csv_file.push("n_outs");
@@ -753,15 +787,16 @@ int main(int argc, const char * argv[]) {
     csv_file.push("response_n_frames");
     csv_file.push("cb_n_frames");
     csv_file.push("vector_size");
+    csv_file.push("n_frames_in_queue"); // optionnel
     csv_file.push("simu_wall");
     csv_file.push("cpu_total");
     csv_file.push("cpu_sync_max_per_cb");
-    csv_file.push("n_frames_in_queue"); // optionel
     
     std::vector<int> cb_sz{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
     std::reverse(cb_sz.begin(), cb_sz.end());
     std::vector<int> responses_sizes{1, 10, 100, 1000, 10000, 100000, 1000000};
-    
+    std::reverse(responses_sizes.begin(), responses_sizes.end());
+
     std::vector<std::pair<SystemLoadModelization, int>> loads;
     {
         constexpr int max_system_load = 1;//5
@@ -799,29 +834,19 @@ int main(int argc, const char * argv[]) {
                         std::cout << "phasing " << sim_phasing << std::endl;
                         
                         try {
-                            csv_file.newline();
-                            std::optional<int> nFramesInQueue;
                             getFramesInQueue<ReverbType::Realtime_Asynchronous, nOuts>(slm,
                                                                                        system_load,
                                                                                        n_channels,
                                                                                        response_sz,
                                                                                        n_frames_cb,
                                                                                        vsz,
-                                                                                       [&nFramesInQueue](auto const & rs){
+                                                                                       [](auto const & rs){
                                 auto & l = rs.getAlgo().b;
-                                {
-                                    auto n = l.getQueueSize() * l.getSubmissionPeriod();
-                                    if(nFramesInQueue) {
-                                        throw std::logic_error("nFramesInQueue already set");
-                                    }
-                                    else {
-                                        nFramesInQueue = n;
-                                    }
-                                }
+                                auto nFramesInQueue = l.getQueueSize() * l.getSubmissionPeriod();
+                                csv_file.push(justifyRight(5, std::to_string(nFramesInQueue)));
                                 return true;
                             },
                                                                                        sim_phasing);
-                            csv_file.push(*nFramesInQueue);
                         }
                         catch (std::exception const & e) {
                             std::cout << "!!!!!!!!!!!!!!!!!!!!" << std::endl;
@@ -832,7 +857,6 @@ int main(int argc, const char * argv[]) {
                         /*
                          
                          try {
-                         csv_file.newline();
                          std::optional<int> nFramesInQueue;
                          getFramesInQueue<ReverbType::Realtime_Asynchronous_Legacy, nOuts>(slm,
                          system_load,
@@ -865,14 +889,15 @@ int main(int argc, const char * argv[]) {
                          */
                     }
                     try {
-                        csv_file.newline();
                         getFramesInQueue<ReverbType::Realtime_Synchronous, nOuts>(slm,
                                                                                   system_load,
                                                                                   n_channels,
                                                                                   response_sz,
                                                                                   n_frames_cb,
                                                                                   vsz,
-                                                                                  [](auto const &){ return true; });
+                                                                                  [](auto const &){
+                            csv_file.push("  N/A");
+                            return true; });
                     }
                     catch (std::exception const & e) {
                         std::cout << "!!!!!!!!!!!!!!!!!!!!" << std::endl;
@@ -881,7 +906,6 @@ int main(int argc, const char * argv[]) {
                     }
                     /*
                      try {
-                     csv_file.newline();
                      getFramesInQueue<ReverbType::Offline, nOuts>(slm,
                      system_load,
                      n_channels,

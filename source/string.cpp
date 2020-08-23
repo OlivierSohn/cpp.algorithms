@@ -564,7 +564,7 @@ namespace imajuscule
     std::string alphaNum(std::string s) {
         s.erase(std::remove_if(s.begin(),
                                s.end(),
-                               std::not1(std::function<int(int)>((int(*)(int))std::isalnum))),
+                               std::not_fn(std::function<int(int)>((int(*)(int))std::isalnum))),
                 s.end());
         return s;
     }

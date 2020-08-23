@@ -103,13 +103,13 @@ namespace imajuscule {
 
 
     template<class F, class TUPLE, std::size_t...Is>
-    void for_each(TUPLE const & tuple, F func, std::index_sequence<Is...>){
+    void for_each(TUPLE & tuple, F func, std::index_sequence<Is...>){
         using expander = int[];
         (void)expander { 0, ((void)func(std::get<Is>(tuple)), 0)... };
     }
 
     template<class F, class TUPLE>
-    void for_each(TUPLE const & tuple, F func){
+    void for_each(TUPLE & tuple, F func){
         for_each(tuple, func, std::make_index_sequence<std::tuple_size<TUPLE>::value>());
     }
 

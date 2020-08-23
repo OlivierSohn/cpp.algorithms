@@ -7,7 +7,7 @@ template<typename T>
 struct ConvolutionTraits {
     static constexpr bool supportsOddCountOfCoefficients = true;
     static constexpr bool evenIndexesAreApproximated = false;
-    
+
     template <typename F>
     static void adaptCoefficients(F & v) {
     }
@@ -70,7 +70,7 @@ void testGeneric(Convolution & conv,
 {
     using T = typename Convolution::FPT;
     using namespace fft;
-        
+
     using Tr = ConvolutionTraits<Convolution>;
     if(!Tr::supportsOddCountOfCoefficients
        && 1 == coefficients.size() % 2) {
@@ -91,7 +91,7 @@ void testGeneric(Convolution & conv,
     output.reserve(expectedOutput.size());
     std::vector<T> inputVec;
     inputVec.reserve(expectedOutput.size());
-    
+
     auto const period = conv.getPhasePeriod();
     int const maxPhaseInSample = (period && *period) ? (8 * *period) : 1;
     //std::cout << "phases 0 to " << maxPhaseInSample-1 << std::endl;
@@ -108,10 +108,10 @@ void testGeneric(Convolution & conv,
         }
         // repeat after flushToSilence
         for(int i=0; i<8; ++i) {
-            
+
             output.clear();
             inputVec.clear();
-            
+
             auto const eps = conv.getEpsilon();
             int idxStep=0;
             auto step = [&idxStep, &input]() {
@@ -133,7 +133,7 @@ void testGeneric(Convolution & conv,
             if(vectorLength) {
                  // initialize with zeros
                  output.resize(inputVec.size(), {});
-                 
+
                  // then add
                  int const nFrames = inputVec.size();
                  for(int i=0; i<nFrames; i += *vectorLength) {
@@ -147,7 +147,7 @@ void testGeneric(Convolution & conv,
                     output.push_back(conv.step(i));
                 }
             }
-            
+
             using Tr = ConvolutionTraits<Convolution>;
             for(auto j=0; j<output.size(); ++j) {
                 if(Tr::evenIndexesAreApproximated && (0 == j%2)) {
@@ -159,7 +159,7 @@ void testGeneric(Convolution & conv,
                     ASSERT_NEAR(expectedOutput[j], output[j], 1000*eps); // doesn't use relative error, only absolute.
                 }
             }
-            
+
             for(int i=0; i<10; ++i) {
                 conv.step(1.f);
             }
@@ -175,9 +175,9 @@ void testGeneric(Convolution & conv,
     int sz = std::max(1,
                       static_cast<int>(p.getBiggestScale()));
     std::set<std::optional<int>> vectorLengths;
-    
+
     vectorLengths.insert({});// no vectorization
-    
+
     vectorLengths.insert(1);// minimal vectorization
     vectorLengths.insert(sz-1);
     vectorLengths.insert(sz);
@@ -198,10 +198,10 @@ void testGeneric(Convolution & conv,
                 vectorLengths.insert(p2+1);
             }
         }
-        
+
         //std::cout << sz << " - " << vectorLengths.size() << std::endl;
     }
-    
+
     for(auto vectorLength: vectorLengths) {
         if(vectorLength && *vectorLength <= 0) {
             continue;
@@ -228,7 +228,7 @@ void test(Convolution & conv,
 {
     using T = typename Convolution::FPT;
     using Tr = ConvolutionTraits<Convolution>;
-    
+
     // test using a dirac
     {
         auto output = coefficients;
@@ -239,15 +239,15 @@ void test(Convolution & conv,
         Tr::adaptCoefficients(output);
         testGeneric(conv, p, coefficients, diracInput, output);
     }
-    
+
     // test using a random (but reproducible) signal
     if(!Tr::evenIndexesAreApproximated)
     {
         // brute-force convolution is costly (N^2) for high number of coefficients, hence we use caching
         std::vector<T> randomInput, output;
-        
+
         auto & cache = cachedResults<T>();
-        
+
         auto it = cache.find(coefficients);
         if(it == cache.end()) {
             const int sz = 5*coefficients.size();
@@ -274,14 +274,14 @@ void test(Convolution & conv,
                     output.push_back(filter.step(0.));
                 }
             }
-            
+
             cache.emplace(coefficients, std::make_pair(randomInput, output));
         }
         else {
             randomInput = it->second.first;
             output = it->second.second;
         }
-        
+
         Tr::adaptCoefficients(output);
         testGeneric(conv, p, coefficients, randomInput, output);
     }
@@ -290,7 +290,7 @@ void test(Convolution & conv,
 template<typename T, typename F>
 void testPartitionned(int coeffs_index, F f) {
     const auto coefficients = makeCoefficients<T>(coeffs_index);
-    
+
     if(coefficients.size() < 1024) {
         for(int i=0; i<5;i++)
         {
@@ -306,11 +306,11 @@ void testPartitionned(int coeffs_index, F f) {
 
 enum class TestFinegrained {
     Begin,
-    
+
     Low = Begin,
     Med,
     High,
-    
+
     End
 };
 
@@ -324,19 +324,19 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
         {
             SelfContainedXYConvolution<AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>> conv;
             auto const n_partitions = imajuscule::countPartitions(coefficients.size(), part_size);
-            
+
             typename decltype(conv)::SetupParam p {
                 part_size,
                 n_partitions,
                 1000,
                 0
             };
-            
+
             range<int> r {
                 p.getLowestValidMultiplicationsGroupSize(),
                 p.getHighestValidMultiplicationsGroupSize()
             };
-            
+
             switch(type) {
                 case TestFinegrained::Low:
                     p.multiplication_group_size = r.getMin();
@@ -353,36 +353,36 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
             test(conv, p, coefficients);
         }
     };
-    
+
     testPartitionned<T>(coeffs_index, f);
 }
 
 template<typename T, template<typename> typename Allocator, typename Tag>
 void testDiracPartitionned(int coeffs_index) {
-    
+
     auto f = [](int part_size, auto & coefficients){
         SelfContainedXYConvolution<AlgoFFTConvolutionIntermediate<AlgoPartitionnedFFTConvolutionCRTP<T, Allocator, Tag>>> conv;
-        
+
         test(conv, {
             part_size,
             countPartitions(coefficients.size(),
                             part_size)
         }, coefficients);
     };
-    
+
     testPartitionned<T>(coeffs_index, f);
 }
 
 
 template<typename Convolution>
 void testDirac2(int coeffs_index, Convolution & conv, typename Convolution::SetupParam const & p) {
-    
+
     if(!conv.isValid()) {
         return;
     }
-    
+
     using T = typename Convolution::FPT;
-    
+
     test(conv, p, makeCoefficients<T>(coeffs_index));
 }
 
@@ -403,11 +403,11 @@ void testDirac() {
             auto c = SelfContainedXYConvolution<AlgoFIRFilter<T, Allocator, Tag>>{};
             testDirac2(i, c, {countCoeffs});
         }
-        /*
         {
             auto c = SelfContainedXYConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Allocator, Tag>>>{};
             testDirac2(i, c, {static_cast<int>(ceil_power_of_two(countCoeffs))});
         }
+        /*
         for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
             partition_sz <= ceil_power_of_two(countCoeffs);
             partition_sz *= 2)
@@ -418,14 +418,14 @@ void testDirac() {
                 countPartitions(countCoeffs, partition_sz)
             });
         }
-        
+
         for(int partition_sz = std::max(1, static_cast<int>(floor_power_of_two(countCoeffs/50)));
             partition_sz <= ceil_power_of_two(countCoeffs);
             partition_sz *= 2)
         {
             auto c = SelfContainedXYConvolution<AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>>{};
             auto const n_partitions = imajuscule::countPartitions(countCoeffs, partition_sz);
-            
+
             testDirac2(i, c, {
                 partition_sz,
                 n_partitions,
@@ -433,7 +433,7 @@ void testDirac() {
                 0
             });
         }
-        
+
         for(int firstSz=1; firstSz <= 32; firstSz *= 2) {
             auto c = SelfContainedXYConvolution<AlgoCustomScaleConvolution<AlgoFFTConvolutionIntermediate<AlgoFFTConvolutionCRTP<T, Allocator, Tag>>>>{};
             using ScalingParam = typename decltype(c)::SetupParam::ScalingParam;
@@ -446,15 +446,15 @@ void testDirac() {
                     sz,
                     {sz}
                 };
-                
+
                 params.push_back(s);
-                
+
                 remainingCoeffs -= sz;
                 sz *= 2;
             }
             testDirac2(i, c, {params});
         }
-        
+
         // same as above but with some PartitionnedFFTConvolutionCRTP
         {
             for(int firstSz=1; firstSz<32; firstSz *= 2) {
@@ -472,9 +472,9 @@ void testDirac() {
                             countPartitions(countCoeffs,sz)
                         }
                     };
-                    
+
                     params.push_back(s);
-                    
+
                     remainingCoeffs -= sz;
                     sz *= 2;
                 }
@@ -498,9 +498,9 @@ void testDirac() {
                             countPartitions(countCoeffs,sz)
                         }
                     };
-                    
+
                     params.push_back(s);
-                    
+
                     remainingCoeffs -= countCoeffs;
                     sz *= 4;
                 }
@@ -527,9 +527,9 @@ void testDirac() {
                             countPartitions(countCoeffs,sz)
                         }
                     };
-                    
+
                     paramsFull.push_back(s);
-                    
+
                     remainingCoeffs -= sz;
                     sz *= 2;
                 }
@@ -537,7 +537,7 @@ void testDirac() {
                 0:
                 std::max(1,
                          static_cast<int>(paramsFull.size()/2));
-                
+
                 std::vector<ScalingParam> params{paramsFull.begin(), paramsFull.begin()+nParams};
                 std::vector<ScalingParam> discardedParams{paramsFull.begin()+nParams, paramsFull.end()};
                 int countDiscardedCoeffs = 0;
@@ -546,7 +546,7 @@ void testDirac() {
                 }
                 int const partition_sz = params.empty() ? 0 : params.back().setupParam.partition_size;
                 auto const n_partitions = imajuscule::countPartitions(countDiscardedCoeffs, partition_sz);
-                
+
                 testDirac2(i, c, {
                     {
                         params
@@ -594,7 +594,7 @@ void testDirac() {
 TEST(Convolution2, dirac) {
     using namespace imajuscule;
     using namespace imajuscule::testdsp2conv;
-    
+
     for_each(fft::Tags, [](auto t) {
         testDirac<float, a64::Alloc, decltype(t)>();
         testDirac<double, a64::Alloc, decltype(t)>();

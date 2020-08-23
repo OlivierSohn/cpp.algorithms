@@ -55,7 +55,7 @@ std::ostream & operator << (std::ostream & os, const ResampleSincStats& s) {
 #include "string.manip.cpp"
 #include "debugging.cpp"
 #include "scheduler.cpp"
-#include "IndentedStream.cpp"
+#include "indentedStream.cpp"
 #include "color.cpp"
 #include "gen.names.cpp"
 #include "os.storage.cpp"

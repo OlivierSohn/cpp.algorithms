@@ -142,6 +142,9 @@ struct ConvReverbsByBlockSize {
         return current ? current->blockSizeHypothesys() : -1;
     }
 
+    bool isActive() const {
+        return static_cast<bool>(current);
+    }
 
     template<typename FPT2>
     bool apply(FPT2 ** io_buffers,

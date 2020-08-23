@@ -195,6 +195,7 @@
 		096C7DBB1EB1596800DDEB20 /* optimization.local.ranged.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = optimization.local.ranged.hpp; path = include/optimization.local.ranged.hpp; sourceTree = "<group>"; };
 		096C7DBC1EB2140F00DDEB20 /* slidingsum.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = slidingsum.h; path = include/slidingsum.h; sourceTree = "<group>"; };
 		097085CE240165250099B2BB /* fft.impl.imj2.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.impl.imj2.hpp; path = include/fft.impl.imj2.hpp; sourceTree = "<group>"; };
+		097085CF2402B5D30099B2BB /* fft.impl.acc2.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.impl.acc2.hpp; path = include/fft.impl.acc2.hpp; sourceTree = "<group>"; };
 		0972455020DC76BF005003B9 /* fifo.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.lockfree.scmp.hpp; path = include/fifo.lockfree.scmp.hpp; sourceTree = "<group>"; };
 		0972455120DC7D4B005003B9 /* test_fifo_lockfree_scmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo_lockfree_scmp.cpp; path = test/test_fifo_lockfree_scmp.cpp; sourceTree = "<group>"; };
 		0972455220DFBDBA005003B9 /* forward.list.lockfree.scmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = forward.list.lockfree.scmp.hpp; path = include/forward.list.lockfree.scmp.hpp; sourceTree = "<group>"; };
@@ -632,6 +633,7 @@
 				0937B3CD23B6180C0037CCDF /* fft.costs.hpp */,
 				09FD59E91E7EF5E80052B2FD /* fft.hpp */,
 				09A2EC2C1EA2F77500D94138 /* fft.impl.acc.hpp */,
+				097085CF2402B5D30099B2BB /* fft.impl.acc2.hpp */,
 				09A2EC2D1EA2F77500D94138 /* fft.impl.imj.hpp */,
 				097085CE240165250099B2BB /* fft.impl.imj2.hpp */,
 				09A2EC2B1EA2F1FE00D94138 /* fft.interface.hpp */,

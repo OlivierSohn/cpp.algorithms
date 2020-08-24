@@ -1,5 +1,4 @@
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 template<typename SetupParam>
 struct CustomScaleConvolutionSetupParam : public Cost {

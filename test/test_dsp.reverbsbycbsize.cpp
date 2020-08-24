@@ -1,6 +1,6 @@
 
 
-namespace imajuscule {
+namespace imajuscule::audio {
 static void testByCbSize(int dirac_offset, int cb_change) {
     constexpr int nAudioOut = 1;
     
@@ -106,7 +106,7 @@ static void testByCbSize(int dirac_offset, int cb_change) {
 } // NS imajuscule
 
 TEST(ReverbsByCbSize, dirac) {
-    using namespace imajuscule;
+    using namespace imajuscule::audio;
     
     for(int dirac_offset = 0; dirac_offset < 5; ++dirac_offset) {
         for(int cb_change = 0; cb_change < 5; ++cb_change) {

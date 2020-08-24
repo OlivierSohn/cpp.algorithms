@@ -1,5 +1,4 @@
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 /*
  Notations for complexity:

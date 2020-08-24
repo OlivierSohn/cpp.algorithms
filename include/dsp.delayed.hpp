@@ -1,6 +1,5 @@
 
-namespace imajuscule
-{
+namespace imajuscule::audio {
 
   template <typename Algo>
   struct Delayed {

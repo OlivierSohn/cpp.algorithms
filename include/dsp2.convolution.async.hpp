@@ -1,4 +1,4 @@
-namespace imajuscule {
+namespace imajuscule::audio {
 
 template <typename Async>
 struct DescAsyncCPUConvolution

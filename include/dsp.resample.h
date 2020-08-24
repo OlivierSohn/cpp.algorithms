@@ -1,7 +1,7 @@
 #include <unordered_set>
 
-namespace imajuscule
-{
+namespace imajuscule {
+
     struct Compare7Digits {
         static constexpr double mult = 10000000;
         constexpr bool operator()( const double& lhs, const double& rhs ) const {

@@ -1,5 +1,5 @@
 
-namespace imajuscule {
+namespace imajuscule::audio {
 
 struct DescFinegrainedFFTConvolution {
     static constexpr int nCoefficientsFadeIn = 0;
@@ -60,7 +60,7 @@ struct StateFinegrainedPartitionnedFFTConvolution {
         auto const N = algo.getBlockSize();
         assert(N > 0);
         
-        auto const n_partitions = imajuscule::countPartitions(coeffs_.size(), N);
+        auto const n_partitions = countPartitions(coeffs_.size(), N);
         if(n_partitions != algo.countPartitions()) {
             throw std::logic_error("wrong number of partitions");
         }

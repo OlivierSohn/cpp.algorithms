@@ -1,6 +1,4 @@
-
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 struct DescFIRFilter {
     static constexpr int nCoefficientsFadeIn = 0;

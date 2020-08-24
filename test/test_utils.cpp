@@ -4,8 +4,8 @@ static inline float randf(float high = 1.f, float low = 0.f)
     return low + ((high-low) * ((float)std::rand() / (float)(RAND_MAX + 1.f)));
 }
 
-std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs) {
-    std::vector<Scaling> scalings;
+std::vector<audio::Scaling> mkNaiveScaling(int firstSz, int const countCoeffs) {
+    std::vector<audio::Scaling> scalings;
     int remainingCoeffs = countCoeffs;
     int sz = firstSz;
     while(remainingCoeffs > 0) {
@@ -17,8 +17,8 @@ std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs) {
     return scalings;
 }
 
-std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs) {
-    std::vector<Scaling> scalings;
+std::vector<audio::Scaling> mkBetterScaling(int firstSz, int const countCoeffs) {
+    std::vector<audio::Scaling> scalings;
     int remainingCoeffs = countCoeffs;
     int sz = firstSz;
     while(remainingCoeffs > 0) {

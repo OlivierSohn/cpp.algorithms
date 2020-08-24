@@ -28,8 +28,7 @@
 // We could optimize the number of levels of asynchronicity based on that metric
 // to encure that the CPU never waits.
 
-namespace imajuscule
-{
+namespace imajuscule::audio {
   inline void kill() {
     throw std::runtime_error("program error");
   }

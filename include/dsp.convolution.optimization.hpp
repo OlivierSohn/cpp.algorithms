@@ -1,7 +1,4 @@
-
-
-namespace imajuscule
-{
+namespace imajuscule::audio {
 
 template<typename Param, typename FPT, typename FFTTag>
 struct PartitionAlgo;

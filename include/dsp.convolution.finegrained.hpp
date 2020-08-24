@@ -1,5 +1,5 @@
 
-namespace imajuscule {
+namespace imajuscule::audio {
 
 /*
  * In dsp.convolution.hpp we see this algorithm:

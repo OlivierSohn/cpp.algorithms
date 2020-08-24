@@ -1,5 +1,5 @@
 
-namespace imajuscule {
+namespace imajuscule::audio {
 
 template <typename Parent>
 struct FFTConvolutionIntermediateSimulation : public Parent {
@@ -133,6 +133,8 @@ struct FFTConvolutionCRTPSetupParam : public Cost
     void forEachUsingSameContext(F f) const {
         f(*this);
     }
+
+    int getBiggestScale() const { return blockSize; }
 
     int blockSize;
 };

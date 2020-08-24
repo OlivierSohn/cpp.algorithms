@@ -1,5 +1,5 @@
 
-namespace imajuscule {
+namespace imajuscule::audio {
   namespace testdspconv {
     
     
@@ -324,7 +324,7 @@ namespace imajuscule {
 
 TEST(Convolution, dirac) {
   using namespace imajuscule;
-  using namespace imajuscule::testdspconv;
+  using namespace imajuscule::audio::testdspconv;
   
   for_each(fft::Tags, [](auto t) {
     testDirac<float, a64::Alloc, decltype(t)>();
@@ -333,7 +333,7 @@ TEST(Convolution, dirac) {
 }
 
 TEST(Convolution, testComputeQueueSize) {
-    using namespace imajuscule;
+    using namespace imajuscule::audio;
     {
         int resultZeroIteration = computeQueueSize([](){ return 1.; }, 1., 0);
         ASSERT_EQ(1, resultZeroIteration);

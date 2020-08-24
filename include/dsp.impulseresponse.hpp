@@ -1,6 +1,5 @@
 
-namespace imajuscule::audio
-{
+namespace imajuscule::audio {
 
 template<typename T>
 struct DeinterlacedBuffers {

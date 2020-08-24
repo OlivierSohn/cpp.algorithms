@@ -1,5 +1,4 @@
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 struct CountDroppedScales {
     constexpr explicit CountDroppedScales(int n)

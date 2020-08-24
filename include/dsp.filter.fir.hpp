@@ -1,7 +1,5 @@
+namespace imajuscule::audio {
 
-
-namespace imajuscule
-{
 struct FIRSetupParam : public Cost {
     FIRSetupParam(int n_coeffs)
     : n_coeffs(n_coeffs)

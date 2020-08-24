@@ -1,5 +1,4 @@
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 double computeCostWriteNConsecutiveCachelines(int n);
 double computeCostReadNConsecutiveCachelines(int n);

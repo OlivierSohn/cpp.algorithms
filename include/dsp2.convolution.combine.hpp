@@ -1,5 +1,5 @@
 
-namespace imajuscule {
+namespace imajuscule::audio {
 
 template<typename T, template<typename> typename Allocator, typename FFTTag>
 using AlgoOptimizedFIRFilter =

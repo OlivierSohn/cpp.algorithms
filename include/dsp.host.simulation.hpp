@@ -1,6 +1,5 @@
 
-namespace imajuscule
-{
+namespace imajuscule::audio {
 
 struct Periodically {
     Periodically(std::chrono::steady_clock::duration time_step,

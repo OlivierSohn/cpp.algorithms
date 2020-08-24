@@ -71,7 +71,7 @@ TEST(Math, MaxSlidingSum) {
 }
 
 TEST(Math, add_cyclic) {
-    using namespace imajuscule;
+    using namespace imajuscule::audio;
     
     std::vector<double> v1{1., 2., 3., 4.};
     std::vector<double> v2{1., 2.};

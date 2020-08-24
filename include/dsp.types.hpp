@@ -1,6 +1,5 @@
 
-namespace imajuscule {
-
+namespace imajuscule::audio {
 
 struct Latency {
     constexpr explicit Latency(int latency)

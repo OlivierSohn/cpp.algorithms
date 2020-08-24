@@ -1,6 +1,6 @@
 
-namespace imajuscule {
-
+namespace imajuscule::audio
+{
 /*
 
  On filters, and how to chose them (here, filter and convolution means the same thing).

@@ -13,7 +13,7 @@ static inline void scaleVec(double coeff, std::vector<double> & v) {
     std::for_each(v.begin(), v.end(), [coeff](auto & val) { val *= coeff; });
 }
 
-namespace imajuscule {
+namespace imajuscule::audio {
 template<ReverbType reverbType, int nOut, int nIns, typename ...Args>
 void testReverbDirac(Args ...args) {
     using Rev = Reverbs<nOut, reverbType, PolicyOnWorkerTooSlow::Wait>;
@@ -368,6 +368,7 @@ template<int nOut, int nIns>
 void testReverbDiracNout()
 {
     using namespace imajuscule;
+    using namespace imajuscule::audio;
     testReverbDirac<ReverbType::Realtime_Asynchronous_Legacy, nOut, nIns>(SimulationPhasing::no_phasing());
     testReverbDirac<ReverbType::Realtime_Synchronous, nOut, nIns>();
     testReverbDirac<ReverbType::Offline, nOut, nIns>();
@@ -398,7 +399,8 @@ TEST(Reverbs, dirac)
 
 TEST(Reverbs, reproQueueSizeGarageband) {
     using namespace imajuscule;
-    
+    using namespace imajuscule::audio;
+
     using Rev = Reverbs<2, ReverbType::Realtime_Asynchronous, PolicyOnWorkerTooSlow::Wait>;
     typename Rev::MemResource::type memory;
     Rev rs;

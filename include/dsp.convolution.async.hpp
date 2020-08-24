@@ -1,5 +1,5 @@
 
-namespace imajuscule
+namespace imajuscule::audio
 {
 enum class PolicyOnWorkerTooSlow {
     PermanentlySwitchToDry,

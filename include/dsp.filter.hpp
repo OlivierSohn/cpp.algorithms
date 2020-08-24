@@ -3,9 +3,8 @@
  * Proprietary and confidential
  * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
  */
+namespace imajuscule::audio {
 
-namespace imajuscule
-{
     enum class FilterType
     {
         HIGH_PASS,

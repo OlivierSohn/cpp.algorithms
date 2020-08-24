@@ -1,5 +1,5 @@
 
-namespace imajuscule {
+namespace imajuscule::audio {
 
 enum class LatencySemantic {
     // the delay between an input dirac and the first non-zero output:

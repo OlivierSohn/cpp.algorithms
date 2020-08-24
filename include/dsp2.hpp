@@ -1,6 +1,4 @@
-
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 /*
  

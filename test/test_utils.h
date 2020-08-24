@@ -73,8 +73,8 @@ static inline a64::vector<double> mkCoefficientsTriangle(int sz) {
     return res;
 }
 
-std::vector<Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
-std::vector<Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
+std::vector<audio::Scaling> mkNaiveScaling(int firstSz, int const countCoeffs);
+std::vector<audio::Scaling> mkBetterScaling(int firstSz, int const countCoeffs);
 
 
 }

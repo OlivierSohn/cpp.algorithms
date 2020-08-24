@@ -1,5 +1,4 @@
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 struct Scaling {
     Scaling(int const sz, int const nRepeat) :

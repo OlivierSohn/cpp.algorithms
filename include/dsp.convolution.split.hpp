@@ -1,5 +1,4 @@
-
-namespace imajuscule {
+namespace imajuscule::audio {
 
 static constexpr int undefinedSplit = -1;
 static constexpr int noSplit = -2;

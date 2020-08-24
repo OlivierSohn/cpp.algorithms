@@ -1,6 +1,6 @@
 
 
-namespace imajuscule {
+namespace imajuscule::audio {
 namespace testdsp2conv {
 
 template<typename T>
@@ -323,7 +323,7 @@ void testDiracFinegrainedPartitionned(int coeffs_index) {
             increment(type))
         {
             SelfContainedXYConvolution<AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>> conv;
-            auto const n_partitions = imajuscule::countPartitions(coefficients.size(), part_size);
+            auto const n_partitions = countPartitions(coefficients.size(), part_size);
 
             typename decltype(conv)::SetupParam p {
                 part_size,
@@ -424,7 +424,7 @@ void testDirac() {
             partition_sz *= 2)
         {
             auto c = SelfContainedXYConvolution<AlgoFinegrainedPartitionnedFFTConvolution<T, Allocator, Tag>>{};
-            auto const n_partitions = imajuscule::countPartitions(countCoeffs, partition_sz);
+            auto const n_partitions = countPartitions(countCoeffs, partition_sz);
 
             testDirac2(i, c, {
                 partition_sz,
@@ -545,7 +545,7 @@ void testDirac() {
                     countDiscardedCoeffs += d.countCoeffs;
                 }
                 int const partition_sz = params.empty() ? 0 : params.back().setupParam.partition_size;
-                auto const n_partitions = imajuscule::countPartitions(countDiscardedCoeffs, partition_sz);
+                auto const n_partitions = countPartitions(countDiscardedCoeffs, partition_sz);
 
                 testDirac2(i, c, {
                     {
@@ -593,7 +593,7 @@ void testDirac() {
 
 TEST(Convolution2, dirac) {
     using namespace imajuscule;
-    using namespace imajuscule::testdsp2conv;
+    using namespace imajuscule::audio::testdsp2conv;
 
     for_each(fft::Tags, [](auto t) {
         testDirac<float, a64::Alloc, decltype(t)>();

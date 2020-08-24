@@ -1,5 +1,5 @@
 
-namespace imajuscule::testspatialize {
+namespace imajuscule::audio::testspatialize {
     constexpr auto end_index = 4;
     
     template<typename T>
@@ -301,7 +301,7 @@ namespace imajuscule::testspatialize {
 
 TEST(Spatialization, dirac) {
     using namespace imajuscule;
-    using namespace imajuscule::testspatialize;
+    using namespace imajuscule::audio::testspatialize;
     
     for_each(fft::Tags, [](auto t) {
         testDirac<decltype(t), a64::Alloc>();

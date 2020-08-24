@@ -1,10 +1,10 @@
 namespace imajuscule {
 
-std::set<std::vector<Scaling>> mkScalings(int const firstSz,
+std::set<std::vector<audio::Scaling>> mkScalings(int const firstSz,
                                           std::vector<std::vector<int>> const & repeats) {
-    std::set<std::vector<Scaling>> res;
+    std::set<std::vector<audio::Scaling>> res;
     for(auto const & rs : repeats) {
-        std::vector<Scaling> v;
+        std::vector<audio::Scaling> v;
         int sz = firstSz;
         for(auto r : rs) {
             if(r) {
@@ -38,7 +38,7 @@ void analyzeSetDifferences(std::set<T> const & s1,
 }
 
 TEST(ConvolutionScale, iterateScales_noLastSize) {
-    using namespace imajuscule;
+    using namespace imajuscule::audio;
     
     // verify that 0 coeff leads to a single empty scaling.
     {
@@ -450,7 +450,7 @@ TEST(ConvolutionScale, iterateScales_noLastSize) {
 
 TEST(ConvolutionScale, simulateBatch) {
 
-    using namespace imajuscule;
+    using namespace imajuscule::audio;
 
     using T = double;
     using Tag = fft::Fastest;

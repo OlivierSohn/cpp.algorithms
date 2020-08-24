@@ -8,17 +8,17 @@ namespace imajuscule
             return static_cast<int64_t>(mult * lhs) < static_cast<int64_t>(mult * rhs);
         }
     };
-    
+
     // designed to be constructed from doubles in the range [0,1)
     struct AlmostDouble {
         static constexpr double mult = 10000000.;
-        
+
         AlmostDouble(double d)
         : key_(static_cast<int64_t>(mult * d))
         {}
-        
+
         int64_t key() const { return key_; }
-        
+
         bool operator == (AlmostDouble const & other) const {
             return key_ == other.key_;
         }
@@ -42,12 +42,12 @@ namespace std {
 
 namespace imajuscule::audio {
 
-    
+
     /*
      [Deprecated, use resampleSinc instead]
-     
+
      Fixed-rate resampling using linear interpolation.
-     
+
      Using linear interpolation for resampling audio is very fast, but also leads to very low quality results.
 
      Hence, please use resampleSinc instead.
@@ -66,7 +66,7 @@ namespace imajuscule::audio {
     void resampleLinear(Reader & reader, Buffer & buf, double sample_rate)
     {
         using VAL = typename Buffer::value_type;
-        
+
         buf.clear();
         auto const n_channels = reader.countChannels();
         double const Fs_over_FsPrime = reader.getSampleRate() / sample_rate;
@@ -80,7 +80,7 @@ namespace imajuscule::audio {
         buf.resize(target_size);
         auto it = buf.begin();
         auto end = buf.end();
-        
+
         // represents current and next frames
         std::array<std::vector<VAL>, 2> vecs;
         for(auto & v : vecs) {
@@ -104,7 +104,7 @@ namespace imajuscule::audio {
             }
             return the_end;
         };
-        
+
         // invariants :
         // cur  has index curFrameRead
         // next has index curFrameRead+1
@@ -132,7 +132,7 @@ namespace imajuscule::audio {
                 assert(next_ratio <= 1.);
                 assert(next_ratio >= 0.);
                 double const cur_ratio = 1. - next_ratio;
-                
+
                 for(int j=0; j<n_channels; ++j, ++it) {
                     *it = cur_ratio * cur[j] + (next_ratio * next[j]);
                 }
@@ -143,7 +143,7 @@ namespace imajuscule::audio {
             countReads = static_cast<int64_t>(where*(1-epsilon)-curFrameRead);
         }
     }
-    
+
     template<typename T>
     T fSinc(T x) {
         if(likely(x)) {
@@ -168,7 +168,7 @@ namespace imajuscule::audio {
     T der_of_der_of_der_of_NumeratorSinc(T x) {
         return x * x * std::cos(x);
     }
-    
+
     template<typename F, typename DER, typename T = decltype(std::declval<F>()({}))>
     std::vector<T> findRootsSpacedByAtleast(T minDistanceBetweenConsecutveRoots, T const from, T const to, F f, DER der) {
         std::vector<T> res;
@@ -176,9 +176,9 @@ namespace imajuscule::audio {
             return res;
         }
         res.reserve(static_cast<int>((to-from)*minDistanceBetweenConsecutveRoots));
-        
+
         auto constexpr epsilon = std::numeric_limits<T>::epsilon();
-        
+
         for(T x1 = from; x1 < to; x1+=minDistanceBetweenConsecutveRoots) {
             T x2 = x1 + minDistanceBetweenConsecutveRoots;
             if(x2 > to) {
@@ -194,7 +194,7 @@ namespace imajuscule::audio {
                 res.push_back(x2);
                 continue;
             }
-            
+
             if(y1*y2 > 0.) {
                 // same signe, hence there is no root in this interval
                 continue;
@@ -206,7 +206,7 @@ namespace imajuscule::audio {
         }
         return res;
     }
-    
+
     template<typename T>
     auto findSincCurvatureChanges(T from, T to) {
         auto res =  findRootsSpacedByAtleast(2.,
@@ -223,8 +223,8 @@ namespace imajuscule::audio {
         }
         return res;
     }
-    
-    
+
+
     template<typename T>
     struct UniformSamplerOpt {
         template<typename F>
@@ -233,7 +233,7 @@ namespace imajuscule::audio {
         , to(to)
         {
             numSamples = std::max(2, numSamples);
-            
+
             increment = (to-from)/(numSamples-1);
             if(increment) {
                 inv_increment = 1. / increment;
@@ -241,7 +241,7 @@ namespace imajuscule::audio {
             else {
                 inv_increment = 0.;
             }
-            
+
             samples.reserve(numSamples);
             for(int i=0; i<numSamples; ++i) {
                 auto y = f(from + i*increment);
@@ -252,7 +252,7 @@ namespace imajuscule::audio {
             }
             samples[numSamples-1].second = 0;
         }
-        
+
         T getAt(T x) const {
             if(x <= from) {
                 return samples.begin()->first;
@@ -271,7 +271,7 @@ namespace imajuscule::audio {
         T from, to, increment, inv_increment;
         std::vector<std::pair<T,T>> samples;
     };
-    
+
     template<typename T>
     struct UniformSampler {
         template<typename F>
@@ -280,7 +280,7 @@ namespace imajuscule::audio {
         , to(to)
         {
             numSamples = std::max(2, numSamples);
-            
+
             increment = (to-from)/(numSamples-1);
             if(increment) {
                 inv_increment = 1. / increment;
@@ -288,14 +288,14 @@ namespace imajuscule::audio {
             else {
                 inv_increment = 0.;
             }
-            
+
             samples.reserve(numSamples);
             for(int i=0; i<numSamples; ++i) {
                 auto y = f(from + i*increment);
                 samples.push_back(y);
             }
         }
-        
+
         T getAt(T x) const {
             if(x <= from) {
                 return *samples.begin();
@@ -320,10 +320,10 @@ namespace imajuscule::audio {
             : x(x)
             , y(y)
             {}
-            
+
             T x;
             T y;
-            
+
             bool operator < (SortableXY const & other) const {
                 return x < other.x;
             }
@@ -331,13 +331,13 @@ namespace imajuscule::audio {
 
         using Container = std::vector<SortableXY>;
         using ConstIterator = typename Container::const_iterator;
-        
+
         template<typename F>
         NonUniformSampler(F functionToSample, std::vector<T> const & curvatureChanges, T maxSamplingError)
         : maxSamplingError(maxSamplingError)
         {
             sorted.reserve(100000);
-            
+
             static_assert(std::is_same_v<T, decltype(functionToSample({}))>);
             auto it = curvatureChanges.begin();
             auto const end = curvatureChanges.end();
@@ -400,7 +400,7 @@ namespace imajuscule::audio {
             auto ratio = (x-l1->x)/exactDX;
             return (1.-ratio) * l1->y + ratio * l2->y;
         }
-        
+
         auto const & getExactValues() const { return sorted; }
     private:
         std::vector<SortableXY> sorted;
@@ -410,7 +410,7 @@ namespace imajuscule::audio {
         template<typename F>
         void sampleSameDerDerSign(F const & functionToSample, T from, T to, T vFrom, T vTo) {
             // by design, the samples at from and to are already sampled.
-            
+
             T mid = 0.5 * (to+from);
             if(unlikely(mid == to || mid == from)) {
                 return;
@@ -427,14 +427,14 @@ namespace imajuscule::audio {
             sampleSameDerDerSign(functionToSample, mid, to, vMid, vTo);
         }
     };
-    
+
     struct KaiserWindow {
         // https://en.wikipedia.org/wiki/Kaiser_window
         KaiserWindow(double shape = 16.)
         : squareShape(shape * shape)
         , oneOverDenom(1.0 / zeroethOrderBessel( shape * shape ))
         {}
-        
+
         // K in [-1,1]
         double getAt( const double K )
         {
@@ -445,26 +445,26 @@ namespace imajuscule::audio {
         static double zeroethOrderBessel( double squareX )
         {
             constexpr double eps = 0.000001;
-            
+
             const double squareX_Over_4 = squareX * 0.25;
-            
+
             double besselValue = 1;
             double term = squareX_Over_4;
             double m = 1;
-            
+
             //  accumulate terms as long as they are significant
             while(term  > eps * besselValue)
             {
                 besselValue += term;
-                
+
                 //  update the term
                 ++m;
                 term *= squareX_Over_4 / (m*m);
             }
-            
+
             return besselValue;
         }
-        
+
         const double squareShape;
         const double oneOverDenom;
     };
@@ -473,11 +473,11 @@ namespace imajuscule::audio {
         std::optional<profiling::CpuDuration> dt_resample, dt_read_source;
 
         friend std::ostream& operator<<(std::ostream& os, const ResampleSincStats& dt);
-        
+
     };
     std::ostream & operator << (std::ostream & os, const ResampleSincStats& s);
 
-    
+
     template<typename OriginalBuffer, typename ResampledBuffer, typename F>
     void resampleSincBufferVariableRate(OriginalBuffer const & original,
                                         int const n_channels,
@@ -489,7 +489,7 @@ namespace imajuscule::audio {
             return;
         }
         int64_t const n_orig_frames = original.size() / n_channels;
-        
+
         auto foreachResampled = [fFs_over_FsPrime,
                                  n_orig_frames](auto f)
         {
@@ -501,18 +501,18 @@ namespace imajuscule::audio {
                 ++frameIdx)
             {
                 // we are computing frame 'frameIdx' of the resampled signal.
-                
+
                 // 'where' is the corresponding location in the original signal.
-                
+
                 // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
                 int64_t const discreteSampleBefore = static_cast<int64_t>(where);
-                
+
                 if(unlikely(discreteSampleBefore >= n_orig_frames)) {
                     return;
                 }
-                
+
                 double const P = where-discreteSampleBefore; // in [0,1)
-                
+
                 if(discreteSampleBefore == n_orig_frames-1 && P > frameIdx*epsilon) {
                     return;
                 }
@@ -560,12 +560,12 @@ namespace imajuscule::audio {
                       spec.where-discreteSampleBefore);
                 }
             };
-            
+
             int ncpus = std::thread::hardware_concurrency();
             int njobs = ncpus;
             std::vector<std::thread> threads;
             threads.reserve(njobs-1);
-            
+
             int64_t countFrames = resampled_specs.size();
             int64_t endFrame = 0;
             for(int i=0; i<njobs-1; ++i) {
@@ -574,12 +574,12 @@ namespace imajuscule::audio {
                 threads.emplace_back([startFrame, endFrame, job]{ job(startFrame, endFrame); });
             }
             job(endFrame, countFrames);
-            
+
             for(auto & thread:threads) {
                 thread.join();
             }
         };
-        
+
         foreachResampledParallel([&resampled,
                                   &original,
                                   &window,
@@ -590,20 +590,20 @@ namespace imajuscule::audio {
                                               int64_t discreteSampleBefore,
                                               double P) {
             // we are computing frame 'frameIdx' of the resampled signal.
-            
+
             // when the resampling frequency is constant, we can cache the hs results array with key 'P'
             // this array contains results for hs(P-N-1) ... hs(P-1) hs(P) hs(P+1) ... hs(P+N) where N = (int)windowHalfSize
             // the match on the key should be done with 7 digits precision, i.e (int)(P*10000000)
-            
+
             // resampled sample value =
             // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
-            
 
-            
+
+
 #if DEBUG_RESAMPLING
             std::map<int64_t, double> tmp;
 #endif
-            
+
             const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
             // half size, excluding the central point, hence the number of non-zero slots is:
             // 1 + 2*windowHalfSize
@@ -626,12 +626,12 @@ namespace imajuscule::audio {
                 auto sinc_pix = fSinc(M_PI * x); // 0 <= M_PI * x < M_PI * num_zerocrossings_half_window
                 return winCoeff * one_over_zeroCrossingDistance * sinc_pix;
             };
-            
+
             int64_t const vres_sz = 2+2*N;
 
             assert(P >= 0.);
             assert(P <= 1.);
-            
+
             int64_t const discreteSampleBefore_minus_N = discreteSampleBefore-N;
 
             auto const resampleIdxBase = frameIdx*n_channels;
@@ -657,7 +657,7 @@ namespace imajuscule::audio {
                 // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
                 // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
                 // i < N + original.size()/n_channels - discreteSampleBefore
-                
+
                 auto const vresValue = hs(std::abs(P+(N-i)));
                 auto const idxBase = (discreteSampleBefore_minus_N + i)*n_channels;
                 for(int j=0; j<n_channels; ++j) {
@@ -679,12 +679,12 @@ namespace imajuscule::audio {
         });
     }
     // 0 o/n 2*o/n ...
-    
+
     // pgcd * a = o
     // pgcd * b = n
-    
+
     // 0 a/b
-    
+
     //     o     n
     // 96000 41000   300
     //   320   147
@@ -693,7 +693,7 @@ namespace imajuscule::audio {
     // n=147 : ca marche
     //
     // si on utilise 4 threads, on porurait diviser [0 147) en 4 intervalles
-    
+
     template<typename OriginalBuffer, typename ResampledBuffer>
     void resampleSincBuffer(OriginalBuffer const & original,
                             int const n_channels,
@@ -717,7 +717,7 @@ namespace imajuscule::audio {
             resampled = original;
             return;
         }
-        
+
         // using notations found in https://ccrma.stanford.edu/~jos/resample/resample.pdf
         const auto one_over_zeroCrossingDistance = std::min(1., 1./Fs_over_FsPrime);
         // half size, excluding the central point, hence the number of non-zero slots is:
@@ -727,7 +727,7 @@ namespace imajuscule::audio {
         const auto windowHalfSize = num_zerocrossings_half_window / one_over_zeroCrossingDistance;
         int64_t const N = static_cast<int>(windowHalfSize) + 1;
         KaiserWindow window;
-        
+
         auto hs = [num_zerocrossings_half_window,
                    one_over_num_zerocrossings_half_window,
                    one_over_zeroCrossingDistance,
@@ -745,17 +745,17 @@ namespace imajuscule::audio {
             };
             return one_over_zeroCrossingDistance * sinc(t * one_over_zeroCrossingDistance);
         };
-        
+
         auto foreachResampled = [target_frame_count, Fs_over_FsPrime](auto f){
             for(int64_t frameIdx = 0; frameIdx < target_frame_count; ++frameIdx) {
                 // we are computing frame 'frameIdx' of the resampled signal.
-                
+
                 // 'where' is the corresponding location in the original signal.
                 double const where = Fs_over_FsPrime*frameIdx; // >= 0
-                
+
                 // in the original signal, 'where' is between integers 'discreteSampleBefore' and 'discreteSampleBefore'+1
                 int64_t const discreteSampleBefore = static_cast<int64_t>(where);
-                
+
                 double const P = where-discreteSampleBefore; // in [0,1)
 
                 if(!f(frameIdx, discreteSampleBefore, P)) {
@@ -763,7 +763,7 @@ namespace imajuscule::audio {
                 }
             }
         };
-        
+
         // This assumes the frame rate ratio is constant!
         int64_t nDifferentLocations = 1;
         foreachResampled([&nDifferentLocations](int64_t frameIdx, int64_t, double P) {
@@ -773,7 +773,7 @@ namespace imajuscule::audio {
             };
             return true;
         });
-        
+
         // we memoize the results
         std::unordered_map<AlmostDouble, std::unique_ptr<std::vector<double>>> results;
         results.reserve(nDifferentLocations);
@@ -814,20 +814,20 @@ namespace imajuscule::audio {
             // when the resampling frequency is constant, we can cache the hs results array with key 'P'
             // this array contains results for hs(P-N-1) ... hs(P-1) hs(P) hs(P+1) ... hs(P+N) where N = (int)windowHalfSize
             // the match on the key should be done with 7 digits precision, i.e (int)(P*10000000)
-            
+
             // resampled sample value =
             // sum over every sampleLocation in the original signal of sampleValue * hs(where-sampleLocation)
-            
-            
+
+
 #if DEBUG_RESAMPLING
             std::map<int64_t, double> tmp;
 #endif
             int64_t const discreteSampleBefore_minus_N = discreteSampleBefore-N;
             int64_t const vres_sz = 2+2*N;
             assert(vres_sz == vres.size());
-            
+
             auto const resampleIdxBase = frameIdx*n_channels;
-            
+
             for(int64_t
                 i   = std::max(static_cast<int64_t>(0),
                                -discreteSampleBefore_minus_N),
@@ -849,7 +849,7 @@ namespace imajuscule::audio {
                 // (discreteSampleBefore+i-N+1)*n_channels < n_channels + original.size() implies:
                 // discreteSampleBefore+i-N+1 < 1 + original.size()/n_channels implies:
                 // i < N + original.size()/n_channels - discreteSampleBefore
-                
+
                 auto const vresValue = vres[i];
                 auto const idxBase = (discreteSampleBefore_minus_N + i)*n_channels;
                 for(int j=0; j<n_channels; ++j) {
@@ -869,16 +869,16 @@ namespace imajuscule::audio {
             return true;
         });
     }
-    
+
     template<typename Reader, typename Buffer, typename F>
     ResampleSincStats resampleSincVariableRate(Reader & reader, Buffer & resampled, F f_new_sample_rate)
     {
         using namespace std::chrono;
         using namespace profiling;
         ResampleSincStats stats;
-        
+
         using VAL = typename Buffer::value_type;
-        
+
         resampled.clear();
 
         std::vector<VAL> original;
@@ -926,9 +926,9 @@ namespace imajuscule::audio {
         using namespace std::chrono;
         using namespace profiling;
         ResampleSincStats stats;
-        
+
         using VAL = typename Buffer::value_type;
-        
+
         resampled.clear();
 
         std::vector<VAL> original;
@@ -950,7 +950,7 @@ namespace imajuscule::audio {
         if(!Fs || !FsPrime) {
             return stats;
         }
-        
+
         double const Fs_over_FsPrime = Fs / FsPrime;
 
         {
@@ -960,7 +960,7 @@ namespace imajuscule::audio {
                                reader.countChannels(),
                                Fs_over_FsPrime,
                                resampled);
-            
+
         }
         return stats;
     }
@@ -986,11 +986,11 @@ namespace imajuscule::audio {
             }
             return buf.size() / nchannels;
         }
-        
+
         int countChannels() const { return nchannels; }
-        
+
         std::vector<element_type> const & getBuffer() const { return buf; }
-        
+
         element_type getMaxAbsValue() const {
             if(!maxAbsValue) {
                 element_type m = 0;
@@ -1001,8 +1001,8 @@ namespace imajuscule::audio {
             }
             return *maxAbsValue;
         }
-        
-        
+
+
         // https://stackoverflow.com/a/27216842/3940228
         std::size_t hashCode() const {
             auto hashFunc = [](std::size_t &seed, element_type val){
@@ -1010,18 +1010,18 @@ namespace imajuscule::audio {
                 static_assert(sizeof(std::size_t) == sizeof(element_type));
                 seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             };
-            
+
             // initialize with something
             std::size_t val = buf.size() / nchannels;
-            
+
             // mix with the channel count
             hashFunc(val, nchannels);
-            
+
             // mix with the buffer
             for(auto const & v:buf) {
                 hashFunc(val, v);
             }
-            
+
             return val;
         }
     private:
@@ -1029,5 +1029,5 @@ namespace imajuscule::audio {
         int nchannels;
         mutable std::optional<element_type> maxAbsValue;
     };
-    
+
 } // namespace imajuscule::audio

@@ -50,7 +50,7 @@ TEST(DspCompress, simple) {
     ASSERT_FLOAT_EQ(Compressor::compress * 0.69f, signal[0]);
   }
   
-  // a 0.59 signal, just below the lower limit, should trigger uncompression (after some time).
+  // a 0.59 signal, just below the lower limit, should trigger uncompression (after some time)...
   for(int i=0; i<Compressor::safeDuration; ++i) {
     std::array<float,1> signal{{0.59f}};
     c.feed(signal);
@@ -58,18 +58,32 @@ TEST(DspCompress, simple) {
     ASSERT_FLOAT_EQ(Compressor::compress, c.getTargetCompressionLevel());
     ASSERT_FLOAT_EQ(Compressor::compress, c.getCompressionLevel());
   }
-  {
-    std::array<float,1> signal{{0.59f}};
-    c.feed(signal);
-    ASSERT_EQ(0, c.getSafeSince());
-    ASSERT_FLOAT_EQ(1.f, c.getTargetCompressionLevel());
-  }
+  // The current implementation has hysteresis on the target compression level
+  // so 1.f will not be reached. While the signal is in the "safe" zone,
+  // the compressor tracks the max amplitude, and when it is time to uncompress,
+  // it will compute a target such that the compressed max amplitude will be
+  // at the "medium" level (between high and low). Hence:
   for(int i=0; i<100000; ++i) {
     std::array<float,1> signal{{0.59f}};
     c.feed(signal);
-    ASSERT_FLOAT_EQ(1.f, c.getTargetCompressionLevel());
+    ASSERT_EQ(0, c.getSafeSince());
+    ASSERT_LT(Compressor::compress, c.getTargetCompressionLevel());
   }
-  ASSERT_FLOAT_EQ(1.f, c.getCompressionLevel());
+}
+
+TEST(DspCompress, clip) {
+  using namespace imajuscule::audio;
+  Compressor c;
   
+  ASSERT_FLOAT_EQ(1.f, c.getCompressionLevel());
+  ASSERT_FLOAT_EQ(1.f, c.getTargetCompressionLevel());
+  ASSERT_EQ(0, c.getSafeSince());
+  
+  // a clipping signal (-10.) should trigger immediate compression
+  std::array<float,1> signal{{-10.f}};
+  c.feed(signal);
+  ASSERT_EQ(0, c.getSafeSince());
+  ASSERT_GT(c.getCompressionLevel(), c.getTargetCompressionLevel());
+  ASSERT_FLOAT_EQ(Compressor::limit / 10.f, c.getCompressionLevel());
 }
 

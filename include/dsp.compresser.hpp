@@ -65,15 +65,14 @@ namespace imajuscule::audio {
       Assert(targetMultiplicator > 0.f);
 
       using value_type = typename T::value_type;
-      // find the max amplitude
+
       value_type rawAmplitude{};
       for(auto s : signal) {
-        // s is the value of the signal with the previous compression level
         rawAmplitude = std::max(rawAmplitude, std::abs(s));
       }
 
-      // taking into account the amplitude of the signal "when the compression level will have reached its target",
-      // adjust the target compression level
+      // Adjust the _target_ compression level,
+      // taking only into account the amplitude of the signal "when the compression level will have reached its target",
       if(rawAmplitude * targetMultiplicator > high) {
         // the signal is too loud
         do {
@@ -91,8 +90,8 @@ namespace imajuscule::audio {
         // the signal is low
         safeSince.onSafe(rawAmplitude);
         if(safeSince.getSafeSince() > safeDuration) {
+          // The signal has been too low for a long time
           if (targetMultiplicator < 1.f) {
-            // The signal has been too low for a long time
             float const maxRawAmplitude = safeSince.getSafeMaxAmplitude();
             // we adjust the target such that the maxRawAmplitude would correspond to medium level:
             //   targetMultiplicator * maxRawAmplitude = medium

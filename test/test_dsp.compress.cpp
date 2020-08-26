@@ -35,28 +35,26 @@ TEST(DspCompress, simple) {
     std::array<float,1> signal{{0.71f}};
     c.feed(signal);
     ASSERT_EQ(0, c.getSafeSince());
-    ASSERT_FLOAT_EQ(Compressor::compress, c.getTargetCompressionLevel());
+    ASSERT_GT(1.f, c.getTargetCompressionLevel());
   }
-  ASSERT_FLOAT_EQ(Compressor::compress, c.getCompressionLevel());
+  ASSERT_GT(1.f, c.getCompressionLevel());
+
+  auto const prevTarget = c.getTargetCompressionLevel();
 
   // a 0.69 signal, just below the upper limit, should not trigger uncompression.
   for(int i=0; i<100000; ++i) {
     std::array<float,1> signal{{0.69f}};
     c.feed(signal);
     ASSERT_EQ(0, c.getSafeSince());
-    ASSERT_FLOAT_EQ(Compressor::compress, c.getTargetCompressionLevel());
-    ASSERT_FLOAT_EQ(Compressor::compress, c.getCompressionLevel());
-
-    ASSERT_FLOAT_EQ(Compressor::compress * 0.69f, signal[0]);
+    ASSERT_FLOAT_EQ(prevTarget, c.getTargetCompressionLevel());
   }
 
   // a 0.59 signal, just below the lower limit, should trigger uncompression (after some time)...
-  for(int i=0; i<Compressor::safeDuration; ++i) {
+  for(int i=0; i<Compressor<float>::safeDuration; ++i) {
     std::array<float,1> signal{{0.59f}};
     c.feed(signal);
     ASSERT_EQ(i+1, c.getSafeSince());
-    ASSERT_FLOAT_EQ(Compressor::compress, c.getTargetCompressionLevel());
-    ASSERT_FLOAT_EQ(Compressor::compress, c.getCompressionLevel());
+    ASSERT_FLOAT_EQ(prevTarget, c.getTargetCompressionLevel());
   }
   // The current implementation has hysteresis on the target compression level
   // so 1.f will not be reached. While the signal is in the "safe" zone,
@@ -67,7 +65,7 @@ TEST(DspCompress, simple) {
     std::array<float,1> signal{{0.59f}};
     c.feed(signal);
     ASSERT_EQ(0, c.getSafeSince());
-    ASSERT_LT(Compressor::compress, c.getTargetCompressionLevel());
+    ASSERT_LT(prevTarget, c.getTargetCompressionLevel());
   }
 }
 
@@ -84,5 +82,5 @@ TEST(DspCompress, clip) {
   c.feed(signal);
   ASSERT_EQ(0, c.getSafeSince());
   ASSERT_GT(c.getCompressionLevel(), c.getTargetCompressionLevel());
-  ASSERT_FLOAT_EQ(Compressor::limit / 10.f, c.getCompressionLevel());
+  ASSERT_FLOAT_EQ(Compressor<float>::limit / 10.f, c.getCompressionLevel());
 }

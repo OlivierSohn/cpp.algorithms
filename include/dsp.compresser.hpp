@@ -37,6 +37,9 @@ namespace imajuscule::audio {
    */
   template<typename T>
   struct Compressor {
+    // do not expand the signal, only compress
+    static constexpr T maxTargetMultiplicator = 1.;
+    
     static constexpr T limit = 0.999;
     static constexpr T high = 0.7;
     static constexpr T low  = 0.5;
@@ -79,7 +82,7 @@ namespace imajuscule::audio {
         //   targetMultiplicator * rawAmplitude = medium
         //   targetMultiplicator                = medium / rawAmplitude
         Assert(rawAmplitude);
-        targetMultiplicator = std::min(1., medium / rawAmplitude);
+        targetMultiplicator = std::min(maxTargetMultiplicator, medium / rawAmplitude);
 #if IMJ_DEBUG_COMPRESSOR
         std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
                   << " (signal was too high)" << std::endl;
@@ -91,15 +94,15 @@ namespace imajuscule::audio {
         safeSince.onSafe(rawAmplitude);
         if(safeSince.getSafeSince() > safeDuration) {
           // The signal has been too low for a long time
-          if (targetMultiplicator < 1.) {
+          if (targetMultiplicator < maxTargetMultiplicator) {
             T const maxRawAmplitude = safeSince.getSafeMaxAmplitude();
             // we adjust the target such that the maxRawAmplitude would correspond to medium level:
             //   targetMultiplicator * maxRawAmplitude = medium
             //   targetMultiplicator                   = medium / maxRawAmplitude
             if (maxRawAmplitude) {
-              targetMultiplicator = std::min(1., medium / maxRawAmplitude);
+              targetMultiplicator = std::min(maxTargetMultiplicator, medium / maxRawAmplitude);
             } else {
-              targetMultiplicator = 1.;
+              targetMultiplicator = maxTargetMultiplicator;
             }
 #if IMJ_DEBUG_COMPRESSOR
             std::cout << "Compressor targetMultiplicator = " << targetMultiplicator

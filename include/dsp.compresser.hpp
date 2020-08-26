@@ -2,27 +2,30 @@
 
 namespace imajuscule::audio {
 
+  template<typename T>
   struct SafeSince {
+      SafeSince() {
+          onUnsafe();
+      }
+
       void onUnsafe() {
           since = 0;
-          max_safe_amplitude = 0.f;
+          max_safe_amplitude = 0.;
       }
-      void onSafe(float amplitude) {
+
+      void onSafe(T amplitude) {
           ++since;
           max_safe_amplitude = std::max(amplitude, max_safe_amplitude);
       }
 
       int getSafeSince() const { return since; }
-      float getSafeMaxAmplitude() const { return max_safe_amplitude; }
+      T getSafeMaxAmplitude() const { return max_safe_amplitude; }
   private:
-      int since = 0;
-      float max_safe_amplitude = 0.f;
+      int since;
+      T max_safe_amplitude;
   };
 
-  /* This compressor quickly reduces the signal volume
-   * when the signal becomes too loud. and slowly restores
-   * the initial volume when the signal has been below a threshold for a
-   * significant period of time.
+  /* This compressor adapts the signal volume to its amplitude.
    *
    * To avoid having having compression level changes eventhough the signal
    * didn't change much, we use hysteresis.
@@ -32,19 +35,16 @@ namespace imajuscule::audio {
    * But if the compressed signal would clip, the multiplication factor is instantaneously changed
    * to the smallest value that avoids clipping.
    */
+  template<typename T>
   struct Compressor {
-    // compress == 0.5f was making a too big change in volume.
-    static constexpr float compress   = 0.8f;
-    static constexpr float uncompress = 1.f / compress;
+    static constexpr T limit = 0.999;
+    static constexpr T high = 0.7;
+    static constexpr T low  = 0.5;
 
-    static constexpr float limit = 0.999f;
-    static constexpr float high = 0.7f;
-    static constexpr float low  = 0.6f * compress;
-
-    static constexpr float compressMult   = 0.997f;
+    static constexpr T compressMult   = 0.997;
 
     // = 2^(1/22050) so that the volume doubles every half second
-    static constexpr float uncompressMult = 1.00003f;
+    static constexpr T uncompressMult = 1.00003;
 
     // The signal needs to be low for at least that many frames
     // to be uncompressed
@@ -59,14 +59,14 @@ namespace imajuscule::audio {
 #endif
     }
 
-    template<typename T>
-    void feed(T & signal) {
-      Assert(targetMultiplicator <= 1.f);
-      Assert(targetMultiplicator > 0.f);
+    template<typename S>
+    void feed(S & signal) {
+      static_assert(std::is_same_v<typename S::value_type, T>);
 
-      using value_type = typename T::value_type;
+      Assert(targetMultiplicator <= 1.);
+      Assert(targetMultiplicator > 0.);
 
-      value_type rawAmplitude{};
+      T rawAmplitude{};
       for(auto s : signal) {
         rawAmplitude = std::max(rawAmplitude, std::abs(s));
       }
@@ -74,16 +74,16 @@ namespace imajuscule::audio {
       // Adjust the _target_ compression level,
       // taking only into account the amplitude of the signal "when the compression level will have reached its target",
       if(rawAmplitude * targetMultiplicator > high) {
-        // the signal is too loud
-        do {
-            auto targetAmplitude = rawAmplitude * targetMultiplicator;
-            targetMultiplicator *= compress;
+        // the signal is too loud.
+        // we adjust the target such that the rawAmplitude would correspond to medium level:
+        //   targetMultiplicator * rawAmplitude = medium
+        //   targetMultiplicator                = medium / rawAmplitude
+        Assert(rawAmplitude);
+        targetMultiplicator = std::min(1., medium / rawAmplitude);
 #if IMJ_DEBUG_COMPRESSOR
-            std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
-                      << " (signal too high : targetAmplitude = " << targetAmplitude << " > " << high << " )" << std::endl;
+        std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
+                  << " (signal was too high)" << std::endl;
 #endif
-        } while (rawAmplitude * targetMultiplicator > high);
-
         safeSince.onUnsafe();
       }
       else if(rawAmplitude * targetMultiplicator < low) {
@@ -91,15 +91,15 @@ namespace imajuscule::audio {
         safeSince.onSafe(rawAmplitude);
         if(safeSince.getSafeSince() > safeDuration) {
           // The signal has been too low for a long time
-          if (targetMultiplicator < 1.f) {
-            float const maxRawAmplitude = safeSince.getSafeMaxAmplitude();
+          if (targetMultiplicator < 1.) {
+            T const maxRawAmplitude = safeSince.getSafeMaxAmplitude();
             // we adjust the target such that the maxRawAmplitude would correspond to medium level:
             //   targetMultiplicator * maxRawAmplitude = medium
             //   targetMultiplicator                   = medium / maxRawAmplitude
             if (maxRawAmplitude) {
-              targetMultiplicator = std::min(1.f,medium / maxRawAmplitude);
+              targetMultiplicator = std::min(1., medium / maxRawAmplitude);
             } else {
-              targetMultiplicator = 1.f;
+              targetMultiplicator = 1.;
             }
 #if IMJ_DEBUG_COMPRESSOR
             std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
@@ -139,7 +139,7 @@ namespace imajuscule::audio {
       }
 
       // immediately adjust the compression level if the compressed signal clips
-      value_type amplitude = rawAmplitude * multiplicator;
+      T amplitude = rawAmplitude * multiplicator;
       if(amplitude > limit) {
         multiplicator = limit / rawAmplitude;
 #if IMJ_DEBUG_COMPRESSOR
@@ -156,13 +156,13 @@ namespace imajuscule::audio {
     }
 
     // needed for white box tests
-    float getCompressionLevel() const { return multiplicator; }
-    float getTargetCompressionLevel() const { return targetMultiplicator; }
+    T getCompressionLevel() const { return multiplicator; }
+    T getTargetCompressionLevel() const { return targetMultiplicator; }
     int getSafeSince() const { return safeSince.getSafeSince(); }
   private:
-    float multiplicator = 1.f;
-    float targetMultiplicator = 1.f;
-    SafeSince safeSince;
-    const float medium = std::exp( (std::log(high) + std::log(low)) / 2.f);
+    T multiplicator = 1.;
+    T targetMultiplicator = 1.;
+    SafeSince<T> safeSince;
+    const T medium = std::exp( (std::log(high) + std::log(low)) / 2.);
   };
 }

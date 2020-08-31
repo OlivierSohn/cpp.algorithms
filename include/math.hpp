@@ -114,6 +114,7 @@ namespace imajuscule {
     // count trailing zeroes
     static inline unsigned count_trailing_zeroes(unsigned x)
     {
+      Assert(x); // else, undefined behaviour
       return __builtin_ctz(x);
     }
 
@@ -212,7 +213,7 @@ static inline int gcd(int a, int b)
     }
     return gcd(b % a, a);
 }
-  
+
 static inline int64_t ppcm(int ia, int ib)
 {
     int denom = gcd(ia,ib);

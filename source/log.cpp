@@ -42,13 +42,13 @@ struct ThreadData {
     {
         str.reserve(200);
     }
-    
+
     // gets thread data for the current trhead.
     static void getThreadData(ThreadData *& data);
-    
+
     std::string str;
     size_t idx;
-    
+
 private:
     static std::atomic<int> counter;
 };
@@ -78,10 +78,11 @@ std::atomic<int> ThreadData::counter = 0;
         vsnprintf(&v[0], size+1, format, args);
         va_end(args);
 
-        print_system_time(std::cout);
-        std::cout << "|";
+        std::ostream & out = (level == ERR) ? std::cerr : std::cout;
+        print_system_time(out);
+        out << "|";
 
-        fprintf(((level == ERR) ? stderr : stdout),
+        fprintf((level == ERR) ? stderr : stdout,
                 "%zu|%s|%s\n",
                 thread_data.idx,
                 levelToChar(level),

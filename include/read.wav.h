@@ -10,14 +10,14 @@ namespace imajuscule::audio {
             MULAW =        0x0007, // 8-bit ITU-T G.711 µ-law
             EXTENSIBLE =   0xFFFE  // Determined by SubFormat
         };
-    
+
     std::string to_string(WaveFormat f);
 
         void makeDescription(std::string &s, int16_t num_channels, float length_in_seconds, int32_t sample_rate);
         void makeDescription(std::string &s, int16_t num_channels, float length_in_seconds);
-    
+
     std::string formatSampleRateKHz(int32_t sample_rate);
-    
+
         struct WAVPCMHeader {
             std::array<int8_t, 4> chunk_id;
             int32_t chunk_size;
@@ -65,6 +65,18 @@ namespace imajuscule::audio {
             MONO = 1,
             STEREO = 2
         };
+
+        template<typename T>
+        NChannels numberToNChannels(T n) {
+            if (n==1) {
+                return NChannels::ONE;
+            }
+            if (n==2) {
+                return NChannels::TWO;
+            }
+            Assert(0);
+            return NChannels::ONE;
+        }
 
         enum class WaveFileFormat {
             BeginSupported,
@@ -308,12 +320,12 @@ namespace imajuscule::audio {
                         n_channels,
                         bytes_per_sample(f));
         }
-    
+
         template<typename Parent>
         struct WAVReader_ : public Parent {
             using Parent::OpenForRead;
             using Parent::ReadData;
-            
+
             template <typename ...Params>
             WAVReader_(Params&&... params)
             : Parent(std::forward<Params>(params)...)
@@ -334,7 +346,7 @@ namespace imajuscule::audio {
             }
 
             auto const & getHeader() const { return header; }
-            
+
             unsigned int getSampleSize() const { return header.getSampleSize(); }
             int countChannels() const { return header.num_channels; }
             int countSamples() const { return header.countSamples(); }
@@ -553,7 +565,7 @@ namespace imajuscule::audio {
         eResult OpenForRead() const {
             return ILE_SUCCESS;
         }
-        
+
         void ReadData(void * p, size_t size, size_t count) {
             auto sz = size*count;
             assert(sz+cur <= totalSize);
@@ -565,7 +577,7 @@ namespace imajuscule::audio {
         std::size_t const totalSize;
         std::size_t cur = 0;
     };
-        
+
     using WAVReaderFromBlock = WAVReader_<ConstMemoryBlock>;
 
         bool getConvolutionReverbSignature(std::string const & dirname, std::string const & filename, spaceResponse_t & r);
@@ -680,43 +692,43 @@ namespace imajuscule::audio {
 
             write_wav(std::move(dir), fname, interlaced, static_cast<NChannels>(n_channels), sample_rate);
         }
-    
+
     template<int SAMPLE_SIZE, WaveFormat FMT, typename S>
     void resample_wav(DirectoryPath const & dir, FileName const & dest, WAVReader & reader, S sample_rate, int32_t wav_target_sample_rate) {
         using namespace std;
-        
+
         auto const n_channels = reader.countChannels();
-        
+
         using T = typename TypeFor<FMT, SAMPLE_SIZE>::type;
         static_assert(sizeof(T) == SAMPLE_SIZE);
-        
-        
+
+
         Assert(FMT == reader.getFormat());
         ResampleSincStats stats;
         InterlacedBuffer ib(reader, sample_rate, stats);
         std::cout << stats << std::endl;
         Assert(!reader.HasMore());
-        
+
         auto header = pcm(FMT,
                           wav_target_sample_rate,
                           NChannels(n_channels),
                           AudioSample<T>::format);
-        
+
         WAVWriter writer(dir, dest, header);
         {
             auto res = writer.Initialize();
-            
+
             if(ILE_SUCCESS != res) {
                 cerr << "could not create file" << endl;
                 throw;
             }
         }
-        
+
         for(auto const & f : ib.getBuffer()) {
             writer.WriteFromOneFloat(f);
         }
     }
-    
+
     template<typename S>
     void resample_wav(DirectoryPath const & dir, FileName const & source, FileName const & dest, S target_rate, int32_t wav_target_sample_rate) {
         WAVReader reader(dir, source);
@@ -1002,11 +1014,11 @@ namespace imajuscule::audio {
                     throw std::logic_error("unsupported xx-bit format");;
             }
         }
-    
+
     template<typename WAVRead, typename SR>
     InterlacedBuffer readReverb(SR sample_rate, ResampleSincStats& stats, WAVRead & reader)
     {
         return {reader, sample_rate, stats};
     }
-    
+
 } // namespace imajuscule::audio

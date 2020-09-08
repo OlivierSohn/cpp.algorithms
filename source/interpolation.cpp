@@ -64,7 +64,7 @@ const char * itp::interpolationInfo(int val)
         return "Ease In Quad";
         break;
     case EASE_IN_CUBIC:
-        return "Ease In Ord3";
+        return "Ease In Cubic";
         break;
     case EASE_IN_QUART:
         return "Ease In Quart";
@@ -85,7 +85,7 @@ const char * itp::interpolationInfo(int val)
         return "Ease Out Quad";
         break;
     case EASE_OUT_CUBIC:
-        return "Ease Out Ord3";
+        return "Ease Out Cubic";
         break;
     case EASE_OUT_QUART:
         return "Ease Out Quart";
@@ -106,7 +106,7 @@ const char * itp::interpolationInfo(int val)
         return "Ease InOut Quad";
         break;
     case EASE_INOUT_CUBIC:
-        return "Ease InOut Ord3";
+        return "Ease InOut Cubic";
         break;
     case EASE_INOUT_QUART:
         return "Ease InOut Quart";

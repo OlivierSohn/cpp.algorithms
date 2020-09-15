@@ -37,6 +37,7 @@ std::ostream & operator << (std::ostream & os, const ResampleSincStats& s) {
 }
 }
 
+#include "image.bmp.cpp"
 #include "memory.cpp"
 #include "log.cpp"
 #include "log.stack.cpp"

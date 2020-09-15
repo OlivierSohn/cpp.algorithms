@@ -1,4 +1,3 @@
-#include <unordered_set>
 
 namespace imajuscule {
 
@@ -26,7 +25,7 @@ namespace imajuscule {
     private:
         int64_t key_;
     };
-} // namespace imajuscule::audio
+} // namespace imajuscule
 
 namespace std {
   template <> struct hash<imajuscule::AlmostDouble>

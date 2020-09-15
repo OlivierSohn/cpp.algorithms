@@ -42,6 +42,7 @@
 #include <thread>
 #include <type_traits>
 #include <typeinfo>
+#include <unordered_set>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -89,6 +90,7 @@
 
 #include "thirdparty/atomic_queue/atomic_queue.h"
 
+#include "image.bmp.hpp"
 #include "array.utils.hpp"
 #include "csv.writer.hpp"
 #include "log.stack.h"
@@ -188,6 +190,8 @@ extern "C"
 #include "samples.h"
 #include "dsp.resample.h"
 #include "read.wav.h"
+
+#include "dsp.freqtime.hpp"
 
 #include "dsp.types.hpp"
 #include "dsp.epsilon.hpp"

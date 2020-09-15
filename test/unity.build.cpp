@@ -16,7 +16,8 @@
 #include "test_utils.cpp"
 
 //#  include "test_benchmark.convolution.scaling.cpp"
-//*
+#include "test_freqtime.cpp"
+/*
 #include "test_fft.cpp"
 #include "test_fft_fbins.cpp"
 #include "test_fft_signal.cpp"

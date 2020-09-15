@@ -524,50 +524,47 @@ namespace imajuscule {
             Context context;
         };
 
-        namespace slow_debug {
+        template<typename CONTAINER>
+        struct UnwrapFrequenciesRealFBins<accelerate::Tag, CONTAINER> {
+            using T = typename CONTAINER::value_type;
+            static auto run(CONTAINER const & const_container, int N) {
 
-            template<typename CONTAINER>
-            struct UnwrapFrequenciesRealFBins<accelerate::Tag, CONTAINER> {
-                using T = typename CONTAINER::value_type;
-                static auto run(CONTAINER const & const_container, int N) {
+                auto observed = const_cast<CONTAINER &>(const_container).get_hybrid_split();
 
-                    auto observed = const_cast<CONTAINER &>(const_container).get_hybrid_split();
-
-                    std::vector<complex<T>> res(N, {0,0});
-                    res[0] = {
-                        observed.realp[0],
-                        0
+                std::vector<complex<T>> res(N, {0,0});
+                res[0] = {
+                    observed.realp[0],
+                    0
+                };
+                for(int i=1; i<N/2; ++i) {
+                    res[i] = {
+                        observed.realp[i],
+                        observed.imagp[i]
                     };
-                    for(int i=1; i<N/2; ++i) {
-                        res[i] = {
-                            observed.realp[i],
-                            observed.imagp[i]
-                        };
-                    }
-                    res[N/2] = {
-                        observed.imagp[0],
-                        0
+                }
+                res[N/2] = {
+                    observed.imagp[0],
+                    0
+                };
+                const auto pivot = N/2;
+                for(int i=1; i<N/2; ++i) {
+                    res[pivot + i] = {
+                        +res[pivot - i].real(),
+                        -res[pivot - i].imag()
                     };
-                    const auto pivot = N/2;
-                    for(int i=1; i<N/2; ++i) {
-                        res[pivot + i] = {
-                            +res[pivot - i].real(),
-                            -res[pivot - i].imag()
-                        };
-                    }
-                    return std::move(res);
                 }
-            };
+                return std::move(res);
+            }
+        };
 
-            template<typename CONTAINER>
-            struct UnwrapSignal<accelerate::Tag, CONTAINER> {
-                using T = typename CONTAINER::value_type;
-                static auto run(CONTAINER const & container, int N) {
-                    assert(container.end() == container.begin() + N);
-                    return complexify<T>(container.begin(), container.begin() + N);
-                }
-            };
-        } // NS slow_debug
+        template<typename CONTAINER>
+        struct UnwrapSignal<accelerate::Tag, CONTAINER> {
+            using T = typename CONTAINER::value_type;
+            static auto run(CONTAINER const & container, int N) {
+                assert(container.end() == container.begin() + N);
+                return complexify<T>(container.begin(), container.begin() + N);
+            }
+        };
     }// NS fft
 
     namespace accelerate {

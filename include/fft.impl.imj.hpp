@@ -408,24 +408,20 @@ namespace imajuscule {
             Context context;
         };
 
+        template<typename CONTAINER>
+        struct UnwrapFrequenciesRealFBins<imj::Tag, CONTAINER> {
+            static auto run(CONTAINER container, int N) {
+                return std::move(container);
+            }
+        };
 
-        namespace slow_debug {
+        template<typename CONTAINER>
+        struct UnwrapSignal<imj::Tag, CONTAINER> {
+            static auto run(CONTAINER container, int N) {
+                return std::move(container);
+            }
+        };
 
-            template<typename CONTAINER>
-            struct UnwrapFrequenciesRealFBins<imj::Tag, CONTAINER> {
-                static auto run(CONTAINER container, int N) {
-                    return std::move(container);
-                }
-            };
-
-            template<typename CONTAINER>
-            struct UnwrapSignal<imj::Tag, CONTAINER> {
-                static auto run(CONTAINER container, int N) {
-                    return std::move(container);
-                }
-            };
-
-        } // NS slow_debug
     } // NS fft
 
     namespace imj {

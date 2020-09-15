@@ -1015,6 +1015,30 @@ namespace imajuscule::audio {
             }
         }
 
+template<typename T>
+void read_wav_as_floats(WAVReader & reader, std::vector<std::vector<T>> & deinterlaced) {
+  using namespace std;
+  
+  reader.Initialize();
+  
+  auto const n_channels = reader.countChannels();
+  auto const n_frames = reader.countFrames();
+  
+  deinterlaced.clear();
+  deinterlaced.resize(n_channels);
+
+  for(auto & v : deinterlaced) {
+    v.reserve(n_frames);
+  }
+  
+  while(reader.HasMore()) {
+    for(int i=0; i<n_channels; ++i) {
+      deinterlaced[i].push_back(reader.template ReadAsOneFloat<float>());
+    }
+  }
+  Assert(!reader.HasMore());
+}
+
     template<typename WAVRead, typename SR>
     InterlacedBuffer readReverb(SR sample_rate, ResampleSincStats& stats, WAVRead & reader)
     {

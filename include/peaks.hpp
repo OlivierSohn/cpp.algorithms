@@ -123,40 +123,4 @@ namespace imajuscule
 
         return ret;
     }
-
-    struct FreqAmplitude {
-        float relative_freq;
-        float amplitude;
-    };
-
-    template<typename ITER>
-    FreqAmplitude max_freq_amplitude(ITER it, ITER end) {
-        using namespace fft;
-        using VAL = typename ITER::value_type;
-        using Tag = Fastest;
-
-        using Algo = Algo_<Tag, VAL>;
-        using RealFBins = RealFBins_<Tag, VAL, a64::Alloc>;
-        using ScopedContext = ScopedContext_<Tag, VAL>;
-
-        a64::vector<VAL> v;
-        auto fft_length = ceil_power_of_two(std::distance(it, end));
-        v.reserve(fft_length);
-        for(; it!=end; ++it) {
-            v.push_back(*it);
-        }
-        v.resize(fft_length, VAL{0});
-        auto signal = RealSignal_<Tag, VAL>::make(std::move(v));
-
-        typename RealFBins::type result(fft_length);
-
-        ScopedContext scoped_context(fft_length);
-        Algo fft(scoped_context.get());
-        fft.forward(signal, result.data(), fft_length);
-        auto Max = RealFBins::getMaxSquaredAmplitude(result);
-        return {
-            Max.first/static_cast<float>(fft_length),
-            std::sqrt(Max.second)
-        };
-    }
 }

@@ -367,26 +367,21 @@ static inline unsigned int bitReverse(unsigned int b,
             }
         };
 
+        template<typename CONTAINER>
+        struct UnwrapFrequenciesRealFBins<imj2::Tag, CONTAINER> {
+            static auto run(CONTAINER container, int N) {
+                return container;
+            }
+        };
 
-        namespace slow_debug {
-
-            template<typename CONTAINER>
-            struct UnwrapFrequenciesRealFBins<imj2::Tag, CONTAINER> {
-                static auto run(CONTAINER container, int N) {
-                    return container;
-                }
-            };
-
-            template<typename CONTAINER>
-            struct UnwrapSignal<imj2::Tag, CONTAINER> {
-                using T = typename CONTAINER::value_type;
-                static auto run(CONTAINER const & container, int N) {
-                    assert(container.end() == container.begin() + N);
-                    return complexify<T>(container.begin(), container.begin() + N);
-                }
-            };
-
-        } // NS slow_debug
+        template<typename CONTAINER>
+        struct UnwrapSignal<imj2::Tag, CONTAINER> {
+            using T = typename CONTAINER::value_type;
+            static auto run(CONTAINER const & container, int N) {
+                assert(container.end() == container.begin() + N);
+                return complexify<T>(container.begin(), container.begin() + N);
+            }
+        };
     } // NS fft
 
     namespace imj2 {

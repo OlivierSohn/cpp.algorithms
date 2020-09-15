@@ -139,6 +139,10 @@
 		09338B5920D91E75004F5A8A /* staticvector.singlethread.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.singlethread.hpp; path = include/staticvector.singlethread.hpp; sourceTree = "<group>"; };
 		09338B5A20D9239D004F5A8A /* staticvector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = staticvector.hpp; path = include/staticvector.hpp; sourceTree = "<group>"; };
 		09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_staticvector_singlethread.cpp; path = test/test_staticvector_singlethread.cpp; sourceTree = "<group>"; };
+		09367163250FA3F700620289 /* dsp.freqtime.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.freqtime.hpp; path = include/dsp.freqtime.hpp; sourceTree = "<group>"; };
+		093671AC250FD1DF00620289 /* test_freqtime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freqtime.cpp; path = test/test_freqtime.cpp; sourceTree = "<group>"; };
+		093671AE251013A600620289 /* image.bmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = image.bmp.hpp; path = include/image.bmp.hpp; sourceTree = "<group>"; };
+		093671AF251014DE00620289 /* image.bmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = image.bmp.cpp; path = source/image.bmp.cpp; sourceTree = "<group>"; };
 		09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.ios.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0937B3C623B4DDBF0037CCDF /* dsp.convolution.scale.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.scale.hpp; path = include/dsp.convolution.scale.hpp; sourceTree = "<group>"; };
 		0937B3C723B4E0710037CCDF /* dsp.convolution.split.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.split.hpp; path = include/dsp.convolution.split.hpp; sourceTree = "<group>"; };
@@ -395,6 +399,7 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
+				093671AF251014DE00620289 /* image.bmp.cpp */,
 				098DC8EE1F65B55500C5A8B2 /* color.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
@@ -567,6 +572,7 @@
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				0947FDB220DA747E00BC4141 /* test.h */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
+				093671AC250FD1DF00620289 /* test_freqtime.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";
@@ -613,6 +619,7 @@
 				0937B3C923B4E1290037CCDF /* dsp.epsilon.hpp */,
 				0986FB1D210E71B1004171EF /* dsp.filter.fir.hpp */,
 				09BA149B1E387D1B00A05F83 /* dsp.filter.hpp */,
+				09367163250FA3F700620289 /* dsp.freqtime.hpp */,
 				09E854A52381677200A85BB8 /* dsp.host.simulation.hpp */,
 				09D04650217F28F400A00F70 /* dsp.impulseresponse.hpp */,
 				09C4300F235B359100E46153 /* dsp.resample.h */,
@@ -649,6 +656,7 @@
 				093239CE1DB5327E003C168E /* hash_table.hpp */,
 				091AF71E1E27F0E1004B554F /* hash.hpp */,
 				093239CD1DB45790003C168E /* heap_sort.hpp */,
+				093671AE251013A600620289 /* image.bmp.hpp */,
 				09FC7DEF20BAD6B10037B04C /* imj.assert.h */,
 				09C257981EEB023800608C56 /* indentedStream.h */,
 				093239CB1DB41B42003C168E /* insertion_sort.hpp */,

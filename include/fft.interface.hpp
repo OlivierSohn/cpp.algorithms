@@ -100,7 +100,9 @@ auto unwrap_signal(CONTAINER const & c, int size) {
 
 // from 0 to the nyquist frequency (for real signals, we can deduce the other half of the spectrum from the first half)
 template<typename TAG, typename CONTAINER>
-void unwrap_frequencies_sqmag(CONTAINER const & c, int size, std::vector<float> & res) {
+void unwrap_frequencies_sqmag(CONTAINER const & c,
+                              int size,
+                              std::vector<typename CONTAINER::value_type> & res) {
   UnwrapFrequenciesRealFBins<TAG, CONTAINER> u;
   u.run_half_alt_sqmag(c, size, res);
 }

@@ -143,6 +143,7 @@
 		093671AC250FD1DF00620289 /* test_freqtime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freqtime.cpp; path = test/test_freqtime.cpp; sourceTree = "<group>"; };
 		093671AE251013A600620289 /* image.bmp.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = image.bmp.hpp; path = include/image.bmp.hpp; sourceTree = "<group>"; };
 		093671AF251014DE00620289 /* image.bmp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = image.bmp.cpp; path = source/image.bmp.cpp; sourceTree = "<group>"; };
+		093671B02510E92E00620289 /* dsp.freqtime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dsp.freqtime.cpp; path = source/dsp.freqtime.cpp; sourceTree = "<group>"; };
 		09367D671E2E29320095BF20 /* algorithms.test.ios.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = algorithms.test.ios.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0937B3C623B4DDBF0037CCDF /* dsp.convolution.scale.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.scale.hpp; path = include/dsp.convolution.scale.hpp; sourceTree = "<group>"; };
 		0937B3C723B4E0710037CCDF /* dsp.convolution.split.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = dsp.convolution.split.hpp; path = include/dsp.convolution.split.hpp; sourceTree = "<group>"; };
@@ -399,15 +400,16 @@
 		093239D21DB54D1B003C168E /* source */ = {
 			isa = PBXGroup;
 			children = (
-				093671AF251014DE00620289 /* image.bmp.cpp */,
 				098DC8EE1F65B55500C5A8B2 /* color.cpp */,
 				099FD6231E9189F00067C18D /* debugging.cpp */,
 				096807881EA13B60006BB4AD /* dsp.convolution.cpp */,
 				092C186223AA8349003EAA72 /* dsp.cost.cpp */,
+				093671B02510E92E00620289 /* dsp.freqtime.cpp */,
 				09BA14C61E387E8800A05F83 /* enum.cpp */,
 				0993AE5A20CDA5EA00E2AE89 /* file2string.cpp */,
 				09F1577920C6AA0300662939 /* gen.names.cpp */,
 				093239D11DB54D18003C168E /* hash_table.cpp */,
+				093671AF251014DE00620289 /* image.bmp.cpp */,
 				09C257991EEB028400608C56 /* indentedStream.cpp */,
 				09BA14C71E387E8800A05F83 /* interpolation.cpp */,
 				0975EADC20D8E99E00468667 /* log.cpp */,

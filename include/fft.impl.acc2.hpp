@@ -562,7 +562,7 @@ namespace imajuscule {
           }
           
           // returns squared magnitude
-          static auto run_half_alt_sqmag(CONTAINER const & const_container, int N, std::vector<float> & res) {
+          static auto run_half_alt_sqmag(CONTAINER const & const_container, int N, std::vector<T> & res) {
             auto observed = const_cast<CONTAINER &>(const_container).get_hybrid_split();
             res.clear();
             res.reserve(1+N/2);

@@ -2,44 +2,18 @@
 
 namespace imajuscule::audio {
 
-void testMaxMagFrequencies() {
-  //std::vector<double> signal {1., 1., 1., 1., -1., -1., -1., -1., 1., 1.}; // 0 (with aliazing hence sometimes 1)
-  //std::vector<double> signal {1., 1., -1., -1., 1., 1., -1., -1., 1., 1.}; // 1, sq_mag 8
-  std::vector<double> signal {1., -1., 1., -1., 1., -1., 1., -1., 1., -1.}; // 2, sq_mag 16
-  std::vector<double> half_window{1.0, 1.0};
-  std::vector<FreqSqMag> max_freqs, expected;
-  for (int i=0; i<7; ++i) {
-    float amp = std::log(std::sqrt(16.f));
-    expected.push_back({2, amp});
-  }
-  findMaxMagFrequencies(signal.begin(),
-                        signal.end(),
-                        1,
-                        half_window,
-                        1,
-                        max_freqs);
-  EXPECT_EQ(expected, max_freqs);
-}
-
 
 void drawSpectrum() {
   int const window_center_stride = 400;
-  int const windowed_signal_stride = 10;
-  // Using a small half-window size will not be enough to detect low frequencies with a good resolution.
-  // So we can use huge window sizes,
+  int const windowed_signal_stride = 1;
 
-  // TODO use a multi- approach : use the same window size (eq to window_center_stride) but
-  // use different signal strides (use larger signal stride + low pass) to detect lower frequencies.
-  // This will be computationally less intensive (smaller ffts)
+  // if we add zero padding we will have a better fft resolution
 
-  // TODO implement low pass on signal when sigal_stride is not 1, to avoid aliasing effects
+  // if we use larger windows (larger ffts) we will have a better frequency resolution
 
-  // TODO when detecting frequency peaks, interpolate so that
-  //
-  //  *                        *
-  //  **  is not the same as  **
-  // ***                      ***
-  //
+  // TODO investigate multiscale : use the same window size but on subsampled versions of the signal (resampleSinc).
+  // (we wil lose some temporal precision, see if it is ok)
+
   // in https://www.dsprelated.com/freebooks/sasp/Sinusoidal_Peak_Interpolation.html#:~:text=Parabolic%20interpolation%20is%20unbiased%20when,window%20transform%20about%20its%20midpoint). :
   // a ``perceptually ideal'' spectral interpolation method that is even more efficient is to zero-pad by some small factor (usually less than 5), followed by quadratic interpolation of the spectral magnitude
   //
@@ -57,21 +31,73 @@ void drawSpectrum() {
 
   std::vector<float> half_window = half_hann_window<float>(400);
   int const zero_padding_factor = 1;
-  auto reader = WAVReader("/Users/Olivier/", "melodie.wav");
-  drawSpectrum(reader,
+  auto reader = WAVReader("/Users/Olivier/", "chromatic.wav");
+  std::vector<std::vector<float>> deinterlaced;
+  read_wav_as_floats(reader, deinterlaced);
+
+  drawSpectrum(deinterlaced.begin()->begin(),
+               deinterlaced.begin()->end(),
                windowed_signal_stride,
                half_window,
                window_center_stride,
                zero_padding_factor,
-               "/Users/Olivier/melodie.spectrum.bmp");
+               "/Users/Olivier/chromatic.spectrum.bmp");
+}
+
+
+void deduceNotes() {
+  int const window_center_stride = 400;
+  int const windowed_signal_stride = 1;
+  std::string prefix("chromatic");
+
+  // The frequency detection is too imprecise with hann window:
+
+  //std::vector<double> half_window = half_hann_window<double>(400);
+  //std::vector<double> half_window = half_hann_window<double>(4000);
+  
+  // The frequency detection is very precise with a gaussian window truncated at 8 sigma
+  // however, low frequencies are incorrectly detected with such a narrow window, so
+  // we can either:
+  // - use a window with more points (but lose some temporal precision)
+  // - or truncate the window at 4 sigma for example (but lose some frequency precision)
+  //
+  // TODO we could use a 8-sigma window for high frequencies, and a 4-sigma window for low frequencies,
+  // this way we retain temporal precision in the high frequencies, and trade temporal precision
+  // for frequency accuracy only for lower frequencies, where this is needed.
+  
+  std::vector<double> half_window = half_gaussian_window<double>(8, 400);
+  //std::vector<double> half_window = half_gaussian_window<double>(8, 4000);
+  int const zero_padding_factor = 1;
+  //int const zero_padding_factor = 10;
+  auto reader = WAVReader("/Users/Olivier/", prefix + ".wav");
+
+  std::vector<std::vector<double>> deinterlaced;
+  read_wav_as_floats(reader, deinterlaced);
+
+  auto notes = deduceNotes(deinterlaced.begin()->begin(),
+                           deinterlaced.begin()->end(),
+                           reader.getSampleRate(),
+                           windowed_signal_stride,
+                           half_window,
+                           window_center_stride,
+                           zero_padding_factor,
+                           0.05776226504);
+  // formula in http://support.ircam.fr/docs/AudioSculpt/3.0/co/Window%20Size.html
+  // uses 5 as constant factor
+  const double lowest_detectable_frequency = 4. * reader.getSampleRate() / (2*half_window.size() * windowed_signal_stride);
+  std::cout << "lowest detectable freq : " << lowest_detectable_frequency << " Hz" << std::endl;
+
+  drawDeducedNotes(notes,
+                   lowest_detectable_frequency,
+                   "/Users/Olivier/" + prefix + ".notes.bmp");
 }
 
 } // NS
 
-TEST(FreqTime, basic) {
-  imajuscule::audio::testMaxMagFrequencies();
-}
-
 TEST(FreqTime, drawSpectrum) {
   imajuscule::audio::drawSpectrum();
+}
+
+TEST(FreqTime, deduceNotes) {
+  imajuscule::audio::deduceNotes();
 }

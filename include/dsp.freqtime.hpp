@@ -276,12 +276,6 @@ void findLocalMaxMagFrequencies(Iter it,
                              freqs_sqmag,
                              SqMagToDb<T>(),
                              *itRes);
-    
-    std::cout << "findLocalMaxMagFrequencies." << control << std::endl;
-    for (auto const & v : *itRes) {
-      std::cout << v << std::endl;
-    }
-    std::cout << std::endl;
   }
   Assert(control == num_ffts);
 }
@@ -403,8 +397,6 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   Assert(max_mag);
   Assert(min_mag);
   
-  std::cout << "mag amplitude " << *min_mag << " " << *max_mag << std::endl;
-
   auto frequencyToImageHeight = [](T freq) {
     return static_cast<int>(freq);
   };
@@ -555,8 +547,6 @@ auto deduceNotes(Iter it,
 -> std::vector<DeducedNote<typename Iter::value_type>> {
   using T = typename Iter::value_type;
   std::vector<std::vector<FreqMag<T>>> freqs_mags;
-  
-  //write_wav("/Users/Olivier/","deduceNotesWindow.wav", std::vector<std::vector<T>>{half_window}, 100);
   
   findLocalMaxMagFrequencies(it,
                              end,

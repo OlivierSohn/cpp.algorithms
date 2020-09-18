@@ -246,7 +246,7 @@ void findLocalMaxMagFrequencies(Iter it,
     ++control;
 
     findFrequenciesSqMag(it, limit, windowed_signal_stride, half_window, zero_padding_factor, freqs_sqmag
-#if 1
+#if 0
                          , [control, it, limit](a64::vector<T> const & windowed_signal) {
       std::string ctrl;
       if (control < 100) {
@@ -503,6 +503,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   for (auto const & v : byDuration) {
     std::cout << v.second << std::endl;
   }
+#if 0 // takes a long time
   std::cout << "deduced notes by start time:" << std::endl;
   for (auto const & v : byStart) {
     std::cout << "|";
@@ -541,6 +542,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
     }
     std::cout << v.second << std::endl;
   }
+#endif
 }
 
 /**

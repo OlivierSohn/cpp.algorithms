@@ -454,7 +454,7 @@ namespace imajuscule::audio {
                 else {
                   std::string str(header.subchunk1_id.data(),
                                   header.subchunk1_id.data()+4);
-                  std::cout << "[Wav read] skip unrecognized wav subchunk1_id : '" << str << "'");
+                  std::cout << "[Wav read] skip unrecognized wav subchunk1_id : '" << str << "'" << std::endl;
                 }
                 std::vector<uint8_t> skipped(header.subchunk1_size);
                 ReadData(skipped.data(), skipped.size(), 1);
@@ -516,7 +516,7 @@ namespace imajuscule::audio {
                         else {
                           std::string str(header.subchunk2_id.data(),
                                           header.subchunk2_id.data()+4);
-                          std::cout << "[Wav read] skip unrecognized wav subchunk2_id : '" << str << "'");
+                          std::cout << "[Wav read] skip unrecognized wav subchunk2_id : '" << str << "'" << std::endl;
                         }
                         std::vector<uint8_t> skipped(header.subchunk2_size);
                         ReadData(skipped.data(), skipped.size(), 1);

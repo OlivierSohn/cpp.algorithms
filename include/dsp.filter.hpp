@@ -25,6 +25,10 @@ namespace imajuscule::audio {
             m_cur.fill({});
         }
 
+        void setInitialValue(T val) {
+          m_cur.fill(val);
+        }
+
         void update(T const alpha, T raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = raw[i] * alpha + m_cur[i] * (Tr::one() - alpha);
@@ -43,6 +47,11 @@ namespace imajuscule::audio {
         void reset() {
             m_cur.fill({});
             m_last.fill({});
+        }
+
+        void setInitialValue(T val) {
+          m_cur.fill(val);
+          m_last.fill(val);
         }
 
         void update(T const alpha, T raw[NDIMS]) {
@@ -97,8 +106,8 @@ namespace imajuscule::audio {
 
         using Tr = NumTraits<T>;
 
-        static constexpr auto kAccelerometerMinStep	= 0.02f;
-        static constexpr auto kAccelerometerNoiseAttenuation = 3.0f;
+        //static constexpr auto kAccelerometerMinStep	= 0.02f;
+        //static constexpr auto kAccelerometerNoiseAttenuation = 3.0f;
     public:
 
         // not tested
@@ -115,6 +124,12 @@ namespace imajuscule::audio {
             }
         }
 
+        void setInitialValue(T val) {
+          for(auto & o : m_orders) {
+            o.setInitialValue(val);
+          }
+        }
+
         void initWithFreq(T rate, T cutOffFreq) {
             initWithAngleIncrement(Tr::two() * cutOffFreq / rate);
         }
@@ -124,10 +139,10 @@ namespace imajuscule::audio {
             auto denom = im + Tr::one();
             assert(denom);
 
-            if(KIND == FilterType::LOW_PASS) {
+            if constexpr (KIND == FilterType::LOW_PASS) {
                 FilterConstant = im / denom;
             }
-            else if(KIND == FilterType::HIGH_PASS) {
+            else if constexpr (KIND == FilterType::HIGH_PASS) {
                 FilterConstant = Tr::one() / denom;
             }
             assert(FilterConstant == FilterConstant);

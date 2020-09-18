@@ -370,6 +370,8 @@ struct DeducedNote {
   
   T frequency;
   T amplitude;
+  
+  // frame units : window stride
   int startFrame;
   int endFrame;
 };
@@ -388,7 +390,6 @@ template<typename T>
 void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
                       double const lowest_detectable_frequency,
                       std::string const& imageFile) {
-  
   Optional<T> max_mag, min_mag;
   for (auto const & val : notes) {
     if (!max_mag || val.amplitude > *max_mag) {
@@ -403,9 +404,6 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   Assert(min_mag);
   
   std::cout << "mag amplitude " << *min_mag << " " << *max_mag << std::endl;
-  constexpr T maxDbSpan = 60.;
-  
-  T const min_allowed_mag = *max_mag - maxDbSpan;
 
   auto frequencyToImageHeight = [](T freq) {
     return static_cast<int>(freq);
@@ -417,11 +415,6 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   std::multimap<T,DeducedNote<T>> byAmplitude, byFreq;
   std::multimap<int,DeducedNote<T>> byDuration, byStart;
   for (auto const & val : notes) {
-    // filter low amplitudes
-    if (val.amplitude < min_allowed_mag) {
-      continue;
-    }
-
     byFreq.emplace(val.frequency, val);
     byAmplitude.emplace(val.amplitude, val);
     byDuration.emplace(1 + val.endFrame - val.startFrame, val);
@@ -441,7 +434,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   Assert(min_frame);
   
   T freq_span = *max_f;
-  T mag_span = std::min(*max_mag - *min_mag, maxDbSpan);
+  T mag_span = *max_mag - *min_mag;
 
   std::vector<std::vector<T>> amplitudes;
   
@@ -453,9 +446,6 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   
   for (auto const & n : notes) {
     for (int i = n.startFrame; i <= n.endFrame; ++i) {
-      if (n.amplitude < min_allowed_mag) {
-        continue;
-      }
       auto & a = amplitudes[i-*min_frame][frequencyToImageHeight(n.frequency)];
       a = std::max(a,
                    mag_span? (1.0 - (*max_mag - n.amplitude) / mag_span) : 0.5);

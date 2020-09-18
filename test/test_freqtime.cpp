@@ -45,59 +45,8 @@ void drawSpectrum() {
 }
 
 
-void deduceNotes() {
-  int const window_center_stride = 400;
-  int const windowed_signal_stride = 1;
-  std::string prefix("chromatic");
-
-  // The frequency detection is too imprecise with hann window:
-
-  //std::vector<double> half_window = half_hann_window<double>(400);
-  //std::vector<double> half_window = half_hann_window<double>(4000);
-  
-  // The frequency detection is very precise with a gaussian window truncated at 8 sigma
-  // however, low frequencies are incorrectly detected with such a narrow window, so
-  // we can either:
-  // - use a window with more points (but lose some temporal precision)
-  // - or truncate the window at 4 sigma for example (but lose some frequency precision)
-  //
-  // TODO we could use a 8-sigma window for high frequencies, and a 4-sigma window for low frequencies,
-  // this way we retain temporal precision in the high frequencies, and trade temporal precision
-  // for frequency accuracy only for lower frequencies, where this is needed.
-  
-  std::vector<double> half_window = half_gaussian_window<double>(8, 400);
-  //std::vector<double> half_window = half_gaussian_window<double>(8, 4000);
-  int const zero_padding_factor = 1;
-  //int const zero_padding_factor = 10;
-  auto reader = WAVReader("/Users/Olivier/", prefix + ".wav");
-
-  std::vector<std::vector<double>> deinterlaced;
-  read_wav_as_floats(reader, deinterlaced);
-
-  auto notes = deduceNotes(deinterlaced.begin()->begin(),
-                           deinterlaced.begin()->end(),
-                           reader.getSampleRate(),
-                           windowed_signal_stride,
-                           half_window,
-                           window_center_stride,
-                           zero_padding_factor,
-                           0.05776226504);
-  // formula in http://support.ircam.fr/docs/AudioSculpt/3.0/co/Window%20Size.html
-  // uses 5 as constant factor
-  const double lowest_detectable_frequency = 4. * reader.getSampleRate() / (2*half_window.size() * windowed_signal_stride);
-  std::cout << "lowest detectable freq : " << lowest_detectable_frequency << " Hz" << std::endl;
-
-  drawDeducedNotes(notes,
-                   lowest_detectable_frequency,
-                   "/Users/Olivier/" + prefix + ".notes.bmp");
-}
-
 } // NS
 
 TEST(FreqTime, drawSpectrum) {
   imajuscule::audio::drawSpectrum();
-}
-
-TEST(FreqTime, deduceNotes) {
-  imajuscule::audio::deduceNotes();
 }

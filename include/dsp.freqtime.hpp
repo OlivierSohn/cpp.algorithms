@@ -204,6 +204,18 @@ struct SqMagToDb {
     return 10. * std::log10(val); // TODO should we divide by numtaps?
   }
 };
+template<typename T>
+struct DbToSqMag {
+  T operator() (T const val){
+    return pow(10., val * 0.1);
+  }
+};
+template<typename T>
+struct DbToMag {
+  T operator() (T const val){
+    return pow(10., val * 0.2);
+  }
+};
 
 
 template<typename Iter>

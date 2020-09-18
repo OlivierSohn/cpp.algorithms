@@ -97,7 +97,8 @@ namespace imajuscule {
         eResult OpenForRead();
         void CloseFile();
 
-        void ReadData(void * p, size_t size, size_t count);
+      // returns the size read
+      size_t ReadData(void * p, size_t size, size_t count);
 
 
     protected:

@@ -433,23 +433,42 @@ namespace imajuscule::audio {
                         throw std::runtime_error("unhandled wav format : " + str);
                     }
                 }
+              // skip irrelevant chunks, until 'fmt ' chunk
+              while(1) {
                 ReadData(&header.subchunk1_id[0], 4, 1);
-                {
-                    if(memcmp(header.subchunk1_id.data(), "fmt ", 4)) {
-                        std::string str(header.subchunk1_id.data(), header.subchunk1_id.data()+4);
-                        throw std::runtime_error("unhandled wav subchunk1_id : " + str);
-                    }
-                }
                 ReadData(&header.subchunk1_size, sizeof(int32_t), 1);
-                ReadData(&header.audio_format, sizeof(uint16_t), 1);
+                
+                if(!memcmp(header.subchunk1_id.data(), "fmt ", 4)) {
+                  break;
+                }
+                if(!memcmp(header.subchunk1_id.data(), "JUNK", 4)) {
+                }
+                else if(!memcmp(header.subchunk1_id.data(), "PAD ", 4)) {
+                }
+                else if(!memcmp(header.subchunk1_id.data(), "CSET", 4)) {
+                }
+                else if(!memcmp(header.subchunk1_id.data(), "INFO", 4)) {
+                }
+                else if(!memcmp(header.subchunk1_id.data(), "bext", 4)) {
+                }
+                else {
+                  std::string str(header.subchunk1_id.data(),
+                                  header.subchunk1_id.data()+4);
+                  std::cout << "[Wav read] skip unrecognized wav subchunk1_id : '" << str << "'");
+                }
+                std::vector<uint8_t> skipped(header.subchunk1_size);
+                ReadData(skipped.data(), skipped.size(), 1);
+              }
+              size_t read1 = 0;
+              read1 += ReadData(&header.audio_format, sizeof(uint16_t), 1);
                 if(!isFormatSupported(header.audio_format)) {
                     throw std::runtime_error("unhandled audio format : " + std::to_string(static_cast<uint16_t>(header.audio_format)));
                 }
-                ReadData(&header.num_channels, sizeof(int16_t), 1);
-                ReadData(&header.sample_rate, sizeof(int32_t), 1);
-                ReadData(&header.byte_rate, sizeof(int32_t), 1);
-                ReadData(&header.block_align, sizeof(int16_t), 1);
-                ReadData(&header.bits_per_sample, sizeof(int16_t), 1);
+              read1 += ReadData(&header.num_channels, sizeof(int16_t), 1);
+              read1 += ReadData(&header.sample_rate, sizeof(int32_t), 1);
+              read1 += ReadData(&header.byte_rate, sizeof(int32_t), 1);
+              read1 += ReadData(&header.block_align, sizeof(int16_t), 1);
+              read1 += ReadData(&header.bits_per_sample, sizeof(int16_t), 1);
 
 
                 if(is_wave_ir) {
@@ -465,6 +484,11 @@ namespace imajuscule::audio {
                         throw std::runtime_error("invalid bits_per_sample in wir header : " + std::to_string(header.bits_per_sample));
                     }
                 }
+              
+              if (read1 < header.subchunk1_size) {
+                std::vector<uint8_t> skipped(header.subchunk1_size - read1);
+                ReadData(skipped.data(), skipped.size(), 1);
+              }
 
                 // skip irrelevant subchunks, until "data" subchunk
 
@@ -479,12 +503,20 @@ namespace imajuscule::audio {
                             // we skip that, cf. http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
                             // contains the number of samples per channel
                         }
-                        else if(!memcmp(header.subchunk2_id.data(), "PEAK", 4)) {
+                        else if(!memcmp(header.subchunk2_id.data(), "minf", 4)) {
+                        }
+                        else if(!memcmp(header.subchunk2_id.data(), "elm1", 4)) {
+                        }
+                        else if(!memcmp(header.subchunk2_id.data(), "regn", 4)) {
+                        }
+                        else if(!memcmp(header.subchunk2_id.data(), "ovwf", 4)) {
+                        }
+                        else if(!memcmp(header.subchunk2_id.data(), "umid", 4)) {
                         }
                         else {
-                            std::string str(header.subchunk2_id.data(),
-                                            header.subchunk2_id.data()+4);
-                            throw std::runtime_error("unrecognized wav subchunk2_id : " + str);
+                          std::string str(header.subchunk2_id.data(),
+                                          header.subchunk2_id.data()+4);
+                          std::cout << "[Wav read] skip unrecognized wav subchunk2_id : '" << str << "'");
                         }
                         std::vector<uint8_t> skipped(header.subchunk2_size);
                         ReadData(skipped.data(), skipped.size(), 1);
@@ -560,22 +592,24 @@ namespace imajuscule::audio {
     using WAVReader = WAVReader_<ReadableStorage>;
 
     struct ConstMemoryBlock {
-        ConstMemoryBlock(void const * buffer, std::size_t sz) : buffer(buffer), totalSize(sz) {};
-
-        eResult OpenForRead() const {
-            return ILE_SUCCESS;
-        }
-
-        void ReadData(void * p, size_t size, size_t count) {
-            auto sz = size*count;
-            assert(sz+cur <= totalSize);
-            memcpy(p,static_cast<const char*>(buffer)+cur, sz);
-            cur += sz;
-        }
-
-        void const * buffer;
-        std::size_t const totalSize;
-        std::size_t cur = 0;
+      ConstMemoryBlock(void const * buffer, std::size_t sz) : buffer(buffer), totalSize(sz) {};
+      
+      eResult OpenForRead() const {
+        return ILE_SUCCESS;
+      }
+      
+      // returns the size read
+      size_t ReadData(void * p, size_t size, size_t count) {
+        auto const sz = size*count;
+        assert(sz+cur <= totalSize);
+        memcpy(p,static_cast<const char*>(buffer)+cur, sz);
+        cur += sz;
+        return sz;
+      }
+      
+      void const * buffer;
+      std::size_t const totalSize;
+      std::size_t cur = 0;
     };
 
     using WAVReaderFromBlock = WAVReader_<ConstMemoryBlock>;

@@ -270,17 +270,18 @@ void ReadableStorage::ReadToBuffer()
   //if (result != SIZE_READ_BUFFER) {fputs ("Reading error",stderr); exit (3);}
 }
 
-void ReadableStorage::ReadData(void * p, size_t size, size_t count)
+size_t ReadableStorage::ReadData(void * p, size_t size, size_t count)
 {
     //LG(INFO, "WritableStorage::ReadData(%x, %d, %d)", p, size, count);
 
-    size_t total = size * count;
+  size_t const total = size * count;
+  size_t remaining = total;
 
     do
     {
         //LG(INFO, "WritableStorage::ReadData m_bufferReadPos = %d", m_bufferReadPos);
 
-        size_t max = m_bufferReadPos + total;
+        size_t max = m_bufferReadPos + remaining;
 
         //LG(INFO, "WritableStorage::ReadData max = %d", max);
 
@@ -302,22 +303,23 @@ void ReadableStorage::ReadData(void * p, size_t size, size_t count)
             ReadToBuffer();
             //LG(INFO, "WritableStorage::ReadData after ReadToBuffer");
 
-            total -= i;
+            remaining -= i;
             p = (char*)p + i;
         }
         else
         {
             //LG(INFO, "WritableStorage::ReadData secondRead < 0");
 
-            memcpy(p, &m_freadBuffer[m_bufferReadPos], total);
+            memcpy(p, &m_freadBuffer[m_bufferReadPos], remaining);
             m_bufferReadPos = max;
 
             break;
         }
     }
-    while(total>0);
+    while(remaining>0);
 
     //LG(INFO, "WritableStorage::ReadData end");
+  return total;
 }
 
 int WritableStorage::WriteData(void const * p, size_t size, size_t count)

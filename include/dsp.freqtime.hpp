@@ -24,12 +24,12 @@ struct FrequenciesSqMag {
  */
 template<typename ITER>
 void findFrequenciesSqMag(ITER it,
-                     ITER const end,
-                     int const windowed_signal_stride,
-                     std::vector<typename ITER::value_type> const & half_window,
-                     int const zero_padding_factor,
-                     FrequenciesSqMag<typename ITER::value_type> & frequencies_sqmag,
-                     std::function<void(a64::vector<typename ITER::value_type>)> fDebugWindowedSignal = {}) {
+                          ITER const end,
+                          int const windowed_signal_stride,
+                          std::vector<typename ITER::value_type> const & half_window,
+                          int const zero_padding_factor,
+                          FrequenciesSqMag<typename ITER::value_type> & frequencies_sqmag,
+                          std::function<void(a64::vector<typename ITER::value_type>)> fDebugWindowedSignal = {}) {
   using namespace fft;
   using VAL = typename ITER::value_type;
   using Tag = Fastest;
@@ -545,6 +545,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
 #endif
 }
 
+
 /**
  @param frequencyEpsilon : if abs(ln(f1)-ln(f2)) < frequencyEpsilon, f1 and f2 are considered to be equal.
  Note that the natural log of 2 frequencies that are one half tone apart is ln(2) / 12 = 0.05776226504
@@ -634,18 +635,12 @@ auto deduceNotes(Iter it,
   for (int sz=freqs_mags.size(); frame < sz; ++frame) {
     for (FreqMag<T> const & fm : freqs_mags[frame]) {
       auto const f = almostFreq(std::log(fm.freq));
-      // when 2 frequencies are half tone apart, we have:
-      // f1/f0 = 2^(1/12) (because we have 12 half tones in an octave)
-      // so std::log(f1) - std::log(f0) = std::log(2) / 12 = 0.0577
-      //
-      // la = 440
-      // ladiese =
       auto it = cur.find(f);
       if (it == cur.end()) {
         cur.emplace(f,
                     History(frame, fm));
       } else if (it->second.endFrame == frame) {
-        // happens when frequency epsilon is significant
+        // can happen when frequency epsilon is significant
         it->second.fms.push_back(fm);
       } else {
         Assert(it->second.endFrame == frame-1);
@@ -676,27 +671,27 @@ auto deduceNotes(Iter it,
 
 // for full windows with even number of points
 template<typename T>
-std::vector<T> half_hann_window(int const sz) {
-  Assert(sz > 0);
+std::vector<T> half_hann_window(int const half_sz) {
+  Assert(half_sz > 0);
   std::vector<T> res;
-  res.reserve(sz);
-  T const factor = static_cast<T>(M_PI_2) / (2 * sz);
-  for (int i=0; i<sz; ++i) {
+  res.reserve(half_sz);
+  T const factor = static_cast<T>(M_PI_2) / (2 * half_sz);
+  for (int i=0; i<half_sz; ++i) {
     res.push_back(std::cos(factor * (1 + 2*i)));
   }
   return res;
 }
 template<typename T>
-std::vector<T> half_gaussian_window(int sigma_factor, int const sz) {
-  Assert(sz > 0);
+std::vector<T> half_gaussian_window(int sigma_factor, int const half_sz) {
+  Assert(half_sz > 0);
   std::vector<T> res;
-  res.reserve(sz);
+  res.reserve(half_sz);
   T const maxT = sigma_factor;
-  T const increment = maxT / sz;
+  T const increment = maxT / half_sz;
   
   // with sigma = 1
 
-  for (int i=0; i<sz; ++i) {
+  for (int i=0; i<half_sz; ++i) {
     T const t = increment * (i + 0.5);
     res.push_back(std::exp(-(t*t) * 0.5));
   }

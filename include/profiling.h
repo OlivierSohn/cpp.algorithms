@@ -4,6 +4,10 @@
  * Written by Olivier Sohn <olivier.sohn@gmail.com>, 2017
  */
 
+#ifndef RUSAGE_THREAD
+#define RUSAGE_THREAD 6543634 // a random value
+#endif
+
 namespace imajuscule
 {
     namespace profiling {
@@ -122,11 +126,13 @@ namespace imajuscule
        #else
           //define something for Windows (32-bit only)
        #endif
-    #elif __APPLE__
-    
-#ifndef RUSAGE_THREAD
-#define RUSAGE_THREAD 6543634 // a random value
-#endif
+#elif TARGET_OS_IOS
+    // not tested on ios
+    int my_getrusage(int v, struct rusage *rusage)
+    {
+      return getrusage(v, rusage);
+    }
+#elif __MACH__
     // https://stackoverflow.com/questions/5652463/equivalent-to-rusage-thread-darwin
     static inline int my_getrusage(int v, struct rusage *rusage)
     {
@@ -137,8 +143,11 @@ namespace imajuscule
         thread_basic_info_data_t info{};
         mach_msg_type_number_t info_count = THREAD_BASIC_INFO_COUNT;
         kern_return_t kern_err;
-
-        kern_err = thread_info(mach_thread_self(),
+  
+        auto port = mach_thread_self();
+        mach_port_deallocate(mach_task_self(), port); // https://codereview.chromium.org/9169016/diff/1007/base/threading/platform_thread_posix.cc
+      
+        kern_err = thread_info(port,
                                THREAD_BASIC_INFO,
                                (thread_info_t)&info,
                                &info_count);

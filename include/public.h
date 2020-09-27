@@ -88,6 +88,8 @@
 #   error Must have an optional type, either from <optional> or if not supported from <experimental/optional>.
 #endif
 
+#include "../3rdparty/folly/folly/Function.h"
+
 #include "thirdparty/atomic_queue/atomic_queue.h"
 
 #include "image.bmp.hpp"

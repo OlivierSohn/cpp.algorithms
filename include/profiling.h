@@ -145,12 +145,14 @@ namespace imajuscule
         kern_return_t kern_err;
   
         auto port = mach_thread_self();
-        mach_port_deallocate(mach_task_self(), port); // https://codereview.chromium.org/9169016/diff/1007/base/threading/platform_thread_posix.cc
       
         kern_err = thread_info(port,
                                THREAD_BASIC_INFO,
                                (thread_info_t)&info,
                                &info_count);
+
+        mach_port_deallocate(mach_task_self(), port); // https://codereview.chromium.org/9169016/diff/1007/base/threading/platform_thread_posix.cc
+        
         if (kern_err == KERN_SUCCESS) {
             memset(rusage, 0, sizeof(struct rusage));
             rusage->ru_utime.tv_sec = info.user_time.seconds;

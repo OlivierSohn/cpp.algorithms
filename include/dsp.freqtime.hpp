@@ -85,9 +85,9 @@ void findFrequenciesSqMag(ITER it,
   unwrap_frequencies_sqmag<Tag>(result, fft_length, frequencies_sqmag.frequencies_sqmag);
   frequencies_sqmag.fft_length = fft_length;
 
-  constexpr VAL inv_scale_squared = 1. / (Algo::scale * Algo::scale);
+  const VAL factor = 1. / (Algo::scale * Algo::scale * fft_length * fft_length);
   for (auto & v : frequencies_sqmag.frequencies_sqmag) {
-    v *= inv_scale_squared;
+    v *= factor;
   }
 }
 
@@ -95,17 +95,17 @@ void findFrequenciesSqMag(ITER it,
 template<typename T>
 struct FreqMag {
   T freq; // unit: Herz
-  T mag;
+  T mag_db;
   
   bool operator == (FreqMag const & o) const {
-    return std::make_tuple(freq, mag) ==
-    std::make_tuple(o.freq, o.mag);
+    return std::make_tuple(freq, mag_db) ==
+    std::make_tuple(o.freq, o.mag_db);
   }
 };
 
 template<typename T>
 std::ostream & operator << (std::ostream& os, FreqMag<T> const & f) {
-  os << "FreqMag(f= " << f.freq << " m= " << f.mag << ")";
+  os << "FreqMag(f= " << f.freq << " db= " << f.mag_db << ")";
   return os;
 }
 
@@ -201,19 +201,24 @@ struct SqMagToDb {
     if (val == 0.) {
       return {};
     }
-    return 10. * std::log10(val); // TODO should we divide by numtaps?
+    return 10. * std::log10(val);
   }
 };
 template<typename T>
 struct DbToSqMag {
   T operator() (T const val){
-    return pow(10., val * 0.1);
+    return std::pow(10., val * 0.1);
   }
 };
+
 template<typename T>
 struct DbToMag {
   T operator() (T const val){
-    return pow(10., val * 0.2);
+    // using
+    // sqrt(x) = x^(0.5)
+    // and
+    // (a^b)^c = a^(b*c)
+    return std::pow(10., val * 0.05);
   }
 };
 
@@ -696,6 +701,26 @@ std::vector<T> half_gaussian_window(int sigma_factor, int const half_sz) {
     res.push_back(std::exp(-(t*t) * 0.5));
   }
   return res;
+}
+
+template<typename T>
+void normalize_window(std::vector<T> & w) {
+  if (w.empty()) {
+    return;
+  }
+  T avg{};
+  for (auto const & v : w) {
+    // I'm not sure whether we should square, not square, or do something else, cf
+    // https://community.sw.siemens.com/s/article/window-correction-factors
+    avg += v*v;
+  }
+  avg /= w.size();
+  Assert(avg);
+  T const inv_avg = 1. / avg;
+  std::transform(w.begin(),
+                 w.end(),
+                 w.begin(),
+                 [inv_avg](T const & val) { return val * inv_avg; });
 }
 
 } // NS

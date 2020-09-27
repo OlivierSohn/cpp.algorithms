@@ -286,7 +286,6 @@
 		09C4300F235B359100E46153 /* dsp.resample.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = dsp.resample.h; path = include/dsp.resample.h; sourceTree = "<group>"; };
 		09C43010235B393800E46153 /* test_dsp.resample.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_dsp.resample.cpp; path = test/test_dsp.resample.cpp; sourceTree = "<group>"; };
 		09C43015235C912700E46153 /* convert.audio.rate */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = convert.audio.rate; sourceTree = BUILT_PRODUCTS_DIR; };
-		09C43017235C912700E46153 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		09C4301C235C915E00E46153 /* unity.build.convert.audio.rate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = unity.build.convert.audio.rate.cpp; path = source/unity.build.convert.audio.rate.cpp; sourceTree = "<group>"; };
 		09C434ED236480C800AF5797 /* math.roots.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = math.roots.hpp; path = include/math.roots.hpp; sourceTree = "<group>"; };
 		09C434EE2364814700AF5797 /* test_math_roots.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_math_roots.cpp; path = test/test_math_roots.cpp; sourceTree = "<group>"; };
@@ -321,6 +320,7 @@
 		09F1577D20C6AA3C00662939 /* test_fifo1.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo1.cpp; path = test/test_fifo1.cpp; sourceTree = "<group>"; };
 		09F1578E20C6B7B900662939 /* fifo.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fifo.hpp; path = include/fifo.hpp; sourceTree = "<group>"; };
 		09F1578F20C6C28000662939 /* test_fifo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_fifo.cpp; path = test/test_fifo.cpp; sourceTree = "<group>"; };
+		09F5B117251DF2F6003DB265 /* test_function.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_function.cpp; path = test/test_function.cpp; sourceTree = "<group>"; };
 		09FC7DEA20BAD5910037B04C /* gen.names.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gen.names.h; path = include/gen.names.h; sourceTree = "<group>"; };
 		09FC7DEB20BAD5910037B04C /* logger.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logger.h; path = include/logger.h; sourceTree = "<group>"; };
 		09FC7DEC20BAD5910037B04C /* log.stack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = log.stack.h; path = include/log.stack.h; sourceTree = "<group>"; };
@@ -480,14 +480,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		09C43016235C912700E46153 /* convert.audio.rate */ = {
-			isa = PBXGroup;
-			children = (
-				09C43017235C912700E46153 /* main.swift */,
-			);
-			path = convert.audio.rate;
-			sourceTree = "<group>";
-		};
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
@@ -496,7 +488,6 @@
 				093239D21DB54D1B003C168E /* source */,
 				0960BB0F1DB3F1060075CB05 /* xcode.config */,
 				09EF8F311DB3E8AD00DC7342 /* include */,
-				09C43016235C912700E46153 /* convert.audio.rate */,
 				09EF8EE51DB3E7C400DC7342 /* Products */,
 				09EF8F2B1DB3E87E00DC7342 /* test */,
 				09A2EC271EA2C48000D94138 /* Frameworks */,
@@ -549,6 +540,8 @@
 				09F1577D20C6AA3C00662939 /* test_fifo1.cpp */,
 				0972455320DFE57D005003B9 /* test_forward_list_lockfree.cpp */,
 				0996F3EC1E2F821A0053B30B /* test_freelist.cpp */,
+				093671AC250FD1DF00620289 /* test_freqtime.cpp */,
+				09F5B117251DF2F6003DB265 /* test_function.cpp */,
 				096C7DBA1EB13AC000DDEB20 /* test_global_search.cpp */,
 				096C6D671EA01A1F00389746 /* test_gradient_descent.cpp */,
 				093239CF1DB5341F003C168E /* test_hash_table.cpp */,
@@ -574,7 +567,6 @@
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				0947FDB220DA747E00BC4141 /* test.h */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
-				093671AC250FD1DF00620289 /* test_freqtime.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";

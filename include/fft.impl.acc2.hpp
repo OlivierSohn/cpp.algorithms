@@ -569,13 +569,15 @@ namespace imajuscule {
             
             res.push_back(observed.realp[0] * observed.realp[0]);
             
+            // The factor 4 are to take into account the symmetric negative-frequencies spectrum,
+            // which has the same amplitude.
             for(int i=1; i<N/2; ++i) {
-              res.push_back(
+              res.push_back(4. * (
                 observed.realp[i] * observed.realp[i] +
-                observed.imagp[i] * observed.imagp[i]
+                observed.imagp[i] * observed.imagp[i])
               );
             }
-            res.push_back(observed.imagp[0] * observed.imagp[0]);
+            res.push_back(4. * observed.imagp[0] * observed.imagp[0]);
           }
         };
 

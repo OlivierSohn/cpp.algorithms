@@ -188,6 +188,9 @@ namespace imajuscule::audio {
             return &m_orders[o].m_cur[0];
         }
 
+      T getConstant() const {
+        return FilterConstant;
+      }
     private:
         T FilterConstant;
 

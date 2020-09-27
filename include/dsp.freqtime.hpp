@@ -15,6 +15,38 @@ struct FrequenciesSqMag {
   int fft_length; // to convert frequency from "bin index" representation to Herz representation
 };
 
+template<typename ITER>
+void apply_window(ITER it,
+                  ITER const end,
+                  int const signal_stride,
+                  std::vector<typename ITER::value_type> const & half_window,
+                  a64::vector<typename ITER::value_type> & v) {
+  v.clear();
+  Assert(2*half_window.size() <= v.capacity());
+  auto wEnd = half_window.end();
+  auto wBegin = half_window.begin();
+  auto wIt = wEnd - 1;
+  bool first_half = true;
+  for(; it < end; it += signal_stride) {
+    Assert(wIt < wEnd);
+    Assert(wIt >= wBegin);
+    
+    v.push_back(*it * *wIt);
+    
+    if (first_half) {
+      if (wIt == wBegin) {
+        first_half = false;
+      } else {
+        --wIt;
+      }
+    } else {
+      ++wIt;
+    }
+  }
+  Assert(wIt == wEnd);
+  Assert(it >= end);
+}
+
 /** Returns the frequencies of a windowed signal.
  *
  * For better efficiency, the signal length should be a power of 2
@@ -38,36 +70,17 @@ void findFrequenciesSqMag(ITER it,
   using RealFBins = RealFBins_<Tag, VAL, a64::Alloc>;
   using ScopedContext = ScopedContext_<Tag, VAL>;
   
-  a64::vector<VAL> v;
   int const numSamplesUnstrided = std::distance(it, end);
   int const numSamplesStrided = 1 + (numSamplesUnstrided-1) / windowed_signal_stride;
   Assert(numSamplesStrided == 2 * half_window.size());
   int const fft_length = ceil_power_of_two(numSamplesStrided * zero_padding_factor);
+
+  a64::vector<VAL> v;
   v.reserve(fft_length);
 
   // apply the window...
-  auto wEnd = half_window.end();
-  auto wBegin = half_window.begin();
-  auto wIt = wEnd - 1;
-  bool first_half = true;
-  for(; it < end; it += windowed_signal_stride) {
-
-    Assert(wIt < wEnd);
-    Assert(wIt >= wBegin);
-
-    v.push_back(*it * *wIt);
-
-    if (first_half) {
-      if (wIt == wBegin) {
-        first_half = false;
-      } else {
-        --wIt;
-      }
-    } else {
-      ++wIt;
-    }
-  }
-
+  apply_window(it, end, windowed_signal_stride, half_window, v);
+  
   // ... and pad
   v.resize(fft_length, VAL{0});
   
@@ -175,7 +188,10 @@ void foreachLocalMaxFreqsMags(std::vector<T> const & freqs_sqmag, TransformAmpli
 }
 
 template<typename T, typename TransformAmplitude>
-void extractLocalMaxFreqsMags(double const samplingRate, FrequenciesSqMag<T> const & freqs_sqmag, TransformAmplitude transform_amplitude, std::vector<FreqMag<T>> & res) {
+void extractLocalMaxFreqsMags(double const samplingRate,
+                              FrequenciesSqMag<T> const & freqs_sqmag,
+                              TransformAmplitude transform_amplitude,
+                              std::vector<FreqMag<T>> & res) {
   res.clear();
   res.reserve(freqs_sqmag.frequencies_sqmag.size() / 2); // pessimistically
   
@@ -710,9 +726,11 @@ void normalize_window(std::vector<T> & w) {
   }
   T avg{};
   for (auto const & v : w) {
-    // I'm not sure whether we should square, not square, or do something else, cf
-    // https://community.sw.siemens.com/s/article/window-correction-factors
-    avg += v*v;
+    // According to tests (see TEST(FFT, unwrap_freq_sqmag)),
+    // to find the right _magnitude_ in the spectrum, we can use the average on the first order:
+    avg += v;
+
+    // see also https://community.sw.siemens.com/s/article/window-correction-factors
   }
   avg /= w.size();
   Assert(avg);

@@ -19,7 +19,7 @@
 #include "test_function.cpp"
 #include "test_fft.cpp"
 #include "test_freqtime.cpp"
-/*
+//*
 #include "test_fft_fbins.cpp"
 #include "test_fft_signal.cpp"
 #include "test_dsp.spatialize.cpp"

@@ -23,7 +23,13 @@ static inline void spin_loop_pause() noexcept {
 }
 } // namespace atomic_queue
 #else
-#error "Unknown CPU architecture."
+//#error "Unknown CPU architecture."
+namespace atomic_queue {
+constexpr int CACHE_LINE_SIZE = 64;
+static inline void spin_loop_pause() noexcept {
+  std::this_thread::yield();
+}
+} // namespace atomic_queue
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

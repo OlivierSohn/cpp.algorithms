@@ -25,7 +25,7 @@ with the advantage that :
 */
 
 #ifndef NDEBUG
-#define ASSERT__THROW do{throw;}while(0)
+#define ASSERT__THROW do{throw std::logic_error("assertion failed");}while(0)
 #else
 #define ASSERT__THROW do{}while(0)
 #endif

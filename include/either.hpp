@@ -44,7 +44,7 @@ std::ostream & operator << (std::ostream &ss, const Either<Left, Right> & r) {
  Using these leads to ugly code because we need to explicitely write the Left and Right types, for example:
     return left<std::string, result>("error: bla");
  
- This is why I made the costructors non explicit, so that we can write:
+ This is why I made the constructors non explicit, so that we can write:
     return {"error: bla"};
  */
 template<typename Left, typename Right>

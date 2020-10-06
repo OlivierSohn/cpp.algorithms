@@ -255,16 +255,17 @@ public:
     template<class T>
     bool try_push(T&& element) noexcept {
         auto head = head_.load(X);
+        auto head_plusone = head + 1;
         if(Derived::spsc_) {
-            if(static_cast<int>(head - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
+            if(static_cast<int>(head_plusone - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
                 return false;
-            head_.store(head + 1, X);
+            head_.store(head_plusone, X);
         }
         else {
             do {
-                if(static_cast<int>(head - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
+                if(static_cast<int>(head_plusone - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
                     return false;
-            } while(ATOMIC_QUEUE_UNLIKELY(!head_.compare_exchange_strong(head, head + 1, A, X))); // This loop is not FIFO.
+            } while(ATOMIC_QUEUE_UNLIKELY(!head_.compare_exchange_strong(head, head_plusone, A, X))); // This loop is not FIFO.
         }
 
         static_cast<Derived&>(*this).do_push(std::forward<T>(element), head);

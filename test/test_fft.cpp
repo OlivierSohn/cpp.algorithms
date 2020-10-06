@@ -323,7 +323,8 @@ TEST(FFT, unwrap_freq_sqmag) {
       input.push_back(amplitude * std::sin(2. * M_PI * static_cast<double>(i) / M));
     }
     
-    std::vector<double> half_window = half_gaussian_window<double>(4, N/2);
+    std::vector<double> half_window;
+    half_gaussian_window<double>(4, N/2, half_window);
     //for (auto & v : half_window) {v = 1.;}
     normalize_window(half_window);
     

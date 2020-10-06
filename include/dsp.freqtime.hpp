@@ -125,7 +125,10 @@ std::ostream & operator << (std::ostream& os, FreqMag<T> const & f) {
 template<typename T>
 struct QuadraticInterpolation {
   QuadraticInterpolation(T const alpha, T const beta, T const gamma) {
-    Assert(beta >= alpha && beta > gamma); // enforced by extractMaxFreqSqMag
+    // extractMaxFreqSqMag enforces:
+    // betaAmplitude >= alphaAmplitude && betaAmplitude > gammaAmplitude
+    // but then the amplitude -> dB transformation can turn strict inequalities into weak ones.
+    Assert(beta >= alpha && beta >= gamma);
 
     T denom = alpha - 2.*beta + gamma;
     if (denom == 0) {
@@ -703,9 +706,11 @@ std::vector<T> half_hann_window(int const half_sz) {
   return res;
 }
 template<typename T>
-std::vector<T> half_gaussian_window(int sigma_factor, int const half_sz) {
+void half_gaussian_window(int sigma_factor,
+                          int const half_sz,
+                          std::vector<T> & res) {
   Assert(half_sz > 0);
-  std::vector<T> res;
+  res.clear();
   res.reserve(half_sz);
   T const maxT = sigma_factor;
   T const increment = maxT / half_sz;
@@ -716,7 +721,6 @@ std::vector<T> half_gaussian_window(int sigma_factor, int const half_sz) {
     T const t = increment * (i + 0.5);
     res.push_back(std::exp(-(t*t) * 0.5));
   }
-  return res;
 }
 
 template<typename T>

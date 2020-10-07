@@ -11,7 +11,7 @@ template<typename T>
 struct FrequenciesSqMag {
   // indexed by frequency bin:
   std::vector<T> frequencies_sqmag;
-
+  
   int fft_length; // to convert frequency from "bin index" representation to Herz representation
 };
 
@@ -47,6 +47,52 @@ void apply_window(ITER it,
   Assert(it >= end);
 }
 
+template<typename Tag, typename ITER>
+void findFrequenciesSqMag(ITER it,
+                          ITER const end,
+                          int const windowed_signal_stride,
+                          std::vector<typename ITER::value_type> const & half_window,
+                          int const zero_padding_factor,
+                          typename fft::RealSignal_<Tag, typename ITER::value_type>::type & signal,
+                          typename fft::RealFBins_<Tag, typename ITER::value_type, a64::Alloc>::type & result,
+                          FrequenciesSqMag<typename ITER::value_type> & frequencies_sqmag,
+                          std::function<void(a64::vector<typename ITER::value_type>)> fDebugWindowedSignal = {}) {
+  {
+    using VAL = typename ITER::value_type;
+    using Algo = fft::Algo_<Tag, VAL>;
+    
+    int const numSamplesUnstrided = static_cast<int>(std::distance(it, end));
+    int const numSamplesStrided = 1 + (numSamplesUnstrided-1) / windowed_signal_stride;
+    Assert(numSamplesStrided == static_cast<int>(2 * half_window.size()));
+    int const fft_length = ceil_power_of_two(numSamplesStrided * zero_padding_factor);
+    using Contexts = fft::Contexts_<Tag, VAL>;
+    Algo fft(Contexts::getInstance().getBySize(fft_length));
+    
+    signal.clear();
+    signal.reserve(fft_length);
+    
+    // apply the window...
+    apply_window(it, end, windowed_signal_stride, half_window, signal);
+    
+    // ... and pad
+    signal.resize(fft_length, VAL{0});
+    
+    if (fDebugWindowedSignal) {
+      fDebugWindowedSignal(signal);
+    }
+    
+    result.resize(fft_length);
+    fft.forward(signal.begin(), result.data(), fft_length);
+    unwrap_frequencies_sqmag<Tag>(result, fft_length, frequencies_sqmag.frequencies_sqmag);
+    frequencies_sqmag.fft_length = fft_length;
+    
+    const VAL factor = 1. / (Algo::scale * Algo::scale * fft_length * fft_length);
+    for (auto & v : frequencies_sqmag.frequencies_sqmag) {
+      v *= factor;
+    }
+  }
+}
+
 /** Returns the frequencies of a windowed signal.
  *
  * For better efficiency, the signal length should be a power of 2
@@ -55,55 +101,31 @@ void apply_window(ITER it,
  * @param frequencies_sqmag is the sqared magnitude of the frequencies from 0 to nyquist freq included.
  */
 template<typename ITER>
-void findFrequenciesSqMag(ITER it,
-                          ITER const end,
-                          int const windowed_signal_stride,
-                          std::vector<typename ITER::value_type> const & half_window,
-                          int const zero_padding_factor,
-                          FrequenciesSqMag<typename ITER::value_type> & frequencies_sqmag,
-                          std::function<void(a64::vector<typename ITER::value_type>)> fDebugWindowedSignal = {}) {
-  using namespace fft;
+void findFrequenciesSqMagSlow(ITER it,
+                              ITER const end,
+                              int const windowed_signal_stride,
+                              std::vector<typename ITER::value_type> const & half_window,
+                              int const zero_padding_factor,
+                              FrequenciesSqMag<typename ITER::value_type> & frequencies_sqmag,
+                              std::function<void(a64::vector<typename ITER::value_type>)> fDebugWindowedSignal = {}) {
   using VAL = typename ITER::value_type;
-  using Tag = Fastest;
+  using Tag = fft::Fastest;
   
-  using Algo = Algo_<Tag, VAL>;
-  using RealFBins = RealFBins_<Tag, VAL, a64::Alloc>;
-  using ScopedContext = ScopedContext_<Tag, VAL>;
+  using RealFBins = fft::RealFBins_<Tag, VAL, a64::Alloc>;
   
-  int const numSamplesUnstrided = std::distance(it, end);
-  int const numSamplesStrided = 1 + (numSamplesUnstrided-1) / windowed_signal_stride;
-  Assert(numSamplesStrided == 2 * half_window.size());
-  int const fft_length = ceil_power_of_two(numSamplesStrided * zero_padding_factor);
-
-  a64::vector<VAL> v;
-  v.reserve(fft_length);
-
-  // apply the window...
-  apply_window(it, end, windowed_signal_stride, half_window, v);
+  typename RealFBins::type result;
+  typename fft::RealSignal_<Tag, VAL>::type signal;
   
-  // ... and pad
-  v.resize(fft_length, VAL{0});
-  
-  if (fDebugWindowedSignal) {
-    fDebugWindowedSignal(v);
-  }
-
-  auto signal = RealSignal_<Tag, VAL>::make(std::move(v));
-  
-  typename RealFBins::type result(fft_length);
-  
-  ScopedContext scoped_context(fft_length);
-  Algo fft(scoped_context.get());
-  fft.forward(signal.begin(), result.data(), fft_length);
-  unwrap_frequencies_sqmag<Tag>(result, fft_length, frequencies_sqmag.frequencies_sqmag);
-  frequencies_sqmag.fft_length = fft_length;
-
-  const VAL factor = 1. / (Algo::scale * Algo::scale * fft_length * fft_length);
-  for (auto & v : frequencies_sqmag.frequencies_sqmag) {
-    v *= factor;
-  }
+  findFrequenciesSqMag<Tag>(it,
+                            end,
+                            windowed_signal_stride,
+                            half_window,
+                            zero_padding_factor,
+                            signal,
+                            result,
+                            frequencies_sqmag,
+                            fDebugWindowedSignal);
 }
-
 
 template<typename T>
 struct FreqMag {
@@ -129,7 +151,7 @@ struct QuadraticInterpolation {
     // betaAmplitude >= alphaAmplitude && betaAmplitude > gammaAmplitude
     // but then the amplitude -> dB transformation can turn strict inequalities into weak ones.
     Assert(beta >= alpha && beta >= gamma);
-
+    
     T denom = alpha - 2.*beta + gamma;
     if (denom == 0) {
       p = 0.;
@@ -141,8 +163,8 @@ struct QuadraticInterpolation {
   
   auto getMag() const { return mag; }
   auto getP() const { return p; }
-
- private:
+  
+private:
   T p, mag;
 };
 
@@ -243,14 +265,14 @@ struct DbToMag {
 
 
 template<typename Iter>
-void findLocalMaxMagFrequencies(Iter it,
-                                Iter const end,
-                                double const signal_sampling_rate,
-                                int const windowed_signal_stride,
-                                std::vector<typename Iter::value_type> const & half_window,
-                                int window_center_stride,
-                                int const zero_padding_factor,
-                                std::vector<std::vector<FreqMag<typename Iter::value_type>>> & freqs_sqmags) {
+void findLocalMaxMagFrequenciesSlow(Iter it,
+                                    Iter const end,
+                                    double const signal_sampling_rate,
+                                    int const windowed_signal_stride,
+                                    std::vector<typename Iter::value_type> const & half_window,
+                                    int window_center_stride,
+                                    int const zero_padding_factor,
+                                    std::vector<std::vector<FreqMag<typename Iter::value_type>>> & freqs_sqmags) {
   using T = typename Iter::value_type;
   
   int const szWindow = 2 * half_window.size();
@@ -268,10 +290,10 @@ void findLocalMaxMagFrequencies(Iter it,
   int control = 0;
   for (; limit <= end; it += window_center_stride, limit += window_center_stride, ++itRes) {
     ++control;
-
-    findFrequenciesSqMag(it, limit, windowed_signal_stride, half_window, zero_padding_factor, freqs_sqmag
+    
+    findFrequenciesSqMagSlow(it, limit, windowed_signal_stride, half_window, zero_padding_factor, freqs_sqmag
 #if 0
-                         , [control, it, limit](a64::vector<T> const & windowed_signal) {
+                             , [control, it, limit](a64::vector<T> const & windowed_signal) {
       std::string ctrl;
       if (control < 100) {
         ctrl += "0";
@@ -307,7 +329,7 @@ void findLocalMaxMagFrequencies(Iter it,
                 100);
     }
 #endif
-                         );
+                             );
     extractLocalMaxFreqsMags(signal_sampling_rate / windowed_signal_stride,
                              freqs_sqmag,
                              SqMagToDb<T>(),
@@ -317,50 +339,50 @@ void findLocalMaxMagFrequencies(Iter it,
 }
 
 template<typename Iter>
-void findAllMagFrequencies(Iter it,
-                           Iter const end,
-                           int const windowed_signal_stride,
-                           std::vector<typename Iter::value_type> const & half_window,
-                           int window_center_stride,
-                           int const zero_padding_factor,
-                           std::vector<FrequenciesSqMag<typename Iter::value_type>> & freqs_mags) {
+void findAllMagFrequenciesSlow(Iter it,
+                               Iter const end,
+                               int const windowed_signal_stride,
+                               std::vector<typename Iter::value_type> const & half_window,
+                               int window_center_stride,
+                               int const zero_padding_factor,
+                               std::vector<FrequenciesSqMag<typename Iter::value_type>> & freqs_mags) {
   int const szWindow = 2 * half_window.size();
   int const windowSampleSpan = (szWindow - 1) * windowed_signal_stride + 1;
   int const numSamples = std::distance(it, end);
   int const num_ffts = 1 + (numSamples - windowSampleSpan) / window_center_stride;
   
   auto limit = it + windowSampleSpan;
-
+  
   freqs_mags.clear();
   freqs_mags.resize(num_ffts);
   
   auto itRes = freqs_mags.begin();
   for (; limit <= end; it += window_center_stride, limit += window_center_stride, ++itRes) {
     Assert(itRes < freqs_mags.end());
-    findFrequenciesSqMag(it, limit, windowed_signal_stride, half_window, zero_padding_factor, *itRes);
+    findFrequenciesSqMagSlow(it, limit, windowed_signal_stride, half_window, zero_padding_factor, *itRes);
   }
   Assert(freqs_mags.size() == num_ffts);
 }
 
 template<typename Iter>
-void drawSpectrum(Iter it,
-                  Iter const end,
-                  int const windowed_signal_stride,
-                  std::vector<typename Iter::value_type> const & half_window,
-                  int window_center_stride,
-                  int const zero_padding_factor,
-                  std::string const& imageFile) {
+void drawSpectrumSlow(Iter it,
+                      Iter const end,
+                      int const windowed_signal_stride,
+                      std::vector<typename Iter::value_type> const & half_window,
+                      int window_center_stride,
+                      int const zero_padding_factor,
+                      std::string const& imageFile) {
   using T = typename Iter::value_type;
   std::vector<FrequenciesSqMag<T>> freqs_mags;
   
-  findAllMagFrequencies(it,
-                        end,
-                        windowed_signal_stride,
-                        half_window,
-                        window_center_stride,
-                        zero_padding_factor,
-                        freqs_mags);
-
+  findAllMagFrequenciesSlow(it,
+                            end,
+                            windowed_signal_stride,
+                            half_window,
+                            window_center_stride,
+                            zero_padding_factor,
+                            freqs_mags);
+  
   std::vector<T> all_freqs_mags;
   all_freqs_mags.reserve(freqs_mags.size() * freqs_mags.begin()->frequencies_sqmag.size());
   for (int i=0, sz = freqs_mags.begin()->frequencies_sqmag.size(); i<sz; ++i) {
@@ -463,7 +485,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   
   T freq_span = *max_f;
   T mag_span = *max_mag - *min_mag;
-
+  
   std::vector<std::vector<T>> amplitudes;
   
   amplitudes.resize(1 + *max_frame - *min_frame);
@@ -479,7 +501,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
                    mag_span? (1.0 - (*max_mag - n.amplitude) / mag_span) : 0.5);
     }
   }
-
+  
   std::vector<T> all_amplitudes;
   std::vector<bool> red;
   all_amplitudes.reserve(amplitudes.size() * amplitudes.begin()->size());
@@ -510,7 +532,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
       data[3*i+2] = 255;
     }
   }
-
+  
   bmp::generateBitmapImage(data.data(),
                            amplitudes.begin()->size(),
                            amplitudes.size(),
@@ -575,26 +597,26 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
  Note that the natural log of 2 frequencies that are one half tone apart is ln(2) / 12 = 0.05776226504
  */
 template<typename Iter>
-auto deduceNotes(Iter it,
-                 Iter const end,
-                 double const signal_sample_rate,
-                 int const windowed_signal_stride,
-                 std::vector<typename Iter::value_type> const & half_window,
-                 int window_center_stride,
-                 int const zero_padding_factor,
-                 typename Iter::value_type const frequencyEpsilon)
+auto deduceNotesSlow(Iter it,
+                     Iter const end,
+                     double const signal_sample_rate,
+                     int const windowed_signal_stride,
+                     std::vector<typename Iter::value_type> const & half_window,
+                     int window_center_stride,
+                     int const zero_padding_factor,
+                     typename Iter::value_type const frequencyEpsilon)
 -> std::vector<DeducedNote<typename Iter::value_type>> {
   using T = typename Iter::value_type;
   std::vector<std::vector<FreqMag<T>>> freqs_mags;
   
-  findLocalMaxMagFrequencies(it,
-                             end,
-                             signal_sample_rate,
-                             windowed_signal_stride,
-                             half_window,
-                             window_center_stride,
-                             zero_padding_factor,
-                             freqs_mags);
+  findLocalMaxMagFrequenciesSlow(it,
+                                 end,
+                                 signal_sample_rate,
+                                 windowed_signal_stride,
+                                 half_window,
+                                 window_center_stride,
+                                 zero_padding_factor,
+                                 freqs_mags);
   
   std::vector<DeducedNote<T>> res;
   res.reserve(100);
@@ -604,7 +626,7 @@ auto deduceNotes(Iter it,
     : val(t)
     , epsilon(epsilon) {
     }
-
+    
     bool operator == (AlmostFrequency const & o) const {
       Assert(epsilon == o.epsilon);
       return std::abs(val - o.val) <= epsilon;
@@ -617,7 +639,7 @@ auto deduceNotes(Iter it,
       Assert(epsilon == o.epsilon);
       return val > o.val && !operator == (o);
     }
-
+    
   private:
     T val;
     T epsilon;
@@ -649,7 +671,7 @@ auto deduceNotes(Iter it,
       r.amplitude /= fms.size();
       return r;
     }
-
+    
     int startFrame, endFrame;
     std::vector<FreqMag<T>> fms;
   };
@@ -684,7 +706,7 @@ auto deduceNotes(Iter it,
       }
     }
   }
-
+  
   for (auto it = cur.begin(); it != cur.end(); ++it) {
     Assert(it->second.endFrame == frame-1);
     res.push_back(it->second.deduceNote());
@@ -716,7 +738,7 @@ void half_gaussian_window(int sigma_factor,
   T const increment = maxT / half_sz;
   
   // with sigma = 1
-
+  
   for (int i=0; i<half_sz; ++i) {
     T const t = increment * (i + 0.5);
     res.push_back(std::exp(-(t*t) * 0.5));
@@ -733,7 +755,7 @@ void normalize_window(std::vector<T> & w) {
     // According to tests (see TEST(FFT, unwrap_freq_sqmag)),
     // to find the right _magnitude_ in the spectrum, we can use the average on the first order:
     avg += v;
-
+    
     // see also https://community.sw.siemens.com/s/article/window-correction-factors
   }
   avg /= w.size();

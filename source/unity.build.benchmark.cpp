@@ -1,9 +1,5 @@
 #include "unity.build.cpp"
 
-namespace fonseca {
-
-}
-
 namespace imajuscule::bench::pow {
 double fastPow(double a, double b) {
   union {
@@ -16,17 +12,17 @@ double fastPow(double a, double b) {
 }
 }
 
-int main() {
+void bench_pow() {
   using namespace imajuscule;
   using namespace imajuscule::profiling;
-
+  
   std::vector<double> exps;
   exps.reserve(10000000);
-
+  
   for(int i = 0; i<10000000; ++i) {
     exps.push_back(static_cast<double>(1 + i/10000000.));
   }
-
+  
   {
     double res{};
     
@@ -49,8 +45,8 @@ int main() {
     std::cout << dur.count() << std::endl;
     std::cout << res << std::endl;
   } // 11000
-
-
+  
+  
   std::optional<int> idx;
   double sumErrors = 0;
   double sumRes = 0;
@@ -95,5 +91,49 @@ int main() {
     maxSame = same;
   }
   std::cout << "max same " << *maxSame << std::endl;
+}
+
+void bench_log() {
+  using namespace imajuscule;
+  using namespace imajuscule::profiling;
+  
+  std::vector<double> exps;
+  exps.reserve(10000000);
+  
+  for(int i = 0; i<10000000; ++i) {
+    exps.push_back(static_cast<double>(1 + i/10000000.));
+  }
+  
+  {
+    double res{};
+    
+    auto dur = measure_thread_cpu_one([&res, &exps](){
+      for(auto exp : exps) {
+        res += std::log2(exp);
+      }
+    });
+    std::cout << dur.count() << std::endl;
+    std::cout << res << std::endl;
+  } // 44000
+  {
+    double res{};
+    
+    auto dur = measure_thread_cpu_one([&res, &exps](){
+      for(auto exp : exps) {
+        res += sprout::log2(exp);
+      }
+    });
+    std::cout << dur.count() << std::endl;
+    std::cout << res << std::endl;
+  } // 11000
+
+}
+
+int main() {
+  std::cout << "pow" << std::endl
+  bench_pow();
+  std::cout << "log" << std::endl
+  // shows that constexpr sprout::log is much more cpu intensive that non-constexpr std::log
+  bench_log();
   return 0;
 }

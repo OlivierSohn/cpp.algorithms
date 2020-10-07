@@ -350,10 +350,10 @@ public:
     }
 
     int getResultQueueSize() const {
-        return worker_2_rt.unsafe_num_elements();
+        return worker_2_rt.was_size();
     }
     int getSignalQueueSize() const {
-        return rt_2_worker.unsafe_num_elements();
+        return rt_2_worker.was_size();
     }
     
     bool hasStepErrors() const {
@@ -462,7 +462,7 @@ public:
         int queueSize = algo.getQueueSize();
         if((previous_result != signal) && worker) {
             // wait for worker to stop processing
-            while(worker_2_rt.unsafe_num_elements() != (queueSize-Algo::queue_room_sz))
+            while(worker_2_rt.was_size() != (queueSize-Algo::queue_room_sz))
             {
                 rt_2_worker_cond.notify_one(); // in case this is because of the race condition
                 std::this_thread::yield();

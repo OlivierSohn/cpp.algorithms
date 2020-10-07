@@ -7,11 +7,24 @@
 #include "atomic_queue.h"
 #include "spinlock.h"
 
+#include <mutex>
 #include <cassert>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace atomic_queue {
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class M>
+struct ScopedLockType {
+    using type = typename M::scoped_lock;
+};
+
+template<>
+struct ScopedLockType<std::mutex> {
+    using type = std::unique_lock<std::mutex>;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -24,40 +37,40 @@ class AtomicQueueMutexT {
     alignas(CACHE_LINE_SIZE) unsigned tail_ = 0;
     alignas(CACHE_LINE_SIZE) T q_[size_] = {};
 
-    static constexpr int SHUFFLE_BITS =
-        details::GetIndexShuffleBits<MINIMIZE_CONTENTION, size_, CACHE_LINE_SIZE / sizeof(T)>::value;
-    using ScopedLock = typename Mutex::scoped_lock;
+    static constexpr int SHUFFLE_BITS = details::GetIndexShuffleBits<MINIMIZE_CONTENTION, size_, CACHE_LINE_SIZE / sizeof(T)>::value;
+
+    using ScopedLock = typename ScopedLockType<Mutex>::type;
 
 public:
     using value_type = T;
 
     template<class U>
     bool try_push(U&& element) noexcept {
-        ScopedLock lock(this->mutex_);
-        if(this->head_ - this->tail_ < size_) {
-            q_[details::remap_index<SHUFFLE_BITS>(this->head_ % size_)] = std::forward<U>(element);
-            ++this->head_;
+        ScopedLock lock(mutex_);
+        if(ATOMIC_QUEUE_LIKELY(head_ - tail_ < size_)) {
+            q_[details::remap_index<SHUFFLE_BITS>(head_ % size_)] = std::forward<U>(element);
+            ++head_;
             return true;
         }
         return false;
     }
 
     bool try_pop(T& element) noexcept {
-        ScopedLock lock(this->mutex_);
-        if(this->head_ != this->tail_) {
-            element = std::move(q_[details::remap_index<SHUFFLE_BITS>(this->tail_ % size_)]);
-            ++this->tail_;
+        ScopedLock lock(mutex_);
+        if(ATOMIC_QUEUE_LIKELY(head_ != tail_)) {
+            element = std::move(q_[details::remap_index<SHUFFLE_BITS>(tail_ % size_)]);
+            ++tail_;
             return true;
         }
         return false;
     }
 
     bool was_empty() const noexcept {
-        return static_cast<int>(this->head_ - this->tail_) <= 0;
+        return static_cast<int>(head_ - tail_) <= 0;
     }
 
     bool was_full() const noexcept {
-        return static_cast<int>(this->head_ - this->tail_) >= static_cast<int>(size_);
+        return static_cast<int>(head_ - tail_) >= static_cast<int>(size_);
     }
 };
 
@@ -67,8 +80,8 @@ using AtomicQueueMutex = AtomicQueueMutexT<T, Mutex, SIZE, MINIMIZE_CONTENTION>;
 template<class T, unsigned SIZE, bool MINIMIZE_CONTENTION = true>
 using AtomicQueueSpinlock = AtomicQueueMutexT<T, Spinlock, SIZE, MINIMIZE_CONTENTION>;
 
-template<class T, unsigned SIZE, bool MINIMIZE_CONTENTION = true>
-using AtomicQueueSpinlockHle = AtomicQueueMutexT<T, SpinlockHle, SIZE, MINIMIZE_CONTENTION>;
+// template<class T, unsigned SIZE, bool MINIMIZE_CONTENTION = true>
+// using AtomicQueueSpinlockHle = AtomicQueueMutexT<T, SpinlockHle, SIZE, MINIMIZE_CONTENTION>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

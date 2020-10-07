@@ -16,10 +16,11 @@
 #include "test_utils.cpp"
 
 //#  include "test_benchmark.convolution.scaling.cpp"
+#include "test_queue.cpp"
+//*
 #include "test_function.cpp"
 #include "test_fft.cpp"
 #include "test_freqtime.cpp"
-//*
 #include "test_fft_fbins.cpp"
 #include "test_fft_signal.cpp"
 #include "test_dsp.spatialize.cpp"
@@ -35,7 +36,6 @@
 #include "test_edit_distance.cpp"
 #include "test_sort.cpp"
 #include "test_linalg.cpp"
-#include "test_split.cpp"
 #include "test_dsp.compress.cpp"
 #include "test_forward_list_lockfree.cpp"
 #include "test_fifo_lockfree_scmp.cpp"

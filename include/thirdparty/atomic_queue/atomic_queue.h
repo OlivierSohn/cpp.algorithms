@@ -28,34 +28,13 @@ namespace details {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<size_t elements_per_cache_line>
-struct GetCacheLineIndexBits {
-    static int constexpr value = 0;
-};
-template<>
-struct GetCacheLineIndexBits<64> {
-    static int constexpr value = 6;
-};
-template<>
-struct GetCacheLineIndexBits<32> {
-    static int constexpr value = 5;
-};
-template<>
-struct GetCacheLineIndexBits<16> {
-    static int constexpr value = 4;
-};
-template<>
-struct GetCacheLineIndexBits<8> {
-    static int constexpr value = 3;
-};
-template<>
-struct GetCacheLineIndexBits<4> {
-    static int constexpr value = 2;
-};
-template<>
-struct GetCacheLineIndexBits<2> {
-    static int constexpr value = 1;
-};
+template<size_t elements_per_cache_line> struct GetCacheLineIndexBits { static int constexpr value = 0; };
+template<> struct GetCacheLineIndexBits<64> { static int constexpr value = 6; };
+template<> struct GetCacheLineIndexBits<32> { static int constexpr value = 5; };
+template<> struct GetCacheLineIndexBits<16> { static int constexpr value = 4; };
+template<> struct GetCacheLineIndexBits< 8> { static int constexpr value = 3; };
+template<> struct GetCacheLineIndexBits< 4> { static int constexpr value = 2; };
+template<> struct GetCacheLineIndexBits< 2> { static int constexpr value = 1; };
 
 template<bool minimize_contention, unsigned array_size, size_t elements_per_cache_line>
 struct GetIndexShuffleBits {
@@ -76,10 +55,13 @@ struct GetIndexShuffleBits<false, array_size, elements_per_cache_line> {
 // the element within the cache line) with the next N bits (which are the index of the cache line)
 // of the element index.
 template<int BITS>
-constexpr unsigned remap_index(unsigned index) noexcept {
-    constexpr unsigned MASK = (1u << BITS) - 1;
-    unsigned mix = (index ^ (index >> BITS)) & MASK;
+constexpr unsigned remap_index_with_mix(unsigned index, unsigned mix) {
     return index ^ mix ^ (mix << BITS);
+}
+
+template<int BITS>
+constexpr unsigned remap_index(unsigned index) noexcept {
+    return remap_index_with_mix<BITS>(index, (index ^ (index >> BITS)) & ((1u << BITS) - 1));
 }
 
 template<>
@@ -89,33 +71,49 @@ constexpr unsigned remap_index<0>(unsigned index) noexcept {
 
 template<int BITS, class T>
 constexpr T& map(T* elements, unsigned index) noexcept {
-    index = remap_index<BITS>(index);
-    return elements[index];
+    return elements[remap_index<BITS>(index)];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Implement a "bit-twiddling hack" for finding the next power of 2
+// in either 32 bits or 64 bits in C++11 compatible constexpr functions
+
+// "Runtime" version for 32 bits
+// --a;
+// a |= a >> 1;
+// a |= a >> 2;
+// a |= a >> 4;
+// a |= a >> 8;
+// a |= a >> 16;
+// ++a;
+
+template<class T>
+constexpr T decrement(T x) {
+    return x - 1;
+}
+
+template<class T>
+constexpr T increment(T x) {
+    return x + 1;
+}
+
+template<class T>
+constexpr T or_equal(T x, unsigned u) {
+    return (x | x >> u);
+}
+
+template<class T, class... Args>
+constexpr T or_equal(T x, unsigned u, Args... rest) {
+    return or_equal(or_equal(x, u), rest...);
+}
+
 constexpr uint32_t round_up_to_power_of_2(uint32_t a) noexcept {
-    --a;
-    a |= a >> 1;
-    a |= a >> 2;
-    a |= a >> 4;
-    a |= a >> 8;
-    a |= a >> 16;
-    ++a;
-    return a;
+    return increment(or_equal(decrement(a), 1, 2, 4, 8, 16));
 }
 
 constexpr uint64_t round_up_to_power_of_2(uint64_t a) noexcept {
-    --a;
-    a |= a >> 1;
-    a |= a >> 2;
-    a |= a >> 4;
-    a |= a >> 8;
-    a |= a >> 16;
-    a |= a >> 32;
-    ++a;
-    return a;
+    return increment(or_equal(decrement(a), 1, 2, 4, 8, 16, 32));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,7 +143,7 @@ protected:
         return *this;
     }
 
-    void do_swap(AtomicQueueCommon& b) noexcept {
+    void swap(AtomicQueueCommon& b) noexcept {
         unsigned h = head_.load(X);
         unsigned t = tail_.load(X);
         head_.store(b.head_.load(X), X);
@@ -255,17 +253,16 @@ public:
     template<class T>
     bool try_push(T&& element) noexcept {
         auto head = head_.load(X);
-        auto head_plusone = head + 1;
         if(Derived::spsc_) {
-            if(static_cast<int>(head_plusone - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
+            if(static_cast<int>(head - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
                 return false;
-            head_.store(head_plusone, X);
+            head_.store(head + 1, X);
         }
         else {
             do {
-                if(static_cast<int>(head_plusone - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
+                if(static_cast<int>(head - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_))
                     return false;
-            } while(ATOMIC_QUEUE_UNLIKELY(!head_.compare_exchange_strong(head, head_plusone, A, X))); // This loop is not FIFO.
+            } while(ATOMIC_QUEUE_UNLIKELY(!head_.compare_exchange_strong(head, head + 1, A, X))); // This loop is not FIFO.
         }
 
         static_cast<Derived&>(*this).do_push(std::forward<T>(element), head);
@@ -319,19 +316,20 @@ public:
     }
 
     bool was_empty() const noexcept {
-        return static_cast<int>(head_.load(X) - tail_.load(X)) <= 0;
+        return !was_size();
     }
 
     bool was_full() const noexcept {
-        return static_cast<int>(head_.load(X) - tail_.load(X)) >= static_cast<int>(static_cast<Derived&>(*this).size_);
+        return was_size() >= static_cast<int>(static_cast<Derived const&>(*this).size_);
     }
 
-    unsigned size() const noexcept {
-        return static_cast<Derived const&>(*this).size_;
+    unsigned was_size() const noexcept {
+        // tail_ can be greater than head_ because of consumers doing pop, rather that try_pop, when the queue is empty.
+        return std::max(static_cast<int>(head_.load(X) - tail_.load(X)), 0);
     }
-    
-    unsigned unsafe_num_elements() const noexcept {
-        return head_ - tail_;
+
+    unsigned capacity() const noexcept {
+        return static_cast<Derived const&>(*this).size_;
     }
 };
 
@@ -430,7 +428,9 @@ class AtomicQueueB : public AtomicQueueCommon<AtomicQueueB<T, A, NIL, MAXIMIZE_T
     static constexpr auto SHUFFLE_BITS = details::GetCacheLineIndexBits<ELEMENTS_PER_CACHE_LINE>::value;
     static_assert(SHUFFLE_BITS, "Unexpected SHUFFLE_BITS.");
 
-    unsigned size_;
+    // AtomicQueueCommon members are stored into by readers and writers.
+    // Allocate these immutable members on another cache line which never gets invalidated by stores.
+    alignas(CACHE_LINE_SIZE) unsigned size_;
     std::atomic<T>* elements_;
 
     T do_pop(unsigned tail) noexcept {
@@ -449,7 +449,7 @@ public:
     // The special member functions are not thread-safe.
 
     AtomicQueueB(unsigned size)
-        : size_(size ? std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)) : 0)
+        : size_(std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)))
         , elements_(AllocatorElements::allocate(size_)) {
         assert(std::atomic<T>{NIL}.is_lock_free()); // This queue is for atomic elements only. AtomicQueueB2 is for non-atomic ones.
         for(auto p = elements_, q = elements_ + size_; p < q; ++p)
@@ -477,7 +477,7 @@ public:
 
     void swap(AtomicQueueB& b) noexcept {
         using std::swap;
-        swap(static_cast<Base&>(*this), static_cast<Base&>(b));
+        this->Base::swap(b);
         swap(static_cast<AllocatorElements&>(*this), static_cast<AllocatorElements&>(b));
         swap(size_, b.size_);
         swap(elements_, b.elements_);
@@ -505,7 +505,9 @@ class AtomicQueueB2 : public AtomicQueueCommon<AtomicQueueB2<T, A, MAXIMIZE_THRO
     using AllocatorElements = A;
     using AllocatorStates = typename std::allocator_traits<A>::template rebind_alloc<std::atomic<uint8_t>>;
 
-    unsigned size_;
+    // AtomicQueueCommon members are stored into by readers and writers.
+    // Allocate these immutable members on another cache line which never gets invalidated by stores.
+    alignas(CACHE_LINE_SIZE) unsigned size_;
     std::atomic<unsigned char>* states_;
     T* elements_;
 
@@ -516,13 +518,13 @@ class AtomicQueueB2 : public AtomicQueueCommon<AtomicQueueB2<T, A, MAXIMIZE_THRO
     static_assert(SHUFFLE_BITS, "Unexpected SHUFFLE_BITS.");
 
     T do_pop(unsigned tail) noexcept {
-        unsigned index = details::remap_index<SHUFFLE_BITS>(tail % (size_ - 1));
+        unsigned index = details::remap_index<SHUFFLE_BITS>(tail & (size_ - 1));
         return Base::template do_pop_any(states_[index], elements_[index]);
     }
 
     template<class U>
     void do_push(U&& element, unsigned head) noexcept {
-        unsigned index = details::remap_index<SHUFFLE_BITS>(head % (size_ - 1));
+        unsigned index = details::remap_index<SHUFFLE_BITS>(head & (size_ - 1));
         Base::template do_push_any(std::forward<U>(element), states_[index], elements_[index]);
     }
 
@@ -532,7 +534,7 @@ public:
     // The special member functions are not thread-safe.
 
     AtomicQueueB2(unsigned size)
-        : size_(size ? std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)) : 0)
+        : size_(std::max(details::round_up_to_power_of_2(size), 1u << (SHUFFLE_BITS * 2)))
         , states_(AllocatorStates::allocate(size_))
         , elements_(AllocatorElements::allocate(size_)) {
         for(auto p = states_, q = states_ + size_; p < q; ++p)
@@ -572,7 +574,7 @@ public:
 
     void swap(AtomicQueueB2& b) noexcept {
         using std::swap;
-        this->do_swap(static_cast<Base&>(b));
+        this->Base::swap(b);
         swap(static_cast<AllocatorElements&>(*this), static_cast<AllocatorElements&>(b));
         swap(static_cast<AllocatorStates&>(*this), static_cast<AllocatorStates&>(b));
         swap(size_, b.size_);

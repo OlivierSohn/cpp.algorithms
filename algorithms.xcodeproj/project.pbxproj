@@ -166,6 +166,8 @@
 		0937B3CD23B6180C0037CCDF /* fft.costs.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = fft.costs.hpp; path = include/fft.costs.hpp; sourceTree = "<group>"; };
 		0937B3CE23B6B5CF0037CCDF /* test_benchmark.convolution.scaling.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_benchmark.convolution.scaling.cpp; path = test/test_benchmark.convolution.scaling.cpp; sourceTree = "<group>"; };
 		0937B3CF23B7A98A0037CCDF /* test_utils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_utils.cpp; path = test/test_utils.cpp; sourceTree = "<group>"; };
+		0939C78D252E2BC200888049 /* test_queue.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_queue.cpp; path = test/test_queue.cpp; sourceTree = "<group>"; };
+		0939C796252E2C9300888049 /* 3rdparty */ = {isa = PBXFileReference; lastKnownFileType = folder; path = 3rdparty; sourceTree = "<group>"; };
 		093A7BF11EB2A5DB00CBDD97 /* thread.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = thread.h; path = include/thread.h; sourceTree = "<group>"; };
 		093A7BF21EB2A7B500CBDD97 /* thread.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = thread.cpp; path = source/thread.cpp; sourceTree = "<group>"; };
 		093A7BF41EB4C52E00CBDD97 /* test_measure_multiplyadd_contiguity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_measure_multiplyadd_contiguity.cpp; path = test/test_measure_multiplyadd_contiguity.cpp; sourceTree = "<group>"; };
@@ -182,7 +184,6 @@
 		094DE2381F69C10A007191A0 /* convex_hull.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = convex_hull.h; path = include/convex_hull.h; sourceTree = "<group>"; };
 		0958DAFB23093B7100928B51 /* test_edit_distance.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_edit_distance.cpp; path = test/test_edit_distance.cpp; sourceTree = "<group>"; };
 		095B3E4A20F517D4001C378A /* split.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = split.hpp; path = include/split.hpp; sourceTree = "<group>"; };
-		095B3E4B20F5185C001C378A /* test_split.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_split.cpp; path = test/test_split.cpp; sourceTree = "<group>"; };
 		095EF58E1E19C7570073F5CE /* print_type.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = print_type.cpp; path = source/print_type.cpp; sourceTree = "<group>"; };
 		0960BAEF1DB3F0F80075CB05 /* test.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = test.xcconfig; path = xcode.config/test.xcconfig; sourceTree = "<group>"; };
 		0960BAF01DB3F0F80075CB05 /* Project.Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Project.Debug.xcconfig; path = xcode.config/Project.Debug.xcconfig; sourceTree = "<group>"; };
@@ -505,6 +506,7 @@
 		09EF8E9D1DB3E6A300DC7342 = {
 			isa = PBXGroup;
 			children = (
+				0939C796252E2C9300888049 /* 3rdparty */,
 				0980A5E0222429AE005C1540 /* opencl kernels */,
 				09F1577E20C6ABBC00662939 /* dependencies */,
 				093239D21DB54D1B003C168E /* source */,
@@ -581,7 +583,6 @@
 				0999CE481EB926C100309E86 /* test_rng.cpp */,
 				09E641631ED0661B00BF54A5 /* test_scoped.cpp */,
 				09EF8EED1DB3E7D200DC7342 /* test_sort.cpp */,
-				095B3E4B20F5185C001C378A /* test_split.cpp */,
 				09807B7D20D82006009732BD /* test_staticvector_lockfree_scmp.cpp */,
 				09338B5B20D928B4004F5A8A /* test_staticvector_singlethread.cpp */,
 				093E6E711E20B0D9004DFED2 /* test_types.cpp */,
@@ -590,6 +591,7 @@
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				0947FDB220DA747E00BC4141 /* test.h */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
+				0939C78D252E2BC200888049 /* test_queue.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";

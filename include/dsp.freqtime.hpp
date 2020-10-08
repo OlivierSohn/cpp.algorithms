@@ -83,7 +83,7 @@ void findFrequenciesSqMag(ITER it,
     
     result.resize(fft_length);
     fft.forward(signal.begin(), result.data(), fft_length);
-    unwrap_frequencies_sqmag<Tag>(result, fft_length, frequencies_sqmag.frequencies_sqmag);
+    fft::unwrap_frequencies_sqmag<Tag>(result, fft_length, frequencies_sqmag.frequencies_sqmag);
     frequencies_sqmag.fft_length = fft_length;
     
     const VAL factor = 1. / (Algo::scale * Algo::scale * fft_length * fft_length);
@@ -172,7 +172,7 @@ template<typename T, typename TransformAmplitude, typename F>
 void foreachLocalMaxFreqsMags(std::vector<T> const & freqs_sqmag, TransformAmplitude transform_amplitude, F f) {
   Assert(!freqs_sqmag.empty());
   
-  for (int i=0, sz=freqs_sqmag.size(); i<sz; ++i) {
+  for (int i=0, sz=static_cast<int>(freqs_sqmag.size()); i<sz; ++i) {
     if (i < sz-1) {
       if (freqs_sqmag[i+1] >= freqs_sqmag[i]) {
         continue;
@@ -527,7 +527,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
     data.push_back(static_cast<unsigned char>(ratio * 255.9)); // g
     data.push_back(static_cast<unsigned char>(ratio * 255.9)); // b
   }
-  for (int i=0, sz=red.size(); i<sz; ++i) {
+  for (int i=0, sz=static_cast<int>(red.size()); i<sz; ++i) {
     if (red[i]) {
       data[3*i+2] = 255;
     }

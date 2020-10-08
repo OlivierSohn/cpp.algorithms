@@ -91,6 +91,7 @@
 #include "../3rdparty/folly/folly/Function.h"
 
 #include "../3rdparty/Sprout/sprout/math/log2.hpp"
+#include "../3rdparty/Sprout/sprout/math/log.hpp"
 #include "../3rdparty/Sprout/sprout/math/pow.hpp"
 
 #include "thirdparty/atomic_queue/atomic_queue.h"

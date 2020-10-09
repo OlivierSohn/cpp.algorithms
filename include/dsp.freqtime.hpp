@@ -168,8 +168,12 @@ private:
   T p, mag;
 };
 
-template<typename T, typename TransformAmplitude, typename F>
-void foreachLocalMaxFreqsMags(std::vector<T> const & freqs_sqmag, TransformAmplitude transform_amplitude, F f) {
+
+// 'transform_amplitude' must be such that quadratic interpolation "works well" for peak finding
+template<typename T, typename Allocator, typename TransformAmplitude, typename F>
+void foreachLocalMaxFreqsMags(std::vector<T, Allocator> const & freqs_sqmag,
+                              TransformAmplitude transform_amplitude,
+                              F f) {
   Assert(!freqs_sqmag.empty());
   
   for (int i=0, sz=static_cast<int>(freqs_sqmag.size()); i<sz; ++i) {
@@ -252,6 +256,16 @@ struct DbToSqMag {
   }
 };
 
+template<typename T>
+struct MagToDb {
+  std::optional<T> operator() (T const val){
+    Assert(val >= 0);
+    if (val == 0.) {
+      return {};
+    }
+    return 20. * std::log10(val);
+  }
+};
 template<typename T>
 struct DbToMag {
   T operator() (T const val){

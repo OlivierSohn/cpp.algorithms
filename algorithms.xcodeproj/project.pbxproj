@@ -579,6 +579,7 @@
 				09807B7C20D7F03E009732BD /* test_pair_array_distant.cpp */,
 				0947FDB120DA73C400BC4141 /* test_pair_array_local.cpp */,
 				093F0A1F1E9AB9DF004432C2 /* test_peaks.cpp */,
+				0939C78D252E2BC200888049 /* test_queue.cpp */,
 				096C7DB71EB0FBA900DDEB20 /* test_range_search.cpp */,
 				0999CE481EB926C100309E86 /* test_rng.cpp */,
 				09E641631ED0661B00BF54A5 /* test_scoped.cpp */,
@@ -591,7 +592,6 @@
 				091BA6721EA54D1F00155CBE /* test_vdsp.cpp */,
 				0947FDB220DA747E00BC4141 /* test.h */,
 				09168FD11E099D78005DD50F /* unity.build.cpp */,
-				0939C78D252E2BC200888049 /* test_queue.cpp */,
 			);
 			name = test;
 			sourceTree = "<group>";

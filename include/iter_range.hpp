@@ -58,6 +58,18 @@ private:
     auto end()   const {
       return std::min(c.end(), c.begin() + n);
     }
+    bool empty() const {
+      return n == 0;
+    }
+    std::size_t size() const {
+      return n;
+    }
+    auto & operator [](int i) {
+      return c[i];
+    }
+    auto const & operator [](int i) const {
+      return c[i];
+    }
   private:
     int n;
     Container & c;

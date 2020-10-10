@@ -99,7 +99,7 @@ struct alignas(alignment) Aligned {
     {
         static_assert(std::alignment_of_v<T>
                       <=
-                      static_cast<std::underlying_type<Alignment>::type>(Align));
+                      static_cast<std::underlying_type_t<Alignment>>(Align));
     public:
         typedef T         value_type;
         typedef T*        pointer;

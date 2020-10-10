@@ -69,7 +69,7 @@ namespace imajuscule {
 
     template <typename E>
     constexpr typename std::underlying_type<E>::type to_underlying(E e) {
-        return static_cast<typename std::underlying_type<E>::type>(e);
+        return static_cast<std::underlying_type_t<E>>(e);
     }
 
     template <typename E>

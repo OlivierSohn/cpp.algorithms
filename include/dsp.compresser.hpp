@@ -47,11 +47,11 @@ namespace imajuscule::audio {
     static constexpr T compressMult   = 0.997;
 
     // = 2^(1/22050) so that the volume doubles every half second
-    static constexpr T uncompressMult = 1.00003;
+    static constexpr T uncompressMult = 1.00003; // TODO take sample rate into account
 
     // The signal needs to be low for at least that many frames
     // to be uncompressed
-    static constexpr int safeDuration = 100000;
+    static constexpr int safeDuration = 100000; // TODO take sample rate into account
 
     Compressor() {
 #if IMJ_DEBUG_COMPRESSOR

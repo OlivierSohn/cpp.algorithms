@@ -96,6 +96,7 @@
 
 #include "thirdparty/atomic_queue/atomic_queue.h"
 
+#include "merge_sort_step.hpp"
 #include "image.bmp.hpp"
 #include "array.utils.hpp"
 #include "csv.writer.hpp"

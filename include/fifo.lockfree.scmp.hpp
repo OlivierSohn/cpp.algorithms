@@ -88,7 +88,7 @@ struct fifo {
     }
 
     // This method can be called concurrently from many threads.
-    bool tryEnqueue(value_type v) {
+    bool tryEnqueue(value_type && v) {
       uint32_t rw = nextReadnextWrite.load(std::memory_order_acquire);
       while(1) {
         nonatomicReadWrite cur = getReadWrite(rw);

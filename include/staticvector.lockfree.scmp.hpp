@@ -1,50 +1,50 @@
 
 
 namespace imajuscule::lockfree::scmp {
-  
+
   /*
-   
+
    'static_vector' is a lock-free variable-size container with fixed-capacity.
-   
+
    -- Thread-safety --
-   
+
    Multiple threads call 'tryInsert' concurrently to add new elements.
-   
+
    A single thread calls 'forEach' to read / modify / remove
    the elements.
-   
+
    -- Lifecycle of the elements of the underlying container --
-   
+
    When a 'static_vector' is constructed,
    the elements of the underlying container are default-constructed.
-   
+
    When a new element is added to a 'static_vector', using 'tryInsert',
    the corresponding element of the underlying container is either
    'assigned to' or 'move-assigned to' from the new element.
-   
+
    When an element is removed from a 'static_vector', using 'forEach',
    depending on the 'OnRemoval' template parameter,
    the corresponding element of the underlying container is either:
    left as-is, or
    'assigned to' from a default-constructed element.
-   
+
    When a 'static_vector' is destructed,
    the elements of the underlying container are destructed.
-   
+
    -- Memory usage --
-   
+
    The memory overhead compared to std::vector of the same capacity
    is 'sizeof(std::atomic<int>)' per element.
-   
+
    -- See also --
-   
+
    'imajuscule::lockfree::scmp::forward_list' which :
    - has unbounded capacity
    - but uses dynamically allocated memory for its elements,
    hence element construction may be slower that static_vector
-   
+
    */
-  
+
 /*
      'static_vector' synopsis
 
@@ -52,13 +52,13 @@ namespace imajuscule::lockfree::scmp {
 
 template<typename T, OnRemoval DP=OnRemoval::DoNothing>
 struct static_vector {
- 
+
      // types:
      using value_type = T;
 
      // construction:
      static_vector(int capacity);
-     
+
      // thread-safe element insertion:
      bool tryInsert(value_type v);
 
@@ -74,7 +74,7 @@ struct static_vector {
     enum class OnRemoval {
       // The object is assigned from a default-constructed element.
       AssignFromDefault,
-      
+
       // The object is left as-is.
       DoNothing,
     };
@@ -94,11 +94,11 @@ struct static_vector {
         }
         upperBoundCount.store(0,std::memory_order_release);
       }
-      
+
       // Many threads can call this method concurrently.
       //
       // Returns true if the insertion succeeded, false otherwise.
-      bool tryInsert(value_type v) {
+      bool tryInsert(value_type && v) {
         auto begin = states();
         auto end = states_end();
 
@@ -115,10 +115,10 @@ struct static_vector {
               else {
                 values()[index] = v;
               }
-              
+
               // and change the atomic flag (by design, no other thread can have changed it in-between).
               Assert(*state == SlotState::SoonFull);
-              
+
               // Using memory_order_seq_cst so that the counter increment will be seen before
               // the Full state, and hence upperBoundCount will actually be an upper bound.
               upperBoundCount.fetch_add(1, std::memory_order_seq_cst);
@@ -184,7 +184,7 @@ struct static_vector {
             }
             state->store(SlotState::Empty, std::memory_order_release);
           }
-          
+
           if(nSeen == nMax) {
             nMax = upperBoundCount.load(std::memory_order_seq_cst);
             if(nSeen == nMax) {
@@ -202,7 +202,7 @@ struct static_vector {
         upperBoundCount.fetch_add(-nRemoved, std::memory_order_relaxed);
         return nRemoved;
       }
-      
+
     private:
       enum class SlotState : int {
         Full      =   0b0, // the slot is full.
@@ -210,21 +210,21 @@ struct static_vector {
         SoonEmpty =  0b10, // the slot is being emptied.
         Empty     = 0b100, // the slot is empty.
       };
-      
+
       static_assert(std::atomic<SlotState>::is_always_lock_free);
-      
+
       // We use 'DistantPairArray<...>' instead of 'std::vector<std::pair<...>>'
       // because it has a better memory layout.
       using slots = DistantPairArray<std::atomic<SlotState>,T>;
-      
+
       // An upper bound of the count of full slots.
       std::atomic<int> upperBoundCount;
       slots s;
-    
+
       auto * states() { return s.firsts(); }
       auto * states_end() { return s.firsts_end(); }
       auto * values() { return s.seconds(); }
       auto * values_end() { return s.seconds_end(); }
     };
-      
+
 }

@@ -169,7 +169,7 @@ namespace imajuscule {
 
         void make_line(int h) {
             auto index = invert_height(h);
-            if(index < 0 || index >= p.size()) {
+            if(index < 0 || index >= static_cast<int>(p.size())) {
                 return;
             }
             auto &s = p[index];

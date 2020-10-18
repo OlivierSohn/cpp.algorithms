@@ -567,7 +567,7 @@ void padForScales(SetupParam const & spec,
 
     int const total_response_size = deinterlaced_coeffs.empty() ? 0 : deinterlaced_coeffs[0].size();
     for(auto const & v:deinterlaced_coeffs) {
-        if(total_response_size != v.size()) {
+        if(total_response_size != static_cast<int>(v.size())) {
             throw std::runtime_error("deinterlaced coefficients have different sizes");
         }
     }

@@ -956,13 +956,11 @@ namespace imajuscule::audio {
 
             rewrite(deinterlaced);
 
-            auto size = -1;
+            std::optional<std::size_t> size;
             for(auto const & v : deinterlaced) {
-                if(size < 0) {
+                if(!size) {
                     size = v.size();
-                    continue;
-                }
-                if(size != v.size()) {
+                } else if(*size != v.size()) {
                     throw std::logic_error("sizes are not the same");
                 }
             }

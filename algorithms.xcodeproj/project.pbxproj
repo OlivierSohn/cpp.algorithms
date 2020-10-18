@@ -91,6 +91,7 @@
 /* Begin PBXFileReference section */
 		090DAD1F1EA56E9200ACBBA9 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS10.2.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
 		0910E37E20C823850094EE76 /* container.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = container.hpp; path = include/container.hpp; sourceTree = "<group>"; };
+		09112FEC25351B2900DA5248 /* merge_sort_step.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = merge_sort_step.hpp; path = include/merge_sort_step.hpp; sourceTree = "<group>"; };
 		0912152A1E0861CB00B860CB /* measure_containers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = measure_containers.cpp; path = test/measure_containers.cpp; sourceTree = "<group>"; };
 		0912152C1E096DD900B860CB /* allocator.adaptive_stack.hpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = allocator.adaptive_stack.hpp; path = include/allocator.adaptive_stack.hpp; sourceTree = "<group>"; };
 		0912152D1E096DD900B860CB /* pool.adaptive_stack.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; name = pool.adaptive_stack.h; path = include/pool.adaptive_stack.h; sourceTree = "<group>"; };
@@ -732,6 +733,7 @@
 				09C66085237C0C2C002CB787 /* thirdparty */,
 				093A7BF11EB2A5DB00CBDD97 /* thread.h */,
 				0975EAD920D8E94300468667 /* utf8.hpp */,
+				09112FEC25351B2900DA5248 /* merge_sort_step.hpp */,
 			);
 			name = include;
 			sourceTree = "<group>";

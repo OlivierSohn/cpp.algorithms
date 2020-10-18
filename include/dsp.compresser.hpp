@@ -36,7 +36,7 @@ namespace imajuscule::audio {
    * to the smallest value that avoids clipping.
    */
   template<typename T>
-  struct Compressor {
+  struct Limiter {
     // do not expand the signal, only compress
     static constexpr T maxTargetMultiplicator = 1.;
     
@@ -53,11 +53,11 @@ namespace imajuscule::audio {
     // to be uncompressed
     static constexpr int safeDuration = 100000; // TODO take sample rate into account
 
-    Compressor() {
+    Limiter() {
 #if IMJ_DEBUG_COMPRESSOR
-        std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
+        std::cout << "Limiter targetMultiplicator = " << targetMultiplicator
                   << " (initial value)" << std::endl;
-        std::cout << "Compressor multiplicator = " << multiplicator
+        std::cout << "Limiter multiplicator = " << multiplicator
                   << " (initial value)" << std::endl;
 #endif
     }
@@ -84,7 +84,7 @@ namespace imajuscule::audio {
         Assert(rawAmplitude);
         targetMultiplicator = std::min(maxTargetMultiplicator, medium / rawAmplitude);
 #if IMJ_DEBUG_COMPRESSOR
-        std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
+        std::cout << "Limiter targetMultiplicator = " << targetMultiplicator
                   << " (signal was too high)" << std::endl;
 #endif
         safeSince.onUnsafe();
@@ -105,7 +105,7 @@ namespace imajuscule::audio {
               targetMultiplicator = maxTargetMultiplicator;
             }
 #if IMJ_DEBUG_COMPRESSOR
-            std::cout << "Compressor targetMultiplicator = " << targetMultiplicator
+            std::cout << "Limiter targetMultiplicator = " << targetMultiplicator
                       << " (signal low for " << safeDuration << " frames : targetAmplitude = " << rawAmplitude * targetMultiplicator << " < " << low << ")" << std::endl;
 #endif
           }

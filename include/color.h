@@ -93,7 +93,7 @@ namespace imajuscule
         
         template<typename F>
         void set(std::array<unsigned char,3> const & ref, F conversion) {
-            for(int i=0; i<color.size(); ++i) {
+            for(int i=0; i<static_cast<int>(color.size()); ++i) {
                 color[i] = conversion(ref[i]);
             }
             uptodate = true;
@@ -101,7 +101,7 @@ namespace imajuscule
         
         template<typename F>
         void setDiscrete(std::array<float,3> const & ref, F conversion) {
-            for(int i=0; i<color.size(); ++i) {
+            for(int i=0; i<static_cast<int>(color.size()); ++i) {
                 color[i] = conversion(ref[i]);
             }
             uptodate = true;

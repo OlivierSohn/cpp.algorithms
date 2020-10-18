@@ -2,7 +2,7 @@
 TEST(DspCompress, simple) {
   using namespace imajuscule;
   using namespace imajuscule::audio;
-  Compressor<float> c;
+  Limiter<float> c;
 
   ASSERT_FLOAT_EQ(1.f, c.getCompressionLevel());
   ASSERT_FLOAT_EQ(1.f, c.getTargetCompressionLevel());
@@ -50,7 +50,7 @@ TEST(DspCompress, simple) {
   }
 
   // a 0.59 signal, just below the lower limit, should trigger uncompression (after some time)...
-  for(int i=0; i<Compressor<float>::safeDuration; ++i) {
+  for(int i=0; i<Limiter<float>::safeDuration; ++i) {
     std::array<float,1> signal{{0.59f}};
     c.feed(signal);
     ASSERT_EQ(i+1, c.getSafeSince());
@@ -71,7 +71,7 @@ TEST(DspCompress, simple) {
 
 TEST(DspCompress, clip) {
   using namespace imajuscule::audio;
-  Compressor<float> c;
+  Limiter<float> c;
 
   ASSERT_FLOAT_EQ(1.f, c.getCompressionLevel());
   ASSERT_FLOAT_EQ(1.f, c.getTargetCompressionLevel());
@@ -82,5 +82,5 @@ TEST(DspCompress, clip) {
   c.feed(signal);
   ASSERT_EQ(0, c.getSafeSince());
   ASSERT_GT(c.getCompressionLevel(), c.getTargetCompressionLevel());
-  ASSERT_FLOAT_EQ(Compressor<float>::limit / 10.f, c.getCompressionLevel());
+  ASSERT_FLOAT_EQ(Limiter<float>::limit / 10.f, c.getCompressionLevel());
 }

@@ -105,14 +105,14 @@ std::string formatSecondsDurationWithPrecision(T length_in_seconds, int n_decima
 
 inline std::string justifyRight(int n, std::string s) {
     std::string res;
-    if(n > s.size()) {
+    if(n > static_cast<int>(s.size())) {
         res = std::string(n-s.size(), ' ');
     }
     res += s;
     return res;
 }
 inline std::string justifyLeft(int n, std::string s) {
-    if(s.size() < n) {
+    if(static_cast<int>(s.size()) < n) {
         s += std::string(n-s.size(), ' ');
     }
     return s;

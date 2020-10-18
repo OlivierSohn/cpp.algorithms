@@ -8,7 +8,7 @@ namespace imajuscule {
             auto divide(CONTAINER const & v1, CONTAINER const & v2) {
                 CONTAINER res;
                 res = v1;
-                for(int i=0; i<res.size(); ++i) {
+                for(int i=0; i<static_cast<int>(res.size()); ++i) {
                     res[i] /= v2[i];
                 }
                 return res;
@@ -20,7 +20,7 @@ namespace imajuscule {
                     to = std::move(add);
                     return;
                 }
-                auto sz = to.size();
+                auto sz = static_cast<int>(to.size());
                 assert(sz == add.size());
                 for(int i=0; i<sz; ++i) {
                     to[i] += add[i];
@@ -97,7 +97,7 @@ namespace imajuscule {
                     auto wit = w.begin();
 
                     auto t = min_(measure_thread_cpu_n(0, n_repeats, []{}, [wit,&v1,&v2]() {
-                        auto n_blocks = v1.size();
+                        auto n_blocks = static_cast<int>(v1.size());
                         for(int i=0; i<n_blocks; ++i) {
                             simple_multiply_add(wit, v1[i].begin(), v2[i].begin(), v1[i].size());
                         }

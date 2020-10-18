@@ -530,7 +530,7 @@ namespace imajuscule
         {
             assert(i == 0 || str[i-1] == '\n'); // assert that i is at the beginning of a line
 
-            if(i == str.size()) {
+            if(i == static_cast<int>(str.size())) {
                 return str;
             }
             std::string const * prefix = (i==0) ? &line1prefix : &lineNprefix;
@@ -540,7 +540,7 @@ namespace imajuscule
             str.insert(str.begin() + i, prefix->begin(), prefix->end());
             i += prefix->size();
             // i is after the line prefix
-            if(str.size() - i <= chars_per_line) {
+            if(static_cast<int>(str.size()) - i <= chars_per_line) {
                 // the last part is small enough to fit on one line
                 return str;
             }

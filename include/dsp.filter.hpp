@@ -29,7 +29,7 @@ namespace imajuscule::audio {
           m_cur.fill(val);
         }
 
-        void update(T const alpha, T raw[NDIMS]) {
+        void update(T const alpha, T const raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = raw[i] * alpha + m_cur[i] * (Tr::one() - alpha);
             }
@@ -54,7 +54,7 @@ namespace imajuscule::audio {
           m_last.fill(val);
         }
 
-        void update(T const alpha, T raw[NDIMS]) {
+        void update(T const alpha, T const raw[NDIMS]) {
             for(int i=0; i<NDIMS; i++) {
                 m_cur[i] = alpha * (m_cur[i] + raw[i] - m_last[i]);
             }
@@ -77,7 +77,7 @@ namespace imajuscule::audio {
     struct FixedOrderFilter {
         static_assert(NORDER >= 1);
 
-        int getOrder() const {
+        constexpr int getOrder() const {
             return NORDER;
         }
 
@@ -148,7 +148,7 @@ namespace imajuscule::audio {
             assert(FilterConstant == FilterConstant);
         }
 
-        void feed(T raw[NDIMS]) {
+        void feed(T const raw[NDIMS]) {
             T alpha;
             // this template parameter was removed as it was not used
 /*            if (ADAPTATIVE)

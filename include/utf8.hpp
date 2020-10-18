@@ -70,7 +70,7 @@ namespace utf8 {
                 
                 assert(buffer.size() <= ntotal);
                 
-                if(buffer.size() == ntotal) {
+                if(static_cast<int>(buffer.size()) == ntotal) {
                     // buffer now contains all the information we need to resolve the utf8 character
                     res.push_back(resolve_utf8());
                     buffer.clear();

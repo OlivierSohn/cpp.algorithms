@@ -12,6 +12,18 @@ struct FrequenciesSqMag {
   // indexed by frequency bin:
   std::vector<T> frequencies_sqmag;
   
+  int get_fft_length() const {
+    return fft_length;
+  }
+  void set_fft_length(int l) {
+    fft_length = l;
+  }
+  double bin_index_to_Hz(int const samplingRate) const {
+    Assert(fft_length);
+    return samplingRate / static_cast<double>(fft_length);
+  }
+
+private:
   int fft_length; // to convert frequency from "bin index" representation to Herz representation
 };
 
@@ -47,6 +59,23 @@ void apply_window(ITER it,
   Assert(it >= end);
 }
 
+
+template<typename ITER>
+void apply_rectangular_window(ITER it,
+                              ITER const end,
+                              int const signal_stride,
+                              a64::vector<typename ITER::value_type> & v) {
+  v.clear();
+  for(; it < end; it += signal_stride) {
+    v.push_back(*it);
+  }
+}
+
+inline int get_fft_length_for(int const full_window_sz,
+                              int const zero_padding_factor) {
+  return ceil_power_of_two(full_window_sz * zero_padding_factor);
+}
+
 template<typename Tag, typename ITER>
 void findFrequenciesSqMag(ITER it,
                           ITER const end,
@@ -64,12 +93,14 @@ void findFrequenciesSqMag(ITER it,
     int const numSamplesUnstrided = static_cast<int>(std::distance(it, end));
     int const numSamplesStrided = 1 + (numSamplesUnstrided-1) / windowed_signal_stride;
     Assert(numSamplesStrided == static_cast<int>(2 * half_window.size()));
-    int const fft_length = ceil_power_of_two(numSamplesStrided * zero_padding_factor);
+    int const fft_length = get_fft_length_for(numSamplesStrided, zero_padding_factor);
+
     using Contexts = fft::Contexts_<Tag, VAL>;
     Algo fft(Contexts::getInstance().getBySize(fft_length));
     
     signal.clear();
-    signal.reserve(fft_length);
+    reserve_no_shrink(signal,
+                      fft_length);
     
     // apply the window...
     apply_window(it, end, windowed_signal_stride, half_window, signal);
@@ -84,7 +115,7 @@ void findFrequenciesSqMag(ITER it,
     result.resize(fft_length);
     fft.forward(signal.begin(), result.data(), fft_length);
     fft::unwrap_frequencies_sqmag<Tag>(result, fft_length, frequencies_sqmag.frequencies_sqmag);
-    frequencies_sqmag.fft_length = fft_length;
+    frequencies_sqmag.set_fft_length(fft_length);
     
     const VAL factor = 1. / (Algo::scale * Algo::scale * fft_length * fft_length);
     for (auto & v : frequencies_sqmag.frequencies_sqmag) {
@@ -222,10 +253,10 @@ void extractLocalMaxFreqsMags(double const samplingRate,
                               TransformAmplitude transform_amplitude,
                               std::vector<FreqMag<T>> & res) {
   res.clear();
-  res.reserve(freqs_sqmag.frequencies_sqmag.size() / 2); // pessimistically
+  reserve_no_shrink(res,
+                    freqs_sqmag.frequencies_sqmag.size() / 2); // pessimistically
   
-  Assert(freqs_sqmag.fft_length);
-  double const bin_index_to_Hz = samplingRate / static_cast<double>(freqs_sqmag.fft_length);
+  double const bin_index_to_Hz = freqs_sqmag.bin_index_to_Hz(samplingRate);
   foreachLocalMaxFreqsMags(freqs_sqmag.frequencies_sqmag,
                            transform_amplitude,
                            [&res, bin_index_to_Hz](T const frequency, T const magnitude) {
@@ -398,7 +429,8 @@ void drawSpectrumSlow(Iter it,
                             freqs_mags);
   
   std::vector<T> all_freqs_mags;
-  all_freqs_mags.reserve(freqs_mags.size() * freqs_mags.begin()->frequencies_sqmag.size());
+  reserve_no_shrink(all_freqs_mags,
+                    freqs_mags.size() * freqs_mags.begin()->frequencies_sqmag.size());
   for (int i=0, sz = freqs_mags.begin()->frequencies_sqmag.size(); i<sz; ++i) {
     for (auto const & v : freqs_mags) {
       all_freqs_mags.push_back(v.frequencies_sqmag[i]);
@@ -747,7 +779,8 @@ void half_gaussian_window(int sigma_factor,
                           std::vector<T> & res) {
   Assert(half_sz > 0);
   res.clear();
-  res.reserve(half_sz);
+  reserve_no_shrink(res,
+                    half_sz);
   T const maxT = sigma_factor;
   T const increment = maxT / half_sz;
   
@@ -756,6 +789,18 @@ void half_gaussian_window(int sigma_factor,
   for (int i=0; i<half_sz; ++i) {
     T const t = increment * (i + 0.5);
     res.push_back(std::exp(-(t*t) * 0.5));
+  }
+}
+template<typename T>
+void half_rectangular_window(int const half_sz,
+                             std::vector<T> & res) {
+  Assert(half_sz > 0);
+  res.clear();
+  reserve_no_shrink(res,
+                    half_sz);
+
+  for (int i=0; i<half_sz; ++i) {
+    res.push_back(1.);
   }
 }
 
@@ -780,5 +825,82 @@ void normalize_window(std::vector<T> & w) {
                  w.begin(),
                  [inv_avg](T const & val) { return val * inv_avg; });
 }
+
+
+
+/*
+ when 2 signals are correlated, an equal-gain crossfade must be used.
+ when 2 signals are not correlated, an equal-power crossfade must be used
+ */
+
+enum class EqualGainCrossFade {
+  Linear,    // first derivative is discontinuous
+  Sinusoidal // all derivatives are continuous
+};
+
+enum class EqualPowerCrossFade {
+  
+};
+
+template<typename T>
+struct XFadeValues {
+  T new_signal_mult;
+  T old_signal_mult;
+};
+
+// The equal-gain crossfade has the property : f(x) = 1 - f(1-x)
+// so we store the fist half, and deduce the second half using this property.
+template<typename T>
+struct EqualGainXFade {
+
+  // @param fullsize : the number of frames where the 2 signals are mixed with non-zero gains
+  //                   (must be even)
+  void set(int const full_size,
+           EqualGainCrossFade const t) {
+    // we could support odd-length crossfades but the code would be more complicated
+    Assert(0 == full_size % 2);
+    if (type && *type == t && full_size == 2*half_size) {
+      return;
+    }
+    type = t;
+    
+    half_size = full_size / 2;
+    reserve_no_shrink(first_half,
+                      half_size);
+    for (int i=1; i <= half_size; ++i) {
+      // when full_size = 2, with a linear fade we want:
+      // 1/3 2/3
+      T const x = i / static_cast<T>(full_size+1);
+      T y;
+      switch(t) {
+        case EqualGainCrossFade::Linear:
+          y = x;
+          break;
+        case EqualGainCrossFade::Sinusoidal:
+          y = 0.5 * (1. + std::sin(M_PI * x - M_PI_2));
+          break;
+      }
+      first_half.push_back(y);
+    }
+  }
+
+  XFadeValues<T> get(int const progress) const {
+    if (progress <= 0) {
+      return {0., 1.};
+    } else if (progress <= half_size) {
+      auto const v = first_half[progress-1];
+      return {v, 1. - v};
+    } else if (progress <= 2 * half_size) {
+      auto const v = first_half[(2*half_size)-progress];
+      return {1. - v, v};
+    } else {
+      return {1., 0.};
+    }
+  }
+private:
+  int half_size;
+  std::vector<T> first_half;
+  std::optional<EqualGainCrossFade> type;
+};
 
 } // NS

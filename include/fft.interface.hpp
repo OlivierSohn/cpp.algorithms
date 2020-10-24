@@ -106,6 +106,12 @@ void unwrap_frequencies_sqmag(CONTAINER const & c,
   UnwrapFrequenciesRealFBins<TAG, CONTAINER> u;
   u.run_half_alt_sqmag(c, size, res);
 }
+template<typename TAG, typename CONTAINER>
+std::size_t
+capacity_for_unwrap_frequencies_sqmag(CONTAINER const &, // passed only for template type deduction
+                                      int size) {
+  return UnwrapFrequenciesRealFBins<TAG, CONTAINER>::required_capacity_half_spectrum(size);
+}
 } // NS fft
 
 

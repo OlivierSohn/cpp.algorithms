@@ -56,7 +56,7 @@ namespace imajuscule {
         }
 
         template<typename Tag, typename T, typename Output>
-        void verifyFrequencies(Output output, int N) {
+        void verifyFrequencies(Output const & output, int N) {
             using namespace imajuscule::fft;
             
             // testing against ref found here : https://rosettacode.org/wiki/Fast_Fourier_transform

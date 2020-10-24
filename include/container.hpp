@@ -125,4 +125,12 @@ namespace imajuscule {
     return vectorWrapper<T>{v};
   }
 
+// use this instead of .reserve to avoid the shrink_to_fit done by some std lib implementations
+template<typename C>
+void reserve_no_shrink(C & container, std::size_t sz) {
+  if (container.capacity() < sz) {
+    container.reserve(sz);
+  }
+}
+
 } // NS imajuscule

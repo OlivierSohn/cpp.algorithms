@@ -122,7 +122,7 @@ TEST(ParabollaGaussian, test) {
                                 work_signal,
                                 result,
                                 frequencies_sqmag);
-      double const bin_index_to_Hz = sample_rate / static_cast<double>(frequencies_sqmag.fft_length);
+      double const bin_index_to_Hz = frequencies_sqmag.bin_index_to_Hz(sample_rate);
 
       std::cout << "sigma = " << sigma << " signal size = " << signal_size << " fft size = " << frequencies_sqmag.fft_length << std::endl;
             

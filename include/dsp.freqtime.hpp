@@ -853,6 +853,11 @@ struct XFadeValues {
 template<typename T>
 struct EqualGainXFade {
 
+  void reserve(std::size_t sz) {
+    reserve_no_shrink(first_half,
+                      sz/2);
+  }
+
   // @param fullsize : the number of frames where the 2 signals are mixed with non-zero gains
   //                   (must be even)
   void set(int const full_size,
@@ -865,8 +870,11 @@ struct EqualGainXFade {
     type = t;
     
     half_size = full_size / 2;
+
+    first_half.clear();
     reserve_no_shrink(first_half,
                       half_size);
+
     for (int i=1; i <= half_size; ++i) {
       // when full_size = 2, with a linear fade we want:
       // 1/3 2/3

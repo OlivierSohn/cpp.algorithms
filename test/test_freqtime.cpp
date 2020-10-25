@@ -124,7 +124,7 @@ TEST(ParabollaGaussian, test) {
                                 frequencies_sqmag);
       double const bin_index_to_Hz = frequencies_sqmag.bin_index_to_Hz(sample_rate);
 
-      std::cout << "sigma = " << sigma << " signal size = " << signal_size << " fft size = " << frequencies_sqmag.fft_length << std::endl;
+      std::cout << "sigma = " << sigma << " signal size = " << signal_size << " fft size = " << frequencies_sqmag.get_fft_length() << std::endl;
             
       // verify the fit of "dB scale" amplitudes with a parabolla
       a64::vector<double> db_amplitude, amplitude;

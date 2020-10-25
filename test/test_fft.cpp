@@ -337,7 +337,7 @@ TEST(FFT, unwrap_freq_sqmag) {
     
     FrequenciesSqMag<double> frequencies_sqmag;
     unwrap_frequencies_sqmag<Tag>(output, N, frequencies_sqmag.frequencies_sqmag);
-    frequencies_sqmag.fft_length = N;
+    frequencies_sqmag.set_fft_length(N);
 
     constexpr T inv_scale_squared = 1. / (Algo::scale * Algo::scale * N * N);
     for (auto & v : frequencies_sqmag.frequencies_sqmag) {

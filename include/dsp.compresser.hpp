@@ -63,7 +63,7 @@ namespace imajuscule::audio {
     }
 
     template<typename S>
-    void feed(S & signal) {
+    void feedOneFrame(S & signal) {
       static_assert(std::is_same_v<typename S::value_type, T>);
 
       Assert(targetMultiplicator <= 1.);

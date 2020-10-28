@@ -13,7 +13,7 @@ static inline constexpr int maxVectorSizeFromBlockSizeHypothesis(int const block
    When using 'blockSzHypothesis':
    . Callbacks that have a "power of 2" size will use a single vector call.
    . Callbacks that are _not_ a "power of 2" will use 2 vector calls.
-   
+
    When using 'blockSzHypothesis * 2':
    . All callbacks use a single vector call
    (at the cost of a _slighty_ higher overhead)
@@ -24,24 +24,24 @@ static inline constexpr int maxVectorSizeFromBlockSizeHypothesis(int const block
 
 template<typename Rev>
 struct ConvReverbsByBlockSize {
-  
+
   static constexpr int nOut = Rev::nOut;
   static_assert(nOut != 0);
-  
+
   using FPT = typename Rev::FPT;
   using WorkCplxFreqs = typename Rev::WorkCplxFreqs;
-  
+
   void clear() {
     // it's ok not to lock here : we are the only thread using these
     reverbsByBlockSize.clear();
     memories.clear();
     deprecated.clear();
     current = {};
-    
+
     reverbUnpaddedLength = 0;
     work = {};
   }
-  
+
   template<typename ...Args>
   void setConvolutionReverbIR(int const n_sources,
                               DeinterlacedBuffers<FPT> const & deinterlaced,
@@ -52,19 +52,19 @@ struct ConvReverbsByBlockSize {
                               Args... args)
   {
     clear();
-    
+
     results.clear();
     reverbUnpaddedLength = deinterlaced.countFrames();
-    
+
     // we make reverbs optimized exactly for maxCountFramesPerBlock, and smaller powers of 2
     for(int max2 = maxCountFramesPerBlock;
         max2 > 0;
         max2 = floor_power_of_two(max2)/2)
     {
       auto memory = std::make_unique<typename Rev::MemResource::type>();
-      
+
       auto r = std::make_unique<Rev>();
-      
+
       try {
         ConvReverbOptimizationReportSuccess result;
         std::stringstream os;
@@ -89,37 +89,37 @@ struct ConvReverbsByBlockSize {
         assert(res.second);
         r.reset();
       }
-      
+
       if(r)
       {
         auto res = reverbsByBlockSize.try_emplace(max2, std::move(r));
         assert(res.second);
-        
+
         memories.push_back(std::move(memory));
       }
-      
+
       if(max2 <= minSize) {
         break;
       }
     }
     deprecated.reserve(reverbsByBlockSize.size());
   }
-  
+
   void abruptlySetConvolutionReverbWetRatio(double wet) {
     transitionConvolutionReverbWetRatio(wet, 0);
   }
   void transitionConvolutionReverbWetRatio(double wet, int duration) {
     wetRatio.smoothly(clamp_ret(wet,0.,1.), duration);
   }
-  
+
   double getWetRatioWithoutStepping() const {
     return wetRatio.getWithoutStepping();
   }
-  
+
   bool isEmpty() const {
     return reverbsByBlockSize.empty();
   }
-  
+
   int declareBlockSize(int blocksize) {
     if(!current) {
       current = mkCurrentFromBlockSize(blocksize);
@@ -137,7 +137,7 @@ struct ConvReverbsByBlockSize {
         };
         deprecated.erase(std::remove_if(deprecated.begin(), deprecated.end(), sameKey),
                          deprecated.end());
-        
+
         // add the former current to deprecated
         deprecated.emplace_back(prevCurrent->reverbIt,
                                 reverbUnpaddedLength);
@@ -145,21 +145,20 @@ struct ConvReverbsByBlockSize {
     }
     return current ? current->blockSizeHypothesys() : -1;
   }
-  
+
   bool hasCurrentReverb() const {
     return static_cast<bool>(current);
   }
-  
+
   template<typename FPT2>
   bool apply(FPT2 ** io_buffers,
              int nInputBuffers,
              FPT2 ** work_buffers,
              int nWorkBuffers,
-             int nFramesToCompute,
-             bool & can_fadeout)
+             int nFramesToCompute)
   {
     bool has_step_errors = false;
-    
+
     if(likely(current)) {
       has_step_errors = !current->getReverb().assignWetVectorized(io_buffers,
                                                                   nInputBuffers,
@@ -176,7 +175,7 @@ struct ConvReverbsByBlockSize {
                                                                    nApply,
                                                                    maxVectorSizeFromBlockSizeHypothesis(d.blockSizeHypothesys())) || has_step_errors;
       }
-      
+
       // clean up deprecated
       {
         auto isDone = [](auto const & d) {
@@ -191,10 +190,9 @@ struct ConvReverbsByBlockSize {
         fft::RealSignal_<fft::Fastest, FPT2>::zero_n_raw(work_buffers[j], nFramesToCompute);
       }
     }
-    
+
     // apply dry/wet effect
     if(nInputBuffers == nWorkBuffers) {
-      can_fadeout = true; // because wetRatio.step() is called in this branch
       for(int i=0; i<nFramesToCompute; ++i) {
         auto wet = wetRatio.step();
         for(int j=0; j<nWorkBuffers; ++j) {
@@ -206,25 +204,25 @@ struct ConvReverbsByBlockSize {
         }
       }
     }
-    
+
     return has_step_errors;
   }
-  
+
   void flushToSilence() {
     forEachActiveReverb([](auto & rev) {
       rev.flushToSilence();
     });
   }
-  
+
 private:
   static constexpr int dryWetPolyOrder = 1; // 1 only because there is no volume change between dry/wet
   using WetRatio = smoothVar<double, dryWetPolyOrder>;
   WetRatio wetRatio = {1.};
-  
+
   using Map = std::map<int, std::unique_ptr<Rev>>;
   using ConstIterator = typename Map::const_iterator;
   struct Current {
-    
+
     int blockSizeHypothesys() const {
       return reverbIt->first;
     }
@@ -237,7 +235,7 @@ private:
     Rev & getReverb() {
       return *reverbIt->second.get();
     }
-    
+
     int hostBlockSize; // may not be a power of two
     ConstIterator reverbIt;
   };
@@ -248,10 +246,10 @@ private:
     : reverbIt(it),
     numFramesToGo(numFramesToGo)
     {}
-    
+
     ConstIterator reverbIt;
     int numFramesToGo;
-    
+
     int blockSizeHypothesys() const {
       return reverbIt->first;
     }
@@ -267,10 +265,10 @@ private:
   };
   std::vector<DeprecatedReverb> deprecated;
   int reverbUnpaddedLength = 0;
-  
+
   WorkCplxFreqs work;
   std::vector<std::unique_ptr<typename Rev::MemResource::type>> memories;
-  
+
   template<typename F>
   void forEachActiveReverb(F f) {
     if(current) {
@@ -294,7 +292,7 @@ private:
     // now, it points to a reverb that was optimized for a smaller or equal block size
     return {{blocksize, it}};
   }
-  
+
 };
 
 } // NS imajuscule::audio

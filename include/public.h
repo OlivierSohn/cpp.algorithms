@@ -94,6 +94,8 @@
 #include "../3rdparty/Sprout/sprout/math/log.hpp"
 #include "../3rdparty/Sprout/sprout/math/pow.hpp"
 
+#include "../3rdparty/json/include/nlohmann/json.hpp"
+
 #include "thirdparty/atomic_queue/atomic_queue.h"
 
 #include "merge_sort_step.hpp"

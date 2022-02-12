@@ -24,11 +24,11 @@ imj2::Tag  // cross-platform, faster, smaller memory footprint
 
         using Fastest =
 #ifdef IMJ_USE_SLOW_FFT
-        imj::Tag;
+        imj2::Tag;
 #elif __APPLE__
         accelerate2::Tag;
 #else
-        imj::Tag;
+        imj2::Tag;
 #endif
 
         template<typename T>

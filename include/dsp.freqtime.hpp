@@ -711,7 +711,7 @@ auto deduceNotesSlow(Iter it,
       r.amplitude = 0.;
       for (auto const & v : fms) {
         r.frequency += v.freq;
-        r.amplitude += v.mag;
+        r.amplitude += DbToMag<double>()(v.mag_db);
       }
       r.frequency /= fms.size();
       r.amplitude /= fms.size();

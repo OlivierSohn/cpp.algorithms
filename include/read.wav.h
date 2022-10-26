@@ -360,7 +360,7 @@ struct WAVReader_ : public Parent {
         candidate != WaveFileFormat::EndSupported;
         increment(candidate))
     {
-      if(!memcmp(header.chunk_id, getWavChunkId(candidate), 4)) {
+      if(!memcmp(header.chunk_id.data(), getWavChunkId(candidate), 4)) {
         break;
       }
     }

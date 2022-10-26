@@ -1004,9 +1004,10 @@ namespace imajuscule::audio {
 
         // https://stackoverflow.com/a/27216842/3940228
         std::size_t hashCode() const {
-            auto hashFunc = [](std::size_t &seed, element_type val){
+            auto hashFunc = [](std::size_t &seed, auto val){
                 std::size_t &i = reinterpret_cast<std::size_t&>(val);
-                static_assert(sizeof(std::size_t) == sizeof(element_type));
+                using val_type = decltype(val);
+                static_assert(sizeof(std::size_t) >= sizeof(val_type));
                 seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             };
 
@@ -1018,7 +1019,7 @@ namespace imajuscule::audio {
 
             // mix with the buffer
             for(auto const & v:buf) {
-                hashFunc(val, v);
+                hashFunc(val, static_cast<float>(v));
             }
 
             return val;

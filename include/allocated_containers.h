@@ -5,6 +5,7 @@
  */
 
 namespace imajuscule {
+
 namespace adaptive_stack_allocated {
 
 template<typename T>

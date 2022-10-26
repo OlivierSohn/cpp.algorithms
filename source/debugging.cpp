@@ -10,6 +10,8 @@ namespace imajuscule {
 #ifndef _WIN32 // dbg stack
         std::vector<std::string> getProgramStack(int n_removed)
         {
+            std::vector<std::string> all_traces;
+#ifdef IMJ_WITH_DEBUG_STACK
             constexpr auto max_n_frames = 100;
 
             void* addrlist[ max_n_frames + 1 ] = {};
@@ -26,7 +28,6 @@ namespace imajuscule {
                 return {{"error"}};
             }
 
-            std::vector<std::string> all_traces;
             all_traces.reserve(addrlen);
 
             // resolve addresses into strings containing "filename(function+address)",
@@ -73,7 +74,7 @@ namespace imajuscule {
             }
 
             free(symbollist);
-
+#endif
             return std::move(all_traces);
         }
 #endif

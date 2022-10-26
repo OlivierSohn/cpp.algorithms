@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <sys/resource.h> // for getrusage
+
 #include <algorithm>
 #include <array>
 #include <atomic>

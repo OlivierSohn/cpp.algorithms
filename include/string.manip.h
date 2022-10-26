@@ -135,10 +135,9 @@ std::string stripNewLine(std::string const & s);
 
     template<typename ... Args>
     std::string string_format(const std::string& format, Args ... args){
-        auto size = 1 + snprintf(nullptr, 0, format.c_str(), args ...);
-        StackVector<char> buf(size);
-        snprintf(buf.data(), size, format.c_str(), args ...);
-        return {buf.data()}; // snprintf null-terminates
+        char buf[1024];
+        snprintf(buf, sizeof(buf), format.c_str(), args ...);
+        return {buf}; // snprintf null-terminates
     }
 
     // the number of chars per line includes the prefix

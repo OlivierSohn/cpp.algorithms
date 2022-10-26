@@ -6,6 +6,7 @@
 
 #include "../include/public.h"
 
+#define IMJ_WITH_DEBUG_STACK
 #ifdef _WIN32 // dbg stack
 #  include <process.h>
 #  ifndef NOMINMAX
@@ -17,8 +18,10 @@
 #  include <strsafe.h>      // for StringCchPrintfW
 #  include <cstdlib>
 #  include <stdlib.h>
-#else
+#elif __has_include(<execinfo.h>)
 #  include <execinfo.h>
+#else
+# undef IMJ_WITH_DEBUG_STACK
 #endif
 
 #if !defined (_MSC_VER)

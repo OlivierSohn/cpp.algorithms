@@ -100,11 +100,11 @@ namespace imajuscule
         date.swap(newDate);
     }
 
-    void split_in_lines(const std::string &s, char delim, std::vector<std::string> &elems, postProcessing pp) {
+    void split_in_lines(const std::string &s, char delim, std::vector<std::string> &elems, Trim postProcess) {
         std::stringstream ss(s);
         std::string item;
         while (std::getline(ss, item, delim)) {
-            if(pp==TRIMMED) {
+            if(postProcess == Trim::Yes) {
                 trim(item);
             }
             elems.push_back(item);
@@ -123,8 +123,8 @@ namespace imajuscule
         return elems;
     }
 
-    inline void add(std::vector<std::string> & vec, std::string && s, postProcessing pp) {
-        if(pp == postProcessing::TRIMMED) {
+    inline void add(std::vector<std::string> & vec, std::string && s, Trim postProcess) {
+        if(postProcess == Trim::Yes) {
             trim(s);
             if(s.empty()) {
                 return;
@@ -132,7 +132,7 @@ namespace imajuscule
         }
         vec.emplace_back(s);
     }
-    std::vector<std::string> Tokenize(const std::string& str, const std::string& delimiters, postProcessing pp)
+    std::vector<std::string> Tokenize(const std::string& str, const std::string& delimiters, Trim postProcess)
     {
         using sz = std::string::size_type;
         auto const end = std::string::npos;
@@ -145,14 +145,14 @@ namespace imajuscule
         while ( pos != end || lastPos != end)
         {
             // Found a token, add it to the vector.
-            add(tokens, str.substr(lastPos, pos - lastPos), pp);
+            add(tokens, str.substr(lastPos, pos - lastPos), postProcess);
             lastPos = str.find_first_not_of(delimiters, pos);
             pos = str.find_first_of(delimiters, lastPos);
         }
         return tokens;
     }
 
-    std::vector<std::string> TokenizeMulti(const std::string& str, const std::string& delimiter, postProcessing pp)
+    std::vector<std::string> TokenizeMulti(const std::string& str, const std::string& delimiter, Trim postProcess)
     {
         std::vector<std::string> tokens;
         if(delimiter.empty()) {
@@ -189,7 +189,7 @@ namespace imajuscule
         {
             assert(pos >lastPos);
             // Found a token, add it to the vector.
-            add(tokens, str.substr(lastPos, pos - lastPos), pp);
+            add(tokens, str.substr(lastPos, pos - lastPos), postProcess);
             if(pos == end) {
                 return tokens;
             }
@@ -424,7 +424,7 @@ namespace imajuscule
 
     bool before_after(std::string & input_then_before, std::string const delimiter, std::string & after)
     {
-        auto v = TokenizeMulti(input_then_before, delimiter, TRIMMED);
+        auto v = TokenizeMulti(input_then_before, delimiter, Trim::Yes);
         if(v.size() == 1) {
             if(0 == input_then_before.find(delimiter)) {
                 input_then_before.clear();

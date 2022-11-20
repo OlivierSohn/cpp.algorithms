@@ -10,8 +10,8 @@ namespace imj2 {
 struct Tag {};
 }
 
-static inline unsigned int bitReverse(unsigned int b,
-                               unsigned int log2N)
+static constexpr inline uint32_t bitReverse(uint32_t b,
+                                            uint32_t log2N)
 {
     b = (((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1));
     b = (((b & 0xcccccccc) >> 2) | ((b & 0x33333333) << 2));

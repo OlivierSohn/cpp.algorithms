@@ -264,6 +264,7 @@
 		0996F3E81E2EF3030053B30B /* meta.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = meta.hpp; path = include/meta.hpp; sourceTree = "<group>"; };
 		0996F3EB1E2F7FFB0053B30B /* freelist.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = freelist.hpp; path = include/freelist.hpp; sourceTree = "<group>"; };
 		0996F3EC1E2F821A0053B30B /* test_freelist.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_freelist.cpp; path = test/test_freelist.cpp; sourceTree = "<group>"; };
+		0999033B2933E13600FE994C /* strongindex.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = strongindex.hpp; path = include/strongindex.hpp; sourceTree = "<group>"; };
 		0999CE481EB926C100309E86 /* test_rng.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = test_rng.cpp; path = test/test_rng.cpp; sourceTree = "<group>"; };
 		099FD6221E9188FE0067C18D /* debugging.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = debugging.h; path = include/debugging.h; sourceTree = "<group>"; };
 		099FD6231E9189F00067C18D /* debugging.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = debugging.cpp; path = source/debugging.cpp; sourceTree = "<group>"; };
@@ -694,6 +695,7 @@
 				098DC8BE1F65AE3000C5A8B2 /* matrix.hpp */,
 				0947FDB020D9671200BC4141 /* maybe.atomic.hpp */,
 				093A7BF61EB56F6D00CBDD97 /* measure_multiplyadd_contiguity.hpp */,
+				09112FEC25351B2900DA5248 /* merge_sort_step.hpp */,
 				09EF8F2C1DB3E89B00DC7342 /* merge_sort.hpp */,
 				0996F3E81E2EF3030053B30B /* meta.hpp */,
 				09DDF53222F5729F004A480C /* n_insertion_sort.hpp */,
@@ -729,11 +731,11 @@
 				09807B7520D7B09A009732BD /* staticvector.lockfree.scmp.hpp */,
 				09338B5920D91E75004F5A8A /* staticvector.singlethread.hpp */,
 				09BA14CC1E388C4400A05F83 /* string.manip.h */,
+				0999033B2933E13600FE994C /* strongindex.hpp */,
 				092EAA8F1E2A4733006C11E9 /* strplot.h */,
 				09C66085237C0C2C002CB787 /* thirdparty */,
 				093A7BF11EB2A5DB00CBDD97 /* thread.h */,
 				0975EAD920D8E94300468667 /* utf8.hpp */,
-				09112FEC25351B2900DA5248 /* merge_sort_step.hpp */,
 			);
 			name = include;
 			sourceTree = "<group>";

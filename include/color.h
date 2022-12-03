@@ -62,6 +62,8 @@ namespace imajuscule
         switch(maxComponent) {
             case 0:
                 h = (g-b) / delta;
+                if(h < 0.f)
+                    h += 6.f;
                 break;
             case 1:
                 h = 2.f + (b-r)/delta;
@@ -71,10 +73,60 @@ namespace imajuscule
                 h = 4.f + (r-g)/delta;
                 break;
         }
-        h /= 6.f; // normalize
+        // Make hue in radians
+        constexpr float normalize = 1.f / 6.f;
+        h *= normalize;
+        
+        Assert(h >= 0.f);
+        Assert(h <= 1.f);
+        Assert(s >= 0.f);
+        Assert(s <= 1.f);
+        Assert(cmax >= 0.f);
+        Assert(cmax <= 1.f);
         return {{h,s,cmax}};
     }
+
+static inline std::array<float, 3> HSVToLinear(std::array<float, 3> const & ref) {
+    const float h_radians = ref[0];
+    const float s = ref[1];
+    const float v = ref[2];
+
+    Assert(h_radians >= 0.f);
+    Assert(h_radians <= 1.f);
+    Assert(s >= 0.f);
+    Assert(s <= 1.f);
+    Assert(v >= 0.f);
+    Assert(v <= 1.f);
+
+    const float c = s * v;
     
+    const float h_prime = h_radians * 6.f;
+    const float h_prime_mod_2 = (h_prime < 2.f) ? h_prime : ((h_prime < 4.f) ? (h_prime - 2.f) : (h_prime - 4.f));
+    const float x = c * (1.f - std::abs(h_prime_mod_2 - 1.f));
+    const auto m = v-c;
+    if(h_prime < 2.f)
+    {
+        if(h_prime < 1.f)
+            return {v, x + m, m};
+        else
+            return {x + m, v, m};
+    }
+    else if(h_prime < 4.f)
+    {
+        if(h_prime < 3.f)
+            return {m, v, x + m};
+        else
+            return {m, x + m, v};
+    }
+    else
+    {
+        if(h_prime < 5.f)
+            return {x + m, m, v};
+        else
+            return {v, m, x + m};
+    }
+}
+
     template<typename T>
     struct LazyPlainColor {
         using value_type = T;

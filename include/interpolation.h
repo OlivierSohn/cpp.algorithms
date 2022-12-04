@@ -488,12 +488,12 @@ namespace imajuscule
 
         void setInterpolation(itp::interpolation i) {
             interp = i;
-            assert(itp::intIsReal(interp));
+            Assert(itp::intIsReal(interp));
         }
 
         T get_value(T t_cur, T t_end, T val_start, T val_end) const {
-            assert(t_cur >= zero); // else need to return val_start
-            assert(itp::intIsReal(interp));
+            Assert(t_cur >= zero); // else need to return val_start
+            Assert(itp::intIsReal(interp));
 
             if(t_cur > t_end) {
                 return val_end;

@@ -24,9 +24,18 @@ with the advantage that :
 - in release, code execution is not broken but an error message is logged
 */
 
-// use __builtin_trap to stop execution and allow debugging
+
+
 #ifndef NDEBUG
-#define ASSERT__THROW do{ __builtin_trap(); throw std::logic_error("assertion failed");}while(0)
+// Alternatives:
+//   __builtin_trap()
+//
+//   throw std::logic_error("assertion failed");
+//
+//   *static_cast<volatile int*>(NULL) = 1;
+//
+// If this changes please adapt EXPECT_DEBUG_ASSERT accordingly.
+#define ASSERT__THROW do{ __builtin_trap(); }while(0)
 #else
 #define ASSERT__THROW do{}while(0)
 #endif

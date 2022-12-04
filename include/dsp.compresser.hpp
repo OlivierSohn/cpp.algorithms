@@ -71,6 +71,7 @@ namespace imajuscule::audio {
 
       T rawAmplitude{};
       for(auto s : signal) {
+        Assert(std::isfinite(s));
         rawAmplitude = std::max(rawAmplitude, std::abs(s));
       }
 
@@ -83,6 +84,7 @@ namespace imajuscule::audio {
         //   targetMultiplicator                = medium / rawAmplitude
         Assert(rawAmplitude);
         targetMultiplicator = std::min(maxTargetMultiplicator, medium / rawAmplitude);
+        Assert(targetMultiplicator > 0.);
 #if IMJ_DEBUG_COMPRESSOR
         std::cout << "Limiter targetMultiplicator = " << targetMultiplicator
                   << " (signal was too high)" << std::endl;
@@ -101,6 +103,7 @@ namespace imajuscule::audio {
             //   targetMultiplicator                   = medium / maxRawAmplitude
             if (maxRawAmplitude) {
               targetMultiplicator = std::min(maxTargetMultiplicator, medium / maxRawAmplitude);
+              Assert(targetMultiplicator > 0.);
             } else {
               targetMultiplicator = maxTargetMultiplicator;
             }

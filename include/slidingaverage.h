@@ -3,6 +3,7 @@ namespace imajuscule
 {
   // TODO use advanced traits for efficient parameter passing
   
+// also privodes sliding max / min values
   template <class T>
   struct slidingAverage
   {
@@ -27,6 +28,9 @@ namespace imajuscule
     
     T compute() const {
       return std::accumulate(values.begin(), values.end(), T{}) / safe_cast<float>(values.size());
+    }
+    T computeMax() const {
+      return *std::max_element(values.begin(), values.end());
     }
     
     void reset() {

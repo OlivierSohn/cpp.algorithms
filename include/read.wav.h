@@ -120,15 +120,26 @@ static bool isFormatSupported(WaveFormat format) {
   }
 }
 
+struct CountChannels
+{
+  CountChannels(int c)
+  : count(c)
+  {}
+  
+  int get() const {return count; }
+
+private:
+  int count;
+};
+
 static WAVPCMHeader pcm_(WaveFileFormat const file_format,
                          WaveFormat const format,
                          int const num_frames,
                          int const sample_rate,
-                         NChannels const n_channels,
+                         CountChannels const n_channels,
                          int const bytes_per_sample) {
   Assert(bytes_per_sample);
-  auto const num_channels = to_underlying(n_channels);
-  auto const size_data = num_frames * num_channels * bytes_per_sample;
+  auto const size_data = num_frames * n_channels.get() * bytes_per_sample;
   WAVPCMHeader ret {
     {0,0,0,0},
     static_cast<int32_t>(sizeof(WAVPCMHeader) + size_data),
@@ -136,10 +147,10 @@ static WAVPCMHeader pcm_(WaveFileFormat const file_format,
     {'f','m','t',' '},
     16,
     format,
-    static_cast<int16_t>(num_channels),
+    static_cast<int16_t>(n_channels.get()),
     sample_rate,
-    sample_rate * bytes_per_sample * num_channels,
-    static_cast<int16_t>(bytes_per_sample * num_channels),
+    sample_rate * bytes_per_sample * n_channels.get(),
+    static_cast<int16_t>(bytes_per_sample * n_channels.get()),
     static_cast<int16_t>(bytes_per_sample * 8),
     {'d','a','t','a'},
     size_data
@@ -311,7 +322,7 @@ static bool are_compatible(WaveFormat const format, SampleFormat const sf) {
   }
 }
 
-static inline WAVPCMHeader pcm(WaveFormat format, int sample_rate, NChannels n_channels, SampleFormat f) {
+static inline WAVPCMHeader pcm(WaveFormat format, int sample_rate, CountChannels n_channels, SampleFormat f) {
   Assert(are_compatible(format, f));
   return pcm_(WaveFileFormat::RIFF,
               format,
@@ -691,16 +702,33 @@ private:
   WAVPCMHeader header;
 };
 
-template<typename CONTAINER>
-void write_wav(DirectoryPath dir, std::string const & fname, CONTAINER const & samples, NChannels n_channels, int sample_rate) {
+template<typename It>
+void write_wav(std::filesystem::path const & path, It sampleBegin, It const & sampleEnd, CountChannels n_channels, int sample_rate) {
   using namespace imajuscule::audio;
-  using SampleType = typename CONTAINER::value_type;
+  using SampleType = typename It::value_type;
   
-  WAVWriter writer(dir,
-                   fname,
+  WAVWriter writer(path,
                    pcm(WaveFormat::IEEE_FLOAT,
                        sample_rate,
                        n_channels,
+                       AudioSample<SampleType>::format));
+  auto res = writer.Initialize();
+  if(res != ILE_SUCCESS) {
+    throw;
+  }
+  for(;sampleBegin < sampleEnd; ++sampleBegin)
+    writer.writeSample(*sampleBegin);
+}
+
+template<typename CONTAINER>
+void write_wav(std::filesystem::path const & path, CONTAINER const & samples, NChannels n_channels, int sample_rate) {
+  using namespace imajuscule::audio;
+  using SampleType = typename CONTAINER::value_type;
+  
+  WAVWriter writer(path,
+                   pcm(WaveFormat::IEEE_FLOAT,
+                       sample_rate,
+                       CountChannels{to_underlying(n_channels)},
                        AudioSample<SampleType>::format));
   auto res = writer.Initialize();
   if(res != ILE_SUCCESS) {
@@ -712,7 +740,7 @@ void write_wav(DirectoryPath dir, std::string const & fname, CONTAINER const & s
 }
 
 template<typename VEC_VEC>
-void write_wav(DirectoryPath dir, std::string const & fname, VEC_VEC const & v_samples, int sample_rate) {
+void write_wav(std::filesystem::path const & path, VEC_VEC const & v_samples, int sample_rate) {
   
   auto sz = v_samples[0].size();
   for(auto const & v : v_samples) {
@@ -729,7 +757,7 @@ void write_wav(DirectoryPath dir, std::string const & fname, VEC_VEC const & v_s
     }
   }
   
-  write_wav(std::move(dir), fname, interlaced, static_cast<NChannels>(n_channels), sample_rate);
+  write_wav(path, interlaced, static_cast<NChannels>(n_channels), sample_rate);
 }
 
 template<int SAMPLE_SIZE, WaveFormat FMT, typename S>
@@ -750,7 +778,7 @@ void resample_wav(DirectoryPath const & dir, FileName const & dest, WAVReader & 
   
   auto header = pcm(FMT,
                     wav_target_sample_rate,
-                    NChannels(n_channels),
+                    CountChannels(n_channels),
                     AudioSample<T>::format);
   
   WAVWriter writer(dir, dest, header);
@@ -840,7 +868,7 @@ void filter_frames(DirectoryPath const & dir, FileName const & filename, FileNam
   
   auto header = pcm(FMT,
                     reader.getSampleRate(),
-                    NChannels(n_channels),
+                    CountChannels(n_channels),
                     AudioSample<T>::format);
   
   WAVWriter writer(dir, dest, header);
@@ -972,7 +1000,7 @@ void rewrite_wav(DirectoryPath const & dir, FileName const & filename, FileName 
   
   auto header = pcm(FMT,
                     reader.getSampleRate(),
-                    NChannels(n_channels),
+                    CountChannels(n_channels),
                     AudioSample<T>::format);
   
   WAVWriter writer(dir, dest, header);
@@ -1074,6 +1102,24 @@ void read_wav_as_floats(WAVReader & reader, std::vector<std::vector<T>> & deinte
     }
   }
   Assert(!reader.HasMore());
+}
+
+// Returns the count of channels.
+template<typename T>
+int read_wav_as_interleaved_floats(WAVReader & reader, std::vector<T> & interleaved) {
+  using namespace std;
+  
+  reader.Initialize();
+  
+  auto const n_channels = reader.countChannels();
+  auto const n_frames = reader.countFrames();
+  
+  interleaved.clear();
+  interleaved.reserve(n_channels * n_frames);
+  while(reader.HasMore()) {
+    interleaved.push_back(reader.template ReadAsOneFloat<float>());
+  }
+  return n_channels;
 }
 
 template<typename WAVRead, typename SR>

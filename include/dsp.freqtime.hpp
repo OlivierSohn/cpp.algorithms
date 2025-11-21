@@ -200,6 +200,37 @@ private:
 };
 
 
+struct AlmostFrequency
+{
+  static constexpr double c_diffHalfToneApartLog2Freqs{0.05776226504};
+  /**
+   @param frequencyEpsilon : if abs(ln(f1)-ln(f2)) < frequencyEpsilon, f1 and f2 are considered to be equal.
+   Note that the natural log of 2 frequencies that are one half tone apart is log(2) / 12 = 0.05776226504
+   */
+  explicit AlmostFrequency(double t, double epsilon)
+  : val(std::log(t))
+  , epsilon(epsilon) {
+  }
+  
+  bool operator == (AlmostFrequency const & o) const {
+    Assert(epsilon == o.epsilon);
+    return std::abs(val - o.val) <= epsilon;
+  }
+  bool operator < (AlmostFrequency const & o) const {
+    Assert(epsilon == o.epsilon);
+    return val < o.val && !operator == (o);
+  }
+  bool operator > (AlmostFrequency const & o) const {
+    Assert(epsilon == o.epsilon);
+    return val > o.val && !operator == (o);
+  }
+  
+private:
+  double val;
+  double epsilon;
+};
+
+
 // 'transform_amplitude' must be such that quadratic interpolation "works well" for peak finding
 template<typename T, typename Allocator, typename TransformAmplitude, typename F>
 void foreachLocalMaxFreqsMags(std::vector<T, Allocator> const & freqs_sqmag,
@@ -265,6 +296,45 @@ void extractLocalMaxFreqsMags(double const samplingRate,
       magnitude
     });
   });
+}
+
+// Precondition: magnitudes are in decibels.
+//
+// This can be called after having called extractLocalMaxFreqsMags,
+// to find the pitch of a note (i.e find its fundamental frequency).
+//
+// Often, when trying to guess the pitch of a note, the fundamental harmonic
+// does not have the maximum amplitude, so we need this algorithm.
+template<typename T>
+std::optional<FreqMag<T>>
+extractFundamental(const std::vector<FreqMag<T>>& freqsMags)
+{
+  std::optional<FreqMag<double>> freqMagWithMaxMagnitude;
+  for(const auto & f : freqsMags)
+  {
+    if(!freqMagWithMaxMagnitude.has_value() || freqMagWithMaxMagnitude->mag_db < f.mag_db)
+      freqMagWithMaxMagnitude = f;
+  }
+  if(!freqMagWithMaxMagnitude.has_value())
+    return std::nullopt;
+  // Check whether freqMagWithMaxMagnitude is a harmonic.
+  const auto almostF = AlmostFrequency{freqMagWithMaxMagnitude->freq,
+    AlmostFrequency::c_diffHalfToneApartLog2Freqs};
+  for(const auto & f : freqsMags)
+  {
+    if(f.mag_db < freqMagWithMaxMagnitude->mag_db - 25.)
+      // the magnitude of this partial is not large enough.
+      continue;
+    // only testing 3 first partials
+    for(int i : {2, 3, 4})
+    {
+      const auto almostF2 = AlmostFrequency{i * f.freq,
+        AlmostFrequency::c_diffHalfToneApartLog2Freqs};
+      if(almostF2 == almostF)
+        return f;
+    }
+  }
+  return *freqMagWithMaxMagnitude;
 }
 
 /* Converts a square magnitude (homogenous to power)
@@ -636,12 +706,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   }
 #endif
 }
-
-
-/**
- @param frequencyEpsilon : if abs(ln(f1)-ln(f2)) < frequencyEpsilon, f1 and f2 are considered to be equal.
- Note that the natural log of 2 frequencies that are one half tone apart is ln(2) / 12 = 0.05776226504
- */
+       
 template<typename Iter>
 auto deduceNotesSlow(Iter it,
                      Iter const end,
@@ -666,30 +731,6 @@ auto deduceNotesSlow(Iter it,
   
   std::vector<DeducedNote<T>> res;
   res.reserve(100);
-  
-  struct AlmostFrequency {
-    AlmostFrequency(T t, T epsilon)
-    : val(t)
-    , epsilon(epsilon) {
-    }
-    
-    bool operator == (AlmostFrequency const & o) const {
-      Assert(epsilon == o.epsilon);
-      return std::abs(val - o.val) <= epsilon;
-    }
-    bool operator < (AlmostFrequency const & o) const {
-      Assert(epsilon == o.epsilon);
-      return val < o.val && !operator == (o);
-    }
-    bool operator > (AlmostFrequency const & o) const {
-      Assert(epsilon == o.epsilon);
-      return val > o.val && !operator == (o);
-    }
-    
-  private:
-    T val;
-    T epsilon;
-  };
   
   auto almostFreq = [frequencyEpsilon](T f) { return AlmostFrequency{f, frequencyEpsilon}; };
   
@@ -726,7 +767,7 @@ auto deduceNotesSlow(Iter it,
   int frame = 0;
   for (int sz=freqs_mags.size(); frame < sz; ++frame) {
     for (FreqMag<T> const & fm : freqs_mags[frame]) {
-      auto const f = almostFreq(std::log(fm.freq));
+      auto const f = almostFreq(fm.freq);
       auto it = cur.find(f);
       if (it == cur.end()) {
         cur.emplace(f,

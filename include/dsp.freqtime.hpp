@@ -487,7 +487,7 @@ std::ostream & operator << (std::ostream & os, DeducedNote<T> const & n) {
 template<typename T>
 void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
                       double const lowest_detectable_frequency,
-                      std::string const& imageFile) {
+                      std::filesystem::path const& imageFile) {
   Optional<T> max_mag, min_mag;
   for (auto const & val : notes) {
     if (!max_mag || val.amplitude > *max_mag) {
@@ -582,7 +582,7 @@ void drawDeducedNotes(std::vector<DeducedNote<T>> const & notes,
   bmp::generateBitmapImage(data.data(),
                            amplitudes.begin()->size(),
                            amplitudes.size(),
-                           imageFile.c_str());
+                           imageFile.u8string().c_str());
   
   std::cout << "deduced notes by amplitude:" << std::endl;
   for (auto const & v : byAmplitude) {

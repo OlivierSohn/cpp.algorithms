@@ -8,7 +8,7 @@ namespace imajuscule {
 namespace bsonparser {
     
     struct BSonWriter : public WritableStorage {
-        BSonWriter(DirectoryPath d, FileName f) : WritableStorage(d, f) {}
+        BSonWriter(const std::filesystem::path& p) : WritableStorage(p) {}
 
         ~BSonWriter() {
             writeByte(bsonparser::Item::x00);

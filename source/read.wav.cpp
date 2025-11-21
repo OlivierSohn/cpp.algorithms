@@ -67,14 +67,14 @@ namespace imajuscule::audio {
         }
     }
     
-    bool getConvolutionReverbSignature(std::string const & dirname, std::string const & filename, spaceResponse_t & r) {
-        WAVReader reader(dirname, filename);
+    bool getConvolutionReverbSignature(std::filesystem::path const & filepath, spaceResponse_t & r) {
+        WAVReader reader(filepath);
         
         try {
             reader.Initialize();
         }
         catch(std::exception const & e) {
-            LG(WARN, "Cannot read '%s' as a '.wav' file. If the file exists in '%s', it might be corrupted.", filename.c_str(), dirname.c_str());
+            LG(WARN, "Cannot read '%s' as a '.wav' file. If the file exists, it might be corrupted.", filepath.u8string().c_str());
             return false;
         }
         

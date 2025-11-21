@@ -615,10 +615,10 @@ struct ConstMemoryBlock {
 
 using WAVReaderFromBlock = WAVReader_<ConstMemoryBlock>;
 
-bool getConvolutionReverbSignature(std::string const & dirname, std::string const & filename, spaceResponse_t & r);
+bool getConvolutionReverbSignature(std::filesystem::path const & filepath, spaceResponse_t & r);
 
 struct WAVWriter : public WritableStorage {
-  WAVWriter(DirectoryPath d, FileName f, WAVPCMHeader h) : WritableStorage(d,f), header(h) {}
+  WAVWriter(std::filesystem::path const & p, WAVPCMHeader h) : WritableStorage(p), header(h) {}
   
   ~WAVWriter() {
     UpdateFileHeader();

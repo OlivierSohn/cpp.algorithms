@@ -29,16 +29,14 @@ bool isGUID(std::string const & str);
 
 class WritableStorage;
 class DirectoryPath {
-  std::vector<std::string> vec;
+  std::filesystem::path m_path;
   
   static DirectoryPath referentiablesPath;
   static DirectoryPath capturePath;
 public:
-  DirectoryPath() {}
-  DirectoryPath( const std::string & path );
-  DirectoryPath( const char * path );
-  DirectoryPath( std::initializer_list<std::string> vec ) :
-  vec(vec) {}
+  DirectoryPath( const std::filesystem::path & path );
+    
+  const std::filesystem::path & path() const {return m_path;}
   
   static DirectoryPath root();
   static void setReferentiablesDir(DirectoryPath const &);
@@ -46,26 +44,21 @@ public:
   static void setCaptureImageDir(DirectoryPath const &);
   static bool getCaptureImageDir(DirectoryPath &);
   
-  bool empty() const { return vec.empty(); }
-  bool isFile() const { return StorageStuff::fileExists(toString()); }
-  bool isDir() const { return StorageStuff::dirExists(toString()); }
-  
-  auto begin() const { return vec.begin(); }
-  auto end() const { return vec.end(); }
-  
+  bool empty() const { return m_path.empty(); }
+  bool isFile() const { return std::filesystem::is_regular_file(m_path); }
+  bool isDir() const { return std::filesystem::is_directory(m_path); }
+    
   std::string toString() const;
   void set(const std::string & path);
   
   DirectoryPath operator + ( const DirectoryPath & other ) const {
-    DirectoryPath ret = *this;
-    ret.vec.insert( ret.vec.end(), other.vec.begin(), other.vec.end() );
-    return ret;
+    return { m_path / other.m_path };
   }
   void operator += ( const DirectoryPath & other ) {
-    vec.insert( vec.end(), other.vec.begin(), other.vec.end() );
+    m_path = m_path / other.m_path;
   }
   DirectoryPath & append(const char * p) {
-    vec.push_back(p);
+    m_path = m_path / std::filesystem::path{p};
     return *this;
   }
 };
@@ -80,8 +73,8 @@ class WritableStorage;
 struct ReadableStorage {
   friend class WritableStorage;
   
-  DirectoryPath const & directory() {
-    return m_directoryPath;
+  auto const & path() {
+    return m_path;
   }
   
   enum class FileMode
@@ -91,7 +84,7 @@ struct ReadableStorage {
   };
   
 protected:
-  ReadableStorage(DirectoryPath const &, FileName const &);
+  ReadableStorage(std::filesystem::path const & p);
   virtual ~ReadableStorage();
   
   eResult OpenForRead();
@@ -108,8 +101,7 @@ private:
   size_t m_bufferReadPos;
   
 protected:
-  DirectoryPath m_directoryPath;
-  FileName m_filename;
+  std::filesystem::path m_path;
   
 private:
   eResult OpenFileForOperation(const std::string & sFilePath, FileMode);
@@ -124,14 +116,12 @@ public:
   
 protected:
   
-  WritableStorage(DirectoryPath const & d, FileName const & f) : ReadableStorage(d, f) {}
+  WritableStorage(std::filesystem::path const & p) : ReadableStorage(p) {}
   
   ~WritableStorage() {
-    if(!m_filePath.empty()) {
-      std::lock_guard l(g_mutex_openedForWrite);
+    std::lock_guard l(g_mutex_openedForWrite);
 
-      g_openedForWrite.erase(m_filePath);
-    }
+    g_openedForWrite.erase(m_filePath);
   }
   
   eResult OpenForWrite();
@@ -155,9 +145,9 @@ private:
   
   std::vector<unsigned char> m_writeBuffer;
   
-  static std::set<std::string> g_openedForWrite;
+  static std::set<std::filesystem::path> g_openedForWrite;
   static std::mutex g_mutex_openedForWrite;
-  std::string m_filePath;
+  std::filesystem::path m_filePath;
   
   int  FlushData();
   void FlushMyBuffer();

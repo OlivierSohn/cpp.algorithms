@@ -197,7 +197,7 @@ namespace imajuscule {
    * Adds an element to the fifo queue (using emplace) after having made sure
    * that the fifo queue has enough room for it.
    *
-   * The 'CanRealloc' template parameter controls wether the underlying container may be reallocated
+   * The 'CanRealloc' template parameter controls whether the underlying container may be reallocated
    * or not (if we are lockfree, we don't reallocate)
    *
    * @param l : a potential lock (no-op if we are lockfree) protecting the queue writes.
@@ -205,7 +205,7 @@ namespace imajuscule {
    *        which makes this function suitable for use in a real-time context, provided that
    *        the lock can configure the thread priorities to avoid priority inversion.
    *
-   * @returns wether or not the element was emplaced
+   * @returns whether or not the element was emplaced
    */
   template<CanRealloc canRealloc, typename T, typename Lock>
   [[nodiscard]] bool safeTryEmplace(fifo<T> & q, Lock & l, T && v) {

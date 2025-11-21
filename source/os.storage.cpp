@@ -3,8 +3,8 @@ using namespace imajuscule;
 using namespace StorageStuff;
 
 namespace imajuscule {
-DirectoryPath DirectoryPath::referentiablesPath;
-DirectoryPath DirectoryPath::capturePath;
+DirectoryPath DirectoryPath::referentiablesPath{""};
+DirectoryPath DirectoryPath::capturePath{""};
 
 bool split_path(std::string const & str, DirectoryPath & dir, FileName & filename)
 {
@@ -31,7 +31,7 @@ std::string getParentDirectory(std::string path)
 }
 }
 
-std::set<std::string> WritableStorage::g_openedForWrite;
+std::set<std::filesystem::path> WritableStorage::g_openedForWrite;
 std::mutex WritableStorage::g_mutex_openedForWrite;
 
 void DirectoryPath::setReferentiablesDir(DirectoryPath const & d) {
@@ -50,12 +50,13 @@ bool DirectoryPath::getCaptureImageDir(DirectoryPath & p) {
   return !capturePath.empty();
 }
 
-ReadableStorage::ReadableStorage(DirectoryPath const &d, FileName const &f) :
+ReadableStorage::ReadableStorage(std::filesystem::path const & p) :
 m_pFile(nullptr),
 m_bufferReadPos(0),
-m_directoryPath(d),
-m_filename(f)
-{}
+m_path(p)
+{
+  m_path.make_preferred();
+}
 
 
 ReadableStorage::~ReadableStorage()
@@ -100,17 +101,7 @@ eResult ReadableStorage::OpenFileForOperation(const std::string & sFilePath, Fil
 
 eResult ReadableStorage::OpenForRead()
 {
-  std::string filePath;
-  
-  for( auto const & directory_name : m_directoryPath)
-  {
-    filePath.append(directory_name);
-    filePath.append("/");
-  }
-  
-  filePath.append(m_filename);
-  ReplaceStringInPlace(filePath, "//", "/" );
-  eResult ret = OpenFileForOperation(filePath, FileMode::READ);
+  eResult ret = OpenFileForOperation(m_path, FileMode::READ);
   if ( unlikely(ret != ILE_SUCCESS))
   {
     LG(ERR, "WritableStorage::OpenForRead : OpenFileForOperation returned %d", ret);
@@ -121,35 +112,31 @@ eResult ReadableStorage::OpenForRead()
 eResult WritableStorage::OpenForWrite()
 {
   eResult ret = ILE_SUCCESS;
-  for( auto const & directory_name : m_directoryPath)
+
+  try
   {
-    m_filePath.append( directory_name );
-    m_filePath.append("/");
-    if (!dirExists(m_filePath))
-    {
-      ret = makeDir(m_filePath);
-      if ( unlikely(ILE_SUCCESS != ret))
-      {
-        LG(ERR, "WritableStorage::OpenForWrite : WritableStorage::makeDir(%s) error : %d", m_filePath.c_str(), ret);
-        return ret;
-      }
-    }
+    std::filesystem::create_directories(m_path.parent_path());
   }
-  
-  m_filePath.append(m_filename);
+  catch(std::exception const & e)
+  {
+    LG(ERR, "WritableStorage::OpenForWrite : WritableStorage::makeDir(%s) error : %s",
+       m_path.u8string().c_str(),
+       e.what());
+    return ILE_ERROR;
+  }
   
   {
     std::lock_guard l(g_mutex_openedForWrite);
     
-    auto it2 = g_openedForWrite.find(m_filePath);
+    auto it2 = g_openedForWrite.find(m_path);
     if(it2 != g_openedForWrite.end())
     {
       return ILE_RECURSIVITY;
     }
-    g_openedForWrite.insert(m_filePath);
+    g_openedForWrite.insert(m_path);
   }
   
-  ret = OpenFileForOperation(m_filePath, FileMode::WRITE);
+  ret = OpenFileForOperation(m_path, FileMode::WRITE);
   if ( unlikely(ret != ILE_SUCCESS))
   {
     LG(ERR, "WritableStorage::OpenForWrite : OpenFileForOperation returned %d", ret);
@@ -160,8 +147,6 @@ eResult WritableStorage::OpenForWrite()
 
 eResult WritableStorage::Save()
 {
-  m_filePath.clear();
-  
   eResult ret = doSaveBegin();
   if (ret != ILE_SUCCESS)
   {
@@ -748,35 +733,11 @@ bool isGUID(std::string const & str)
 } // namespace StorageStuff
 } // namespace imajuscule
 
-DirectoryPath::DirectoryPath(const std::string & sInput) {
-  set(sInput);
-}
-
-DirectoryPath::DirectoryPath(const char * sInput) {
-  set(std::string(sInput));
-}
-void DirectoryPath::set(const std::string & sInput)
-{
-  std::istringstream f(sInput);
-  std::string s;
-  while (getline(f, s, '/')) {
-    vec.push_back(s);
-  }
+DirectoryPath::DirectoryPath(const std::filesystem::path & p)
+: m_path(p){
 }
 
 std::string DirectoryPath::toString() const
 {
-  std::string ret;
-  for( auto & st : vec )
-  {
-    ret.append(st);
-    ret.append("/");
-  }
-  
-  if(ret.size() > 1) {
-    // remove trailing '/'
-    ret.pop_back();
-  }
-  
-  return ret;
+  return m_path.u8string();
 }

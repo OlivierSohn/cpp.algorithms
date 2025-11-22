@@ -702,10 +702,11 @@ private:
   WAVPCMHeader header;
 };
 
-template<typename It>
+// To create a 32 bit floating point file from doubles, you must specify the float type in SampleType.
+// otherwise the file will contain 64 bit floating point values, and reading this kind of file is not supported here.
+template<typename It, typename SampleType = typename It::value_type>
 void write_wav(std::filesystem::path const & path, It sampleBegin, It const & sampleEnd, CountChannels n_channels, int sample_rate) {
   using namespace imajuscule::audio;
-  using SampleType = typename It::value_type;
   
   WAVWriter writer(path,
                    pcm(WaveFormat::IEEE_FLOAT,
@@ -717,18 +718,18 @@ void write_wav(std::filesystem::path const & path, It sampleBegin, It const & sa
     throw;
   }
   for(;sampleBegin < sampleEnd; ++sampleBegin)
-    writer.writeSample(*sampleBegin);
+    writer.writeSample(static_cast<SampleType>(*sampleBegin));
 }
 
 template<typename CONTAINER>
-void write_wav(std::filesystem::path const & path, CONTAINER const & samples, NChannels n_channels, int sample_rate) {
+void write_wav(std::filesystem::path const & path, CONTAINER const & samples, CountChannels n_channels, int sample_rate) {
   using namespace imajuscule::audio;
   using SampleType = typename CONTAINER::value_type;
   
   WAVWriter writer(path,
                    pcm(WaveFormat::IEEE_FLOAT,
                        sample_rate,
-                       CountChannels{to_underlying(n_channels)},
+                       n_channels,
                        AudioSample<SampleType>::format));
   auto res = writer.Initialize();
   if(res != ILE_SUCCESS) {
@@ -757,7 +758,7 @@ void write_wav(std::filesystem::path const & path, VEC_VEC const & v_samples, in
     }
   }
   
-  write_wav(path, interlaced, static_cast<NChannels>(n_channels), sample_rate);
+  write_wav(path, interlaced, CountChannels(n_channels), sample_rate);
 }
 
 template<int SAMPLE_SIZE, WaveFormat FMT, typename S>

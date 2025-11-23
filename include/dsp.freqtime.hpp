@@ -317,24 +317,88 @@ extractFundamental(const std::vector<FreqMag<T>>& freqsMags)
   }
   if(!freqMagWithMaxMagnitude.has_value())
     return std::nullopt;
-  // Check whether freqMagWithMaxMagnitude is a harmonic.
+  
+  // the fundamental and first partials must have at least this magnitude:
+  const auto minDBForFirstPartials = freqMagWithMaxMagnitude->mag_db - 30.;
+
+  const auto minDB = freqMagWithMaxMagnitude->mag_db - 50.;
+  std::map<double, double> logFreqToDbMag;
+  for(const auto & f : freqsMags)
+  {
+    if(f.mag_db < minDB)
+      continue;
+    logFreqToDbMag.try_emplace(std::log(f.freq), f.mag_db);
+  }
+
+  auto maxDbAroundFreq = [&](const float freq)
+  {
+    // TODO: Or should we make this larger because frequency detection is inaccurate?
+    constexpr float factor = AlmostFrequency::c_diffHalfToneApartLog2Freqs / 2.;
+    const float logFreq = std::log(freq);
+    const float minLogFreq = logFreq - factor; 
+    const float maxLogFreq = logFreq + factor;
+    std::optional<double> maxValue;
+    for(auto it = logFreqToDbMag.lower_bound(minLogFreq); it != logFreqToDbMag.end(); ++it)
+    {
+      if(it->first > maxLogFreq)
+        break;
+      maxValue = std::max(maxValue.value_or(std::numeric_limits<double>::lowest()), it->second);
+    }
+    return maxValue;
+  };
+
+  std::optional<std::pair<FreqMag<double>, double>> freqMagWithMaxPartialsMagnitude;
+  for(const auto & f : freqsMags)
+  {
+    auto sumDbs = f.mag_db;
+    if(f.mag_db < minDBForFirstPartials)
+      continue;
+    bool skip{};
+    for(int i : {2, 3, 4/*, 5, 6, 7, 8, 9*/})
+    {
+      auto partialFreq = i*f.freq;
+      auto value = minDB;
+      if(auto sum = maxDbAroundFreq(partialFreq))
+        value = *sum;
+
+      /*if(i < 4 && value < minDBForFirstPartials)
+      {
+        skip = true;
+        break;
+      }*/
+      sumDbs += value;
+    }
+    if(skip)
+      continue;
+    if(!freqMagWithMaxPartialsMagnitude.has_value() || freqMagWithMaxPartialsMagnitude->second < sumDbs)
+      freqMagWithMaxPartialsMagnitude = {f, sumDbs};
+  }
+  if(freqMagWithMaxPartialsMagnitude.has_value())
+    return freqMagWithMaxPartialsMagnitude->first;
+  return std::nullopt;
+#if 0
+  // freqMagWithMaxMagnitude could be a partial.
+  // check if we find a corresponding fundamental.
+
   const auto almostF = AlmostFrequency{freqMagWithMaxMagnitude->freq,
     AlmostFrequency::c_diffHalfToneApartLog2Freqs};
   for(const auto & f : freqsMags)
   {
-    if(f.mag_db < freqMagWithMaxMagnitude->mag_db - 25.)
+    if(f.mag_db < freqMagWithMaxMagnitude->mag_db - 6.)
       // the magnitude of this partial is not large enough.
       continue;
     // only testing 3 first partials
     for(int i : {2, 3, 4})
     {
       const auto almostF2 = AlmostFrequency{i * f.freq,
-        AlmostFrequency::c_diffHalfToneApartLog2Freqs};
+        AlmostFrequency::c_diffHalfToneApartLog2Freqs * 0.3};
       if(almostF2 == almostF)
         return f;
     }
   }
+  
   return *freqMagWithMaxMagnitude;
+#endif
 }
 
 /* Converts a square magnitude (homogenous to power)
@@ -951,5 +1015,27 @@ private:
   std::vector<T> first_half;
   std::optional<EqualGainCrossFade> type;
 };
+
+
+template<typename T>
+void xfade_end_to_zero(int64_t halfCountFramesXfade, std::vector<T> & v)
+{
+  const int64_t fullSize = 2 * halfCountFramesXfade;
+  
+  EqualGainXFade<double> xfade;
+  
+  xfade.set(fullSize, EqualGainCrossFade::Sinusoidal);
+  
+  const int64_t vecSize = static_cast<int64_t>(v.size());
+  for(int64_t i = 0; i < fullSize; ++i)
+  {
+    const float xfadeVal = xfade.get(i).old_signal_mult;
+    const int64_t vecIndex = vecSize - fullSize + i;
+    if(vecIndex >= 0)
+    {
+      v[vecIndex] *= xfadeVal;      
+    }
+  }
+}
 
 } // NS

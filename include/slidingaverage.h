@@ -3,7 +3,7 @@ namespace imajuscule
 {
   // TODO use advanced traits for efficient parameter passing
   
-// also privodes sliding max / min values
+// also provides sliding max / min values
   template <class T>
   struct slidingAverage
   {

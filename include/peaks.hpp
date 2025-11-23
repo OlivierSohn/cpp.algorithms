@@ -6,6 +6,89 @@
 
 namespace imajuscule
 {
+
+// See also first_zero_crossing
+// that has a different logic when no zero crossing has been found.
+template<typename ITER>
+ITER zero_crossing(const ITER begin, const ITER end, bool forward)
+{
+  const int step = forward ? 1 : -1;
+  if(begin != end)
+  {
+    auto it = begin;
+    if(const auto val = *it)
+    {
+      // the value is not zero.
+      for(;;)
+      {
+        auto candidate = it + step;
+        if(candidate == end)
+          // we didn't find a zero crossing.
+          break;
+        if(*candidate * val > 0)
+        {
+          // same sign
+          it = candidate;
+        }
+        else
+        {
+          // different signs, we found the zero crossing.
+          return it;
+        }
+      }
+    }
+  }
+  return begin;
+}
+
+// returns the iterator just after the next zero crossing, backwards
+//      it
+//      |
+//      v 
+//     .....
+//    .
+// ------------------------
+//   .^
+//  . |
+// ^  returned
+// |
+// end
+//
+// If no zero crossing exists, returns the input iterator.
+//
+// See also first_zero_crossing
+// that has a different logic when no zero crossing has been found.
+template<typename ITER>
+ITER zero_crossing_backward(const ITER begin, const ITER end)
+{
+  return zero_crossing(begin, end, false);
+}
+
+// returns the iterator just before the next zero crossing, forwards
+//      it
+//      |
+//      v 
+//     .....
+//          .
+// ------------------------
+//          ^.
+//          | .
+//          returned
+//            ^
+//            |
+//            end
+//
+// If no zero crossing exists, returns the input iterator.
+//
+// See also first_zero_crossing
+// that has a different logic when no zero crossing has been found.
+template<typename ITER>
+ITER zero_crossing_forward(const ITER begin, const ITER end)
+{
+  return zero_crossing(begin, end, true);
+}
+
+
 // Returns minimum of "max abolute value" over a range of 'interval_size' consecutive values.
 template<typename ITER, typename VAL = typename ITER::value_type>
 VAL compute_noise_floor(ITER it, ITER end, int interval_size)
@@ -44,6 +127,9 @@ ITER first_relevant_value(ITER it, ITER end, VAL abs_relevant_level) {
 //
 // Note: it is used with reverse iterators to find the beginning of a sample,
 //       once we have found the approximate beginning of the sample using first_relevant_value.
+//
+// See also zero_crossing, zero_crossing_forward, zero_crossing_backward
+// that have a different logic when no zero crossing has been found.
 template<typename ITER>
 ITER first_zero_crossing(ITER it, ITER end) {
   using VAL = typename ITER::value_type;
@@ -180,6 +266,8 @@ ITER find_relevant_start_relaxed(ITER const it, ITER const end, VAL const abs_re
   auto rit = REVERSE_ITER(it_relevant_value+1);
   auto rend = REVERSE_ITER(it);
   auto rzero = first_non_abs_avg_decreasing( rit, rend, sliding_avg_size);
+  // TODO: The comment below is obsolete because we use a sliding average.
+  // TODO: instead, we should continue backwards until we find the next zero crossing.
   // first_non_abs_avg_decreasing returns the iterator after the zero crossing (in the reverse direction)
   // so rzero.base() is the iterator on the other side of the zero crossing
   return rzero.base();
